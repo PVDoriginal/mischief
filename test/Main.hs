@@ -1,4 +1,12 @@
-module Main (main) where
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+module Main where
+
+import MyLib
+import Data.IORef (readIORef)
 
 main :: IO ()
-main = putStrLn "Test suite not yet implemented."
+main = do 
+    world <- newWorld  
+    incrementEntityCounter world
+    counter <- readIORef world.entityCounter 
+    putStrLn $ show counter 
