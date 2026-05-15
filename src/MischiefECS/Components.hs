@@ -22,14 +22,17 @@ emptyComponents = do
 
 getComponentId :: TypeRep -> Components -> IO(ComponentId)
 getComponentId t Components {map, counter} = do 
-    map <- readIORef map 
+    innerMap <- readIORef map 
     
-    case Data.Map.lookup t map  of 
+    case Data.Map.lookup t innerMap  of 
         Just t -> return t
+        Nothing -> do 
+            result <- readIORef counter 
+            modifyIORef counter (+1) 
 
-    result <- readIORef counter 
-    modifyIORef counter (+1) 
-    return $ ComponentId result 
+            modifyIORef map $ Data.Map.insert t (ComponentId result)  
+            
+            return $ ComponentId result 
 
 data ArchetypeId = ArchetypeId {
     id :: Integer
@@ -43,16 +46,20 @@ emptyArchetypes = do
     counter <- newIORef 0 
     return $ Archetypes map counter 
 
+-- | Get the archetype ID from a list of component IDs. 
 getArchetypeId :: [ComponentId] -> Archetypes -> IO(ArchetypeId)
 getArchetypeId t Archetypes {map, counter} = do 
-    map <- readIORef map 
+    innerMap <- readIORef map 
     
-    case Data.Map.lookup t map  of 
+    case Data.Map.lookup t innerMap  of 
         Just t -> return t
+        Nothing -> do 
+            result <- readIORef counter 
+            modifyIORef counter (+1) 
 
-    result <- readIORef counter 
-    modifyIORef counter (+1) 
-    return $ ArchetypeId result 
+            modifyIORef map $ Data.Map.insert t (ArchetypeId result)
+
+            return $ ArchetypeId result 
 
 data ErasedComponent where
   ErasedComponent :: (Typeable c) => c -> ErasedComponent 

@@ -6,6 +6,7 @@ import Data.IORef
 
 import MischiefECS.Entities
 import MischiefECS.Components
+import MischiefECS.Bundles
 
 data World = World {
     archetypes :: Archetypes,
@@ -21,6 +22,12 @@ newWorld = do
     let world = World archetypes components entities
     return world 
 
-spawnEntity :: (Typeable a) => [a] -> World -> IO(Entity)
-spawnEntity components world = do 
-    undefined 
+-- | Spawn an entity in this World given a bundle of components. 
+spawnEntity :: (Bundle b) => b -> World -> IO(Entity)
+spawnEntity bundle world = 
+    do
+        components <- getComponentIds bundle world.components 
+        archetype <- MischiefECS.Components.getArchetypeId components world.archetypes 
+        putStrLn $ show archetype
+        return $ Entity 5  
+     

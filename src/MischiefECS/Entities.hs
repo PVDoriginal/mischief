@@ -23,10 +23,10 @@ emptyEntities = do
     counter <- newIORef 0 
     return $ Entities map counter 
 
-getArchetypeId :: Entity -> Entities -> IO(EntityPointer)
-getArchetypeId t Entities {pointers, counter} = do 
-    pointers <- readIORef pointers 
+-- getArchetypeId :: Entity -> Entities -> IO(EntityPointer)
+-- getArchetypeId t Entities {pointers, counter} = do 
+--     pointers <- readIORef pointers 
     
-    case lookup t pointers  of 
-        Just t -> return t 
-        Nothing -> undefined 
+--     case lookup t pointers  of 
+--         Just t -> return t 
+--         Nothing -> undefined 

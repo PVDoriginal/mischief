@@ -17,6 +17,11 @@ instance Show BundleData where
 class Bundle b where 
     bundleData :: b -> BundleData  
 
+-- | Extracts component IDs from a bundle. 
+getComponentIds :: (Bundle b) => b -> Components -> IO([ComponentId])
+getComponentIds bundle components =
+    mapM (`getComponentId` components) (bundleData bundle).types  
+
 instance {-# OVERLAPPABLE #-} (Component c) => Bundle c where 
   bundleData c = BundleData { types = [typeOf c], components = [erase c]} 
 
