@@ -1,7 +1,6 @@
 module MischiefECS.Entities where 
 import Data.Map
 import Data.IORef
-import Prelude hiding (lookup)
 
 data Entity = Entity {
     id :: Integer 

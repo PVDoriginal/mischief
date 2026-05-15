@@ -1,6 +1,6 @@
 module MischiefECS.World where
 
-import Data.Data
+import Data.Typeable
 import Data.Map
 import Data.IORef
 
@@ -14,7 +14,7 @@ data World = World {
     entities :: Entities
 } 
 
-newWorld :: IO(World)
+newWorld :: IO World 
 newWorld = do  
     archetypes <- emptyArchetypes
     components <- emptyComponents 
@@ -23,7 +23,7 @@ newWorld = do
     return world 
 
 -- | Spawn an entity in this World given a bundle of components. 
-spawnEntity :: (Bundle b) => b -> World -> IO(Entity)
+spawnEntity :: (Bundle b) => b -> World -> IO Entity
 spawnEntity bundle world = 
     do
         components <- getComponentIds bundle world.components 

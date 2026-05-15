@@ -2,25 +2,24 @@ module MischiefECS.Components where
 
 import Data.Map
 import Data.Kind
-import Data.Data (Typeable, TypeRep)
+import Data.Typeable
 import Data.IORef
-import Prelude hiding (lookup)
 import Data.Typeable
 import Data.List
 
-data ComponentId = ComponentId {
+newtype ComponentId = ComponentId {
     id :: Integer
 } deriving (Show, Eq, Ord) 
 
-data Components = Components { map :: IORef (Map TypeRep ComponentId), counter :: IORef(Integer) }  
+data Components = Components { map :: IORef (Map TypeRep ComponentId), counter :: IORef Integer }  
 
-emptyComponents :: IO(Components) 
+emptyComponents :: IO Components
 emptyComponents = do 
     map <- newIORef empty
     counter <- newIORef 0 
     return $ Components map counter 
 
-getComponentId :: TypeRep -> Components -> IO(ComponentId)
+getComponentId :: TypeRep -> Components -> IO ComponentId
 getComponentId t Components {map, counter} = do 
     innerMap <- readIORef map 
     
@@ -34,20 +33,20 @@ getComponentId t Components {map, counter} = do
             
             return $ ComponentId result 
 
-data ArchetypeId = ArchetypeId {
+newtype ArchetypeId = ArchetypeId {
     id :: Integer
 } deriving (Show, Eq, Ord) 
 
-data Archetypes = Archetypes { map :: IORef (Map [ComponentId] ArchetypeId), counter :: IORef(Integer) }
+data Archetypes = Archetypes { map :: IORef (Map [ComponentId] ArchetypeId), counter :: IORef Integer }
 
-emptyArchetypes :: IO(Archetypes) 
+emptyArchetypes :: IO Archetypes 
 emptyArchetypes = do 
     map <- newIORef empty
     counter <- newIORef 0 
     return $ Archetypes map counter 
 
 -- | Get the archetype ID from a list of component IDs. 
-getArchetypeId :: [ComponentId] -> Archetypes -> IO(ArchetypeId)
+getArchetypeId :: [ComponentId] -> Archetypes -> IO ArchetypeId
 getArchetypeId t Archetypes {map, counter} = do 
     innerMap <- readIORef map 
     

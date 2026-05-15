@@ -1,7 +1,7 @@
 module MischiefECS.Bundles where 
 
 import MischiefECS.Components 
-import Data.Data
+import Data.Typeable
 import Data.List
 
 data BundleData = BundleData {
@@ -11,8 +11,7 @@ data BundleData = BundleData {
 
 instance Show BundleData where 
   show BundleData{types} = mconcat ["BundleData [", intercalate ", " ts ,"]"]
-    where ts = Prelude.map show types
-
+    where ts = map show types
 
 class Bundle b where 
     bundleData :: b -> BundleData  
