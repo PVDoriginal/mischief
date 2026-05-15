@@ -1,12 +1,9 @@
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
 module Main where
 
-import MyLib
+import MischiefECS.World
 import Data.IORef (readIORef)
+import Data.Data
 
 main :: IO ()
 main = do 
-    world <- newWorld  
-    incrementEntityCounter world
-    counter <- readIORef world.entityCounter 
-    putStrLn $ show counter 
+    undefined 
