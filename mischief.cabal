@@ -60,19 +60,25 @@ library
 
   -- LANGUAGE extensions used by modules in this package.
   default-extensions:
+    DefaultSignatures
     DeriveAnyClass
     DuplicateRecordFields
     ImportQualifiedPost
+    MagicHash
     NoFieldSelectors
     OverloadedRecordDot
     RequiredTypeArguments
+    TemplateHaskell
     UndecidableInstances
 
   -- other-extensions:
   -- Other library packages from which modules are imported.
   build-depends:
     base ^>=4.22.0.0,
+    binary,
+    bytestring,
     containers,
+    primitive,
 
   -- Directories containing source files.
   hs-source-dirs: src

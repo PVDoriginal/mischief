@@ -8,62 +8,53 @@ import Data.IORef
 import Data.Typeable
 import MischiefECS.Entities 
 import Unsafe.Coerce (unsafeCoerce)
+import MischiefECS.Bundles
 
 newtype Tables = Tables (IORef (Map ArchetypeId Table))
 
-newtype Table = Table {
-    components :: IORef (Map ComponentId ErasedComponentStorage)
+data Table = Table {
+    components :: IORef (Map ComponentId Column),
+    nRows :: IORef Integer 
 }
 
-data ErasedComponentStorage where
-  ErasedComponentStorage ::
-    (Typeable c) =>
-    ComponentStorage c ->
-    ErasedComponentStorage 
+newtype Column = Column [ErasedComponent]
 
-tryGet :: forall c -> Typeable c => ErasedComponentStorage -> Maybe (ComponentStorage c)
-tryGet (type c) (ErasedComponentStorage (s :: ComponentStorage c')) = 
-    case eqT @c @c' of 
-        Just Refl -> Just s 
-        Nothing -> Nothing 
+emptyTables :: IO Tables 
+emptyTables = do 
+    map <- newIORef Map.empty 
+    return $ Tables map 
 
-newtype ComponentStorage c = ComponentStorage [c] deriving Show 
+newTable :: ProcessedBundleData -> IO Table 
+newTable components = do 
+    map <- newIORef $ Map.fromList $ Prelude.map (\x -> (x.id, Column [])) components.elements
+    nRows <- newIORef 0 
+    return $ Table {components=map, nRows}
 
-unsafeCoerceStorage :: forall c -> ErasedComponentStorage -> (Typeable c, Component c) => ComponentStorage c
-unsafeCoerceStorage _ erasedStorage = unsafeCoerce erasedStorage 
+insertComponentsIntoMap :: ProcessedBundleData -> Map ComponentId Column -> Map ComponentId Column 
+insertComponentsIntoMap bundle map = Prelude.foldl' (\map element -> adjust (\(Column x) -> Column $ x ++ [element.component]) element.id map) map bundle.elements
 
-unsafeCoerceComponent :: forall c -> ErasedComponent -> (Typeable c, Component c) => c 
-unsafeCoerceComponent _ erasedComponent = unsafeCoerce erasedComponent
+insertComponentsIntoTable :: ProcessedBundleData -> Table -> IO()   
+insertComponentsIntoTable bundle table = do
+    modifyIORef' table.components $ insertComponentsIntoMap bundle 
 
-unsafeInsertComponent :: forall c . (Typeable c, Component c) => ErasedComponentStorage -> ErasedComponent -> ErasedComponentStorage  
-unsafeInsertComponent erasedStorage erasedComponent =
-    let 
-        ComponentStorage storage = unsafeCoerceStorage c erasedStorage
-        component = unsafeCoerceComponent c erasedComponent 
-    in 
-        ErasedComponentStorage (ComponentStorage (storage ++ [component]))
-
-
-newTable :: IO Table 
-newTable = do 
-    components <- newIORef empty 
-    return $ Table components
-
-insertEntity :: (Typeable a) => [a] -> ArchetypeId -> Tables -> IO EntityPointer 
-insertEntity components archetypeId (Tables (tables)) = 
+insertEntityIntoTables :: ProcessedBundleData -> Tables -> IO EntityPointer 
+insertEntityIntoTables bundle (Tables (tables)) = 
   do 
     innerTables <- readIORef tables
-
+    
     -- gets the correct table (or crates another one and returns it)
-    Table table <- case Map.lookup archetypeId innerTables of 
+    table <- case Map.lookup bundle.archetypeId innerTables of 
         Just table -> pure table
         Nothing -> do
-            table <- newTable 
-            let newTables = insert archetypeId table innerTables 
+            table <- newTable bundle
+            let newTables = insert bundle.archetypeId table innerTables 
             writeIORef tables newTables
             return table 
 
-    innerTable <- readIORef table
+    rowIndex <- readIORef table.nRows
+    modifyIORef table.nRows (+1)
 
-    undefined 
+    let entityPointer = EntityPointer { archetypeId = bundle.archetypeId, rowIndex }
+    
+    return entityPointer 
 

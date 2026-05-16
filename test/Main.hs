@@ -22,3 +22,6 @@ main = do
     spawnEntity (C1, C2, C3) world
     spawnEntity (C3, C2) world
     putStrLn "\n"
+
+    entityPointers <- readIORef world.entities.pointers
+    putStrLn $ show entityPointers

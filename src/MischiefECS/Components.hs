@@ -33,6 +33,13 @@ getComponentId t Components {map, counter} = do
             
             return $ ComponentId result 
 
+
+tryGetComponent :: forall c -> Component c => ErasedComponent -> Maybe c
+tryGetComponent (type c) (ErasedComponent (s :: c')) = 
+    case eqT @c @c' of
+        Just Refl -> Just s 
+        Nothing -> Nothing 
+
 newtype ArchetypeId = ArchetypeId {
     id :: Integer
 } deriving (Show, Eq, Ord) 

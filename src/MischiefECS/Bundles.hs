@@ -9,8 +9,10 @@ import Data.List qualified as List
 import Data.Set
 import Data.Set qualified as Set 
 
-newtype BundleData = BundleData (Set BundleElement)
+data ProcessedBundleData = ProcessedBundleData { elements :: [ProcessedBundleElement], archetypeId :: ArchetypeId }
+data ProcessedBundleElement = ProcessedBundleElement { id :: ComponentId, component :: ErasedComponent }
 
+newtype BundleData = BundleData (Set BundleElement)
 data BundleElement = BundleElement { rep :: TypeRep, component :: ErasedComponent }
 
 instance Eq BundleElement where

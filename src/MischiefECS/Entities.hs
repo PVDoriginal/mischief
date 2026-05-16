@@ -15,7 +15,7 @@ data EntityPointer = EntityPointer {
 data Entities = Entities {
     pointers :: IORef(Map Entity EntityPointer),
     counter :: IORef Integer
-}
+} 
 
 emptyEntities :: IO Entities 
 emptyEntities = do 
