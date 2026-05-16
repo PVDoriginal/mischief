@@ -4,17 +4,17 @@ import Data.IORef
 import MischiefECS.Components
 
 data Entity = Entity {
-    id :: Integer 
+    id :: Int 
 } deriving (Show, Eq, Ord) 
 
 data EntityPointer = EntityPointer {
     archetypeId :: ArchetypeId, 
-    rowIndex :: Integer 
+    rowIndex :: Int 
 } deriving Show 
 
 data Entities = Entities {
     pointers :: IORef(Map Entity EntityPointer),
-    counter :: IORef Integer
+    counter :: IORef Int
 } 
 
 emptyEntities :: IO Entities 

@@ -13,8 +13,8 @@ import MischiefECS.Bundles
 newtype Tables = Tables (IORef (Map ArchetypeId Table))
 
 data Table = Table {
-    components :: IORef (Map ComponentId Column),
-    nRows :: IORef Integer 
+    columns :: IORef (Map ComponentId Column),
+    nRows :: IORef Int 
 }
 
 newtype Column = Column [ErasedComponent]
@@ -28,14 +28,14 @@ newTable :: ProcessedBundleData -> IO Table
 newTable components = do 
     map <- newIORef $ Map.fromList $ Prelude.map (\x -> (x.id, Column [])) components.elements
     nRows <- newIORef 0 
-    return $ Table {components=map, nRows}
+    return $ Table {columns=map, nRows}
 
 insertComponentsIntoMap :: ProcessedBundleData -> Map ComponentId Column -> Map ComponentId Column 
 insertComponentsIntoMap bundle map = Prelude.foldl' (\map element -> adjust (\(Column x) -> Column $ x ++ [element.component]) element.id map) map bundle.elements
 
 insertComponentsIntoTable :: ProcessedBundleData -> Table -> IO()   
 insertComponentsIntoTable bundle table = do
-    modifyIORef' table.components $ insertComponentsIntoMap bundle 
+    modifyIORef' table.columns $ insertComponentsIntoMap bundle 
 
 insertEntityIntoTables :: ProcessedBundleData -> Tables -> IO EntityPointer 
 insertEntityIntoTables bundle (Tables (tables)) = 
@@ -54,7 +54,36 @@ insertEntityIntoTables bundle (Tables (tables)) =
     rowIndex <- readIORef table.nRows
     modifyIORef table.nRows (+1)
 
+    insertComponentsIntoTable bundle table 
+
     let entityPointer = EntityPointer { archetypeId = bundle.archetypeId, rowIndex }
     
     return entityPointer 
 
+tryGetComponentFromColumn :: forall c -> (Component c) => Column -> EntityPointer -> IO(Maybe c)
+tryGetComponentFromColumn typeC (Column components) pointer = 
+    do 
+        let element = components !! pointer.rowIndex 
+        return $ tryGetComponent typeC element 
+
+
+tryGetComponentFromTable :: forall c -> (Component c) => Table -> EntityPointer -> ComponentId -> IO (Maybe c)
+tryGetComponentFromTable typeC table pointer componentId = 
+    do 
+        columns <- readIORef table.columns 
+        let column = Map.lookup componentId columns 
+
+        case column of 
+            Nothing -> return Nothing 
+            Just column -> tryGetComponentFromColumn typeC column pointer   
+
+
+tryGetComponentFromTables :: forall c -> (Component c) => Tables -> EntityPointer -> ComponentId -> IO (Maybe c) 
+tryGetComponentFromTables typeC (Tables tables) pointer componentId = 
+    do 
+        tables <- readIORef tables
+        let table = Map.lookup pointer.archetypeId tables 
+
+        case table of  
+            Nothing -> return Nothing 
+            Just table -> tryGetComponentFromTable typeC table pointer componentId

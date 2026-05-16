@@ -8,10 +8,10 @@ import Data.Typeable
 import Data.List
 
 newtype ComponentId = ComponentId {
-    id :: Integer
+    id :: Int
 } deriving (Show, Eq, Ord) 
 
-data Components = Components { map :: IORef (Map TypeRep ComponentId), counter :: IORef Integer }  
+data Components = Components { map :: IORef (Map TypeRep ComponentId), counter :: IORef Int }  
 
 emptyComponents :: IO Components
 emptyComponents = do 
@@ -41,10 +41,10 @@ tryGetComponent (type c) (ErasedComponent (s :: c')) =
         Nothing -> Nothing 
 
 newtype ArchetypeId = ArchetypeId {
-    id :: Integer
+    id :: Int
 } deriving (Show, Eq, Ord) 
 
-data Archetypes = Archetypes { map :: IORef (Map [ComponentId] ArchetypeId), counter :: IORef Integer }
+data Archetypes = Archetypes { map :: IORef (Map [ComponentId] ArchetypeId), counter :: IORef Int }
 
 emptyArchetypes :: IO Archetypes 
 emptyArchetypes = do 

@@ -13,7 +13,10 @@ import Data.IORef
 import MischiefECS.Entities
 import MischiefECS.Components
 import MischiefECS.Bundles
-import MischiefECS.Tables 
+import MischiefECS.Tables
+
+import Data.Proxy 
+
 
 data World = World {
     archetypes :: Archetypes,
@@ -77,4 +80,22 @@ spawnEntity bundle world =
         putStrLn $ "\n"
         
         return $ Entity entityIndex
-     
+
+tryGetEntityComponent :: forall c -> (Component c) => World -> Entity -> IO (Maybe c)
+tryGetEntityComponent typeC world entity = 
+    do 
+        pointers <- readIORef world.entities.pointers 
+        components <- readIORef world.components.map 
+
+        let componentId = Map.lookup (typeRep $ Proxy @typeC) components
+
+        case componentId of 
+            Nothing -> return Nothing 
+            Just componentId -> do 
+                
+                let pointer = Map.lookup entity pointers
+
+                case pointer of 
+                    Nothing -> return Nothing 
+                    Just pointer -> tryGetComponentFromTables typeC world.tables pointer componentId   
+
