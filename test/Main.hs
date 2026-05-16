@@ -2,7 +2,7 @@ module Main where
 
 import MischiefECS
 import Data.IORef (readIORef)
-import Data.Data
+import Data.Typeable
 
 data C1 = C1 deriving Component 
 data C2 = C2 deriving Component 
@@ -19,4 +19,6 @@ main = do
     spawnEntity (C2, C1) world    
     spawnEntity (C1, C2) world    
     spawnEntity (C2, C3) world
+    spawnEntity (C1, C2, C3) world
+    spawnEntity (C3, C2) world
     putStrLn "\n"

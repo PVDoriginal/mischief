@@ -1,3 +1,5 @@
+
+
 def instance(n):
     res = ""
     res += "instance {-# OVERLAPPING #-} ("
@@ -22,27 +24,18 @@ def instance(n):
 
     res += ") = \n    let\n"
     for i in range(n):
-        res += "      BundleData {types = types" + str(i) + ", components = components" + str(i) + "} = bundleData c" + str(i) + "\n"
+        res += "      BundleData set" + str(i) + " = bundleData c" + str(i) + "\n"
 
-    res += "    in\n      BundleData{\n"
-
-    res += "        types = concat ["
+    res += "    in\n      BundleData $ "
+    res += "Set.unions ["
 
     for i in range(n):
-        res += "types" + str(i)
+        res += "set" + str(i)
         if i != n-1:
             res += ", "
 
-    res += "],\n"
+    res += "]\n\n"
 
-    res += "        components = concat ["
-
-    for i in range(n):
-        res += "components" + str(i)
-        if i != n-1:
-            res += ", "
-
-    res += "]\n      }\n\n"
     return res
 
 if __name__ == '__main__':

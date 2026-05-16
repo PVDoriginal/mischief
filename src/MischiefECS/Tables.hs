@@ -7,10 +7,11 @@ import MischiefECS.Components
 import Data.IORef
 import Data.Typeable
 import MischiefECS.Entities 
+import Unsafe.Coerce (unsafeCoerce)
 
 newtype Tables = Tables (IORef (Map ArchetypeId Table))
 
-data Table = Table {
+newtype Table = Table {
     components :: IORef (Map ComponentId ErasedComponentStorage)
 }
 
@@ -28,15 +29,22 @@ tryGet (type c) (ErasedComponentStorage (s :: ComponentStorage c')) =
 
 newtype ComponentStorage c = ComponentStorage [c] deriving Show 
 
-insertRow :: (Typeable c) => [c] -> Table -> IO() 
-insertRow components (Table table) = do 
-    innerTable <- readIORef table 
-    -- do 
-        -- erasedStorage <- innerTable 
-    
-    undefined 
+unsafeCoerceStorage :: forall c -> ErasedComponentStorage -> (Typeable c, Component c) => ComponentStorage c
+unsafeCoerceStorage _ erasedStorage = unsafeCoerce erasedStorage 
 
-newTable :: IO(Table) 
+unsafeCoerceComponent :: forall c -> ErasedComponent -> (Typeable c, Component c) => c 
+unsafeCoerceComponent _ erasedComponent = unsafeCoerce erasedComponent
+
+unsafeInsertComponent :: forall c . (Typeable c, Component c) => ErasedComponentStorage -> ErasedComponent -> ErasedComponentStorage  
+unsafeInsertComponent erasedStorage erasedComponent =
+    let 
+        ComponentStorage storage = unsafeCoerceStorage c erasedStorage
+        component = unsafeCoerceComponent c erasedComponent 
+    in 
+        ErasedComponentStorage (ComponentStorage (storage ++ [component]))
+
+
+newTable :: IO Table 
 newTable = do 
     components <- newIORef empty 
     return $ Table components

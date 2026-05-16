@@ -27,7 +27,11 @@ spawnEntity :: (Bundle b) => b -> World -> IO Entity
 spawnEntity bundle world = 
     do
         components <- getComponentIds bundle world.components 
-        archetype <- MischiefECS.Components.getArchetypeId components world.archetypes 
-        putStrLn $ show archetype
+        archetypeId <- MischiefECS.Components.getArchetypeId components world.archetypes
+        
+        entityIndex <- readIORef world.entities.counter 
+        writeIORef world.entities.counter $ entityIndex + 1 
+
+        putStrLn $ show archetypeId
         return $ Entity 5  
      
