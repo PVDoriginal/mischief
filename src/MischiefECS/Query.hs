@@ -20,10 +20,10 @@ instance (QueryData (Proxy a0), QueryData (Proxy a1)) => QueryData (Proxy (a0, a
     types :: (QueryData (Proxy a0), QueryData (Proxy a1)) => Proxy (a0, a1) -> Set TypeRep
     types _ = Set.union (types $ Proxy @a0) (types $ Proxy @a1)  
 
-data Query qd = (QueryData qd) => Query qd
+data Query qd = (QueryData (Proxy qd)) => Query qd
 
-queryTypes :: Query qd -> Set TypeRep 
-queryTypes (Query qd) = types qd  
+queryTypes :: forall qd . (QueryData (Proxy qd)) => Query qd -> Set TypeRep 
+queryTypes _ = types $ Proxy @qd  
 
-fillQuery :: (Recoverable c e) => Query (Proxy c) -> e -> Maybe c  
-fillQuery _ e = recover e 
+fillQuery :: (Recoverable c e) => (c -> Query c) -> e -> Maybe c  
+fillQuery _ e = recover e   
