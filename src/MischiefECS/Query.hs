@@ -28,9 +28,6 @@ data Query qd = (QueryData (Proxy qd)) => Query
 queryTypes :: forall qd . (QueryData (Proxy qd)) => Query qd -> Set TypeRep 
 queryTypes _ = types $ Proxy @qd  
 
-fillQuery :: (Recoverable c e) => Query c -> e -> Maybe c  
-fillQuery _ e = recover e   
-
 class (QueryData (Proxy qd)) => Queryable qd where 
     runQueryEntity :: Query qd -> World -> Entity -> IO (Maybe qd) 
     runQueryInternal :: Query qd -> [ArchetypeId] -> World -> IO [qd]

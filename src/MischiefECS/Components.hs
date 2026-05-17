@@ -86,24 +86,3 @@ data ErasedComponent where
 class Typeable c => Component c where 
   erase :: c -> ErasedComponent
   erase = ErasedComponent 
-
-class Erased e 
-instance Erased ErasedComponent 
-instance (Erased a0, Erased a1) => Erased (a0, a1) 
-instance (Erased a0, Erased a1, Erased a2) => Erased (a0, a1, a2) 
-
-class (Typeable c, Erased e) => Recoverable c e where 
-  recover :: e -> Maybe c
-
-instance {-# OVERLAPPABLE #-} (Component c) => Recoverable c ErasedComponent where
-  recover :: Component c => ErasedComponent -> Maybe c
-  recover e = tryGetComponent c e   
-
-instance {-# OVERLAPPING #-} (Recoverable r0 a0, Recoverable r1 a1) => Recoverable (r0, r1) (a0, a1) where  
-  recover :: (Recoverable r0 a0, Recoverable r1 a1) => (a0, a1) -> Maybe (r0, r1)
-  recover (erased0, erased1) = do 
-    component1 <- recover erased0 
-    component2 <- recover erased1 
-    return (component1, component2)
-
-

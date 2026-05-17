@@ -26,5 +26,3 @@ e2 = ErasedComponent $ C2 "lol"
 e3 = ErasedComponent $ C3 2.5  
 
 q3 = Query @(C1, (C1, C2))
-
-queryResult = fillQuery q3 (e1, (e1, e2))
