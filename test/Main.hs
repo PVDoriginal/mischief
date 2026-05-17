@@ -39,3 +39,6 @@ main = do
 
     c <- tryGetEntityComponent (type C2) world e8 
     putStrLn $ show c 
+
+    c <- queryEntity (Query @(C1, (C1, C3))) world e7
+    putStrLn $ show c 
