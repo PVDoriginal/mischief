@@ -32,17 +32,21 @@ fillQuery :: (Recoverable c e) => Query c -> e -> Maybe c
 fillQuery _ e = recover e   
 
 class (QueryData (Proxy qd)) => Queryable qd where 
-    queryEntity :: Query qd -> World -> Entity -> IO (Maybe qd) 
+    runQueryEntity :: Query qd -> World -> Entity -> IO (Maybe qd) 
+    runQueryInternal :: Query qd -> [ArchetypeId] -> World -> IO [qd]
 
 instance {-# OVERLAPPABLE #-} (Component c) => Queryable c where
-    queryEntity :: Component c => Query c -> World -> Entity -> IO (Maybe c)
-    queryEntity _ world entity = tryGetEntityComponent c world entity 
+    runQueryEntity :: Component c => Query c -> World -> Entity -> IO (Maybe c)
+    runQueryEntity _ world entity = tryGetEntityComponent c world entity 
 
-instance (Queryable q0, Queryable q1) => Queryable (q0, q1) where 
-    queryEntity :: (Queryable q0, Queryable q1) => Query (q0, q1) -> World -> Entity -> IO (Maybe (q0, q1))
-    queryEntity _ world entity = do 
-        r0 <- queryEntity (Query @q0) world entity 
-        r1 <- queryEntity (Query @q1) world entity 
+    runQueryInternal :: Component c => Query c -> [ArchetypeId] -> World -> IO [c]
+    runQueryInternal _ archetypes world = tryGetComponents c world archetypes 
+
+instance {-# OVERLAPPING #-} (Queryable q0, Queryable q1) => Queryable (q0, q1) where 
+    runQueryEntity :: (Queryable q0, Queryable q1) => Query (q0, q1) -> World -> Entity -> IO (Maybe (q0, q1))
+    runQueryEntity _ world entity = do 
+        r0 <- runQueryEntity (Query @q0) world entity 
+        r1 <- runQueryEntity (Query @q1) world entity 
         
         let res = do 
                 r0 <- r0
@@ -51,3 +55,20 @@ instance (Queryable q0, Queryable q1) => Queryable (q0, q1) where
 
         return res 
     
+    runQueryInternal :: (Queryable q0, Queryable q1) => Query (q0, q1) -> [ArchetypeId] -> World -> IO [(q0, q1)]
+    runQueryInternal _ archetypes world = do 
+        r0 <- runQueryInternal (Query @q0) archetypes world 
+        r1 <- runQueryInternal (Query @q1) archetypes world 
+        
+        return $ zip r0 r1 
+
+runQuery :: forall qd. (QueryData (Proxy qd), Queryable qd) => Query qd -> World -> IO [qd] 
+runQuery query world = 
+    do 
+        components <- mapM (\c -> getComponentId c world.components) (Set.toList (types (Proxy @qd)))
+        archetypes <- findMatchingArchetypes components world.archetypes 
+        runQueryInternal query archetypes world 
+
+query :: forall qd -> (QueryData (Proxy qd), Queryable qd ) => World -> IO [qd]
+query queryData world =
+    runQuery (Query @queryData) world

@@ -99,3 +99,9 @@ tryGetEntityComponent typeC world entity =
                     Nothing -> return Nothing 
                     Just pointer -> tryGetComponentFromTables typeC world.tables pointer componentId   
 
+tryGetComponents :: forall c -> (Component c) => World -> [ArchetypeId] -> IO [c]  
+tryGetComponents typeC world archetypes = 
+    do 
+        componentId <- getComponentId (typeRep $ Proxy @typeC) world.components
+        tryGetComponentsFromTables typeC world.tables archetypes componentId
+

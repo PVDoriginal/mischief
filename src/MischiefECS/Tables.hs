@@ -87,3 +87,34 @@ tryGetComponentFromTables typeC (Tables tables) pointer componentId =
         case table of  
             Nothing -> return Nothing 
             Just table -> tryGetComponentFromTable typeC table pointer componentId
+
+tryGetComponentsFromColumn :: forall c -> (Component c) => Column -> IO [c]
+tryGetComponentsFromColumn typeC (Column components) = 
+    do 
+        let x = mapM (\c -> tryGetComponent typeC c) components  
+        case x of 
+            Nothing -> return []
+            Just c -> return c  
+
+tryGetComponentsFromTable :: forall c -> (Component c) => Table -> ComponentId -> IO [c]
+tryGetComponentsFromTable typeC table componentId = 
+    do 
+        columns <- readIORef table.columns
+        case Map.lookup componentId columns of 
+            Nothing -> return []
+            Just column -> tryGetComponentsFromColumn typeC column 
+
+tryGetComponentsFromArchetype :: forall c -> (Component c) => ArchetypeId -> Map ArchetypeId Table -> ComponentId -> IO [c] 
+tryGetComponentsFromArchetype typeC archetype tables componentId = 
+    case Map.lookup archetype tables of 
+        Nothing -> return []
+        Just table -> tryGetComponentsFromTable typeC table componentId 
+
+
+tryGetComponentsFromTables :: forall c -> (Component c) => Tables -> [ArchetypeId] -> ComponentId -> IO [c]
+tryGetComponentsFromTables typeC (Tables tables) archetypes componentId = 
+    do 
+        tables <- readIORef tables 
+        results <- mapM (\archetype -> tryGetComponentsFromArchetype typeC archetype tables componentId) archetypes 
+        return $ concat results 
+        

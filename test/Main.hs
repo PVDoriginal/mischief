@@ -25,20 +25,11 @@ main = do
 
     putStrLn "\n"
 
-    entityPointers <- readIORef world.entities.pointers
-    putStrLn $ show entityPointers
+    -- c <- runQuery (Query @(C1, C2)) world
+    -- putStrLn $ show c 
 
-    c <- tryGetEntityComponent (type C1) world e1 
+    c <- query (type (C1, C2)) world
     putStrLn $ show c 
 
-    c <- tryGetEntityComponent (type C3) world e1 
-    putStrLn $ show c 
-
-    c <- tryGetEntityComponent (type C3) world e6 
-    putStrLn $ show c 
-
-    c <- tryGetEntityComponent (type C2) world e8 
-    putStrLn $ show c 
-
-    c <- queryEntity (Query @(C1, (C1, C3))) world e7
-    putStrLn $ show c 
+    -- c <- runQuery (Query @C1) world
+    -- putStrLn $ show c 
