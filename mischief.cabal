@@ -55,6 +55,7 @@ library
     MischiefECS.Bundles
     MischiefECS.Components
     MischiefECS.Entities
+    MischiefECS.Query
     MischiefECS.Tables
     MischiefECS.World
 
