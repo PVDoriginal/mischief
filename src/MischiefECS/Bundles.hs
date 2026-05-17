@@ -28,15 +28,15 @@ instance Show BundleData where
     where ts = List.map (\bundle -> show bundle.rep) (Set.toList set) 
 
 class Bundle b where 
-    bundleData :: b -> BundleData  
+  bundleData :: b -> BundleData  
 
 -- | Extracts component IDs from a bundle. 
 getComponentIds :: (Bundle b) => b -> Components -> IO [ComponentId]
 getComponentIds bundle components =
-    let 
-        BundleData set = bundleData bundle 
-    in   
-        mapM ((`getComponentId` components) . (\x -> x.rep)) (Set.toList set)  
+  let 
+    BundleData set = bundleData bundle 
+  in   
+    mapM ((`getComponentId` components) . (\x -> x.rep)) (Set.toList set)  
 
 instance {-# OVERLAPPABLE #-} (Component c) => Bundle c where 
   bundleData c = BundleData (Set.fromList [BundleElement {rep = typeOf c, component = erase c}]) 

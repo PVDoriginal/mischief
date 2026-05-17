@@ -25,11 +25,5 @@ main = do
 
     putStrLn "\n"
 
-    -- c <- runQuery (Query @(C1, C2)) world
-    -- putStrLn $ show c 
-
-    c <- query (type (C1, C2)) world
+    c <- query (type (C2)) world
     putStrLn $ show c 
-
-    -- c <- runQuery (Query @C1) world
-    -- putStrLn $ show c 
