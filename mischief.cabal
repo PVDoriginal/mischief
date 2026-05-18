@@ -52,6 +52,7 @@ library
   -- Modules included in this library but not exported.
   -- other-modules:
   other-modules:
+    MischiefECS.App
     MischiefECS.Bundles
     MischiefECS.Components
     MischiefECS.Entities
@@ -75,7 +76,7 @@ library
   -- other-extensions:
   -- Other library packages from which modules are imported.
   build-depends:
-    base ^>=4.22.0.0,
+    base ^>=4.21.0.0,
     binary,
     bytestring,
     containers,
@@ -111,7 +112,7 @@ test-suite mischief-test
   main-is: Main.hs
   -- Test dependencies.
   build-depends:
-    base ^>=4.22.0.0,
+    base ^>=4.21.0.0,
     containers,
     mischief,
     transformers,

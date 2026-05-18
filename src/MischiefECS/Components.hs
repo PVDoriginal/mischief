@@ -1,92 +1,89 @@
-module MischiefECS.Components where 
+module MischiefECS.Components where
 
-
-import Data.Typeable
 import Data.IORef
-
-import Data.Map
-import Data.Map qualified as Map 
-
 import Data.List
-import Data.List qualified as List 
+import Data.List qualified as List
+import Data.Map
+import Data.Map qualified as Map
+import Data.Set
+import Data.Set qualified as Set
+import Data.Typeable
 
-import Data.Set 
-import Data.Set qualified as Set 
+newtype ComponentId = ComponentId
+  { id :: Int
+  }
+  deriving (Show, Eq, Ord)
 
-newtype ComponentId = ComponentId {
-  id :: Int
-} deriving (Show, Eq, Ord) 
-
-data Components = Components { map :: IORef (Map TypeRep ComponentId), counter :: IORef Int }  
+data Components = Components {map :: IORef (Map TypeRep ComponentId), counter :: IORef Int}
 
 emptyComponents :: IO Components
-emptyComponents = do 
+emptyComponents = do
   map <- newIORef Map.empty
-  counter <- newIORef 0 
-  return $ Components map counter 
+  counter <- newIORef 0
+  return $ Components map counter
 
 getComponentId :: TypeRep -> Components -> IO ComponentId
-getComponentId t Components {map, counter} = do 
-  innerMap <- readIORef map 
-  
-  case Data.Map.lookup t innerMap  of 
+getComponentId t Components {map, counter} = do
+  innerMap <- readIORef map
+
+  case Data.Map.lookup t innerMap of
     Just t -> return t
-    Nothing -> do 
-      result <- readIORef counter 
-      modifyIORef counter (+1) 
+    Nothing -> do
+      result <- readIORef counter
+      modifyIORef counter (+ 1)
 
-      modifyIORef map $ Data.Map.insert t (ComponentId result)  
-      
-      return $ ComponentId result 
+      modifyIORef map $ Data.Map.insert t (ComponentId result)
 
+      return $ ComponentId result
 
-tryGetComponent :: forall c -> Component c => ErasedComponent -> Maybe c
-tryGetComponent (type c) (ErasedComponent (s :: c')) = 
+tryGetComponent :: forall c -> (Component c) => ErasedComponent -> Maybe c
+tryGetComponent (type c) (ErasedComponent (s :: c')) =
   case eqT @c @c' of
-    Just Refl -> Just s 
-    Nothing -> Nothing 
+    Just Refl -> Just s
+    Nothing -> Nothing
 
-newtype ArchetypeId = ArchetypeId {
-  id :: Int
-} deriving (Show, Eq, Ord) 
+newtype ArchetypeId = ArchetypeId
+  { id :: Int
+  }
+  deriving (Show, Eq, Ord)
 
-data Archetypes = Archetypes { map :: IORef (Map [ComponentId] ArchetypeId), counter :: IORef Int }
+data Archetypes = Archetypes {map :: IORef (Map [ComponentId] ArchetypeId), counter :: IORef Int}
 
-emptyArchetypes :: IO Archetypes 
-emptyArchetypes = do 
+emptyArchetypes :: IO Archetypes
+emptyArchetypes = do
   map <- newIORef Map.empty
-  counter <- newIORef 0 
-  return $ Archetypes map counter 
+  counter <- newIORef 0
+  return $ Archetypes map counter
 
--- | Get the archetype ID from a list of component IDs. 
+-- | Get the archetype ID from a list of component IDs.
 getArchetypeId :: [ComponentId] -> Archetypes -> IO ArchetypeId
-getArchetypeId t Archetypes {map, counter} = do 
-  innerMap <- readIORef map 
+getArchetypeId t Archetypes {map, counter} = do
+  innerMap <- readIORef map
 
-  case Data.Map.lookup t innerMap  of 
+  case Data.Map.lookup t innerMap of
     Just t -> return t
-    Nothing -> do 
-      result <- readIORef counter 
-      modifyIORef counter (+1) 
+    Nothing -> do
+      result <- readIORef counter
+      modifyIORef counter (+ 1)
 
       modifyIORef map $ Data.Map.insert t (ArchetypeId result)
 
-      return $ ArchetypeId result 
+      return $ ArchetypeId result
 
 removeArchetypeId :: ArchetypeId -> Archetypes -> IO ()
-removeArchetypeId id archetypes = do 
+removeArchetypeId id archetypes = do
   modifyIORef' archetypes.map (Map.filter (\v -> v /= id))
 
 findMatchingArchetypes :: [ComponentId] -> Archetypes -> IO [ArchetypeId]
-findMatchingArchetypes components archetypes = 
+findMatchingArchetypes components archetypes =
   do
-    archetypes <- readIORef archetypes.map 
-    let archetypesList = Map.toList archetypes 
-    return $ List.map snd $ List.filter (\(archetype, _) -> components `isSubsequenceOf` archetype) archetypesList 
- 
-data ErasedComponent where
-  ErasedComponent :: (Typeable c) => c -> ErasedComponent 
+    archetypes <- readIORef archetypes.map
+    let archetypesList = Map.toList archetypes
+    return $ List.map snd $ List.filter (\(archetype, _) -> components `isSubsequenceOf` archetype) archetypesList
 
-class Typeable c => Component c where 
+data ErasedComponent where
+  ErasedComponent :: (Typeable c) => c -> ErasedComponent
+
+class (Typeable c) => Component c where
   erase :: c -> ErasedComponent
-  erase = ErasedComponent 
+  erase = ErasedComponent
