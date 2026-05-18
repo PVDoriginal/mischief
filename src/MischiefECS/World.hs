@@ -17,6 +17,8 @@ import MischiefECS.Tables
 
 import Data.Proxy 
 import Data.List
+import Control.Monad.Trans.Reader
+import Control.Monad.IO.Class (MonadIO(liftIO))
 
 
 data World = World {
@@ -82,65 +84,68 @@ removeComponentFromProcessedBundle world componentId bundle =
 
 
 -- | Spawn an entity in this World given a bundle of components. 
-spawn :: (Bundle b) => b -> World -> IO Entity
-spawn bundle world = 
+spawn :: (Bundle b) => b -> System Entity
+spawn bundle = 
   do
-    bundle <- processBundleData world $ bundleData bundle 
+    world <- ask 
+    bundle <- liftIO $ processBundleData world $ bundleData bundle 
 
     let archetypeId = bundle.archetypeId 
     
-    entityIndex <- readIORef world.entities.counter 
-    modifyIORef world.entities.counter (+1) 
+    entityIndex <- liftIO $ readIORef world.entities.counter 
+    liftIO $ modifyIORef world.entities.counter (+1) 
 
-    entityPointer <- insertEntityIntoTables bundle world.tables
-    entityPointer <- newIORef entityPointer
+    entityPointer <- liftIO $ insertEntityIntoTables bundle world.tables
+    entityPointer <- liftIO $ newIORef entityPointer
 
-    modifyIORef' world.entities.pointers $ Map.insert (Entity entityIndex) entityPointer
+    liftIO $ modifyIORef' world.entities.pointers $ Map.insert (Entity entityIndex) entityPointer
 
     return $ Entity entityIndex
 
-despawn :: Entity -> World -> IO ()
-despawn entity world = 
+despawn :: Entity -> System ()
+despawn entity = 
   do 
-    pointers <- readIORef world.entities.pointers 
+    world <- ask 
+    pointers <- liftIO $ readIORef world.entities.pointers 
     case Map.lookup entity pointers of 
       Nothing -> undefined 
       Just pointer -> do
 
         let Tables tables = world.tables 
-        tables <- readIORef tables 
-        currentPointer <- readIORef pointer 
+        tables <- liftIO $ readIORef tables 
+        currentPointer <- liftIO $ readIORef pointer 
 
         case Map.lookup currentPointer.archetypeId tables of 
           Nothing -> undefined 
           Just table -> do 
-            removeComponentsFromTable currentPointer table 
+            liftIO $ removeComponentsFromTable currentPointer table 
             
-            empty <- tableIsEmpty table 
+            empty <- liftIO $ tableIsEmpty table 
 
             if empty then do 
-              removeArchetypeId currentPointer.archetypeId world.archetypes 
+              liftIO $ removeArchetypeId currentPointer.archetypeId world.archetypes 
             else return ()
 
-            removeEntity entity world.entities 
+            liftIO $ removeEntity entity world.entities 
 
 
 
-insert :: (Bundle b) => b -> Entity -> World -> IO ()
-insert bundle entity world = 
+insert :: (Bundle b) => b -> Entity -> System ()
+insert bundle entity = 
   do 
-    bundleData <- processBundleData world (bundleData bundle)
+    world <- ask 
+    bundleData <- liftIO $ processBundleData world (bundleData bundle)
     let newComponents = Prelude.map (\x -> x.id) bundleData.elements
 
-    entityPointers <- readIORef world.entities.pointers
+    entityPointers <- liftIO $ readIORef world.entities.pointers
     case Map.lookup entity entityPointers of   
       Nothing -> undefined 
       Just currentPointer -> do 
 
-        currentPointerInternal <- readIORef currentPointer
+        currentPointerInternal <- liftIO $ readIORef currentPointer
 
         let Tables tables = world.tables 
-        tables <- readIORef tables
+        tables <- liftIO $ readIORef tables
 
         case Map.lookup currentPointerInternal.archetypeId tables of 
           Nothing -> undefined 
@@ -148,42 +153,46 @@ insert bundle entity world =
             
             -- Simple case, no archetype change. 
             if newComponents `isSubsequenceOf` currentTable.components then 
-              replaceComponentsIntoTable bundleData currentPointerInternal currentTable    
+              liftIO $ replaceComponentsIntoTable bundleData currentPointerInternal currentTable    
             -- Complex case, archetype change. 
             else do 
-              collectedComponents <- takeComponentsFromTable currentPointerInternal currentTable 
-              newBundle <- combineProcessedBundles world collectedComponents bundleData 
+              collectedComponents <- liftIO $ takeComponentsFromTable currentPointerInternal currentTable 
+              newBundle <- liftIO $ combineProcessedBundles world collectedComponents bundleData 
 
-              newPointer <- insertEntityIntoTables newBundle world.tables  
-              writeIORef currentPointer newPointer 
+              newPointer <- liftIO $ insertEntityIntoTables newBundle world.tables  
+              liftIO $ writeIORef currentPointer newPointer
+
+              let Tables tables = world.tables 
+              tables <- liftIO $ readIORef tables 
 
               case Map.lookup newPointer.archetypeId tables of 
                 Nothing -> undefined 
                 Just newTable -> do  
-                  replaceComponentsIntoTable bundleData newPointer newTable
+                  liftIO $ replaceComponentsIntoTable bundleData newPointer newTable
 
-remove :: forall c -> (Component c) => Entity -> World -> IO () 
-remove componentType entity world = 
+remove :: forall c -> (Component c) => Entity -> System () 
+remove componentType entity = 
   do 
-    componentId <- getComponentId (typeRep $ Proxy @componentType) world.components
-    entityPointers <- readIORef world.entities.pointers 
+    world <- ask 
+    componentId <- liftIO $ getComponentId (typeRep $ Proxy @componentType) world.components
+    entityPointers <- liftIO $ readIORef world.entities.pointers 
 
     case Map.lookup entity entityPointers of 
       Nothing -> undefined 
       Just pointer -> do 
         
         let Tables tables = world.tables
-        tables <- readIORef tables 
-        currentPointer <- readIORef pointer 
+        tables <- liftIO $ readIORef tables 
+        currentPointer <- liftIO $ readIORef pointer 
         
         case Map.lookup currentPointer.archetypeId tables of 
           Nothing -> undefined 
           Just currentTable -> do 
             
-            collectedComponents <- takeComponentsFromTable currentPointer currentTable 
-            newBundle <- removeComponentFromProcessedBundle world componentId collectedComponents 
-            newPointer <- insertEntityIntoTables newBundle world.tables 
-            writeIORef pointer newPointer
+            collectedComponents <- liftIO $ takeComponentsFromTable currentPointer currentTable 
+            newBundle <- liftIO $ removeComponentFromProcessedBundle world componentId collectedComponents 
+            newPointer <- liftIO $ insertEntityIntoTables newBundle world.tables 
+            liftIO $ writeIORef pointer newPointer
 
 tryGetEntityComponent :: forall c -> (Component c) => World -> Entity -> IO (Maybe c)
 tryGetEntityComponent typeC world entity = 
@@ -210,5 +219,8 @@ tryGetComponents :: forall c -> (Component c) => World -> [ArchetypeId] -> IO [c
 tryGetComponents typeC world archetypes = 
   do 
     componentId <- getComponentId (typeRep $ Proxy @typeC) world.components
-    tryGetComponentsFromTables typeC world.tables archetypes componentId
+    tryGetComponentsFromTables typeC world.tables archetypes componentId 
+
+type System = ReaderT World IO
+
 

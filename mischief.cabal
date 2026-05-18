@@ -80,6 +80,7 @@ library
     bytestring,
     containers,
     primitive,
+    transformers,
 
   -- Directories containing source files.
   hs-source-dirs: src
@@ -113,3 +114,4 @@ test-suite mischief-test
     base ^>=4.22.0.0,
     containers,
     mischief,
+    transformers,

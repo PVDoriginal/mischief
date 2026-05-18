@@ -8,6 +8,8 @@ import Data.Proxy (Proxy(..))
 import Data.Typeable (Typeable, typeRep, TypeRep)
 import Data.Set
 import Data.Set qualified as Set 
+import Control.Monad.IO.Class
+import Control.Monad.Trans.Reader
 
 class QueryData qd where 
     types :: Proxy qd -> Set TypeRep
@@ -62,6 +64,7 @@ runQuery query world =
         archetypes <- findMatchingArchetypes components world.archetypes 
         runQueryInternal query archetypes world 
 
-query :: forall qd. (QueryData qd, Queryable qd) => World -> IO [qd]
-query world =
-    runQuery (Proxy @qd) world
+query :: forall qd. (QueryData qd, Queryable qd) => System [qd]
+query  = do 
+  world <- ask
+  liftIO $ runQuery (Proxy @qd) world

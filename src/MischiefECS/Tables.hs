@@ -73,13 +73,9 @@ takeComponentsFromTable pointer table =
   do 
     columnsInternal <- readIORef table.columns     
 
-    putStrLn $ show (Prelude.map (\(id, (Column x)) -> (id, length x)) $ Map.toList columnsInternal)
-    
     let newColumns = Prelude.map (\(id, column) -> (id, takeFromColumn pointer column)) $ Map.toList columnsInternal 
     writeIORef table.columns $ Map.fromList $ Prelude.map (\(id, (_, column)) -> (id, column)) newColumns
     modifyIORef' table.nRows (\x -> x - 1)
-
-    putStrLn $ show (Prelude.map (\(id, (_, Column x)) -> (id, length x)) newColumns)
 
     let elements = Prelude.map getComponent $ newColumns
     return ProcessedBundleData {elements, archetypeId = pointer.archetypeId}
