@@ -27,5 +27,5 @@ main = do
 
   putStrLn "\n"
 
-  c <- query (type (C1)) world
+  c <- query @C1 world
   putStrLn $ show c 
