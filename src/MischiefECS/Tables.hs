@@ -14,6 +14,7 @@ newtype Tables = Tables (IORef (Map ArchetypeId Table))
 
 data Table = Table {
   columns :: IORef (Map ComponentId Column),
+  components :: [ComponentId],
   nRows :: IORef Int 
 }
 
@@ -28,16 +29,35 @@ newTable :: ProcessedBundleData -> IO Table
 newTable components = do 
   map <- newIORef $ Map.fromList $ Prelude.map (\x -> (x.id, Column [])) components.elements
   nRows <- newIORef 0 
-  return $ Table {columns=map, nRows}
+
+  let componentIds = Prelude.map (\x -> x.id) components.elements
+
+  return $ Table {columns=map, components=componentIds, nRows}
 
 insertComponentsIntoMap :: ProcessedBundleData -> Map ComponentId Column -> Map ComponentId Column 
 insertComponentsIntoMap bundle map = Prelude.foldl' (\map element -> adjust (\(Column x) -> Column $ x ++ [element.component]) element.id map) map bundle.elements
 
-insertComponentsIntoTable :: ProcessedBundleData -> Table -> IO()   
+insertComponentsIntoTable :: ProcessedBundleData -> Table -> IO ()   
 insertComponentsIntoTable bundle table = do
   modifyIORef' table.columns $ insertComponentsIntoMap bundle 
 
-insertEntityIntoTables :: ProcessedBundleData -> Tables -> IO EntityPointer 
+replaceComponentsIntoMap :: ProcessedBundleData -> EntityPointer -> Map ComponentId Column -> Map ComponentId Column 
+replaceComponentsIntoMap bundle pointer tableMap = 
+  Prelude.foldl' modifyMap tableMap bundle.elements
+  where 
+    modifyMap tableMap element = adjust (modifyComponents element) element.id tableMap 
+    modifyComponents element (Column x) = 
+      let 
+        (x', _:ys) = Prelude.splitAt pointer.rowIndex x 
+      in 
+        Column $ x' ++ [element.component] ++ ys 
+
+replaceComponentsIntoTable :: ProcessedBundleData -> EntityPointer -> Table -> IO () 
+replaceComponentsIntoTable bundle pointer table = do 
+    modifyIORef' table.columns $ replaceComponentsIntoMap bundle pointer  
+
+
+insertEntityIntoTables :: ProcessedBundleData -> Tables -> IO (IORef EntityPointer) 
 insertEntityIntoTables bundle (Tables (tables)) = 
   do 
     innerTables <- readIORef tables
@@ -56,7 +76,7 @@ insertEntityIntoTables bundle (Tables (tables)) =
 
     insertComponentsIntoTable bundle table 
 
-    let entityPointer = EntityPointer { archetypeId = bundle.archetypeId, rowIndex }
+    entityPointer <- newIORef $ EntityPointer { archetypeId = bundle.archetypeId, rowIndex }
     
     return entityPointer 
 

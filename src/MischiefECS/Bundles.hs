@@ -10,7 +10,7 @@ import Data.Set
 import Data.Set qualified as Set 
 
 data ProcessedBundleData = ProcessedBundleData { elements :: [ProcessedBundleElement], archetypeId :: ArchetypeId }
-data ProcessedBundleElement = ProcessedBundleElement { id :: ComponentId, component :: ErasedComponent }
+data ProcessedBundleElement = ProcessedBundleElement { id :: ComponentId, component :: ErasedComponent } 
 
 newtype BundleData = BundleData (Set BundleElement)
 data BundleElement = BundleElement { rep :: TypeRep, component :: ErasedComponent }
@@ -37,6 +37,10 @@ getComponentIds bundle components =
     BundleData set = bundleData bundle 
   in   
     mapM ((`getComponentId` components) . (\x -> x.rep)) (Set.toList set)  
+
+instance Bundle () where
+  bundleData :: () -> BundleData
+  bundleData _ = BundleData $ Set.empty 
 
 instance {-# OVERLAPPABLE #-} (Component c) => Bundle c where 
   bundleData c = BundleData (Set.fromList [BundleElement {rep = typeOf c, component = erase c}]) 

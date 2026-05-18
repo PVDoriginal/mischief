@@ -66,6 +66,6 @@ runQuery query world =
         archetypes <- findMatchingArchetypes components world.archetypes 
         runQueryInternal query archetypes world 
 
-query :: forall qd -> (QueryData (Proxy qd), Queryable qd ) => World -> IO [qd]
+query :: forall qd -> (QueryData (Proxy qd), Queryable qd) => World -> IO [qd]
 query queryData world =
     runQuery (Query @queryData) world

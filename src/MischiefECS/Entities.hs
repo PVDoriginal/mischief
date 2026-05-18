@@ -13,7 +13,7 @@ data EntityPointer = EntityPointer {
 } deriving Show 
 
 data Entities = Entities {
-  pointers :: IORef(Map Entity EntityPointer),
+  pointers :: IORef(Map Entity (IORef EntityPointer)),
   counter :: IORef Int
 } 
 

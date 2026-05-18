@@ -16,6 +16,7 @@ import MischiefECS.Bundles
 import MischiefECS.Tables
 
 import Data.Proxy 
+import Data.List
 
 
 data World = World {
@@ -76,10 +77,35 @@ spawnEntity bundle world =
 
     modifyIORef' world.entities.pointers $ Map.insert (Entity entityIndex) entityPointer
 
-    putStrLn $ show entityPointer
-    putStrLn $ "\n"
-    
     return $ Entity entityIndex
+
+insertComponents :: (Bundle b) => b -> Entity -> World -> IO ()
+insertComponents bundle entity world = 
+  do 
+    bundleData <- processBundleData world (bundleData bundle)
+    let newComponents = Prelude.map (\x -> x.id) bundleData.elements
+
+    entityPointers <- readIORef world.entities.pointers
+    case Map.lookup entity entityPointers of   
+      Nothing -> undefined 
+      Just currentPointer -> do 
+
+        currentPointerInternal <- readIORef currentPointer
+
+        let Tables tables = world.tables 
+        tables <- readIORef tables
+
+        case Map.lookup currentPointerInternal.archetypeId tables of 
+          Nothing -> undefined 
+          Just currentTable -> do
+            
+            -- Simple case, no archetype change. 
+            if newComponents `isSubsequenceOf` currentTable.components then
+              replaceComponentsIntoTable bundleData currentPointerInternal currentTable    
+            -- Complex case, archetype change. 
+            else 
+              undefined 
+
 
 tryGetEntityComponent :: forall c -> (Component c) => World -> Entity -> IO (Maybe c)
 tryGetEntityComponent typeC world entity = 
@@ -97,7 +123,10 @@ tryGetEntityComponent typeC world entity =
 
         case pointer of 
           Nothing -> return Nothing 
-          Just pointer -> tryGetComponentFromTables typeC world.tables pointer componentId   
+          Just pointer -> 
+            do 
+              pointer <- readIORef pointer 
+              tryGetComponentFromTables typeC world.tables pointer componentId   
 
 tryGetComponents :: forall c -> (Component c) => World -> [ArchetypeId] -> IO [c]  
 tryGetComponents typeC world archetypes = 

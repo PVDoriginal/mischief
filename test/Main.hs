@@ -21,7 +21,11 @@ main = do
   e7 <- spawnEntity (C1 9 9, C2 "ugh", C3 4.1) world
   e8 <- spawnEntity (C3 9.4, C2 "eh") world
 
+  e9 <- spawnEntity () world 
+
+  insertComponents (C1 100 100) e1 world 
+
   putStrLn "\n"
 
-  c <- query (type (C2)) world
+  c <- query (type (C1)) world
   putStrLn $ show c 
