@@ -81,10 +81,7 @@ spawn bundle =
     entityIndex <- liftIO $ readIORef world.entities.counter
     let entity = Entity entityIndex
 
-    liftIO $ print $ typeOf entity
     bundle <- liftIO $ processBundleData world $ addComponentToBundleData entity (bundleData bundle)
-
-    liftIO $ print $ Prelude.map (\(ProcessedBundleElement {id}) -> id) bundle.elements
 
     archetypeId <- liftIO $ archetypeOfProcessedBundle world.archetypes bundle
 
@@ -149,8 +146,6 @@ insert bundle entity =
                 collectedComponents <- liftIO $ takeComponentsFromTable currentPointerInternal currentTable
                 newBundle <- liftIO $ combineProcessedBundles world collectedComponents bundleData
                 archetype <- liftIO $ archetypeOfProcessedBundle world.archetypes newBundle
-
-                liftIO $ print $ Prelude.map (\(ProcessedBundleElement {id}) -> id) newBundle.elements
 
                 newPointer <- liftIO $ insertEntityIntoTables newBundle world.tables archetype
                 liftIO $ writeIORef currentPointer newPointer

@@ -68,6 +68,7 @@ library
     ImportQualifiedPost
     MagicHash
     NoFieldSelectors
+    NoGeneralizedNewtypeDeriving
     OverloadedRecordDot
     RequiredTypeArguments
     TemplateHaskell
@@ -100,6 +101,7 @@ test-suite mischief-test
     DeriveAnyClass
     DuplicateRecordFields
     NoFieldSelectors
+    NoGeneralizedNewtypeDeriving
     OverloadedRecordDot
     RequiredTypeArguments
 
