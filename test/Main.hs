@@ -15,13 +15,21 @@ data C4 = C4 Int String deriving (Component, Show)
 
 main :: IO ()
 main = do
-  app <- newApp
-  addSystem system app
-  addSystem system2 app
+  app <- newApp [plugin1]
   runApp app
 
-system :: System ()
-system = do
+plugin1 :: Plugin ()
+plugin1 = do
+  addSystem system1
+  addSystem system2
+  addPlugin plugin2
+
+plugin2 :: Plugin ()
+plugin2 = do
+  addSystem system1
+
+system1 :: System ()
+system1 = do
   e1 <- spawn (C1 5 5, C2 "Lmfao")
   insert (C3 5.3) e1
 
