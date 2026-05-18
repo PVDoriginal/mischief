@@ -34,6 +34,11 @@ newTable components = do
 
   return $ Table {columns=map, components=componentIds, nRows}
 
+tableIsEmpty :: Table -> IO Bool 
+tableIsEmpty table = do 
+  nRows <- readIORef table.nRows 
+  return $ nRows == 0  
+
 insertComponentsIntoMap :: ProcessedBundleData -> Map ComponentId Column -> Map ComponentId Column 
 insertComponentsIntoMap bundle map = Prelude.foldl' (\map element -> adjust (\(Column x) -> Column $ x ++ [element.component]) element.id map) map bundle.elements
 
@@ -72,6 +77,7 @@ takeComponentsFromTable pointer table =
     
     let newColumns = Prelude.map (\(id, column) -> (id, takeFromColumn pointer column)) $ Map.toList columnsInternal 
     writeIORef table.columns $ Map.fromList $ Prelude.map (\(id, (_, column)) -> (id, column)) newColumns
+    modifyIORef' table.nRows (\x -> x - 1)
 
     putStrLn $ show (Prelude.map (\(id, (_, Column x)) -> (id, length x)) newColumns)
 
@@ -94,6 +100,7 @@ removeComponentsFromTable :: EntityPointer -> Table -> IO ()
 removeComponentsFromTable pointer table = 
   do 
     modifyIORef' table.columns (removeComponentsFromMap pointer)
+    modifyIORef' table.nRows (\x -> x - 1)
 
 insertEntityIntoTables :: ProcessedBundleData -> Tables -> IO EntityPointer 
 insertEntityIntoTables bundle (Tables (tables)) = 

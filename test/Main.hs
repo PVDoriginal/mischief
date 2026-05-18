@@ -27,6 +27,8 @@ main = do
 
   removeComponent (type C1) e1 world 
 
+  despawnEntity e1 world  
+
   putStrLn "\n"
 
   c <- query @(C2) world

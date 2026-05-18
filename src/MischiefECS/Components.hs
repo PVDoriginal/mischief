@@ -73,6 +73,10 @@ getArchetypeId t Archetypes {map, counter} = do
 
       return $ ArchetypeId result 
 
+removeArchetypeId :: ArchetypeId -> Archetypes -> IO ()
+removeArchetypeId id archetypes = do 
+  modifyIORef' archetypes.map (Map.filter (\v -> v /= id))
+
 findMatchingArchetypes :: [ComponentId] -> Archetypes -> IO [ArchetypeId]
 findMatchingArchetypes components archetypes = 
   do

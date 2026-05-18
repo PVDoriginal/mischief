@@ -99,6 +99,33 @@ spawnEntity bundle world =
 
     return $ Entity entityIndex
 
+despawnEntity :: Entity -> World -> IO ()
+despawnEntity entity world = 
+  do 
+    pointers <- readIORef world.entities.pointers 
+    case Map.lookup entity pointers of 
+      Nothing -> undefined 
+      Just pointer -> do
+
+        let Tables tables = world.tables 
+        tables <- readIORef tables 
+        currentPointer <- readIORef pointer 
+
+        case Map.lookup currentPointer.archetypeId tables of 
+          Nothing -> undefined 
+          Just table -> do 
+            removeComponentsFromTable currentPointer table 
+            
+            empty <- tableIsEmpty table 
+            
+            if empty then do 
+              removeArchetypeId currentPointer.archetypeId world.archetypes 
+            else return ()
+
+            removeEntity entity world.entities 
+
+
+
 insertComponents :: (Bundle b) => b -> Entity -> World -> IO ()
 insertComponents bundle entity world = 
   do 

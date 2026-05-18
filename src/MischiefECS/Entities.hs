@@ -1,5 +1,8 @@
 module MischiefECS.Entities where 
+
 import Data.Map
+import Data.Map qualified as Map 
+
 import Data.IORef
 import MischiefECS.Components
 
@@ -16,6 +19,10 @@ data Entities = Entities {
   pointers :: IORef(Map Entity (IORef EntityPointer)),
   counter :: IORef Int
 } 
+
+removeEntity :: Entity -> Entities -> IO ()
+removeEntity entity entities = do 
+  modifyIORef' entities.pointers (Map.delete entity)
 
 emptyEntities :: IO Entities 
 emptyEntities = do 
