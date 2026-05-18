@@ -15,6 +15,14 @@ data ProcessedBundleElement = ProcessedBundleElement { id :: ComponentId, compon
 newtype BundleData = BundleData (Set BundleElement)
 data BundleElement = BundleElement { rep :: TypeRep, component :: ErasedComponent }
 
+instance Eq ProcessedBundleElement where
+  (==) :: ProcessedBundleElement -> ProcessedBundleElement -> Bool
+  (==) ProcessedBundleElement{id=id1} ProcessedBundleElement{id=id2} = id1 == id2 
+
+instance Ord ProcessedBundleElement where 
+  compare :: ProcessedBundleElement -> ProcessedBundleElement -> Ordering
+  compare ProcessedBundleElement{id=id1} ProcessedBundleElement{id=id2} = compare id1 id2 
+
 instance Eq BundleElement where
   (==) :: BundleElement -> BundleElement -> Bool
   (==) BundleElement{rep=rep1} BundleElement{rep=rep2} = rep1 == rep2 

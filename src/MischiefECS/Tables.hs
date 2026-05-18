@@ -56,8 +56,32 @@ replaceComponentsIntoTable :: ProcessedBundleData -> EntityPointer -> Table -> I
 replaceComponentsIntoTable bundle pointer table = do 
     modifyIORef' table.columns $ replaceComponentsIntoMap bundle pointer  
 
+takeFromColumn :: EntityPointer -> Column -> (ErasedComponent, Column) 
+takeFromColumn pointer (Column x) =
+  let 
+    (x', y:ys) = Prelude.splitAt pointer.rowIndex x
+  in 
+    (y, Column $ x' ++ ys)
 
-insertEntityIntoTables :: ProcessedBundleData -> Tables -> IO (IORef EntityPointer) 
+takeComponentsFromTable :: EntityPointer -> Table -> IO ProcessedBundleData
+takeComponentsFromTable pointer table = 
+  do 
+    columnsInternal <- readIORef table.columns     
+
+    putStrLn $ show (Prelude.map (\(id, (Column x)) -> (id, length x)) $ Map.toList columnsInternal)
+    
+    let newColumns = Prelude.map (\(id, column) -> (id, takeFromColumn pointer column)) $ Map.toList columnsInternal 
+    writeIORef table.columns $ Map.fromList $ Prelude.map (\(id, (_, column)) -> (id, column)) newColumns
+
+    putStrLn $ show (Prelude.map (\(id, (_, Column x)) -> (id, length x)) newColumns)
+
+    let elements = Prelude.map getComponent $ newColumns
+    return ProcessedBundleData {elements, archetypeId = pointer.archetypeId}
+  where 
+    getComponent (componentId, (erasedComponent, _)) = ProcessedBundleElement {id = componentId, component = erasedComponent} 
+    
+
+insertEntityIntoTables :: ProcessedBundleData -> Tables -> IO EntityPointer 
 insertEntityIntoTables bundle (Tables (tables)) = 
   do 
     innerTables <- readIORef tables
@@ -76,9 +100,7 @@ insertEntityIntoTables bundle (Tables (tables)) =
 
     insertComponentsIntoTable bundle table 
 
-    entityPointer <- newIORef $ EntityPointer { archetypeId = bundle.archetypeId, rowIndex }
-    
-    return entityPointer 
+    return EntityPointer { archetypeId = bundle.archetypeId, rowIndex }
 
 tryGetComponentFromColumn :: forall c -> (Component c) => Column -> EntityPointer -> IO(Maybe c)
 tryGetComponentFromColumn typeC (Column components) pointer = 

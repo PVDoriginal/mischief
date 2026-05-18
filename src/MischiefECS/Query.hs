@@ -20,7 +20,6 @@ instance (QueryData a0, QueryData a1) => QueryData (a0, a1) where
     types :: (QueryData a0, QueryData a1) => Proxy (a0, a1) -> Set TypeRep
     types _ = Set.union (types $ Proxy @a0) (types $ Proxy @a1)  
 
-
 class (QueryData qd) => Queryable qd where 
     runQueryEntity :: Proxy qd -> World -> Entity -> IO (Maybe qd) 
     runQueryInternal :: Proxy qd -> [ArchetypeId] -> World -> IO [qd]

@@ -40,7 +40,7 @@ newWorld = do
     tables 
   }
     
-processBundleElement :: World -> BundleElement -> IO(ProcessedBundleElement)
+processBundleElement :: World -> BundleElement -> IO ProcessedBundleElement
 processBundleElement world BundleElement { rep, component } = 
   do
     id <- getComponentId rep world.components 
@@ -49,15 +49,26 @@ processBundleElement world BundleElement { rep, component } =
         component
     } 
 
-processBundleData :: World -> BundleData -> IO(ProcessedBundleData)
+processBundleData :: World -> BundleData -> IO ProcessedBundleData
 processBundleData world (BundleData bundleData) = 
   do 
     elements <- mapM (processBundleElement world) (Set.toList bundleData)
     archetypeId <- getArchetypeId (Prelude.map (\x -> x.id) elements) world.archetypes
     return ProcessedBundleData {
-        elements, 
-        archetypeId 
+      elements, 
+      archetypeId 
     }
+
+combineProcessedBundles :: World -> ProcessedBundleData -> ProcessedBundleData -> IO ProcessedBundleData
+combineProcessedBundles world bundle1 bundle2 =  
+  let 
+    elements = Set.toList $ Set.union (Set.fromList bundle1.elements) (Set.fromList bundle2.elements) 
+  in do 
+    archetypeId <- getArchetypeId (Prelude.map (\x -> x.id) elements) world.archetypes
+    return ProcessedBundleData {
+      elements,
+      archetypeId 
+    } 
 
 -- | Spawn an entity in this World given a bundle of components. 
 spawnEntity :: (Bundle b) => b -> World -> IO Entity
@@ -70,10 +81,8 @@ spawnEntity bundle world =
     entityIndex <- readIORef world.entities.counter 
     modifyIORef world.entities.counter (+1) 
 
-    putStrLn $ show archetypeId
-    putStrLn $ show (Entity entityIndex)
-
     entityPointer <- insertEntityIntoTables bundle world.tables
+    entityPointer <- newIORef entityPointer
 
     modifyIORef' world.entities.pointers $ Map.insert (Entity entityIndex) entityPointer
 
@@ -100,11 +109,21 @@ insertComponents bundle entity world =
           Just currentTable -> do
             
             -- Simple case, no archetype change. 
-            if newComponents `isSubsequenceOf` currentTable.components then
+            if newComponents `isSubsequenceOf` currentTable.components then 
               replaceComponentsIntoTable bundleData currentPointerInternal currentTable    
             -- Complex case, archetype change. 
-            else 
-              undefined 
+            else do 
+              collectedComponents <- takeComponentsFromTable currentPointerInternal currentTable 
+              newBundle <- combineProcessedBundles world collectedComponents bundleData 
+
+              newPointer <- insertEntityIntoTables newBundle world.tables  
+              writeIORef currentPointer newPointer 
+
+              case Map.lookup newPointer.archetypeId tables of 
+                Nothing -> undefined 
+                Just newTable -> do  
+                  replaceComponentsIntoTable bundleData newPointer newTable
+
 
 
 tryGetEntityComponent :: forall c -> (Component c) => World -> Entity -> IO (Maybe c)
