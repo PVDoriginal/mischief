@@ -79,7 +79,7 @@ findMatchingArchetypes components archetypes =
   do
     archetypes <- readIORef archetypes.map
     let archetypesList = Map.toList archetypes
-    return $ List.map snd $ List.filter (\(archetype, _) -> components `isSubsequenceOf` archetype) archetypesList
+    return $ List.map snd $ List.filter (\(archetype, _) -> sort components `isSubsequenceOf` sort archetype) archetypesList
 
 data ErasedComponent where
   ErasedComponent :: (Typeable c) => c -> ErasedComponent

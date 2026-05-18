@@ -7,11 +7,21 @@ import Data.Set qualified as Set
 import Data.Typeable
 import MischiefECS.Components
 
-data ProcessedBundleData = ProcessedBundleData {elements :: [ProcessedBundleElement], archetypeId :: ArchetypeId}
+newtype ProcessedBundleData = ProcessedBundleData {elements :: [ProcessedBundleElement]}
 
 data ProcessedBundleElement = ProcessedBundleElement {id :: ComponentId, component :: ErasedComponent}
 
+archetypeOfProcessedBundle :: Archetypes -> ProcessedBundleData -> IO ArchetypeId
+archetypeOfProcessedBundle archetypes bundle = getArchetypeId (Prelude.map (\x -> x.id) bundle.elements) archetypes
+
 newtype BundleData = BundleData (Set BundleElement)
+
+addComponentToBundleData :: (Component c) => c -> BundleData -> BundleData
+addComponentToBundleData c (BundleData bundle) =
+  let rep = typeOf c
+      component = ErasedComponent c
+      element = BundleElement {rep, component}
+   in BundleData $ Set.insert element bundle
 
 data BundleElement = BundleElement {rep :: TypeRep, component :: ErasedComponent}
 

@@ -1,5 +1,6 @@
 module MischiefECS.World where
 
+import Control.Monad
 import Control.Monad.IO.Class (MonadIO (liftIO))
 import Control.Monad.Trans.Reader
 import Data.IORef
@@ -14,6 +15,7 @@ import MischiefECS.Bundles
 import MischiefECS.Components
 import MischiefECS.Entities
 import MischiefECS.Tables
+import System.Info (arch)
 
 data World = World
   { archetypes :: Archetypes,
@@ -53,10 +55,7 @@ processBundleData world (BundleData bundleData) =
     elements <- mapM (processBundleElement world) (Set.toList bundleData)
     archetypeId <- getArchetypeId (Prelude.map (\x -> x.id) elements) world.archetypes
     return
-      ProcessedBundleData
-        { elements,
-          archetypeId
-        }
+      ProcessedBundleData {elements}
 
 combineProcessedBundles :: World -> ProcessedBundleData -> ProcessedBundleData -> IO ProcessedBundleData
 combineProcessedBundles world bundle1 bundle2 =
@@ -64,40 +63,39 @@ combineProcessedBundles world bundle1 bundle2 =
    in do
         archetypeId <- getArchetypeId (Prelude.map (\x -> x.id) elements) world.archetypes
         return
-          ProcessedBundleData
-            { elements,
-              archetypeId
-            }
+          ProcessedBundleData {elements}
 
 removeComponentFromProcessedBundle :: World -> ComponentId -> ProcessedBundleData -> IO ProcessedBundleData
 removeComponentFromProcessedBundle world componentId bundle =
   do
     let elements = Prelude.filter (\x -> x.id /= componentId) bundle.elements
     archetypeId <- getArchetypeId (Prelude.map (\x -> x.id) elements) world.archetypes
-    return
-      ProcessedBundleData
-        { elements,
-          archetypeId
-        }
+    return ProcessedBundleData {elements}
 
 -- | Spawn an entity in this World given a bundle of components.
 spawn :: (Bundle b) => b -> System Entity
 spawn bundle =
   do
     world <- ask
-    bundle <- liftIO $ processBundleData world $ bundleData bundle
-
-    let archetypeId = bundle.archetypeId
 
     entityIndex <- liftIO $ readIORef world.entities.counter
+    let entity = Entity entityIndex
+
+    liftIO $ print $ typeOf entity
+    bundle <- liftIO $ processBundleData world $ addComponentToBundleData entity (bundleData bundle)
+
+    liftIO $ print $ Prelude.map (\(ProcessedBundleElement {id}) -> id) bundle.elements
+
+    archetypeId <- liftIO $ archetypeOfProcessedBundle world.archetypes bundle
+
     liftIO $ modifyIORef world.entities.counter (+ 1)
 
-    entityPointer <- liftIO $ insertEntityIntoTables bundle world.tables
+    entityPointer <- liftIO $ insertEntityIntoTables bundle world.tables archetypeId
     entityPointer <- liftIO $ newIORef entityPointer
 
-    liftIO $ modifyIORef' world.entities.pointers $ Map.insert (Entity entityIndex) entityPointer
+    liftIO $ modifyIORef' world.entities.pointers $ Map.insert entity entityPointer
 
-    return $ Entity entityIndex
+    return entity
 
 despawn :: Entity -> System ()
 despawn entity =
@@ -118,10 +116,8 @@ despawn entity =
 
             empty <- liftIO $ tableIsEmpty table
 
-            if empty
-              then do
-                liftIO $ removeArchetypeId currentPointer.archetypeId world.archetypes
-              else return ()
+            when empty $ do
+              liftIO $ removeArchetypeId currentPointer.archetypeId world.archetypes
 
             liftIO $ removeEntity entity world.entities
 
@@ -152,8 +148,11 @@ insert bundle entity =
               else do
                 collectedComponents <- liftIO $ takeComponentsFromTable currentPointerInternal currentTable
                 newBundle <- liftIO $ combineProcessedBundles world collectedComponents bundleData
+                archetype <- liftIO $ archetypeOfProcessedBundle world.archetypes newBundle
 
-                newPointer <- liftIO $ insertEntityIntoTables newBundle world.tables
+                liftIO $ print $ Prelude.map (\(ProcessedBundleElement {id}) -> id) newBundle.elements
+
+                newPointer <- liftIO $ insertEntityIntoTables newBundle world.tables archetype
                 liftIO $ writeIORef currentPointer newPointer
 
                 let Tables tables = world.tables
@@ -183,7 +182,9 @@ remove componentType entity =
           Just currentTable -> do
             collectedComponents <- liftIO $ takeComponentsFromTable currentPointer currentTable
             newBundle <- liftIO $ removeComponentFromProcessedBundle world componentId collectedComponents
-            newPointer <- liftIO $ insertEntityIntoTables newBundle world.tables
+            archetype <- liftIO $ archetypeOfProcessedBundle world.archetypes newBundle
+
+            newPointer <- liftIO $ insertEntityIntoTables newBundle world.tables archetype
             liftIO $ writeIORef pointer newPointer
 
 tryGetEntityComponent :: forall c -> (Component c) => World -> Entity -> IO (Maybe c)

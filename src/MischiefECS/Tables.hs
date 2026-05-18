@@ -72,8 +72,8 @@ takeComponentsFromTable pointer table =
     writeIORef table.columns $ Map.fromList $ Prelude.map (\(id, (_, column)) -> (id, column)) newColumns
     modifyIORef' table.nRows (\x -> x - 1)
 
-    let elements = Prelude.map getComponent $ newColumns
-    return ProcessedBundleData {elements, archetypeId = pointer.archetypeId}
+    let elements = Prelude.map getComponent newColumns
+    return ProcessedBundleData {elements}
   where
     getComponent (componentId, (erasedComponent, _)) = ProcessedBundleElement {id = componentId, component = erasedComponent}
 
@@ -91,17 +91,17 @@ removeComponentsFromTable pointer table =
     modifyIORef' table.columns (removeComponentsFromMap pointer)
     modifyIORef' table.nRows (\x -> x - 1)
 
-insertEntityIntoTables :: ProcessedBundleData -> Tables -> IO EntityPointer
-insertEntityIntoTables bundle (Tables (tables)) =
+insertEntityIntoTables :: ProcessedBundleData -> Tables -> ArchetypeId -> IO EntityPointer
+insertEntityIntoTables bundle (Tables tables) archetype =
   do
     innerTables <- readIORef tables
 
     -- gets the correct table (or crates another one and returns it)
-    table <- case Map.lookup bundle.archetypeId innerTables of
+    table <- case Map.lookup archetype innerTables of
       Just table -> pure table
       Nothing -> do
         table <- newTable bundle
-        let newTables = insert bundle.archetypeId table innerTables
+        let newTables = insert archetype table innerTables
         writeIORef tables newTables
         return table
 
@@ -110,7 +110,7 @@ insertEntityIntoTables bundle (Tables (tables)) =
 
     insertComponentsIntoTable bundle table
 
-    return EntityPointer {archetypeId = bundle.archetypeId, rowIndex}
+    return EntityPointer {archetypeId = archetype, rowIndex}
 
 tryGetComponentFromColumn :: forall c -> (Component c) => Column -> EntityPointer -> IO (Maybe c)
 tryGetComponentFromColumn typeC (Column components) pointer =

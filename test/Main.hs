@@ -2,6 +2,7 @@ module Main where
 
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Reader
+import Data.Data (typeOf)
 import MischiefECS
 
 data C1 = C1 Int Int deriving (Component, Show)
@@ -25,15 +26,18 @@ system = do
   insert (C3 5.3) e1
 
   res2 <- query @(C2, C3)
-  liftIO $ putStrLn $ show res2
+  liftIO $ print res2
+
+  res2 <- query @(Entity, C3)
+  liftIO $ print res2
 
 system2 :: System ()
 system2 = do
-  res2 <- query @(C2, C3)
-  liftIO $ putStrLn $ show res2
+  res2 <- query @(Entity, C3)
+  liftIO $ print res2
 
-  res3 <- query @C1
-  liftIO $ putStrLn $ show res3
+-- res3 <- query @C1
+-- liftIO $ print res3
 
-  res4 <- query @C1
-  liftIO $ putStrLn $ show res4
+-- res4 <- query @C1
+-- liftIO $ print res4

@@ -5,10 +5,9 @@ import Data.Map
 import Data.Map qualified as Map
 import MischiefECS.Components
 
-data Entity = Entity
-  { id :: Int
-  }
-  deriving (Show, Eq, Ord)
+newtype Entity = Entity {id :: Int} deriving (Show, Eq, Ord)
+
+instance Component Entity
 
 data EntityPointer = EntityPointer
   { archetypeId :: ArchetypeId,
