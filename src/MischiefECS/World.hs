@@ -82,8 +82,8 @@ removeComponentFromProcessedBundle world componentId bundle =
 
 
 -- | Spawn an entity in this World given a bundle of components. 
-spawnEntity :: (Bundle b) => b -> World -> IO Entity
-spawnEntity bundle world = 
+spawn :: (Bundle b) => b -> World -> IO Entity
+spawn bundle world = 
   do
     bundle <- processBundleData world $ bundleData bundle 
 
@@ -99,8 +99,8 @@ spawnEntity bundle world =
 
     return $ Entity entityIndex
 
-despawnEntity :: Entity -> World -> IO ()
-despawnEntity entity world = 
+despawn :: Entity -> World -> IO ()
+despawn entity world = 
   do 
     pointers <- readIORef world.entities.pointers 
     case Map.lookup entity pointers of 
@@ -117,7 +117,7 @@ despawnEntity entity world =
             removeComponentsFromTable currentPointer table 
             
             empty <- tableIsEmpty table 
-            
+
             if empty then do 
               removeArchetypeId currentPointer.archetypeId world.archetypes 
             else return ()
@@ -126,8 +126,8 @@ despawnEntity entity world =
 
 
 
-insertComponents :: (Bundle b) => b -> Entity -> World -> IO ()
-insertComponents bundle entity world = 
+insert :: (Bundle b) => b -> Entity -> World -> IO ()
+insert bundle entity world = 
   do 
     bundleData <- processBundleData world (bundleData bundle)
     let newComponents = Prelude.map (\x -> x.id) bundleData.elements
@@ -162,8 +162,8 @@ insertComponents bundle entity world =
                 Just newTable -> do  
                   replaceComponentsIntoTable bundleData newPointer newTable
 
-removeComponent :: forall c -> (Component c) => Entity -> World -> IO () 
-removeComponent componentType entity world = 
+remove :: forall c -> (Component c) => Entity -> World -> IO () 
+remove componentType entity world = 
   do 
     componentId <- getComponentId (typeRep $ Proxy @componentType) world.components
     entityPointers <- readIORef world.entities.pointers 
