@@ -79,7 +79,21 @@ takeComponentsFromTable pointer table =
     return ProcessedBundleData {elements, archetypeId = pointer.archetypeId}
   where 
     getComponent (componentId, (erasedComponent, _)) = ProcessedBundleElement {id = componentId, component = erasedComponent} 
-    
+
+removeComponentFromColumn :: EntityPointer -> Column -> Column 
+removeComponentFromColumn pointer (Column x) = 
+  let 
+    (x', _: ys) = Prelude.splitAt pointer.rowIndex x 
+  in 
+    Column $ x' ++ ys 
+
+removeComponentsFromMap :: EntityPointer -> Map ComponentId Column -> Map ComponentId Column 
+removeComponentsFromMap pointer columnMap = Map.fromList $ Prelude.map (\(id, column) -> (id, removeComponentFromColumn pointer column)) (Map.toList columnMap)
+
+removeComponentsFromTable :: EntityPointer -> Table -> IO ()
+removeComponentsFromTable pointer table = 
+  do 
+    modifyIORef' table.columns (removeComponentsFromMap pointer)
 
 insertEntityIntoTables :: ProcessedBundleData -> Tables -> IO EntityPointer 
 insertEntityIntoTables bundle (Tables (tables)) = 

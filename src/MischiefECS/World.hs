@@ -70,6 +70,17 @@ combineProcessedBundles world bundle1 bundle2 =
       archetypeId 
     } 
 
+removeComponentFromProcessedBundle :: World -> ComponentId -> ProcessedBundleData -> IO ProcessedBundleData
+removeComponentFromProcessedBundle world componentId bundle = 
+  do 
+    let elements = Prelude.filter (\x -> x.id /= componentId) bundle.elements
+    archetypeId <- getArchetypeId (Prelude.map (\x -> x.id) elements) world.archetypes
+    return ProcessedBundleData {
+      elements,
+      archetypeId 
+    } 
+
+
 -- | Spawn an entity in this World given a bundle of components. 
 spawnEntity :: (Bundle b) => b -> World -> IO Entity
 spawnEntity bundle world = 
@@ -124,7 +135,28 @@ insertComponents bundle entity world =
                 Just newTable -> do  
                   replaceComponentsIntoTable bundleData newPointer newTable
 
+removeComponent :: forall c -> (Component c) => Entity -> World -> IO () 
+removeComponent componentType entity world = 
+  do 
+    componentId <- getComponentId (typeRep $ Proxy @componentType) world.components
+    entityPointers <- readIORef world.entities.pointers 
 
+    case Map.lookup entity entityPointers of 
+      Nothing -> undefined 
+      Just pointer -> do 
+        
+        let Tables tables = world.tables
+        tables <- readIORef tables 
+        currentPointer <- readIORef pointer 
+        
+        case Map.lookup currentPointer.archetypeId tables of 
+          Nothing -> undefined 
+          Just currentTable -> do 
+            
+            collectedComponents <- takeComponentsFromTable currentPointer currentTable 
+            newBundle <- removeComponentFromProcessedBundle world componentId collectedComponents 
+            newPointer <- insertEntityIntoTables newBundle world.tables 
+            writeIORef pointer newPointer
 
 tryGetEntityComponent :: forall c -> (Component c) => World -> Entity -> IO (Maybe c)
 tryGetEntityComponent typeC world entity = 

@@ -25,7 +25,9 @@ main = do
 
   insertComponents (C1 100 100, C2 "new archetype!") e1 world 
 
+  removeComponent (type C1) e1 world 
+
   putStrLn "\n"
 
-  c <- query @(C1) world
+  c <- query @(C2) world
   putStrLn $ show c 
