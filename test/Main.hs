@@ -34,5 +34,4 @@ update = do
 
   for_ res $ \(entity, name) -> do
     liftIO $ putStrLn $ show entity ++ " has name: " ++ show name
-    when (name == Name "Foo") $
-      remove (type Name) entity
+    remove (type Name) entity
