@@ -124,7 +124,7 @@ insert bundle entity =
   do
     world <- ask
     bundleData <- liftIO $ processBundleData world (bundleData bundle)
-    let newComponents = Prelude.map (\x -> x.id) bundleData.elements
+    let newComponents = sort $ Prelude.map (\x -> x.id) bundleData.elements
 
     entityPointers <- liftIO $ readIORef world.entities.pointers
     case Map.lookup entity entityPointers of
