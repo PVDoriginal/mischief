@@ -1,5 +1,6 @@
 module MischiefECS.Tables where
 
+import Data.Foldable
 import Data.IORef
 import Data.Map
 import Data.Map qualified as Map
@@ -14,6 +15,7 @@ newtype Tables = Tables (IORef (Map ArchetypeId Table))
 data Table = Table
   { columns :: IORef (Map ComponentId Column),
     components :: [ComponentId],
+    entities :: IORef [IORef EntityPointer],
     nRows :: IORef Int
   }
 
@@ -27,11 +29,12 @@ emptyTables = do
 newTable :: ProcessedBundleData -> IO Table
 newTable components = do
   map <- newIORef $ Map.fromList $ Prelude.map (\x -> (x.id, Column [])) components.elements
+  entities <- newIORef []
   nRows <- newIORef 0
 
   let componentIds = Prelude.map (\x -> x.id) components.elements
 
-  return $ Table {columns = map, components = componentIds, nRows}
+  return $ Table {columns = map, components = componentIds, nRows, entities}
 
 tableIsEmpty :: Table -> IO Bool
 tableIsEmpty table = do
@@ -71,6 +74,7 @@ takeComponentsFromTable pointer table =
     let newColumns = Prelude.map (\(id, column) -> (id, takeFromColumn pointer column)) $ Map.toList columnsInternal
     writeIORef table.columns $ Map.fromList $ Prelude.map (\(id, (_, column)) -> (id, column)) newColumns
     modifyIORef' table.nRows (\x -> x - 1)
+    removeEntityFromTable pointer.rowIndex table
 
     let elements = Prelude.map getComponent newColumns
     return ProcessedBundleData {elements}
@@ -90,9 +94,33 @@ removeComponentsFromTable pointer table =
   do
     modifyIORef' table.columns (removeComponentsFromMap pointer)
     modifyIORef' table.nRows (\x -> x - 1)
+    removeEntityFromTable pointer.rowIndex table
 
-insertEntityIntoTables :: ProcessedBundleData -> Tables -> ArchetypeId -> IO EntityPointer
-insertEntityIntoTables bundle (Tables tables) archetype =
+removeRow :: Int -> [IORef EntityPointer] -> IO [IORef EntityPointer]
+removeRow row list =
+  let (x, _ : ys) = Prelude.splitAt row list
+      ys' =
+        mapM
+          ( \x ->
+              do
+                modifyIORef' x decreaseRowIndex
+                return x
+          )
+          ys
+   in do
+        ys'' <- ys'
+        return $ x ++ ys''
+
+removeEntityFromTable :: Int -> Table -> IO ()
+removeEntityFromTable row table =
+  do
+    entities <- readIORef table.entities
+    newEntities <- removeRow row entities
+
+    writeIORef table.entities newEntities
+
+insertEntityIntoTables :: ProcessedBundleData -> Tables -> ArchetypeId -> IORef EntityPointer -> IO ()
+insertEntityIntoTables bundle (Tables tables) archetype pointerRef =
   do
     innerTables <- readIORef tables
 
@@ -106,11 +134,12 @@ insertEntityIntoTables bundle (Tables tables) archetype =
         return table
 
     rowIndex <- readIORef table.nRows
-    modifyIORef table.nRows (+ 1)
+    modifyIORef' table.nRows (+ 1)
+    modifyIORef' table.entities (++ [pointerRef])
+
+    writeIORef pointerRef $ EntityPointer {archetypeId = archetype, rowIndex}
 
     insertComponentsIntoTable bundle table
-
-    return EntityPointer {archetypeId = archetype, rowIndex}
 
 tryGetComponentFromColumn :: forall c -> (Component c) => Column -> EntityPointer -> IO (Maybe c)
 tryGetComponentFromColumn typeC (Column components) pointer =

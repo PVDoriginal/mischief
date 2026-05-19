@@ -15,6 +15,9 @@ data EntityPointer = EntityPointer
   }
   deriving (Show)
 
+decreaseRowIndex :: EntityPointer -> EntityPointer
+decreaseRowIndex EntityPointer {archetypeId, rowIndex} = EntityPointer {archetypeId, rowIndex = rowIndex - 1}
+
 data Entities = Entities
   { pointers :: IORef (Map Entity (IORef EntityPointer)),
     counter :: IORef Int

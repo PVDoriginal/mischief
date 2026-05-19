@@ -87,8 +87,9 @@ spawn bundle =
 
     liftIO $ modifyIORef world.entities.counter (+ 1)
 
-    entityPointer <- liftIO $ insertEntityIntoTables bundle world.tables archetypeId
-    entityPointer <- liftIO $ newIORef entityPointer
+    entityPointer <- liftIO $ newIORef EntityPointer {archetypeId = ArchetypeId 0, rowIndex = 0}
+
+    liftIO $ insertEntityIntoTables bundle world.tables archetypeId entityPointer
 
     liftIO $ modifyIORef' world.entities.pointers $ Map.insert entity entityPointer
 
@@ -147,8 +148,8 @@ insert bundle entity =
                 newBundle <- liftIO $ combineProcessedBundles world collectedComponents bundleData
                 archetype <- liftIO $ archetypeOfProcessedBundle world.archetypes newBundle
 
-                newPointer <- liftIO $ insertEntityIntoTables newBundle world.tables archetype
-                liftIO $ writeIORef currentPointer newPointer
+                liftIO $ insertEntityIntoTables newBundle world.tables archetype currentPointer
+                newPointer <- liftIO $ readIORef currentPointer
 
                 let Tables tables = world.tables
                 tables <- liftIO $ readIORef tables
@@ -175,12 +176,12 @@ remove componentType entity =
         case Map.lookup currentPointer.archetypeId tables of
           Nothing -> undefined
           Just currentTable -> do
-            collectedComponents <- liftIO $ takeComponentsFromTable currentPointer currentTable
-            newBundle <- liftIO $ removeComponentFromProcessedBundle world componentId collectedComponents
-            archetype <- liftIO $ archetypeOfProcessedBundle world.archetypes newBundle
+            when (componentId `elem` currentTable.components) $ do
+              collectedComponents <- liftIO $ takeComponentsFromTable currentPointer currentTable
+              newBundle <- liftIO $ removeComponentFromProcessedBundle world componentId collectedComponents
+              archetype <- liftIO $ archetypeOfProcessedBundle world.archetypes newBundle
 
-            newPointer <- liftIO $ insertEntityIntoTables newBundle world.tables archetype
-            liftIO $ writeIORef pointer newPointer
+              liftIO $ insertEntityIntoTables newBundle world.tables archetype pointer
 
 tryGetEntityComponent :: forall c -> (Component c) => World -> Entity -> IO (Maybe c)
 tryGetEntityComponent typeC world entity =
