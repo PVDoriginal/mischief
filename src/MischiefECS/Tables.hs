@@ -15,7 +15,7 @@ newtype Tables = Tables (IORef (Map ArchetypeId Table))
 data Table = Table
   { columns :: IORef (Map ComponentId Column),
     components :: [ComponentId],
-    entities :: IORef [IORef EntityPointer],
+    entities :: IORef [(Entity, IORef EntityPointer)],
     nRows :: IORef Int
   }
 
@@ -96,15 +96,15 @@ removeComponentsFromTable pointer table =
     modifyIORef' table.nRows (\x -> x - 1)
     removeEntityFromTable pointer.rowIndex table
 
-removeRow :: Int -> [IORef EntityPointer] -> IO [IORef EntityPointer]
+removeRow :: Int -> [(Entity, IORef EntityPointer)] -> IO [(Entity, IORef EntityPointer)]
 removeRow row list =
   let (x, _ : ys) = Prelude.splitAt row list
       ys' =
         mapM
-          ( \x ->
+          ( \(x1, x2) ->
               do
-                modifyIORef' x decreaseRowIndex
-                return x
+                modifyIORef' x2 decreaseRowIndex
+                return (x1, x2)
           )
           ys
    in do
@@ -119,7 +119,7 @@ removeEntityFromTable row table =
 
     writeIORef table.entities newEntities
 
-insertEntityIntoTables :: ProcessedBundleData -> Tables -> ArchetypeId -> IORef EntityPointer -> IO ()
+insertEntityIntoTables :: ProcessedBundleData -> Tables -> ArchetypeId -> (Entity, IORef EntityPointer) -> IO ()
 insertEntityIntoTables bundle (Tables tables) archetype pointerRef =
   do
     innerTables <- readIORef tables
@@ -137,7 +137,7 @@ insertEntityIntoTables bundle (Tables tables) archetype pointerRef =
     modifyIORef' table.nRows (+ 1)
     modifyIORef' table.entities (++ [pointerRef])
 
-    writeIORef pointerRef $ EntityPointer {archetypeId = archetype, rowIndex}
+    writeIORef (snd pointerRef) $ EntityPointer {archetypeId = archetype, rowIndex}
 
     insertComponentsIntoTable bundle table
 
@@ -175,23 +175,28 @@ tryGetComponentsFromColumn typeC (Column components) =
       Nothing -> return []
       Just c -> return c
 
-tryGetComponentsFromTable :: forall c -> (Component c) => Table -> ComponentId -> IO [c]
+tryGetComponentsFromTable :: forall c -> (Component c) => Table -> ComponentId -> IO [ComponentResult c]
 tryGetComponentsFromTable typeC table componentId =
   do
     columns <- readIORef table.columns
     case Map.lookup componentId columns of
       Nothing -> return []
-      Just column -> tryGetComponentsFromColumn typeC column
+      Just column -> do
+        results <- tryGetComponentsFromColumn typeC column
+        entities <- readIORef table.entities
+        return (zipWith ComponentResult results (Prelude.map fst entities))
 
-tryGetComponentsFromArchetype :: forall c -> (Component c) => ArchetypeId -> Map ArchetypeId Table -> ComponentId -> IO [c]
+tryGetComponentsFromArchetype :: forall c -> (Component c) => ArchetypeId -> Map ArchetypeId Table -> ComponentId -> IO [ComponentResult c]
 tryGetComponentsFromArchetype typeC archetype tables componentId =
   case Map.lookup archetype tables of
     Nothing -> return []
     Just table -> tryGetComponentsFromTable typeC table componentId
 
-tryGetComponentsFromTables :: forall c -> (Component c) => Tables -> [ArchetypeId] -> ComponentId -> IO [c]
+tryGetComponentsFromTables :: forall c -> (Component c) => Tables -> [ArchetypeId] -> ComponentId -> IO [ComponentResult c]
 tryGetComponentsFromTables typeC (Tables tables) archetypes componentId =
   do
     tables <- readIORef tables
     results <- mapM (\archetype -> tryGetComponentsFromArchetype typeC archetype tables componentId) archetypes
     return $ concat results
+
+data ComponentResult c = ComponentResult {value :: c, entity :: Entity}

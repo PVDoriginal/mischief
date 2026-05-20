@@ -65,6 +65,7 @@ library
     DefaultSignatures
     DeriveAnyClass
     DuplicateRecordFields
+    FunctionalDependencies
     ImportQualifiedPost
     MagicHash
     NoFieldSelectors
@@ -72,8 +73,8 @@ library
     OverloadedRecordDot
     RequiredTypeArguments
     TemplateHaskell
-    UndecidableInstances
     TypeFamilyDependencies
+    UndecidableInstances
 
   -- other-extensions:
   -- Other library packages from which modules are imported.

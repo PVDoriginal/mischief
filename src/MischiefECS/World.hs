@@ -203,7 +203,7 @@ tryGetEntityComponent typeC world entity =
               pointer <- readIORef pointer
               tryGetComponentFromTables typeC world.tables pointer componentId
 
-tryGetComponents :: forall c -> (Component c) => World -> [ArchetypeId] -> IO [c]
+tryGetComponents :: forall c -> (Component c) => World -> [ArchetypeId] -> IO [ComponentResult c]
 tryGetComponents typeC world archetypes =
   do
     componentId <- getComponentId (typeRep $ Proxy @typeC) world.components
