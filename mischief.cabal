@@ -73,6 +73,7 @@ library
     RequiredTypeArguments
     TemplateHaskell
     UndecidableInstances
+    TypeFamilyDependencies
 
   -- other-extensions:
   -- Other library packages from which modules are imported.

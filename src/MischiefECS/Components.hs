@@ -84,6 +84,12 @@ findMatchingArchetypes components archetypes =
 data ErasedComponent where
   ErasedComponent :: (Typeable c) => c -> ErasedComponent
 
+data M = Mutable | Immutable
+
 class (Typeable c) => Component c where
   erase :: c -> ErasedComponent
   erase = ErasedComponent
+
+  type Mutability c :: M
+
+  type Mutability c = Mutable
