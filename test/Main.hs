@@ -8,7 +8,7 @@ import Data.Foldable
 import Data.List qualified as List
 import MischiefECS
 
-newtype Name = Name String deriving (Show, Component, Eq)
+newtype Name = Name String deriving (Show, Component, Eq, Queryable)
 
 data C = C deriving (Component)
 
