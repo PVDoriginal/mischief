@@ -34,4 +34,10 @@ update = do
 
   for_ res $ \(entity, name) -> do
     liftIO $ putStrLn $ show entity ++ " has name: " ++ show name
-    remove (type Name) entity
+
+    when (name.value == Name "Foo") $
+      defer $
+        set name $
+          Name "Lol"
+
+  flush

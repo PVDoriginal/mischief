@@ -1,4 +1,4 @@
-module MischiefECS (module MischiefECS.World, module MischiefECS.Entities, module MischiefECS.Bundles, module MischiefECS.Components, module MischiefECS.Query, module MischiefECS.App) where
+module MischiefECS (module MischiefECS.Tables, module MischiefECS.World, module MischiefECS.Entities, module MischiefECS.Bundles, module MischiefECS.Components, module MischiefECS.Query, module MischiefECS.App) where
 
 import Data.Data (Typeable)
 import Data.IORef

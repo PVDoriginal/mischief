@@ -3,6 +3,7 @@ module MischiefECS.World where
 import Control.Monad
 import Control.Monad.IO.Class (MonadIO (liftIO))
 import Control.Monad.Trans.Reader
+import Data.Foldable
 import Data.Functor
 import Data.IORef
 import Data.List
@@ -22,8 +23,8 @@ data World = World
   { archetypes :: Archetypes,
     components :: Components,
     entities :: Entities,
-    tables :: Tables
-    -- deferred :: IORef [System ()]
+    tables :: Tables,
+    deferred :: IORef [System ()]
   }
 
 newWorld :: IO World
@@ -32,13 +33,15 @@ newWorld = do
   components <- emptyComponents
   entities <- emptyEntities
   tables <- emptyTables
+  deferred <- newIORef []
 
   return
     World
       { archetypes,
         components,
         entities,
-        tables
+        tables,
+        deferred
       }
 
 processBundleElement :: World -> BundleElement -> IO ProcessedBundleElement
@@ -211,10 +214,24 @@ tryGetComponents typeC world archetypes =
     componentId <- getComponentId (typeRep $ Proxy @typeC) world.components
     tryGetComponentsFromTables typeC world.tables archetypes componentId
 
+set :: (Bundle c) => ComponentResult c -> c -> System ()
+set !result !newValue = MischiefECS.World.insert newValue result.entity
+
+modify :: (Bundle c) => ComponentResult c -> (c -> c) -> System ()
+modify !result !f = MischiefECS.World.insert (f result.value) result.entity
+
 type System = ReaderT World IO
 
--- defer :: System a -> System ()
--- defer system = do
---   world <- ask
+defer :: System a -> System ()
+defer !system = do
+  world <- ask
+  liftIO $ modifyIORef' world.deferred (++ [system $> ()])
 
---   liftIO $ modifyIORef' world.deferred (++ [system $> ()])
+flush :: System ()
+flush = do
+  world <- ask
+  systems <- liftIO $ readIORef world.deferred
+
+  for_ systems id
+
+  liftIO $ writeIORef world.deferred []

@@ -45,8 +45,9 @@ runApp app = do
         case Map.lookup schedule systemMap of
           Nothing -> return ()
           Just systems -> do
-            for_ systems $ \system ->
+            for_ systems $ \system -> do
               runReaderT system app.world
+              runReaderT flush app.world
 
 addSystem :: (Schedule s) => s -> System () -> Plugin ()
 addSystem schedule system = do
