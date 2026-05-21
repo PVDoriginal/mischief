@@ -33,7 +33,7 @@ class (QueryData qd) => Queryable qd where
     (Component qd, QueryOutput qd ~ ComponentResult qd) =>
     Proxy qd -> World -> Entity -> IO (Maybe (QueryOutput qd))
   runQueryEntity _ world entity = do
-    result <- tryGetEntityComponent qd world entity
+    result <- tryGetEntityComponent @qd world entity
     pure $
       fmap (`ComponentResult` entity) result
 
@@ -41,7 +41,7 @@ class (QueryData qd) => Queryable qd where
   default runQueryInternal ::
     (Component qd, QueryOutput qd ~ ComponentResult qd) =>
     Proxy qd -> [ArchetypeId] -> World -> IO [QueryOutput qd]
-  runQueryInternal _ archetypes world = tryGetComponents qd world archetypes
+  runQueryInternal _ archetypes world = tryGetComponents @qd world archetypes
 
 instance (Queryable q0, Queryable q1) => Queryable (q0, q1) where
   type QueryOutput (q0, q1) = (QueryOutput q0, QueryOutput q1)
@@ -63,7 +63,7 @@ instance Queryable Entity where
 
   runQueryEntity _ _ entity = pure (Just entity)
   runQueryInternal _ archetypes world = do
-    results <- tryGetComponents (type Entity) world archetypes
+    results <- tryGetComponents @Entity world archetypes
     pure $ fmap (\cr -> cr.entity) results
 
 runQuery :: forall qd. (Queryable qd) => Proxy qd -> World -> IO [QueryOutput qd]

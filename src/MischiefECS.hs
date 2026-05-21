@@ -1,4 +1,12 @@
-module MischiefECS (module MischiefECS.Tables, module MischiefECS.World, module MischiefECS.Entities, module MischiefECS.Bundles, module MischiefECS.Components, module MischiefECS.Query, module MischiefECS.App) where
+module MischiefECS (
+  module MischiefECS.Tables,
+  module MischiefECS.World,
+  module MischiefECS.Entities,
+  module MischiefECS.Bundles,
+  module MischiefECS.Components,
+  module MischiefECS.Query,
+  module MischiefECS.App,
+) where
 
 import Data.Data (Typeable)
 import Data.IORef
@@ -27,5 +35,3 @@ e1 = ErasedComponent $ C1 10
 e2 = ErasedComponent $ C2 "lol"
 
 e3 = ErasedComponent $ C3 2.5
-
--- q3 = Query @(C1, (C1, C2))

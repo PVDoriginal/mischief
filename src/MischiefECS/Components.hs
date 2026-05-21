@@ -23,7 +23,7 @@ emptyComponents = do
   return $ Components map counter
 
 getComponentId :: TypeRep -> Components -> IO ComponentId
-getComponentId t Components {map, counter} = do
+getComponentId t Components{map, counter} = do
   innerMap <- readIORef map
 
   case Data.Map.lookup t innerMap of
@@ -36,8 +36,8 @@ getComponentId t Components {map, counter} = do
 
       return $ ComponentId result
 
-tryGetComponent :: forall c -> (Component c) => ErasedComponent -> Maybe c
-tryGetComponent (type c) (ErasedComponent (s :: c')) =
+tryGetComponent :: forall c. (Component c) => ErasedComponent -> Maybe c
+tryGetComponent (ErasedComponent (s :: c')) =
   case eqT @c @c' of
     Just Refl -> Just s
     Nothing -> Nothing
@@ -57,7 +57,7 @@ emptyArchetypes = do
 
 -- | Get the archetype ID from a list of component IDs.
 getArchetypeId :: [ComponentId] -> Archetypes -> IO ArchetypeId
-getArchetypeId t Archetypes {map, counter} = do
+getArchetypeId t Archetypes{map, counter} = do
   innerMap <- readIORef map
 
   case Data.Map.lookup t innerMap of
@@ -72,7 +72,7 @@ getArchetypeId t Archetypes {map, counter} = do
 
 removeArchetypeId :: ArchetypeId -> Archetypes -> IO ()
 removeArchetypeId id archetypes = do
-  modifyIORef' archetypes.map (Map.filter (\v -> v /= id))
+  modifyIORef' archetypes.map (Map.filter (/= id))
 
 findMatchingArchetypes :: [ComponentId] -> Archetypes -> IO [ArchetypeId]
 findMatchingArchetypes components archetypes =

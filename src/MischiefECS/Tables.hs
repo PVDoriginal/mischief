@@ -141,62 +141,62 @@ insertEntityIntoTables bundle (Tables tables) archetype pointerRef =
 
     insertComponentsIntoTable bundle table
 
-tryGetComponentFromColumn :: forall c -> (Component c) => Column -> EntityPointer -> IO (Maybe c)
-tryGetComponentFromColumn typeC (Column components) pointer =
+tryGetComponentFromColumn :: forall c. (Component c) => Column -> EntityPointer -> IO (Maybe c)
+tryGetComponentFromColumn (Column components) pointer =
   do
     let element = components !! pointer.rowIndex
-    return $ tryGetComponent typeC element
+    return $ tryGetComponent element
 
-tryGetComponentFromTable :: forall c -> (Component c) => Table -> EntityPointer -> ComponentId -> IO (Maybe c)
-tryGetComponentFromTable typeC table pointer componentId =
+tryGetComponentFromTable :: forall c. (Component c) => Table -> EntityPointer -> ComponentId -> IO (Maybe c)
+tryGetComponentFromTable table pointer componentId =
   do
     columns <- readIORef table.columns
     let column = Map.lookup componentId columns
 
     case column of
       Nothing -> return Nothing
-      Just column -> tryGetComponentFromColumn typeC column pointer
+      Just column -> tryGetComponentFromColumn column pointer
 
-tryGetComponentFromTables :: forall c -> (Component c) => Tables -> EntityPointer -> ComponentId -> IO (Maybe c)
-tryGetComponentFromTables typeC (Tables tables) pointer componentId =
+tryGetComponentFromTables :: forall c. (Component c) => Tables -> EntityPointer -> ComponentId -> IO (Maybe c)
+tryGetComponentFromTables (Tables tables) pointer componentId =
   do
     tables <- readIORef tables
     let table = Map.lookup pointer.archetypeId tables
 
     case table of
       Nothing -> return Nothing
-      Just table -> tryGetComponentFromTable typeC table pointer componentId
+      Just table -> tryGetComponentFromTable table pointer componentId
 
-tryGetComponentsFromColumn :: forall c -> (Component c) => Column -> IO [c]
-tryGetComponentsFromColumn typeC (Column components) =
+tryGetComponentsFromColumn :: forall c. (Component c) => Column -> IO [c]
+tryGetComponentsFromColumn (Column components) =
   do
-    let x = mapM (\c -> tryGetComponent typeC c) components
+    let x = mapM tryGetComponent components
     case x of
       Nothing -> return []
       Just c -> return c
 
-tryGetComponentsFromTable :: forall c -> (Component c) => Table -> ComponentId -> IO [ComponentResult c]
-tryGetComponentsFromTable typeC table componentId =
+tryGetComponentsFromTable :: forall c. (Component c) => Table -> ComponentId -> IO [ComponentResult c]
+tryGetComponentsFromTable table componentId =
   do
     columns <- readIORef table.columns
     case Map.lookup componentId columns of
       Nothing -> return []
       Just column -> do
-        results <- tryGetComponentsFromColumn typeC column
+        results <- tryGetComponentsFromColumn @c column
         entities <- readIORef table.entities
         return (zipWith ComponentResult results (Prelude.map fst entities))
 
-tryGetComponentsFromArchetype :: forall c -> (Component c) => ArchetypeId -> Map ArchetypeId Table -> ComponentId -> IO [ComponentResult c]
-tryGetComponentsFromArchetype typeC archetype tables componentId =
+tryGetComponentsFromArchetype :: forall c. (Component c) => ArchetypeId -> Map ArchetypeId Table -> ComponentId -> IO [ComponentResult c]
+tryGetComponentsFromArchetype archetype tables componentId =
   case Map.lookup archetype tables of
     Nothing -> return []
-    Just table -> tryGetComponentsFromTable typeC table componentId
+    Just table -> tryGetComponentsFromTable table componentId
 
-tryGetComponentsFromTables :: forall c -> (Component c) => Tables -> [ArchetypeId] -> ComponentId -> IO [ComponentResult c]
-tryGetComponentsFromTables typeC (Tables tables) archetypes componentId =
+tryGetComponentsFromTables :: forall c. (Component c) => Tables -> [ArchetypeId] -> ComponentId -> IO [ComponentResult c]
+tryGetComponentsFromTables (Tables tables) archetypes componentId =
   do
     tables <- readIORef tables
-    results <- mapM (\archetype -> tryGetComponentsFromArchetype typeC archetype tables componentId) archetypes
+    results <- mapM (\archetype -> tryGetComponentsFromArchetype archetype tables componentId) archetypes
     return $ concat results
 
 data ComponentResult c = ComponentResult {value :: c, entity :: Entity}

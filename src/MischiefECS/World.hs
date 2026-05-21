@@ -22,11 +22,11 @@ import MischiefECS.Tables
 import System.Info (arch)
 
 data World = World
-  { archetypes :: Archetypes,
-    components :: Components,
-    entities :: Entities,
-    tables :: Tables,
-    deferred :: IORef [System ()]
+  { archetypes :: Archetypes
+  , components :: Components
+  , entities :: Entities
+  , tables :: Tables
+  , deferred :: IORef [System ()]
   }
 
 newWorld :: IO World
@@ -39,21 +39,21 @@ newWorld = do
 
   return
     World
-      { archetypes,
-        components,
-        entities,
-        tables,
-        deferred
+      { archetypes
+      , components
+      , entities
+      , tables
+      , deferred
       }
 
 processBundleElement :: World -> BundleElement -> IO ProcessedBundleElement
-processBundleElement world BundleElement {rep, component} =
+processBundleElement world BundleElement{rep, component} =
   do
     id <- getComponentId rep world.components
     return
       ProcessedBundleElement
-        { id,
-          component
+        { id
+        , component
         }
 
 processBundleData :: World -> BundleData -> IO ProcessedBundleData
@@ -62,7 +62,7 @@ processBundleData world (BundleData bundleData) =
     elements <- mapM (processBundleElement world) (Set.toList bundleData)
     archetypeId <- getArchetypeId (Prelude.map (\x -> x.id) elements) world.archetypes
     return
-      ProcessedBundleData {elements}
+      ProcessedBundleData{elements}
 
 combineProcessedBundles :: World -> ProcessedBundleData -> ProcessedBundleData -> IO ProcessedBundleData
 combineProcessedBundles world bundle1 bundle2 =
@@ -70,14 +70,14 @@ combineProcessedBundles world bundle1 bundle2 =
    in do
         archetypeId <- getArchetypeId (Prelude.map (\x -> x.id) elements) world.archetypes
         return
-          ProcessedBundleData {elements}
+          ProcessedBundleData{elements}
 
 removeComponentFromProcessedBundle :: World -> ComponentId -> ProcessedBundleData -> IO ProcessedBundleData
 removeComponentFromProcessedBundle world componentId bundle =
   do
     let elements = Prelude.filter (\x -> x.id /= componentId) bundle.elements
     archetypeId <- getArchetypeId (Prelude.map (\x -> x.id) elements) world.archetypes
-    return ProcessedBundleData {elements}
+    return ProcessedBundleData{elements}
 
 -- | Spawn an entity in this World given a bundle of components.
 spawn :: (Bundle b) => b -> System Entity
@@ -94,7 +94,7 @@ spawn bundle =
 
     liftIO $ modifyIORef world.entities.counter (+ 1)
 
-    entityPointer <- liftIO $ newIORef EntityPointer {archetypeId = ArchetypeId 0, rowIndex = 0}
+    entityPointer <- liftIO $ newIORef EntityPointer{archetypeId = ArchetypeId 0, rowIndex = 0}
 
     liftIO $ insertEntityIntoTables bundle world.tables archetypeId (entity, entityPointer)
 
@@ -166,11 +166,11 @@ insert bundle entity =
                   Just newTable -> do
                     liftIO $ replaceComponentsIntoTable bundleData newPointer newTable
 
-removeComponentFromEntity :: forall c -> (Component c) => Entity -> System ()
-removeComponentFromEntity componentType entity =
+removeComponentFromEntity :: forall c. (Component c) => Entity -> System ()
+removeComponentFromEntity entity =
   do
     world <- ask
-    componentId <- liftIO $ getComponentId (typeRep $ Proxy @componentType) world.components
+    componentId <- liftIO $ getComponentId (typeRep $ Proxy @c) world.components
     entityPointers <- liftIO $ readIORef world.entities.pointers
 
     case Map.lookup entity entityPointers of
@@ -195,7 +195,7 @@ class Removable c where
 
 instance {-# OVERLAPPABLE #-} (Component c) => Removable c where
   removeInternal :: (Component c) => Proxy c -> Entity -> System ()
-  removeInternal _ = removeComponentFromEntity c
+  removeInternal _ = removeComponentFromEntity @c
 
 instance {-# OVERLAPPING #-} (Removable c0, Removable c1) => Removable (c0, c1) where
   removeInternal :: (Removable c0, Removable c1) => Proxy (c0, c1) -> Entity -> System ()
@@ -209,13 +209,13 @@ remove = removeInternal (Proxy @r)
 delete :: forall c. (Removable c) => ComponentResult c -> System ()
 delete result = remove @c result.entity
 
-tryGetEntityComponent :: forall c -> (Component c) => World -> Entity -> IO (Maybe c)
-tryGetEntityComponent typeC world entity =
+tryGetEntityComponent :: forall c. (Component c) => World -> Entity -> IO (Maybe c)
+tryGetEntityComponent world entity =
   do
     pointers <- readIORef world.entities.pointers
     components <- readIORef world.components.map
 
-    let componentId = Map.lookup (typeRep $ Proxy @typeC) components
+    let componentId = Map.lookup (typeRep $ Proxy @c) components
 
     case componentId of
       Nothing -> return Nothing
@@ -227,13 +227,13 @@ tryGetEntityComponent typeC world entity =
           Just pointer ->
             do
               pointer <- readIORef pointer
-              tryGetComponentFromTables typeC world.tables pointer componentId
+              tryGetComponentFromTables world.tables pointer componentId
 
-tryGetComponents :: forall c -> (Component c) => World -> [ArchetypeId] -> IO [ComponentResult c]
-tryGetComponents typeC world archetypes =
+tryGetComponents :: forall c. (Component c) => World -> [ArchetypeId] -> IO [ComponentResult c]
+tryGetComponents world archetypes =
   do
-    componentId <- getComponentId (typeRep $ Proxy @typeC) world.components
-    tryGetComponentsFromTables typeC world.tables archetypes componentId
+    componentId <- getComponentId (typeRep $ Proxy @c) world.components
+    tryGetComponentsFromTables world.tables archetypes componentId
 
 set :: (Bundle c) => ComponentResult c -> c -> System ()
 set !result !newValue = MischiefECS.World.insert newValue result.entity
