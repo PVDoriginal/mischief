@@ -3,6 +3,7 @@ module MischiefECS.World where
 import Control.Monad
 import Control.Monad.IO.Class (MonadIO (liftIO))
 import Control.Monad.Trans.Reader
+import Data.Functor
 import Data.IORef
 import Data.List
 import Data.Map
@@ -22,6 +23,7 @@ data World = World
     components :: Components,
     entities :: Entities,
     tables :: Tables
+    -- deferred :: IORef [System ()]
   }
 
 newWorld :: IO World
@@ -89,7 +91,7 @@ spawn bundle =
 
     entityPointer <- liftIO $ newIORef EntityPointer {archetypeId = ArchetypeId 0, rowIndex = 0}
 
-    liftIO $ insertEntityIntoTables bundle world.tables archetypeId entityPointer
+    liftIO $ insertEntityIntoTables bundle world.tables archetypeId (entity, entityPointer)
 
     liftIO $ modifyIORef' world.entities.pointers $ Map.insert entity entityPointer
 
@@ -148,7 +150,7 @@ insert bundle entity =
                 newBundle <- liftIO $ combineProcessedBundles world collectedComponents bundleData
                 archetype <- liftIO $ archetypeOfProcessedBundle world.archetypes newBundle
 
-                liftIO $ insertEntityIntoTables newBundle world.tables archetype currentPointer
+                liftIO $ insertEntityIntoTables newBundle world.tables archetype (entity, currentPointer)
                 newPointer <- liftIO $ readIORef currentPointer
 
                 let Tables tables = world.tables
@@ -181,7 +183,7 @@ remove componentType entity =
               newBundle <- liftIO $ removeComponentFromProcessedBundle world componentId collectedComponents
               archetype <- liftIO $ archetypeOfProcessedBundle world.archetypes newBundle
 
-              liftIO $ insertEntityIntoTables newBundle world.tables archetype pointer
+              liftIO $ insertEntityIntoTables newBundle world.tables archetype (entity, pointer)
 
 tryGetEntityComponent :: forall c -> (Component c) => World -> Entity -> IO (Maybe c)
 tryGetEntityComponent typeC world entity =
@@ -210,3 +212,9 @@ tryGetComponents typeC world archetypes =
     tryGetComponentsFromTables typeC world.tables archetypes componentId
 
 type System = ReaderT World IO
+
+-- defer :: System a -> System ()
+-- defer system = do
+--   world <- ask
+
+--   liftIO $ modifyIORef' world.deferred (++ [system $> ()])
