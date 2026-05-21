@@ -2,7 +2,7 @@ module MischiefECS.Tables where
 
 import Data.Foldable
 import Data.IORef
-import Data.Map
+import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Typeable
 import MischiefECS.Bundles
@@ -13,28 +13,27 @@ import Unsafe.Coerce (unsafeCoerce)
 newtype Tables = Tables (IORef (Map ArchetypeId Table))
 
 data Table = Table
-  { columns :: IORef (Map ComponentId Column),
-    components :: [ComponentId],
-    entities :: IORef [(Entity, IORef EntityPointer)],
-    nRows :: IORef Int
+  { columns :: IORef (Map ComponentId Column)
+  , components :: [ComponentId]
+  , entities :: IORef [(Entity, IORef EntityPointer)]
+  , nRows :: IORef Int
   }
 
 newtype Column = Column [ErasedComponent]
 
 emptyTables :: IO Tables
-emptyTables = do
-  map <- newIORef Map.empty
-  return $ Tables map
+emptyTables =
+  Tables <$> newIORef Map.empty
 
 newTable :: ProcessedBundleData -> IO Table
 newTable components = do
-  map <- newIORef $ Map.fromList $ Prelude.map (\x -> (x.id, Column [])) components.elements
+  columns <- newIORef $ Map.fromList $ map (\x -> (x.id, Column [])) components.elements
   entities <- newIORef []
   nRows <- newIORef 0
 
-  let componentIds = Prelude.map (\x -> x.id) components.elements
+  let componentIds = map (\x -> x.id) components.elements
 
-  return $ Table {columns = map, components = componentIds, nRows, entities}
+  return $ Table{columns = columns, components = componentIds, nRows, entities}
 
 tableIsEmpty :: Table -> IO Bool
 tableIsEmpty table = do
@@ -42,7 +41,7 @@ tableIsEmpty table = do
   return $ nRows == 0
 
 insertComponentsIntoMap :: ProcessedBundleData -> Map ComponentId Column -> Map ComponentId Column
-insertComponentsIntoMap bundle map = Prelude.foldl' (\map element -> adjust (\(Column x) -> Column $ x ++ [element.component]) element.id map) map bundle.elements
+insertComponentsIntoMap bundle map = foldl' (\map element -> Map.adjust (\(Column x) -> Column $ x ++ [element.component]) element.id map) map bundle.elements
 
 insertComponentsIntoTable :: ProcessedBundleData -> Table -> IO ()
 insertComponentsIntoTable bundle table = do
@@ -50,12 +49,12 @@ insertComponentsIntoTable bundle table = do
 
 replaceComponentsIntoMap :: ProcessedBundleData -> EntityPointer -> Map ComponentId Column -> Map ComponentId Column
 replaceComponentsIntoMap bundle pointer tableMap =
-  Prelude.foldl' modifyMap tableMap bundle.elements
-  where
-    modifyMap tableMap element = adjust (modifyComponents element) element.id tableMap
-    modifyComponents element (Column x) =
-      let (x', _ : ys) = Prelude.splitAt pointer.rowIndex x
-       in Column $ x' ++ [element.component] ++ ys
+  foldl' modifyMap tableMap bundle.elements
+ where
+  modifyMap tableMap element = Map.adjust (modifyComponents element) element.id tableMap
+  modifyComponents element (Column x) =
+    let (x', _ : ys) = splitAt pointer.rowIndex x
+     in Column $ x' ++ [element.component] ++ ys
 
 replaceComponentsIntoTable :: ProcessedBundleData -> EntityPointer -> Table -> IO ()
 replaceComponentsIntoTable bundle pointer table = do
@@ -63,7 +62,7 @@ replaceComponentsIntoTable bundle pointer table = do
 
 takeFromColumn :: EntityPointer -> Column -> (ErasedComponent, Column)
 takeFromColumn pointer (Column x) =
-  let (x', y : ys) = Prelude.splitAt pointer.rowIndex x
+  let (x', y : ys) = splitAt pointer.rowIndex x
    in (y, Column $ x' ++ ys)
 
 takeComponentsFromTable :: EntityPointer -> Table -> IO ProcessedBundleData
@@ -71,23 +70,23 @@ takeComponentsFromTable pointer table =
   do
     columnsInternal <- readIORef table.columns
 
-    let newColumns = Prelude.map (\(id, column) -> (id, takeFromColumn pointer column)) $ Map.toList columnsInternal
-    writeIORef table.columns $ Map.fromList $ Prelude.map (\(id, (_, column)) -> (id, column)) newColumns
+    let newColumns = map (\(id, column) -> (id, takeFromColumn pointer column)) $ Map.toList columnsInternal
+    writeIORef table.columns $ Map.fromList $ map (\(id, (_, column)) -> (id, column)) newColumns
     modifyIORef' table.nRows (\x -> x - 1)
     removeEntityFromTable pointer.rowIndex table
 
-    let elements = Prelude.map getComponent newColumns
-    return ProcessedBundleData {elements}
-  where
-    getComponent (componentId, (erasedComponent, _)) = ProcessedBundleElement {id = componentId, component = erasedComponent}
+    let elements = map getComponent newColumns
+    return ProcessedBundleData{elements}
+ where
+  getComponent (componentId, (erasedComponent, _)) = ProcessedBundleElement{id = componentId, component = erasedComponent}
 
 removeComponentFromColumn :: EntityPointer -> Column -> Column
 removeComponentFromColumn pointer (Column x) =
-  let (x', _ : ys) = Prelude.splitAt pointer.rowIndex x
+  let (x', _ : ys) = splitAt pointer.rowIndex x
    in Column $ x' ++ ys
 
 removeComponentsFromMap :: EntityPointer -> Map ComponentId Column -> Map ComponentId Column
-removeComponentsFromMap pointer columnMap = Map.fromList $ Prelude.map (\(id, column) -> (id, removeComponentFromColumn pointer column)) (Map.toList columnMap)
+removeComponentsFromMap pointer columnMap = Map.fromList $ map (\(id, column) -> (id, removeComponentFromColumn pointer column)) (Map.toList columnMap)
 
 removeComponentsFromTable :: EntityPointer -> Table -> IO ()
 removeComponentsFromTable pointer table =
@@ -98,7 +97,7 @@ removeComponentsFromTable pointer table =
 
 removeRow :: Int -> [(Entity, IORef EntityPointer)] -> IO [(Entity, IORef EntityPointer)]
 removeRow row list =
-  let (x, _ : ys) = Prelude.splitAt row list
+  let (x, _ : ys) = splitAt row list
       ys' =
         mapM
           ( \(x1, x2) ->
@@ -129,7 +128,7 @@ insertEntityIntoTables bundle (Tables tables) archetype pointerRef =
       Just table -> pure table
       Nothing -> do
         table <- newTable bundle
-        let newTables = insert archetype table innerTables
+        let newTables = Map.insert archetype table innerTables
         writeIORef tables newTables
         return table
 
@@ -137,7 +136,7 @@ insertEntityIntoTables bundle (Tables tables) archetype pointerRef =
     modifyIORef' table.nRows (+ 1)
     modifyIORef' table.entities (++ [pointerRef])
 
-    writeIORef (snd pointerRef) $ EntityPointer {archetypeId = archetype, rowIndex}
+    writeIORef (snd pointerRef) $ EntityPointer{archetypeId = archetype, rowIndex}
 
     insertComponentsIntoTable bundle table
 
@@ -184,7 +183,7 @@ tryGetComponentsFromTable table componentId =
       Just column -> do
         results <- tryGetComponentsFromColumn @c column
         entities <- readIORef table.entities
-        return (zipWith ComponentResult results (Prelude.map fst entities))
+        return (zipWith ComponentResult results (map fst entities))
 
 tryGetComponentsFromArchetype :: forall c. (Component c) => ArchetypeId -> Map ArchetypeId Table -> ComponentId -> IO [ComponentResult c]
 tryGetComponentsFromArchetype archetype tables componentId =

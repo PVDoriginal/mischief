@@ -9,10 +9,10 @@ import Data.Foldable
 import Data.Functor
 import Data.IORef
 import Data.List
-import Data.Map
+import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Proxy
-import Data.Set
+import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Typeable
 import MischiefECS.Bundles
@@ -60,7 +60,7 @@ processBundleData :: World -> BundleData -> IO ProcessedBundleData
 processBundleData world (BundleData bundleData) =
   do
     elements <- mapM (processBundleElement world) (Set.toList bundleData)
-    archetypeId <- getArchetypeId (Prelude.map (\x -> x.id) elements) world.archetypes
+    archetypeId <- getArchetypeId (map (\x -> x.id) elements) world.archetypes
     return
       ProcessedBundleData{elements}
 
@@ -68,15 +68,15 @@ combineProcessedBundles :: World -> ProcessedBundleData -> ProcessedBundleData -
 combineProcessedBundles world bundle1 bundle2 =
   let elements = Set.toList $ Set.union (Set.fromList bundle1.elements) (Set.fromList bundle2.elements)
    in do
-        archetypeId <- getArchetypeId (Prelude.map (\x -> x.id) elements) world.archetypes
+        archetypeId <- getArchetypeId (map (\x -> x.id) elements) world.archetypes
         return
           ProcessedBundleData{elements}
 
 removeComponentFromProcessedBundle :: World -> ComponentId -> ProcessedBundleData -> IO ProcessedBundleData
 removeComponentFromProcessedBundle world componentId bundle =
   do
-    let elements = Prelude.filter (\x -> x.id /= componentId) bundle.elements
-    archetypeId <- getArchetypeId (Prelude.map (\x -> x.id) elements) world.archetypes
+    let elements = filter (\x -> x.id /= componentId) bundle.elements
+    archetypeId <- getArchetypeId (map (\x -> x.id) elements) world.archetypes
     return ProcessedBundleData{elements}
 
 -- | Spawn an entity in this World given a bundle of components.
@@ -131,7 +131,7 @@ insert bundle entity =
   do
     world <- ask
     bundleData <- liftIO $ processBundleData world (bundleData bundle)
-    let newComponents = sort $ Prelude.map (\x -> x.id) bundleData.elements
+    let newComponents = sort $ map (\x -> x.id) bundleData.elements
 
     entityPointers <- liftIO $ readIORef world.entities.pointers
     case Map.lookup entity entityPointers of
@@ -253,6 +253,6 @@ flush = do
   world <- ask
   systems <- liftIO $ readIORef world.deferred
 
-  for_ systems id
+  sequence_ systems
 
   liftIO $ writeIORef world.deferred []
