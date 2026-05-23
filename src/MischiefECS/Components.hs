@@ -1,3 +1,5 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
+
 module MischiefECS.Components where
 
 import Data.IORef
@@ -23,7 +25,7 @@ emptyComponents = do
   return $ Components map counter
 
 getComponentId :: TypeRep -> Components -> IO ComponentId
-getComponentId t Components{map, counter} = do
+getComponentId t Components {map, counter} = do
   innerMap <- readIORef map
 
   case Data.Map.lookup t innerMap of
@@ -57,7 +59,7 @@ emptyArchetypes = do
 
 -- | Get the archetype ID from a list of component IDs.
 getArchetypeId :: [ComponentId] -> Archetypes -> IO ArchetypeId
-getArchetypeId t Archetypes{map, counter} = do
+getArchetypeId t Archetypes {map, counter} = do
   innerMap <- readIORef map
 
   case Data.Map.lookup t innerMap of
@@ -84,12 +86,23 @@ findMatchingArchetypes components archetypes =
 data ErasedComponent where
   ErasedComponent :: (Typeable c) => c -> ErasedComponent
 
-data M = Mutable | Immutable
-
 class (Typeable c) => Component c where
   erase :: c -> ErasedComponent
   erase = ErasedComponent
 
-  type Mutability c :: M
+  required :: DefaultBundleData
+  required = DefaultBundleData Set.empty
 
-  type Mutability c = Mutable
+newtype BundleData = BundleData (Set BundleElement)
+
+newtype DefaultBundleData = DefaultBundleData (Set BundleElement)
+
+data BundleElement = BundleElement {rep :: TypeRep, component :: ErasedComponent}
+
+instance Eq BundleElement where
+  (==) :: BundleElement -> BundleElement -> Bool
+  (==) BundleElement {rep = rep1} BundleElement {rep = rep2} = rep1 == rep2
+
+instance Ord BundleElement where
+  compare :: BundleElement -> BundleElement -> Ordering
+  compare BundleElement {rep = rep1} BundleElement {rep = rep2} = compare rep1 rep2

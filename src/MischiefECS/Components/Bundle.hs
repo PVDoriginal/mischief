@@ -1,4 +1,4 @@
-module MischiefECS.Bundles where
+module MischiefECS.Components.Bundle where
 
 import Data.List qualified as List
 import Data.Set (Set)
@@ -13,16 +13,12 @@ data ProcessedBundleElement = ProcessedBundleElement {id :: ComponentId, compone
 archetypeOfProcessedBundle :: Archetypes -> ProcessedBundleData -> IO ArchetypeId
 archetypeOfProcessedBundle archetypes bundle = getArchetypeId (map (\x -> x.id) bundle.elements) archetypes
 
-newtype BundleData = BundleData (Set BundleElement)
-
 addComponentToBundleData :: (Component c) => c -> BundleData -> BundleData
 addComponentToBundleData c (BundleData bundle) =
   let rep = typeOf c
       component = ErasedComponent c
       element = BundleElement {rep, component}
    in BundleData $ Set.insert element bundle
-
-data BundleElement = BundleElement {rep :: TypeRep, component :: ErasedComponent}
 
 instance Eq ProcessedBundleElement where
   (==) :: ProcessedBundleElement -> ProcessedBundleElement -> Bool
@@ -31,14 +27,6 @@ instance Eq ProcessedBundleElement where
 instance Ord ProcessedBundleElement where
   compare :: ProcessedBundleElement -> ProcessedBundleElement -> Ordering
   compare ProcessedBundleElement {id = id1} ProcessedBundleElement {id = id2} = compare id1 id2
-
-instance Eq BundleElement where
-  (==) :: BundleElement -> BundleElement -> Bool
-  (==) BundleElement {rep = rep1} BundleElement {rep = rep2} = rep1 == rep2
-
-instance Ord BundleElement where
-  compare :: BundleElement -> BundleElement -> Ordering
-  compare BundleElement {rep = rep1} BundleElement {rep = rep2} = compare rep1 rep2
 
 instance Show BundleData where
   show (BundleData set) = mconcat ["BundleData [", List.intercalate ", " ts, "]"]

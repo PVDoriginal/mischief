@@ -14,8 +14,8 @@ import Data.Proxy
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Typeable
-import MischiefECS.Bundles
 import MischiefECS.Components
+import MischiefECS.Components.Bundle
 import MischiefECS.Entities
 import MischiefECS.Tables
 

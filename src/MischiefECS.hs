@@ -2,7 +2,8 @@ module MischiefECS
   ( module MischiefECS.Tables,
     module MischiefECS.World,
     module MischiefECS.Entities,
-    module MischiefECS.Bundles,
+    module MischiefECS.Components.Bundle,
+    module MischiefECS.Components.Default,
     module MischiefECS.Components,
     module MischiefECS.World.Query,
     module MischiefECS.World.Remove,
@@ -15,26 +16,11 @@ import Data.IORef
 import Data.Type.Equality
 import Data.Typeable
 import MischiefECS.App
-import MischiefECS.Bundles
 import MischiefECS.Components
+import MischiefECS.Components.Bundle
+import MischiefECS.Components.Default
 import MischiefECS.Entities
 import MischiefECS.Tables
 import MischiefECS.World
 import MischiefECS.World.Query
 import MischiefECS.World.Remove
-import Unsafe.Coerce (unsafeCoerce)
-
-someFunc :: IO ()
-someFunc = putStrLn "someFunc"
-
-data C1 = C1 Int deriving (Component, Show)
-
-data C2 = C2 String deriving (Component, Show)
-
-data C3 = C3 Double deriving (Component, Show)
-
-e1 = ErasedComponent $ C1 10
-
-e2 = ErasedComponent $ C2 "lol"
-
-e3 = ErasedComponent $ C3 2.5

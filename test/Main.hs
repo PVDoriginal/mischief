@@ -4,13 +4,18 @@ import Control.Monad
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Reader
 import Data.Data (typeOf)
+import Data.Default
 import Data.Foldable
 import Data.List qualified as List
+import GHC.Generics (Generic)
 import MischiefECS
 
-newtype Name = Name String deriving (Show, Component, Eq, Queryable)
+newtype Name = Name String deriving (Generic, Show, Component, Eq, Queryable, Default)
 
-data C = C deriving (Component, Queryable)
+data C = C deriving (Queryable)
+
+instance Component C where
+  required = require @(Name, Name)
 
 main :: IO ()
 main = do

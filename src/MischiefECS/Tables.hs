@@ -3,8 +3,8 @@ module MischiefECS.Tables where
 import Data.IORef
 import Data.Map (Map)
 import Data.Map qualified as Map
-import MischiefECS.Bundles
 import MischiefECS.Components
+import MischiefECS.Components.Bundle
 import MischiefECS.Entities
 
 newtype Tables = Tables (IORef (Map ArchetypeId Table))

@@ -53,15 +53,16 @@ library
   -- other-modules:
   other-modules:
     MischiefECS.App
-    MischiefECS.Bundles
     MischiefECS.Components
+    MischiefECS.Components.Bundle
+    MischiefECS.Components.Default
     MischiefECS.Entities
     MischiefECS.Tables
     MischiefECS.World
     MischiefECS.World.Query
     MischiefECS.World.Remove
 
-  -- LANGUAGE extensions used by modules in this package.
+  -- LANGUAGE extensions used by modules in this package.z
   default-extensions:
     DefaultSignatures
     DeriveAnyClass
@@ -84,6 +85,7 @@ library
     binary,
     bytestring,
     containers,
+    data-default,
     primitive,
     transformers,
 
@@ -119,5 +121,7 @@ test-suite mischief-test
   build-depends:
     base ^>=4.21.0.0,
     containers,
+    data-default,
     mischief,
+    primitive,
     transformers,
