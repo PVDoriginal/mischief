@@ -10,12 +10,12 @@ import Data.List qualified as List
 import GHC.Generics (Generic)
 import MischiefECS
 
-newtype Name = Name String deriving (Generic, Show, Component, Eq, Queryable, Default)
+newtype Name = Name String deriving (Generic, Show, Eq, Component, Queryable, Default)
 
-data C = C deriving (Queryable)
+data C = C deriving (Queryable, Show)
 
 instance Component C where
-  required = require @(Name, Name)
+  required = require @Name
 
 main :: IO ()
 main = do
@@ -30,7 +30,7 @@ plugin = do
 setup :: System ()
 setup = do
   spawn (Name "Foo")
-  spawn (Name "Bar")
+  spawn C
 
   return ()
 
