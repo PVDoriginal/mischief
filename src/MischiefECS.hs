@@ -4,7 +4,8 @@ module MischiefECS
     module MischiefECS.Entities,
     module MischiefECS.Bundles,
     module MischiefECS.Components,
-    module MischiefECS.Query,
+    module MischiefECS.World.Query,
+    module MischiefECS.World.Remove,
     module MischiefECS.App,
   )
 where
@@ -20,6 +21,7 @@ import MischiefECS.Entities
 import MischiefECS.Tables
 import MischiefECS.World
 import MischiefECS.World.Query
+import MischiefECS.World.Remove
 import Unsafe.Coerce (unsafeCoerce)
 
 someFunc :: IO ()

@@ -10,7 +10,7 @@ import MischiefECS
 
 newtype Name = Name String deriving (Show, Component, Eq, Queryable)
 
-data C = C deriving (Component)
+data C = C deriving (Component, Queryable)
 
 main :: IO ()
 main = do
@@ -24,8 +24,9 @@ plugin = do
 
 setup :: System ()
 setup = do
-  e1 <- spawn (Name "Foo")
+  spawn (Name "Foo")
   spawn (Name "Bar")
+
   return ()
 
 update :: System ()

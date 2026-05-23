@@ -164,6 +164,33 @@ insert bundle entity =
                   Just newTable -> do
                     liftIO $ replaceComponentsIntoTable bundleData newPointer newTable
 
+insertNew :: (Bundle b) => b -> Entity -> System ()
+insertNew bundle entity =
+  do
+    world <- ask
+    bundleData <- liftIO $ processBundleData world (bundleData bundle)
+    let components = sort $ map (\x -> x.id) bundleData.elements
+
+    entityPointers <- liftIO $ readIORef world.entities.pointers
+    case Map.lookup entity entityPointers of
+      Nothing -> undefined
+      Just currentPointer -> do
+        currentPointerInternal <- liftIO $ readIORef currentPointer
+
+        let Tables tables = world.tables
+        tables <- liftIO $ readIORef tables
+
+        case Map.lookup currentPointerInternal.archetypeId tables of
+          Nothing -> undefined
+          Just currentTable -> do
+            let newComponents = filter (\c -> c `notElem` currentTable.components) components
+
+            collectedComponents <- liftIO $ takeComponentsFromTable currentPointerInternal currentTable
+            newBundle <- liftIO $ combineProcessedBundles world collectedComponents bundleData
+            archetype <- liftIO $ archetypeOfProcessedBundle world.archetypes newBundle
+
+            liftIO $ insertEntityIntoTables newBundle world.tables archetype (entity, currentPointer)
+
 removeComponentFromEntity :: forall c. (Component c) => Entity -> System ()
 removeComponentFromEntity entity =
   do

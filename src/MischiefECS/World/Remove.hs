@@ -1,5 +1,12 @@
-module MischiefECS.World.Remove where 
+{-# LANGUAGE AllowAmbiguousTypes #-}
 
+module MischiefECS.World.Remove where
+
+import Data.Data
+import MischiefECS.Components
+import MischiefECS.Entities
+import MischiefECS.Tables
+import MischiefECS.World
 
 class Removable c where
   removeInternal :: Proxy c -> Entity -> System ()

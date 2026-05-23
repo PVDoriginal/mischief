@@ -56,9 +56,10 @@ library
     MischiefECS.Bundles
     MischiefECS.Components
     MischiefECS.Entities
-    MischiefECS.Query
     MischiefECS.Tables
     MischiefECS.World
+    MischiefECS.World.Query
+    MischiefECS.World.Remove
 
   -- LANGUAGE extensions used by modules in this package.
   default-extensions:
