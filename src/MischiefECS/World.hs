@@ -5,7 +5,6 @@ module MischiefECS.World where
 import Control.Monad
 import Control.Monad.IO.Class (MonadIO (liftIO))
 import Control.Monad.Trans.Reader
-import Data.Foldable
 import Data.Functor
 import Data.IORef
 import Data.List
@@ -19,14 +18,13 @@ import MischiefECS.Bundles
 import MischiefECS.Components
 import MischiefECS.Entities
 import MischiefECS.Tables
-import System.Info (arch)
 
 data World = World
-  { archetypes :: Archetypes
-  , components :: Components
-  , entities :: Entities
-  , tables :: Tables
-  , deferred :: IORef [System ()]
+  { archetypes :: Archetypes,
+    components :: Components,
+    entities :: Entities,
+    tables :: Tables,
+    deferred :: IORef [System ()]
   }
 
 newWorld :: IO World
@@ -39,21 +37,21 @@ newWorld = do
 
   return
     World
-      { archetypes
-      , components
-      , entities
-      , tables
-      , deferred
+      { archetypes,
+        components,
+        entities,
+        tables,
+        deferred
       }
 
 processBundleElement :: World -> BundleElement -> IO ProcessedBundleElement
-processBundleElement world BundleElement{rep, component} =
+processBundleElement world BundleElement {rep, component} =
   do
     id <- getComponentId rep world.components
     return
       ProcessedBundleElement
-        { id
-        , component
+        { id,
+          component
         }
 
 processBundleData :: World -> BundleData -> IO ProcessedBundleData
@@ -62,7 +60,7 @@ processBundleData world (BundleData bundleData) =
     elements <- mapM (processBundleElement world) (Set.toList bundleData)
     archetypeId <- getArchetypeId (map (\x -> x.id) elements) world.archetypes
     return
-      ProcessedBundleData{elements}
+      ProcessedBundleData {elements}
 
 combineProcessedBundles :: World -> ProcessedBundleData -> ProcessedBundleData -> IO ProcessedBundleData
 combineProcessedBundles world bundle1 bundle2 =
@@ -70,14 +68,14 @@ combineProcessedBundles world bundle1 bundle2 =
    in do
         archetypeId <- getArchetypeId (map (\x -> x.id) elements) world.archetypes
         return
-          ProcessedBundleData{elements}
+          ProcessedBundleData {elements}
 
 removeComponentFromProcessedBundle :: World -> ComponentId -> ProcessedBundleData -> IO ProcessedBundleData
 removeComponentFromProcessedBundle world componentId bundle =
   do
     let elements = filter (\x -> x.id /= componentId) bundle.elements
     archetypeId <- getArchetypeId (map (\x -> x.id) elements) world.archetypes
-    return ProcessedBundleData{elements}
+    return ProcessedBundleData {elements}
 
 -- | Spawn an entity in this World given a bundle of components.
 spawn :: (Bundle b) => b -> System Entity
@@ -94,7 +92,7 @@ spawn bundle =
 
     liftIO $ modifyIORef world.entities.counter (+ 1)
 
-    entityPointer <- liftIO $ newIORef EntityPointer{archetypeId = ArchetypeId 0, rowIndex = 0}
+    entityPointer <- liftIO $ newIORef EntityPointer {archetypeId = ArchetypeId 0, rowIndex = 0}
 
     liftIO $ insertEntityIntoTables bundle world.tables archetypeId (entity, entityPointer)
 
@@ -189,25 +187,6 @@ removeComponentFromEntity entity =
               archetype <- liftIO $ archetypeOfProcessedBundle world.archetypes newBundle
 
               liftIO $ insertEntityIntoTables newBundle world.tables archetype (entity, pointer)
-
-class Removable c where
-  removeInternal :: Proxy c -> Entity -> System ()
-
-instance {-# OVERLAPPABLE #-} (Component c) => Removable c where
-  removeInternal :: (Component c) => Proxy c -> Entity -> System ()
-  removeInternal _ = removeComponentFromEntity @c
-
-instance {-# OVERLAPPING #-} (Removable c0, Removable c1) => Removable (c0, c1) where
-  removeInternal :: (Removable c0, Removable c1) => Proxy (c0, c1) -> Entity -> System ()
-  removeInternal _ !entity = do
-    removeInternal (Proxy @c0) entity
-    removeInternal (Proxy @c1) entity
-
-remove :: forall r. (Removable r) => Entity -> System ()
-remove = removeInternal (Proxy @r)
-
-delete :: forall c. (Removable c) => ComponentResult c -> System ()
-delete result = remove @c result.entity
 
 tryGetEntityComponent :: forall c. (Component c) => World -> Entity -> IO (Maybe c)
 tryGetEntityComponent world entity =

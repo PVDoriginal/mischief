@@ -1,6 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 
-module MischiefECS.Query where
+module MischiefECS.World.Query where
 
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Reader

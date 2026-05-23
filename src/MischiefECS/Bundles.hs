@@ -19,31 +19,31 @@ addComponentToBundleData :: (Component c) => c -> BundleData -> BundleData
 addComponentToBundleData c (BundleData bundle) =
   let rep = typeOf c
       component = ErasedComponent c
-      element = BundleElement{rep, component}
+      element = BundleElement {rep, component}
    in BundleData $ Set.insert element bundle
 
 data BundleElement = BundleElement {rep :: TypeRep, component :: ErasedComponent}
 
 instance Eq ProcessedBundleElement where
   (==) :: ProcessedBundleElement -> ProcessedBundleElement -> Bool
-  (==) ProcessedBundleElement{id = id1} ProcessedBundleElement{id = id2} = id1 == id2
+  (==) ProcessedBundleElement {id = id1} ProcessedBundleElement {id = id2} = id1 == id2
 
 instance Ord ProcessedBundleElement where
   compare :: ProcessedBundleElement -> ProcessedBundleElement -> Ordering
-  compare ProcessedBundleElement{id = id1} ProcessedBundleElement{id = id2} = compare id1 id2
+  compare ProcessedBundleElement {id = id1} ProcessedBundleElement {id = id2} = compare id1 id2
 
 instance Eq BundleElement where
   (==) :: BundleElement -> BundleElement -> Bool
-  (==) BundleElement{rep = rep1} BundleElement{rep = rep2} = rep1 == rep2
+  (==) BundleElement {rep = rep1} BundleElement {rep = rep2} = rep1 == rep2
 
 instance Ord BundleElement where
   compare :: BundleElement -> BundleElement -> Ordering
-  compare BundleElement{rep = rep1} BundleElement{rep = rep2} = compare rep1 rep2
+  compare BundleElement {rep = rep1} BundleElement {rep = rep2} = compare rep1 rep2
 
 instance Show BundleData where
   show (BundleData set) = mconcat ["BundleData [", List.intercalate ", " ts, "]"]
-   where
-    ts = map (\bundle -> show bundle.rep) (Set.toList set)
+    where
+      ts = map (\bundle -> show bundle.rep) (Set.toList set)
 
 class Bundle b where
   bundleData :: b -> BundleData
@@ -59,7 +59,7 @@ instance Bundle () where
   bundleData _ = BundleData Set.empty
 
 instance {-# OVERLAPPABLE #-} (Component c) => Bundle c where
-  bundleData c = BundleData (Set.fromList [BundleElement{rep = typeOf c, component = erase c}])
+  bundleData c = BundleData (Set.fromList [BundleElement {rep = typeOf c, component = erase c}])
 
 instance {-# OVERLAPPING #-} (Bundle c0, Bundle c1) => Bundle (c0, c1) where
   bundleData (c0, c1) =

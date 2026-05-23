@@ -1,12 +1,13 @@
-module MischiefECS (
-  module MischiefECS.Tables,
-  module MischiefECS.World,
-  module MischiefECS.Entities,
-  module MischiefECS.Bundles,
-  module MischiefECS.Components,
-  module MischiefECS.Query,
-  module MischiefECS.App,
-) where
+module MischiefECS
+  ( module MischiefECS.Tables,
+    module MischiefECS.World,
+    module MischiefECS.Entities,
+    module MischiefECS.Bundles,
+    module MischiefECS.Components,
+    module MischiefECS.Query,
+    module MischiefECS.App,
+  )
+where
 
 import Data.Data (Typeable)
 import Data.IORef
@@ -16,9 +17,9 @@ import MischiefECS.App
 import MischiefECS.Bundles
 import MischiefECS.Components
 import MischiefECS.Entities
-import MischiefECS.Query
 import MischiefECS.Tables
 import MischiefECS.World
+import MischiefECS.World.Query
 import Unsafe.Coerce (unsafeCoerce)
 
 someFunc :: IO ()
