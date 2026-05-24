@@ -48,9 +48,11 @@ library
   -- Import common warning flags.
   import: warnings
   -- Modules exported by the library.
-  exposed-modules: 
+  exposed-modules:
     MischiefECS
     MischiefECS.Prelude
+    MischiefECS.Vec
+
   -- Modules included in this library but not exported.
   -- other-modules:
   other-modules:
@@ -92,6 +94,7 @@ library
     data-default,
     primitive,
     transformers,
+    vector,
 
   -- Directories containing source files.
   hs-source-dirs: src

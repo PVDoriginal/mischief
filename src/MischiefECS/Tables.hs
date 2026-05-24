@@ -10,10 +10,10 @@ import MischiefECS.Entities
 newtype Tables = Tables (IORef (Map ArchetypeId Table))
 
 data Table = Table
-  { columns :: IORef (Map ComponentId Column),
-    components :: [ComponentId],
-    entities :: IORef [(Entity, IORef EntityPointer)],
-    nRows :: IORef Int
+  { columns :: IORef (Map ComponentId Column)
+  , components :: [ComponentId]
+  , entities :: IORef [(Entity, IORef EntityPointer)]
+  , nRows :: IORef Int
   }
 
 newtype Column = Column [ErasedComponent]
@@ -30,7 +30,7 @@ newTable components = do
 
   let componentIds = map (\x -> x.id) components.elements
 
-  return $ Table {columns = columns, components = componentIds, nRows, entities}
+  return $ Table{columns = columns, components = componentIds, nRows, entities}
 
 tableIsEmpty :: Table -> IO Bool
 tableIsEmpty table = do
@@ -47,11 +47,11 @@ insertComponentsIntoTable bundle table = do
 replaceComponentsIntoMap :: ProcessedBundleData -> EntityPointer -> Map ComponentId Column -> Map ComponentId Column
 replaceComponentsIntoMap bundle pointer tableMap =
   foldl' modifyMap tableMap bundle.elements
-  where
-    modifyMap tableMap element = Map.adjust (modifyComponents element) element.id tableMap
-    modifyComponents element (Column x) =
-      let (x', _ : ys) = splitAt pointer.rowIndex x
-       in Column $ x' ++ [element.component] ++ ys
+ where
+  modifyMap tableMap element = Map.adjust (modifyComponents element) element.id tableMap
+  modifyComponents element (Column x) =
+    let (x', _ : ys) = splitAt pointer.rowIndex x
+     in Column $ x' ++ [element.component] ++ ys
 
 replaceComponentsIntoTable :: ProcessedBundleData -> EntityPointer -> Table -> IO ()
 replaceComponentsIntoTable bundle pointer table = do
@@ -73,9 +73,9 @@ takeComponentsFromTable pointer table =
     removeEntityFromTable pointer.rowIndex table
 
     let elements = map getComponent newColumns
-    return ProcessedBundleData {elements}
-  where
-    getComponent (componentId, (erasedComponent, _)) = ProcessedBundleElement {id = componentId, component = erasedComponent}
+    return ProcessedBundleData{elements}
+ where
+  getComponent (componentId, (erasedComponent, _)) = ProcessedBundleElement{id = componentId, component = erasedComponent}
 
 removeComponentFromColumn :: EntityPointer -> Column -> Column
 removeComponentFromColumn pointer (Column x) =
@@ -133,7 +133,7 @@ insertEntityIntoTables bundle (Tables tables) archetype pointerRef =
     modifyIORef' table.nRows (+ 1)
     modifyIORef' table.entities (++ [pointerRef])
 
-    writeIORef (snd pointerRef) $ EntityPointer {archetypeId = archetype, rowIndex}
+    writeIORef (snd pointerRef) $ EntityPointer{archetypeId = archetype, rowIndex}
 
     insertComponentsIntoTable bundle table
 
