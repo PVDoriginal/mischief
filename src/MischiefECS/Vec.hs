@@ -47,6 +47,7 @@ module MischiefECS.Vec (
   -- * general utilities
   swap,
   tap,
+  shrink,
 ) where
 
 import Control.Monad
@@ -352,3 +353,12 @@ swap vec i j = do
   ensure_not_oob "Vec.swap" j vec
   buffer <- readMutVar vec.buffer
   MVector.swap buffer i j
+
+shrink ::
+  (PrimMonad m) =>
+  Vec (PrimState m) a ->
+  Int ->
+  m ()
+shrink vec amount = do
+  old_len <- length vec
+  writeMutVar vec.len (old_len - amount)

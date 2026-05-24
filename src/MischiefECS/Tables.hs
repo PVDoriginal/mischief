@@ -15,7 +15,6 @@ data Table = Table
   { columns :: IORef (Map ComponentId Column)
   , components :: [ComponentId]
   , entities :: IOVec (Entity, IORef EntityPointer)
-  , nRows :: IORef Int
   }
 
 newtype Column = Column [ErasedComponent]
@@ -31,16 +30,13 @@ newTable :: ProcessedBundleData -> IO Table
 newTable components = do
   columns <- newIORef $ Map.fromList $ map (\x -> (x.id, Column [])) components.elements
   entities <- Vec.new baseline_entities_cap
-  nRows <- newIORef 0
 
   let componentIds = map (\x -> x.id) components.elements
 
-  return $ Table{columns = columns, components = componentIds, nRows, entities}
+  return $ Table{columns = columns, components = componentIds, entities}
 
 tableIsEmpty :: Table -> IO Bool
-tableIsEmpty table = do
-  nRows <- readIORef table.nRows
-  return $ nRows == 0
+tableIsEmpty table = Vec.null table.entities
 
 insertComponentsIntoMap :: ProcessedBundleData -> Map ComponentId Column -> Map ComponentId Column
 insertComponentsIntoMap bundle map = foldl' (\map element -> Map.adjust (\(Column x) -> Column $ x ++ [element.component]) element.id map) map bundle.elements
@@ -74,7 +70,6 @@ takeComponentsFromTable pointer table =
 
     let newColumns = map (\(id, column) -> (id, takeFromColumn pointer column)) $ Map.toList columnsInternal
     writeIORef table.columns $ Map.fromList $ map (\(id, (_, column)) -> (id, column)) newColumns
-    modifyIORef' table.nRows (\x -> x - 1)
     removeEntityFromTable pointer.rowIndex table
 
     let elements = map getComponent newColumns
@@ -94,7 +89,6 @@ removeComponentsFromTable :: EntityPointer -> Table -> IO ()
 removeComponentsFromTable pointer table =
   do
     modifyIORef' table.columns (removeComponentsFromMap pointer)
-    modifyIORef' table.nRows (\x -> x - 1)
     removeEntityFromTable pointer.rowIndex table
 
 removeRow :: Int -> IOVec (Entity, IORef EntityPointer) -> IO ()
@@ -104,7 +98,7 @@ removeRow row_idx vec = do
   Vec.tap vec row_idx $ \(_, ptr) ->
     modifyIORef' ptr $ \EntityPointer{archetypeId, rowIndex} ->
       EntityPointer{archetypeId, rowIndex = row_idx}
-
+  Vec.shrink vec 1
 removeEntityFromTable :: Int -> Table -> IO ()
 removeEntityFromTable row table = removeRow row table.entities
 
@@ -122,8 +116,7 @@ insertEntityIntoTables bundle (Tables tables) archetype pointerRef =
         writeIORef tables newTables
         return table
 
-    rowIndex <- readIORef table.nRows
-    modifyIORef' table.nRows (+ 1)
+    rowIndex <- Vec.length table.entities
     Vec.pushBack table.entities pointerRef
 
     writeIORef (snd pointerRef) $ EntityPointer{archetypeId = archetype, rowIndex}
