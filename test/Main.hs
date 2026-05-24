@@ -30,7 +30,8 @@ plugin = do
 setup :: System ()
 setup = do
   spawn (Name "Foo")
-  spawn C
+  e1 <- spawn (Name "Lol")
+  insert C e1
 
   return ()
 

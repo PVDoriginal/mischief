@@ -54,10 +54,10 @@ processBundleElement world BundleElement {rep, component} =
           component
         }
 
-processBundleData :: World -> BundleData -> IO ProcessedBundleData
-processBundleData world (BundleData bundleData) =
+processBundleElements :: World -> Set BundleElement -> IO ProcessedBundleData
+processBundleElements world elements =
   do
-    elements <- mapM (processBundleElement world) (Set.toList bundleData)
+    elements <- mapM (processBundleElement world) (Set.toList elements)
     archetypeId <- getArchetypeId (map (\x -> x.id) elements) world.archetypes
     return
       ProcessedBundleData {elements}
@@ -86,7 +86,9 @@ spawn bundle =
     entityIndex <- liftIO $ readIORef world.entities.counter
     let entity = Entity entityIndex
 
-    bundle <- liftIO $ processBundleData world $ addComponentToBundleData entity (bundleData bundle)
+    let BundleData {elements, required} = addComponentToBundleData entity $ bundleData bundle
+
+    bundle <- liftIO $ processBundleElements world $ Set.union elements required
 
     archetypeId <- liftIO $ archetypeOfProcessedBundle world.archetypes bundle
 
@@ -128,7 +130,9 @@ insert :: (Bundle b) => b -> Entity -> System ()
 insert bundle entity =
   do
     world <- ask
-    bundleData <- liftIO $ processBundleData world (bundleData bundle)
+    let BundleData {elements, required} = bundleData bundle
+
+    bundleData <- liftIO $ processBundleElements world elements
     let newComponents = sort $ map (\x -> x.id) bundleData.elements
 
     entityPointers <- liftIO $ readIORef world.entities.pointers
@@ -164,11 +168,15 @@ insert bundle entity =
                   Just newTable -> do
                     liftIO $ replaceComponentsIntoTable bundleData newPointer newTable
 
+    insertNew (BundleData {elements = required, required = Set.empty}) entity
+
 insertNew :: (Bundle b) => b -> Entity -> System ()
 insertNew bundle entity =
   do
     world <- ask
-    bundleData <- liftIO $ processBundleData world (bundleData bundle)
+    let BundleData {elements, required} = bundleData bundle
+
+    bundleData <- liftIO $ processBundleElements world (Set.union elements required)
     let components = sort $ map (\x -> x.id) bundleData.elements
 
     entityPointers <- liftIO $ readIORef world.entities.pointers

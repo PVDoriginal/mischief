@@ -93,7 +93,7 @@ class (Typeable c) => Component c where
   required :: DefaultBundleData
   required = DefaultBundleData Set.empty
 
-newtype BundleData = BundleData (Set BundleElement)
+data BundleData = BundleData {elements :: Set BundleElement, required :: Set BundleElement}
 
 newtype DefaultBundleData = DefaultBundleData (Set BundleElement)
 
