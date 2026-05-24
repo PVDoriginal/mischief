@@ -22,6 +22,7 @@ module MischiefECS.Vec (
   -- * Converting to immutable
   thaw,
   freeze,
+  toList,
 
   -- * Capacity maninuplation
   ensure,
@@ -36,6 +37,16 @@ module MischiefECS.Vec (
   -- * Appending to vector
   pushBack,
   unsafePushBack,
+
+  -- * modify an element
+  modify,
+  modify_,
+  modifyM,
+  modifyM_,
+
+  -- * general utilities
+  swap,
+  tap,
 ) where
 
 import Control.Monad
@@ -131,6 +142,12 @@ freeze v = do
   mv <- readMutVar v.buffer
   Vector.freeze $ MVector.take n mv
 {-# INLINEABLE freeze #-}
+
+toList ::
+  (PrimMonad m) =>
+  Vec (PrimState m) a ->
+  m [a]
+toList vec = Vector.toList <$> freeze vec
 
 ensure_not_oob ::
   (HasCallStack, PrimMonad m) =>
@@ -235,6 +252,67 @@ unsafeWrite vec i value = do
   MVector.unsafeWrite buf i value
 {-# INLINEABLE unsafeWrite #-}
 
+modify ::
+  (PrimMonad m) =>
+  Vec (PrimState m) a ->
+  Int ->
+  (a -> a) ->
+  m a
+modify vec i f = do
+  ensure_not_oob "Vec.modify" i vec
+  old_val <- read vec i
+  write vec i (f old_val)
+  pure old_val
+{-# INLINEABLE modify #-}
+
+modify_ ::
+  (PrimMonad m) =>
+  Vec (PrimState m) a ->
+  Int ->
+  (a -> a) ->
+  m ()
+modify_ vec i f = do
+  ensure_not_oob "Vec.modify_" i vec
+  old_val <- read vec i
+  write vec i (f old_val)
+{-# INLINEABLE modify_ #-}
+
+modifyM ::
+  (PrimMonad m) =>
+  Vec (PrimState m) a ->
+  Int ->
+  (a -> m a) ->
+  m a
+modifyM vec i f = do
+  ensure_not_oob "Vec.modifyM" i vec
+  old_val <- read vec i
+  write vec i =<< f old_val
+  pure old_val
+{-# INLINEABLE modifyM #-}
+
+modifyM_ ::
+  (PrimMonad m) =>
+  Vec (PrimState m) a ->
+  Int ->
+  (a -> m a) ->
+  m ()
+modifyM_ vec i f = do
+  ensure_not_oob "Vec.modifyM_" i vec
+  old_val <- read vec i
+  write vec i =<< f old_val
+{-# INLINEABLE modifyM_ #-}
+
+tap ::
+  (PrimMonad m) =>
+  Vec (PrimState m) a ->
+  Int ->
+  (a -> m ()) ->
+  m ()
+tap vec i act = do
+  ensure_not_oob "Vec.tap" i vec
+  act =<< read vec i
+{-# INLINE tap #-}
+
 -- | O(1) amortized appending to vector
 pushBack ::
   (PrimMonad m) =>
@@ -260,3 +338,17 @@ unsafePushBack vec a = do
   MVector.write buf len a
   writeMutVar vec.len (len + 1)
 {-# INLINEABLE unsafePushBack #-}
+
+swap ::
+  (PrimMonad m) =>
+  Vec (PrimState m) a ->
+  Int ->
+  -- | index of element #1 to swap
+  Int ->
+  -- | index of element #2 to swap
+  m ()
+swap vec i j = do
+  ensure_not_oob "Vec.swap" i vec
+  ensure_not_oob "Vec.swap" j vec
+  buffer <- readMutVar vec.buffer
+  MVector.swap buffer i j

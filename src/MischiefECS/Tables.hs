@@ -6,17 +6,22 @@ import Data.Map qualified as Map
 import MischiefECS.Components
 import MischiefECS.Components.Bundle
 import MischiefECS.Entities
+import MischiefECS.Vec (IOVec)
+import MischiefECS.Vec qualified as Vec
 
 newtype Tables = Tables (IORef (Map ArchetypeId Table))
 
 data Table = Table
   { columns :: IORef (Map ComponentId Column)
   , components :: [ComponentId]
-  , entities :: IORef [(Entity, IORef EntityPointer)]
+  , entities :: IOVec (Entity, IORef EntityPointer)
   , nRows :: IORef Int
   }
 
 newtype Column = Column [ErasedComponent]
+
+baseline_entities_cap :: Int
+baseline_entities_cap = 256
 
 emptyTables :: IO Tables
 emptyTables =
@@ -25,7 +30,7 @@ emptyTables =
 newTable :: ProcessedBundleData -> IO Table
 newTable components = do
   columns <- newIORef $ Map.fromList $ map (\x -> (x.id, Column [])) components.elements
-  entities <- newIORef []
+  entities <- Vec.new baseline_entities_cap
   nRows <- newIORef 0
 
   let componentIds = map (\x -> x.id) components.elements
@@ -92,28 +97,16 @@ removeComponentsFromTable pointer table =
     modifyIORef' table.nRows (\x -> x - 1)
     removeEntityFromTable pointer.rowIndex table
 
-removeRow :: Int -> [(Entity, IORef EntityPointer)] -> IO [(Entity, IORef EntityPointer)]
-removeRow row list =
-  let (x, _ : ys) = splitAt row list
-      ys' =
-        mapM
-          ( \(x1, x2) ->
-              do
-                modifyIORef' x2 decreaseRowIndex
-                return (x1, x2)
-          )
-          ys
-   in do
-        ys'' <- ys'
-        return $ x ++ ys''
+removeRow :: Int -> IOVec (Entity, IORef EntityPointer) -> IO ()
+removeRow row_idx vec = do
+  len <- Vec.length vec
+  Vec.swap vec row_idx (len - 1)
+  Vec.tap vec row_idx $ \(_, ptr) ->
+    modifyIORef' ptr $ \EntityPointer{archetypeId, rowIndex} ->
+      EntityPointer{archetypeId, rowIndex = row_idx}
 
 removeEntityFromTable :: Int -> Table -> IO ()
-removeEntityFromTable row table =
-  do
-    entities <- readIORef table.entities
-    newEntities <- removeRow row entities
-
-    writeIORef table.entities newEntities
+removeEntityFromTable row table = removeRow row table.entities
 
 insertEntityIntoTables :: ProcessedBundleData -> Tables -> ArchetypeId -> (Entity, IORef EntityPointer) -> IO ()
 insertEntityIntoTables bundle (Tables tables) archetype pointerRef =
@@ -131,7 +124,7 @@ insertEntityIntoTables bundle (Tables tables) archetype pointerRef =
 
     rowIndex <- readIORef table.nRows
     modifyIORef' table.nRows (+ 1)
-    modifyIORef' table.entities (++ [pointerRef])
+    Vec.pushBack table.entities pointerRef
 
     writeIORef (snd pointerRef) $ EntityPointer{archetypeId = archetype, rowIndex}
 
@@ -179,8 +172,8 @@ tryGetComponentsFromTable table componentId =
       Nothing -> return []
       Just column -> do
         results <- tryGetComponentsFromColumn @c column
-        entities <- readIORef table.entities
-        return (zipWith ComponentResult results (map fst entities))
+        entities <- Vec.toList table.entities
+        return $ zipWith ComponentResult results (map fst entities)
 
 tryGetComponentsFromArchetype :: forall c. (Component c) => ArchetypeId -> Map ArchetypeId Table -> ComponentId -> IO [ComponentResult c]
 tryGetComponentsFromArchetype archetype tables componentId =
