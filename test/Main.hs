@@ -17,7 +17,7 @@ data C3 = C3 String deriving (Component, Queryable, Show)
 
 main :: IO ()
 main = do
-  app <- newApp [test2]
+  app <- newApp [test3]
   runApp app
 
 plugin :: Plugin ()
@@ -98,3 +98,13 @@ test2 = do
     liftIO $ putStrLn $ "C3 query result: " ++ show query'
 
     return ()
+
+test3 :: Plugin ()
+test3 = do
+  addSystem Startup $ do
+    e1 <- spawn (C1 "C1 value 1")
+    insertNew (C2 "C2 value 1") e1
+    insertNew (C1 "C1 value 2") e1
+
+    query' <- query @((Entity, Name), (C1, C2))
+    liftIO $ print query'
