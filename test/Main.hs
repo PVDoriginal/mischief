@@ -8,7 +8,7 @@ import Data.Set qualified as Set
 import GHC.Generics (Generic)
 import MischiefECS.Prelude
 
-data C = C deriving (Component, Queryable, Show)
+newtype Counter = Counter Int deriving (Component, Queryable, Show)
 
 main :: IO ()
 main = do
@@ -22,15 +22,15 @@ plugin = do
 
 setup :: System ()
 setup = do
-  spawn ()
-  e1 <- spawn (Name "Lol")
-  insert C e1
+  spawn (Counter 0)
+  spawn (Name "Lol")
 
   return ()
 
 update :: System ()
 update = do
-  res <- query @(Entity, Name)
+  res <- query @(Entity, (Counter, Name))
 
-  for_ res $ \(entity, name) -> do
-    liftIO $ putStrLn $ show entity ++ " has name: " ++ show name
+  for_ res $ \(entity, (counter, name)) -> do
+    modify counter (\(Counter x) -> Counter $ x + 1)
+    liftIO $ putStrLn $ show entity ++ " has name: " ++ show name ++ " and counter: " ++ show counter
