@@ -11,10 +11,6 @@ module MischiefECS
   )
 where
 
-import Data.Data (Typeable)
-import Data.IORef
-import Data.Type.Equality
-import Data.Typeable
 import MischiefECS.App
 import MischiefECS.Components
 import MischiefECS.Components.Bundle

@@ -1,14 +1,12 @@
 module Main where
 
-import Control.Monad
 import Control.Monad.IO.Class
-import Control.Monad.Trans.Reader
-import Data.Data (typeOf)
 import Data.Default
 import Data.Foldable
 import Data.List qualified as List
+import Data.Set qualified as Set
 import GHC.Generics (Generic)
-import MischiefECS
+import MischiefECS.Prelude
 
 newtype Name = Name String deriving (Generic, Show, Eq, Component, Queryable, Default)
 
@@ -21,6 +19,9 @@ main :: IO ()
 main = do
   app <- newApp [plugin]
   runApp app
+
+-- x :: DefaultBundleData
+-- x = DefaultBundleData Set.empty
 
 plugin :: Plugin ()
 plugin = do

@@ -1,6 +1,23 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 
-module MischiefECS.Components where
+module MischiefECS.Components
+  ( Components (Components, map),
+    ComponentId (ComponentId),
+    emptyComponents,
+    getComponentId,
+    tryGetComponent,
+    Archetypes (Archetypes),
+    ArchetypeId (ArchetypeId),
+    emptyArchetypes,
+    getArchetypeId,
+    removeArchetypeId,
+    findMatchingArchetypes,
+    Component (erase, required),
+    ErasedComponent,
+    BundleData (BundleData, elements, required),
+    BundleElement (BundleElement, rep, component),
+  )
+where
 
 import Data.IORef
 import Data.List
@@ -10,6 +27,7 @@ import Data.Map qualified as Map
 import Data.Set
 import Data.Set qualified as Set
 import Data.Typeable
+import MischiefECS.Components.Internal
 
 newtype ComponentId = ComponentId
   { id :: Int
@@ -83,9 +101,6 @@ findMatchingArchetypes components archetypes =
     let archetypesList = Map.toList archetypes
     return $ List.map snd $ List.filter (\(archetype, _) -> sort components `isSubsequenceOf` sort archetype) archetypesList
 
-data ErasedComponent where
-  ErasedComponent :: (Typeable c) => c -> ErasedComponent
-
 class (Typeable c) => Component c where
   erase :: c -> ErasedComponent
   erase = ErasedComponent
@@ -94,10 +109,6 @@ class (Typeable c) => Component c where
   required = DefaultBundleData Set.empty
 
 data BundleData = BundleData {elements :: Set BundleElement, required :: Set BundleElement}
-
-newtype DefaultBundleData = DefaultBundleData (Set BundleElement)
-
-data BundleElement = BundleElement {rep :: TypeRep, component :: ErasedComponent}
 
 instance Eq BundleElement where
   (==) :: BundleElement -> BundleElement -> Bool

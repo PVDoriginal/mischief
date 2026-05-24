@@ -48,19 +48,23 @@ library
   -- Import common warning flags.
   import: warnings
   -- Modules exported by the library.
-  exposed-modules: MischiefECS
+  exposed-modules: 
+    MischiefECS
+    MischiefECS.Prelude
   -- Modules included in this library but not exported.
   -- other-modules:
   other-modules:
     MischiefECS.App
     MischiefECS.Components
+    MischiefECS.Components.Internal
     MischiefECS.Components.Bundle
     MischiefECS.Components.Default
     MischiefECS.Entities
     MischiefECS.Tables
     MischiefECS.World
-    MischiefECS.World.Query
     MischiefECS.World.Remove
+    MischiefECS.World.Query
+    MischiefECS.Components.Internal
 
   -- LANGUAGE extensions used by modules in this package.z
   default-extensions:

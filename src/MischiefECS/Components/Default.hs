@@ -1,6 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 
-module MischiefECS.Components.Default where
+module MischiefECS.Components.Default (require) where
 
 import Data.Data
 import Data.Default
@@ -8,6 +8,7 @@ import Data.Set (Set)
 import Data.Set qualified as Set
 import MischiefECS.Components
 import MischiefECS.Components.Bundle
+import MischiefECS.Components.Internal
 
 class DefaultBundle b where
   defaultBundleData :: Proxy b -> DefaultBundleData
