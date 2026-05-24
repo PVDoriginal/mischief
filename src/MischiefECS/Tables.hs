@@ -1,8 +1,13 @@
 module MischiefECS.Tables where
 
+import Control.Monad (when)
+import Data.Foldable (for_)
 import Data.IORef
 import Data.Map (Map)
 import Data.Map qualified as Map
+import Data.Maybe (fromMaybe)
+import Data.Traversable (for)
+import Data.Vector qualified as Vector
 import MischiefECS.Components
 import MischiefECS.Components.Bundle
 import MischiefECS.Entities
@@ -17,7 +22,7 @@ data Table = Table
   , entities :: IOVec (Entity, IORef EntityPointer)
   }
 
-newtype Column = Column [ErasedComponent]
+newtype Column = Column (IOVec ErasedComponent)
 
 baseline_entities_cap :: Int
 baseline_entities_cap = 256
@@ -28,7 +33,12 @@ emptyTables =
 
 newTable :: ProcessedBundleData -> IO Table
 newTable components = do
-  columns <- newIORef $ Map.fromList $ map (\x -> (x.id, Column [])) components.elements
+  cols <-
+    for components.elements $ \x -> do
+      empty_vec <- Vec.new 10
+      pure (x.id, Column empty_vec)
+
+  columns <- newIORef $ Map.fromList cols
   entities <- Vec.new baseline_entities_cap
 
   let componentIds = map (\x -> x.id) components.elements
@@ -38,67 +48,86 @@ newTable components = do
 tableIsEmpty :: Table -> IO Bool
 tableIsEmpty table = Vec.null table.entities
 
-insertComponentsIntoMap :: ProcessedBundleData -> Map ComponentId Column -> Map ComponentId Column
-insertComponentsIntoMap bundle map = foldl' (\map element -> Map.adjust (\(Column x) -> Column $ x ++ [element.component]) element.id map) map bundle.elements
+{- |
+  runs the specified monadic action with the value of the given map key as input, if the key exists.
+  if it doesn't, do nothing
+-}
+tapMap ::
+  (Monad m, Ord k) =>
+  Map k a ->
+  k ->
+  (a -> m ()) ->
+  m ()
+tapMap map k act = do
+  maybe (pure ()) act $ Map.lookup k map
+
+insertComponentsIntoMap :: ProcessedBundleData -> Map ComponentId Column -> IO ()
+insertComponentsIntoMap bundle map =
+  for_ bundle.elements $ \el ->
+    tapMap map el.id $ \(Column col) ->
+      Vec.pushBack col el.component
 
 insertComponentsIntoTable :: ProcessedBundleData -> Table -> IO ()
 insertComponentsIntoTable bundle table = do
-  modifyIORef' table.columns $ insertComponentsIntoMap bundle
+  cols <- readIORef table.columns
+  insertComponentsIntoMap bundle cols
 
-replaceComponentsIntoMap :: ProcessedBundleData -> EntityPointer -> Map ComponentId Column -> Map ComponentId Column
-replaceComponentsIntoMap bundle pointer tableMap =
-  foldl' modifyMap tableMap bundle.elements
- where
-  modifyMap tableMap element = Map.adjust (modifyComponents element) element.id tableMap
-  modifyComponents element (Column x) =
-    let (x', _ : ys) = splitAt pointer.rowIndex x
-     in Column $ x' ++ [element.component] ++ ys
+replaceComponentsIntoMap :: ProcessedBundleData -> EntityPointer -> Map ComponentId Column -> IO ()
+replaceComponentsIntoMap bundle pointer tableMap = do
+  for_ bundle.elements $ \el ->
+    tapMap tableMap el.id $ \(Column col) ->
+      Vec.write col pointer.rowIndex el.component
+
+--   foldl' modifyMap tableMap bundle.elements
+--  where
+--   modifyMap tableMap element = Map.adjust (modifyComponents element) element.id tableMap
+--   modifyComponents element (Column x) =
+--     let (x', _ : ys) = splitAt pointer.rowIndex x
+--      in Column $ x' ++ [element.component] ++ ys
 
 replaceComponentsIntoTable :: ProcessedBundleData -> EntityPointer -> Table -> IO ()
 replaceComponentsIntoTable bundle pointer table = do
-  modifyIORef' table.columns $ replaceComponentsIntoMap bundle pointer
+  cols <- readIORef table.columns
+  replaceComponentsIntoMap bundle pointer cols
 
-takeFromColumn :: EntityPointer -> Column -> (ErasedComponent, Column)
-takeFromColumn pointer (Column x) =
-  let (x', y : ys) = splitAt pointer.rowIndex x
-   in (y, Column $ x' ++ ys)
+takeFromColumn :: EntityPointer -> Column -> IO ErasedComponent
+takeFromColumn pointer (Column col) = Vec.takeSwap col pointer.rowIndex
 
 takeComponentsFromTable :: EntityPointer -> Table -> IO ProcessedBundleData
-takeComponentsFromTable pointer table =
-  do
-    columnsInternal <- readIORef table.columns
+takeComponentsFromTable pointer table = do
+  cols <- readIORef table.columns
+  newColumns <- for cols $ takeFromColumn pointer
+  removeEntityFromTable pointer.rowIndex table
+  let elements = map (uncurry ProcessedBundleElement) $ Map.toList newColumns
+  pure ProcessedBundleData{elements}
 
-    let newColumns = map (\(id, column) -> (id, takeFromColumn pointer column)) $ Map.toList columnsInternal
-    writeIORef table.columns $ Map.fromList $ map (\(id, (_, column)) -> (id, column)) newColumns
-    removeEntityFromTable pointer.rowIndex table
+-- let elements = map getComponent newColumns
+-- return ProcessedBundleData{elements}
 
-    let elements = map getComponent newColumns
-    return ProcessedBundleData{elements}
- where
-  getComponent (componentId, (erasedComponent, _)) = ProcessedBundleElement{id = componentId, component = erasedComponent}
+removeComponentFromColumn :: EntityPointer -> Column -> IO ()
+removeComponentFromColumn pointer (Column col) = Vec.removeSwap col pointer.rowIndex
 
-removeComponentFromColumn :: EntityPointer -> Column -> Column
-removeComponentFromColumn pointer (Column x) =
-  let (x', _ : ys) = splitAt pointer.rowIndex x
-   in Column $ x' ++ ys
+removeComponentsFromMap :: EntityPointer -> Map ComponentId Column -> IO ()
+removeComponentsFromMap pointer columnMap =
+  for_ columnMap $ removeComponentFromColumn pointer
 
-removeComponentsFromMap :: EntityPointer -> Map ComponentId Column -> Map ComponentId Column
-removeComponentsFromMap pointer columnMap = Map.fromList $ map (\(id, column) -> (id, removeComponentFromColumn pointer column)) (Map.toList columnMap)
+-- map (\(id, column) -> (id, removeComponentFromColumn pointer column)) (Map.toList columnMap)
 
 removeComponentsFromTable :: EntityPointer -> Table -> IO ()
-removeComponentsFromTable pointer table =
-  do
-    modifyIORef' table.columns (removeComponentsFromMap pointer)
-    removeEntityFromTable pointer.rowIndex table
+removeComponentsFromTable pointer table = do
+  cols <- readIORef table.columns
+  removeComponentsFromMap pointer cols
+  removeEntityFromTable pointer.rowIndex table
 
 removeRow :: Int -> IOVec (Entity, IORef EntityPointer) -> IO ()
 removeRow row_idx vec = do
   len <- Vec.length vec
-  Vec.swap vec row_idx (len - 1)
-  Vec.tap vec row_idx $ \(_, ptr) ->
-    modifyIORef' ptr $ \EntityPointer{archetypeId, rowIndex} ->
-      EntityPointer{archetypeId, rowIndex = row_idx}
-  Vec.shrink vec 1
+  Vec.removeSwap vec row_idx
+  when (row_idx < len - 1) $ do
+    Vec.tap vec row_idx $ \(_, ptr) ->
+      modifyIORef' ptr $ \EntityPointer{archetypeId, rowIndex} ->
+        EntityPointer{archetypeId, rowIndex = row_idx}
+
 removeEntityFromTable :: Int -> Table -> IO ()
 removeEntityFromTable row table = removeRow row table.entities
 
@@ -124,10 +153,9 @@ insertEntityIntoTables bundle (Tables tables) archetype pointerRef =
     insertComponentsIntoTable bundle table
 
 tryGetComponentFromColumn :: forall c. (Component c) => Column -> EntityPointer -> IO (Maybe c)
-tryGetComponentFromColumn (Column components) pointer =
-  do
-    let element = components !! pointer.rowIndex
-    return $ tryGetComponent element
+tryGetComponentFromColumn (Column components) pointer = do
+  element <- Vec.read components pointer.rowIndex
+  pure $ tryGetComponent element
 
 tryGetComponentFromTable :: forall c. (Component c) => Table -> EntityPointer -> ComponentId -> IO (Maybe c)
 tryGetComponentFromTable table pointer componentId =
@@ -150,12 +178,10 @@ tryGetComponentFromTables (Tables tables) pointer componentId =
       Just table -> tryGetComponentFromTable table pointer componentId
 
 tryGetComponentsFromColumn :: forall c. (Component c) => Column -> IO [c]
-tryGetComponentsFromColumn (Column components) =
-  do
-    let x = mapM tryGetComponent components
-    case x of
-      Nothing -> return []
-      Just c -> return c
+tryGetComponentsFromColumn (Column components) = do
+  frozen <- Vec.freeze components
+  let x = Vector.mapM tryGetComponent frozen
+  pure $ maybe [] Vector.toList x
 
 tryGetComponentsFromTable :: forall c. (Component c) => Table -> ComponentId -> IO [ComponentResult c]
 tryGetComponentsFromTable table componentId =
