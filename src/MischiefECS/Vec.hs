@@ -48,6 +48,10 @@ module MischiefECS.Vec (
   swap,
   tap,
   shrink,
+
+  -- * O(1) amortized swap backed operations
+  takeSwap,
+  removeSwap,
 ) where
 
 import Control.Monad
@@ -57,6 +61,7 @@ import Data.Vector (Vector)
 import Data.Vector qualified as Vector
 import Data.Vector.Mutable (MVector)
 import Data.Vector.Mutable qualified as MVector
+import Debug.Trace (traceShow)
 import GHC.Generics
 import GHC.Stack (HasCallStack)
 import Prelude hiding (length, null, read)
@@ -349,10 +354,11 @@ swap ::
   -- | index of element #2 to swap
   m ()
 swap vec i j = do
-  ensure_not_oob "Vec.swap" i vec
-  ensure_not_oob "Vec.swap" j vec
-  buffer <- readMutVar vec.buffer
-  MVector.swap buffer i j
+  when (i /= j) $ do
+    ensure_not_oob "Vec.swap" i vec
+    ensure_not_oob "Vec.swap" j vec
+    buffer <- readMutVar vec.buffer
+    MVector.swap buffer i j
 
 shrink ::
   (PrimMonad m) =>
@@ -362,3 +368,24 @@ shrink ::
 shrink vec amount = do
   old_len <- length vec
   writeMutVar vec.len (old_len - amount)
+
+takeSwap ::
+  (PrimMonad m) =>
+  Vec (PrimState m) a ->
+  Int ->
+  m a
+takeSwap vec i = do
+  value <- read vec i
+  removeSwap vec i
+  pure value
+
+removeSwap ::
+  (PrimMonad m) =>
+  Vec (PrimState m) a ->
+  Int ->
+  -- | index of element to remove
+  m ()
+removeSwap vec i = do
+  len <- length vec
+  swap vec i (len - 1)
+  shrink vec 1
