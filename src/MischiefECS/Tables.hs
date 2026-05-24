@@ -1,5 +1,6 @@
 module MischiefECS.Tables where
 
+import Control.Monad (when)
 import Data.Foldable (for_)
 import Data.IORef
 import Data.Map (Map)
@@ -121,11 +122,11 @@ removeComponentsFromTable pointer table = do
 removeRow :: Int -> IOVec (Entity, IORef EntityPointer) -> IO ()
 removeRow row_idx vec = do
   len <- Vec.length vec
-  putStrLn $ "removing: " <> show row_idx <> "from vec of len: " <> show len
   Vec.removeSwap vec row_idx
-  Vec.tap vec row_idx $ \(_, ptr) ->
-    modifyIORef' ptr $ \EntityPointer{archetypeId, rowIndex} ->
-      EntityPointer{archetypeId, rowIndex = row_idx}
+  when (row_idx < len - 1) $ do
+    Vec.tap vec row_idx $ \(_, ptr) ->
+      modifyIORef' ptr $ \EntityPointer{archetypeId, rowIndex} ->
+        EntityPointer{archetypeId, rowIndex = row_idx}
 
 removeEntityFromTable :: Int -> Table -> IO ()
 removeEntityFromTable row table = removeRow row table.entities
