@@ -4,14 +4,16 @@ module MischiefECS.World.Query where
 
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Reader
+import Data.Data
 import Data.Proxy (Proxy (..))
-import Data.Set
+import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Typeable (TypeRep, Typeable, typeRep)
 import MischiefECS.Components
 import MischiefECS.Entities
 import MischiefECS.Tables
 import MischiefECS.World
+import Prelude hiding (and)
 
 class QueryData qd where
   types :: Proxy qd -> Set TypeRep
@@ -79,3 +81,23 @@ query = do
   liftIO $ runQuery (Proxy @qd) world
 
 instance Queryable Name
+
+data QueryFilter = NoFilter | With TypeRep | Without TypeRep | And QueryFilter QueryFilter | Or QueryFilter QueryFilter
+
+with :: forall qd. (QueryData qd) => QueryFilter
+with =
+  and' $ map With (Set.toList $ types (Proxy @qd))
+
+without :: forall qd. (QueryData qd) => QueryFilter
+without = and' $ map Without (Set.toList $ types (Proxy @qd))
+
+and' :: [QueryFilter] -> QueryFilter
+and' = foldr and NoFilter
+
+and :: QueryFilter -> QueryFilter -> QueryFilter
+and = And
+
+or :: QueryFilter -> QueryFilter -> QueryFilter
+or = Or
+
+test = with @(Name, Entity) `and` without @(Name, (Name, Entity))
