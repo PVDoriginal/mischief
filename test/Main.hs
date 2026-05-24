@@ -1,11 +1,13 @@
 module Main where
 
 import Control.Monad.IO.Class
-import Data.Foldable
+import Data.Foldable hiding (and, or)
 import Data.List qualified as List
 import Data.Set qualified as Set
 import GHC.Generics (Generic)
+import MischiefECS
 import MischiefECS.Prelude
+import Prelude hiding (and, or)
 
 newtype Counter = Counter Int deriving (Component, Queryable, Show)
 
@@ -17,7 +19,7 @@ data C3 = C3 String deriving (Component, Queryable, Show)
 
 main :: IO ()
 main = do
-  app <- newApp [test4]
+  app <- newApp [test5]
   runApp app
 
 plugin :: Plugin ()
@@ -119,4 +121,12 @@ test4 = do
 
     despawn e2
     query' <- query @(Entity, Name)
+    liftIO $ print query'
+
+test5 :: Plugin ()
+test5 = do
+  addSystem Startup $ do
+    e1 <- spawn (Counter 0)
+    query' <- queryF @(Entity, Name) $ without @Counter `or` with @Entity
+
     liftIO $ print query'

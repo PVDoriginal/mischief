@@ -94,12 +94,12 @@ removeArchetypeId :: ArchetypeId -> Archetypes -> IO ()
 removeArchetypeId id archetypes = do
   modifyIORef' archetypes.map (Map.filter (/= id))
 
-findMatchingArchetypes :: [ComponentId] -> Archetypes -> IO [ArchetypeId]
+findMatchingArchetypes :: [ComponentId] -> Archetypes -> IO [([ComponentId], ArchetypeId)]
 findMatchingArchetypes components archetypes =
   do
     archetypes <- readIORef archetypes.map
     let archetypesList = Map.toList archetypes
-    return $ List.map snd $ List.filter (\(archetype, _) -> sort components `isSubsequenceOf` sort archetype) archetypesList
+    return $ List.filter (\(archetype, _) -> sort components `isSubsequenceOf` sort archetype) archetypesList
 
 class (Typeable c) => Component c where
   erase :: c -> ErasedComponent

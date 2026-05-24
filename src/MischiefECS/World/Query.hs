@@ -2,6 +2,7 @@
 
 module MischiefECS.World.Query where
 
+import Control.Monad
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Reader
 import Data.Data
@@ -68,25 +69,34 @@ instance Queryable Entity where
     results <- tryGetComponents @Entity world archetypes
     pure $ fmap (\cr -> cr.entity) results
 
-runQuery :: forall qd. (Queryable qd) => Proxy qd -> World -> IO [QueryOutput qd]
-runQuery query world =
+runQuery :: forall qd. (Queryable qd) => Proxy qd -> QueryFilter -> World -> IO [QueryOutput qd]
+runQuery query filter world =
   do
     components <- mapM (\c -> getComponentId c world.components) (Set.toList (types query))
     archetypes <- findMatchingArchetypes components world.archetypes
-    runQueryInternal query archetypes world
+
+    let (otherFilter, archetypeFilter) = extractArchetypeFilters filter
+
+    archetypes' <- filterM (\(components, _) -> filterArchetype archetypeFilter components world) archetypes
+    runQueryInternal query (map snd archetypes') world
 
 query :: forall qd r. (Queryable qd) => System [QueryOutput qd]
 query = do
   world <- ask
-  liftIO $ runQuery (Proxy @qd) world
+  liftIO $ runQuery (Proxy @qd) NoFilter world
+
+queryF :: forall qd r. (Queryable qd) => QueryFilter -> System [QueryOutput qd]
+queryF filter = do
+  world <- ask
+  liftIO $ runQuery (Proxy @qd) filter world
 
 instance Queryable Name
 
-data QueryFilter = NoFilter | With TypeRep | Without TypeRep | And QueryFilter QueryFilter | Or QueryFilter QueryFilter
+data QueryFilter = NoFilter | With TypeRep | Without TypeRep | And QueryFilter QueryFilter | Or QueryFilter QueryFilter | Changed
+  deriving (Show)
 
 with :: forall qd. (QueryData qd) => QueryFilter
-with =
-  and' $ map With (Set.toList $ types (Proxy @qd))
+with = and' $ map With (Set.toList $ types (Proxy @qd))
 
 without :: forall qd. (QueryData qd) => QueryFilter
 without = and' $ map Without (Set.toList $ types (Proxy @qd))
@@ -100,4 +110,46 @@ and = And
 or :: QueryFilter -> QueryFilter -> QueryFilter
 or = Or
 
-test = with @(Name, Entity) `and` without @(Name, (Name, Entity))
+filterArchetype :: QueryFilter -> [ComponentId] -> World -> IO Bool
+filterArchetype NoFilter _ _ = return True
+filterArchetype (With x) components world = do
+  component <- getComponentId x world.components
+  return $ component `elem` components
+filterArchetype (Without x) components world = do
+  component <- getComponentId x world.components
+  return $ component `notElem` components
+filterArchetype (a `And` b) c w = do
+  x <- filterArchetype a c w
+  y <- filterArchetype b c w
+  return $ x && y
+filterArchetype (a `Or` b) c w = do
+  x <- filterArchetype a c w
+  y <- filterArchetype b c w
+  return $ x || y
+
+-- | Extracts archetype-level filters from the bigger filter where possible, to be applied at the start of querying for better performance.
+extractArchetypeFilters :: QueryFilter -> (QueryFilter, QueryFilter)
+extractArchetypeFilters NoFilter = (NoFilter, NoFilter)
+extractArchetypeFilters (With x) = (NoFilter, With x)
+extractArchetypeFilters Changed = (Changed, NoFilter)
+extractArchetypeFilters (Without x) = (NoFilter, Without x)
+extractArchetypeFilters (a `And` b) = (filter1 `And` filter2, res1 `And` res2)
+  where
+    (filter1, res1) = extractArchetypeFilters a
+    (filter2, res2) = extractArchetypeFilters b
+extractArchetypeFilters (a `Or` b) =
+  if isArchetypeFilter a && isArchetypeFilter b
+    then
+      (filter1 `Or` filter2, res1 `Or` res2)
+    else
+      (a `Or` b, NoFilter)
+  where
+    (filter1, res1) = extractArchetypeFilters a
+    (filter2, res2) = extractArchetypeFilters b
+
+isArchetypeFilter :: QueryFilter -> Bool
+isArchetypeFilter (With x) = True
+isArchetypeFilter Changed = False
+isArchetypeFilter (Without x) = True
+isArchetypeFilter (a `And` b) = isArchetypeFilter a || isArchetypeFilter b
+isArchetypeFilter (a `Or` b) = isArchetypeFilter a && isArchetypeFilter b

@@ -17,9 +17,9 @@ import MischiefECS.Vec qualified as Vec
 newtype Tables = Tables (IORef (Map ArchetypeId Table))
 
 data Table = Table
-  { columns :: IORef (Map ComponentId Column)
-  , components :: [ComponentId]
-  , entities :: IOVec (Entity, IORef EntityPointer)
+  { columns :: IORef (Map ComponentId Column),
+    components :: [ComponentId],
+    entities :: IOVec (Entity, IORef EntityPointer)
   }
 
 newtype Column = Column (IOVec ErasedComponent)
@@ -43,15 +43,14 @@ newTable components = do
 
   let componentIds = map (\x -> x.id) components.elements
 
-  return $ Table{columns = columns, components = componentIds, entities}
+  return $ Table {columns = columns, components = componentIds, entities}
 
 tableIsEmpty :: Table -> IO Bool
 tableIsEmpty table = Vec.null table.entities
 
-{- |
-  runs the specified monadic action with the value of the given map key as input, if the key exists.
-  if it doesn't, do nothing
--}
+-- |
+--  runs the specified monadic action with the value of the given map key as input, if the key exists.
+--  if it doesn't, do nothing
 tapMap ::
   (Monad m, Ord k) =>
   Map k a ->
@@ -99,7 +98,7 @@ takeComponentsFromTable pointer table = do
   newColumns <- for cols $ takeFromColumn pointer
   removeEntityFromTable pointer.rowIndex table
   let elements = map (uncurry ProcessedBundleElement) $ Map.toList newColumns
-  pure ProcessedBundleData{elements}
+  pure ProcessedBundleData {elements}
 
 -- let elements = map getComponent newColumns
 -- return ProcessedBundleData{elements}
@@ -125,8 +124,8 @@ removeRow row_idx vec = do
   Vec.removeSwap vec row_idx
   when (row_idx < len - 1) $ do
     Vec.tap vec row_idx $ \(_, ptr) ->
-      modifyIORef' ptr $ \EntityPointer{archetypeId, rowIndex} ->
-        EntityPointer{archetypeId, rowIndex = row_idx}
+      modifyIORef' ptr $ \EntityPointer {archetypeId, rowIndex} ->
+        EntityPointer {archetypeId, rowIndex = row_idx}
 
 removeEntityFromTable :: Int -> Table -> IO ()
 removeEntityFromTable row table = removeRow row table.entities
@@ -148,7 +147,7 @@ insertEntityIntoTables bundle (Tables tables) archetype pointerRef =
     rowIndex <- Vec.length table.entities
     Vec.pushBack table.entities pointerRef
 
-    writeIORef (snd pointerRef) $ EntityPointer{archetypeId = archetype, rowIndex}
+    writeIORef (snd pointerRef) $ EntityPointer {archetypeId = archetype, rowIndex}
 
     insertComponentsIntoTable bundle table
 
