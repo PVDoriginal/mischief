@@ -20,9 +20,6 @@ main = do
   app <- newApp [plugin]
   runApp app
 
--- x :: DefaultBundleData
--- x = DefaultBundleData Set.empty
-
 plugin :: Plugin ()
 plugin = do
   addSystem Startup setup

@@ -10,6 +10,8 @@ module MischiefECS.Prelude
     Queryable,
     query,
     remove,
+    defer,
+    flush,
     System,
     Plugin,
     Startup (Startup),
@@ -25,6 +27,6 @@ import MischiefECS.App (Plugin, Startup (Startup), Update (Update), addPlugin, a
 import MischiefECS.Components (Component (required))
 import MischiefECS.Components.Default (require)
 import MischiefECS.Entities (Entity)
-import MischiefECS.World (System, despawn, insert, insertNew, spawn)
+import MischiefECS.World (System, defer, despawn, flush, insert, insertNew, spawn)
 import MischiefECS.World.Query (Queryable, query)
 import MischiefECS.World.Remove (remove)
