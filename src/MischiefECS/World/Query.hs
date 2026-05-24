@@ -77,3 +77,5 @@ query :: forall qd r. (Queryable qd) => System [QueryOutput qd]
 query = do
   world <- ask
   liftIO $ runQuery (Proxy @qd) world
+
+instance Queryable Name

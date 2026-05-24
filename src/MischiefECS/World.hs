@@ -100,6 +100,8 @@ spawn bundle =
 
     liftIO $ modifyIORef' world.entities.pointers $ Map.insert entity entityPointer
 
+    insertNew (Name (show entity)) entity
+
     return entity
 
 despawn :: Entity -> System ()
@@ -270,3 +272,9 @@ flush = do
   sequence_ systems
 
   liftIO $ writeIORef world.deferred []
+
+newtype Name = Name String deriving (Component)
+
+instance Show Name where
+  show :: Name -> String
+  show (Name name) = show name

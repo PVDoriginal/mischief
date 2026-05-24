@@ -20,6 +20,7 @@ module MischiefECS.Prelude
     runApp,
     addSystem,
     addPlugin,
+    Name (Name),
   )
 where
 
@@ -27,6 +28,6 @@ import MischiefECS.App (Plugin, Startup (Startup), Update (Update), addPlugin, a
 import MischiefECS.Components (Component (required))
 import MischiefECS.Components.Default (require)
 import MischiefECS.Entities (Entity)
-import MischiefECS.World (System, defer, despawn, flush, insert, insertNew, spawn)
+import MischiefECS.World (Name (Name), System, defer, despawn, flush, insert, insertNew, spawn)
 import MischiefECS.World.Query (Queryable, query)
 import MischiefECS.World.Remove (remove)

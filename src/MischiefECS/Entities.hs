@@ -10,17 +10,17 @@ newtype Entity = Entity {id :: Int} deriving (Show, Eq, Ord)
 instance Component Entity
 
 data EntityPointer = EntityPointer
-  { archetypeId :: ArchetypeId
-  , rowIndex :: Int
+  { archetypeId :: ArchetypeId,
+    rowIndex :: Int
   }
   deriving (Show)
 
 decreaseRowIndex :: EntityPointer -> EntityPointer
-decreaseRowIndex EntityPointer{archetypeId, rowIndex} = EntityPointer{archetypeId, rowIndex = rowIndex - 1}
+decreaseRowIndex EntityPointer {archetypeId, rowIndex} = EntityPointer {archetypeId, rowIndex = rowIndex - 1}
 
 data Entities = Entities
-  { pointers :: IORef (Map Entity (IORef EntityPointer))
-  , counter :: IORef Int
+  { pointers :: IORef (Map Entity (IORef EntityPointer)),
+    counter :: IORef Int
   }
 
 removeEntity :: Entity -> Entities -> IO ()

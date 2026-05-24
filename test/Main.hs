@@ -8,12 +8,7 @@ import Data.Set qualified as Set
 import GHC.Generics (Generic)
 import MischiefECS.Prelude
 
-newtype Name = Name String deriving (Generic, Show, Eq, Component, Queryable, Default)
-
-data C = C deriving (Queryable, Show)
-
-instance Component C where
-  required = require @Name
+data C = C deriving (Component, Queryable, Show)
 
 main :: IO ()
 main = do
@@ -27,7 +22,7 @@ plugin = do
 
 setup :: System ()
 setup = do
-  spawn (Name "Foo")
+  spawn ()
   e1 <- spawn (Name "Lol")
   insert C e1
 
