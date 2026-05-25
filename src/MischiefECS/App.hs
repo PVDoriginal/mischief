@@ -77,7 +77,7 @@ data Schedules = Schedules {startup :: IORef [TypeRep], update :: IORef [TypeRep
 newSchedules :: IO Schedules
 newSchedules = do
   startup <- newIORef [typeOf Startup]
-  update <- newIORef [typeOf Update]
+  update <- newIORef [typeOf PreUpdate, typeOf Update, typeOf PostUpdate]
   return Schedules {startup, update}
 
 class (Typeable s) => Schedule s
@@ -85,3 +85,7 @@ class (Typeable s) => Schedule s
 data Startup = Startup deriving (Schedule)
 
 data Update = Update deriving (Schedule)
+
+data PreUpdate = PreUpdate deriving (Schedule)
+
+data PostUpdate = PostUpdate deriving (Schedule)
