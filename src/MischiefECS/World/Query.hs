@@ -48,12 +48,7 @@ class (QueryData qd) => Queryable qd where
   default runQueryInternal ::
     (Component qd, QueryOutput qd ~ ComponentResult qd) =>
     Proxy qd -> [ArchetypeId] -> World -> IO [QueryOutput qd]
-  runQueryInternal _ archetypes world = do
-    res <- tryGetComponents @qd world archetypes
-    x <- tryGetTicks (typeRep $ Proxy @qd) world archetypes
-    for_ (zip res x) $ \(result, ticks) -> do
-      liftIO $ putStrLn $ "component on entity " ++ show result.entity ++ " has ticks " ++ show ticks
-    return res
+  runQueryInternal _ archetypes world = tryGetComponents @qd world archetypes
 
   outputEntity :: (Queryable qd) => Proxy qd -> QueryOutput qd -> Entity
   default outputEntity ::
@@ -99,7 +94,10 @@ runQuery query filter world =
     let (otherFilter, archetypeFilter) = extractArchetypeFilters filter
 
     archetypes' <- filterM (\(components, _) -> filterArchetype archetypeFilter components world) archetypes
-    runQueryInternal query (map snd archetypes') world
+
+    outputs <- runQueryInternal query (map snd archetypes') world
+    outputs' <- filterQuery @qd world otherFilter (map snd archetypes') (zip [0 ..] outputs)
+    return $ map snd outputs'
 
 query :: forall qd r. (Queryable qd) => System [QueryOutput qd]
 query = do
@@ -111,38 +109,64 @@ queryF filter = do
   world <- ask
   liftIO $ runQuery (Proxy @qd) filter world
 
-filterQuery :: forall qd r. (Queryable qd) => QueryFilter -> [(Int, QueryOutput qd)] -> System [(Int, QueryOutput qd)]
-filterQuery NoFilter x = return x
-filterQuery (With x) outputs = do
-  world <- ask
+filterQuery :: forall qd r. (Queryable qd) => World -> QueryFilter -> [ArchetypeId] -> [(Int, QueryOutput qd)] -> IO [(Int, QueryOutput qd)]
+filterQuery _ NoFilter _ x = return x
+filterQuery world (With x) _ outputs = do
   component <- liftIO $ getComponentId x world.components
   filterM
     ( \(index, output) -> do
         let entity = outputEntity (Proxy @qd) output
-        components <- findComponentsOfEntity entity
+        components <- findComponentsOfEntity world entity
         case components of
           Nothing -> return True
           Just components ->
             return $ component `elem` components
     )
     outputs
-filterQuery (Without x) outputs = do
-  world <- ask
+filterQuery world (Without x) _ outputs = do
   component <- liftIO $ getComponentId x world.components
   filterM
     ( \(index, output) -> do
         let entity = outputEntity (Proxy @qd) output
-        components <- findComponentsOfEntity entity
+        components <- findComponentsOfEntity world entity
         case components of
           Nothing -> return True
           Just components ->
             return $ component `notElem` components
     )
     outputs
+filterQuery world (Changed x) archetypes outputs = do
+  res <- liftIO $ tryGetTicks x world archetypes
+  return $
+    filter
+      ( \(index, _) ->
+          let res' = res !! index
+           in res'.changed >= world.lastSystemTick && res'.changed < world.currentSystemTick
+      )
+      outputs
+filterQuery world (Added x) archetypes outputs = do
+  res <- liftIO $ tryGetTicks x world archetypes
+  return $
+    filter
+      ( \(index, _) ->
+          let res' = res !! index
+           in res'.added >= world.lastSystemTick && res'.added < world.currentSystemTick
+      )
+      outputs
+filterQuery world (a `And` b) archetypes outputs = do
+  res <- filterQuery @qd world a archetypes outputs
+  filterQuery @qd world b archetypes res
+filterQuery world (a `Or` b) archetypes outputs = do
+  res1 <- filterQuery @qd world a archetypes outputs
+  res2 <- filterQuery @qd world b archetypes outputs
 
-findComponentsOfEntity :: Entity -> System (Maybe [ComponentId])
-findComponentsOfEntity entity = do
-  world <- ask
+  let res1' = map fst res1
+  let res2' = map fst res2
+
+  return $ filter (\(index, _) -> index `elem` res1' || index `elem` res2') outputs
+
+findComponentsOfEntity :: World -> Entity -> IO (Maybe [ComponentId])
+findComponentsOfEntity world entity = do
   pointers <- liftIO $ readIORef world.entities.pointers
 
   let Tables t = world.tables
@@ -159,7 +183,7 @@ findComponentsOfEntity entity = do
 
 instance Queryable Name
 
-data QueryFilter = NoFilter | With TypeRep | Without TypeRep | And QueryFilter QueryFilter | Or QueryFilter QueryFilter | Changed
+data QueryFilter = NoFilter | With TypeRep | Without TypeRep | And QueryFilter QueryFilter | Or QueryFilter QueryFilter | Changed TypeRep | Added TypeRep
   deriving (Show)
 
 with :: forall qd. (QueryData qd) => QueryFilter
@@ -167,6 +191,12 @@ with = and' $ map With (Set.toList $ types (Proxy @qd))
 
 without :: forall qd. (QueryData qd) => QueryFilter
 without = and' $ map Without (Set.toList $ types (Proxy @qd))
+
+changed :: forall qd. (QueryData qd) => QueryFilter
+changed = and' $ map Changed (Set.toList $ types (Proxy @qd))
+
+added :: forall qd. (QueryData qd) => QueryFilter
+added = and' $ map Added (Set.toList $ types (Proxy @qd))
 
 and' :: [QueryFilter] -> QueryFilter
 and' = foldr and NoFilter
@@ -198,7 +228,8 @@ filterArchetype (a `Or` b) c w = do
 extractArchetypeFilters :: QueryFilter -> (QueryFilter, QueryFilter)
 extractArchetypeFilters NoFilter = (NoFilter, NoFilter)
 extractArchetypeFilters (With x) = (NoFilter, With x)
-extractArchetypeFilters Changed = (Changed, NoFilter)
+extractArchetypeFilters (Changed x) = (Changed x, NoFilter)
+extractArchetypeFilters (Added x) = (Added x, NoFilter)
 extractArchetypeFilters (Without x) = (NoFilter, Without x)
 extractArchetypeFilters (a `And` b) = (filter1 `And` filter2, res1 `And` res2)
   where
@@ -215,8 +246,10 @@ extractArchetypeFilters (a `Or` b) =
     (filter2, res2) = extractArchetypeFilters b
 
 isArchetypeFilter :: QueryFilter -> Bool
+isArchetypeFilter NoFilter = True
+isArchetypeFilter (Changed x) = False
+isArchetypeFilter (Added x) = False
 isArchetypeFilter (With x) = True
-isArchetypeFilter Changed = False
 isArchetypeFilter (Without x) = True
 isArchetypeFilter (a `And` b) = isArchetypeFilter a || isArchetypeFilter b
 isArchetypeFilter (a `Or` b) = isArchetypeFilter a && isArchetypeFilter b

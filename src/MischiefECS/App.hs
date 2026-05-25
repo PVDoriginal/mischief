@@ -8,9 +8,10 @@ import Data.Foldable
 import Data.IORef
 import Data.Map
 import Data.Map qualified as Map
+import MischiefECS.Components
 import MischiefECS.World
 
-data App = App {systems :: IORef (Map TypeRep [System ()]), world :: World, schedules :: Schedules}
+data App = App {systems :: IORef (Map TypeRep [(System (), IORef Tick)]), world :: World, schedules :: Schedules}
 
 type Plugin = ReaderT App IO
 
@@ -45,17 +46,26 @@ runApp app = do
         case Map.lookup schedule systemMap of
           Nothing -> return ()
           Just systems -> do
-            for_ systems $ \system -> do
-              runReaderT system app.world
-              runReaderT flush app.world
+            for_ systems $ \(system, systemTick) -> do
+              lastSystemTick <- readIORef systemTick
+              currentSystemTick <- readIORef app.world.tick
+              writeIORef systemTick currentSystemTick
+
+              let world = setSystemTicks lastSystemTick currentSystemTick app.world
+
+              runReaderT system world
+              runReaderT flush world
+              runReaderT tick world
 
 addSystem :: (Schedule s) => s -> System () -> Plugin ()
 addSystem schedule system = do
   app <- ask
-  liftIO $ modifyIORef' app.systems (Map.alter alterMap (typeOf schedule))
+  t0 <- liftIO $ newIORef $ Tick 0
+  t1 <- liftIO $ newIORef $ Tick 0
+  liftIO $ modifyIORef' app.systems (Map.alter (alterMap t0 t1) (typeOf schedule))
   where
-    alterMap Nothing = Just [system]
-    alterMap (Just l) = Just $ l ++ [system]
+    alterMap t0 _ Nothing = Just [(system, t0)]
+    alterMap t0 t1 (Just l) = Just $ l ++ [(system, t1)]
 
 addPlugin :: Plugin () -> Plugin ()
 addPlugin plugin = do

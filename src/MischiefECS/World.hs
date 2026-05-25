@@ -25,7 +25,9 @@ data World = World
     entities :: Entities,
     tables :: Tables,
     deferred :: IORef [System ()],
-    tick :: IORef Tick
+    tick :: IORef Tick,
+    lastSystemTick :: Tick,
+    currentSystemTick :: Tick
   }
 
 newWorld :: IO World
@@ -44,8 +46,14 @@ newWorld = do
         entities,
         tables,
         deferred,
-        tick
+        tick,
+        lastSystemTick = Tick 0,
+        currentSystemTick = Tick 0
       }
+
+setSystemTicks :: Tick -> Tick -> World -> World
+setSystemTicks lastSystemTick currentSystemTick World {archetypes, components, entities, tables, deferred, tick} =
+  World {archetypes, components, entities, tables, deferred, tick, lastSystemTick, currentSystemTick}
 
 tick :: System ()
 tick = do

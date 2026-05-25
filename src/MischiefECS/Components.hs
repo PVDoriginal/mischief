@@ -121,7 +121,7 @@ instance Ord BundleElement where
   compare :: BundleElement -> BundleElement -> Ordering
   compare BundleElement {rep = rep1} BundleElement {rep = rep2} = compare rep1 rep2
 
-newtype Tick = Tick Int deriving (Show)
+newtype Tick = Tick Int deriving (Show, Eq, Ord)
 
 data ComponentTicks = ComponentTicks {changed :: Tick, added :: Tick} deriving (Show)
 
