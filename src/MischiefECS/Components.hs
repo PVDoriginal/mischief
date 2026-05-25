@@ -16,6 +16,9 @@ module MischiefECS.Components
     ErasedComponent,
     BundleData (BundleData, elements, required),
     BundleElement (BundleElement, rep, component),
+    Tick (Tick),
+    ComponentTicks (ComponentTicks, changed, added),
+    ComponentData (ComponentData, value, ticks),
   )
 where
 
@@ -117,3 +120,9 @@ instance Eq BundleElement where
 instance Ord BundleElement where
   compare :: BundleElement -> BundleElement -> Ordering
   compare BundleElement {rep = rep1} BundleElement {rep = rep2} = compare rep1 rep2
+
+newtype Tick = Tick Int deriving (Show)
+
+data ComponentTicks = ComponentTicks {changed :: Tick, added :: Tick} deriving (Show)
+
+data ComponentData = ComponentData {value :: ErasedComponent, ticks :: ComponentTicks}

@@ -9,7 +9,7 @@ import MischiefECS.Components.Internal
 
 newtype ProcessedBundleData = ProcessedBundleData {elements :: [ProcessedBundleElement]}
 
-data ProcessedBundleElement = ProcessedBundleElement {id :: ComponentId, component :: ErasedComponent}
+data ProcessedBundleElement = ProcessedBundleElement {id :: ComponentId, component :: ComponentData}
 
 archetypeOfProcessedBundle :: Archetypes -> ProcessedBundleData -> IO ArchetypeId
 archetypeOfProcessedBundle archetypes bundle = getArchetypeId (map (\x -> x.id) bundle.elements) archetypes

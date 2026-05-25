@@ -24,7 +24,8 @@ data World = World
     components :: Components,
     entities :: Entities,
     tables :: Tables,
-    deferred :: IORef [System ()]
+    deferred :: IORef [System ()],
+    tick :: IORef Tick
   }
 
 newWorld :: IO World
@@ -34,6 +35,7 @@ newWorld = do
   entities <- emptyEntities
   tables <- emptyTables
   deferred <- newIORef []
+  tick <- newIORef (Tick 0)
 
   return
     World
@@ -41,23 +43,33 @@ newWorld = do
         components,
         entities,
         tables,
-        deferred
+        deferred,
+        tick
       }
 
-processBundleElement :: World -> BundleElement -> IO ProcessedBundleElement
-processBundleElement world BundleElement {rep, component} =
+tick :: System ()
+tick = do
+  world <- ask
+  liftIO $ modifyIORef' world.tick (\(Tick x) -> Tick $ x + 1)
+
+processBundleElement :: World -> ComponentTicks -> BundleElement -> IO ProcessedBundleElement
+processBundleElement world ticks BundleElement {rep, component} =
   do
     id <- getComponentId rep world.components
     return
       ProcessedBundleElement
         { id,
-          component
+          component =
+            ComponentData
+              { value = component,
+                ticks
+              }
         }
 
-processBundleElements :: World -> Set BundleElement -> IO ProcessedBundleData
-processBundleElements world elements =
+processBundleElements :: World -> ComponentTicks -> Set BundleElement -> IO ProcessedBundleData
+processBundleElements world ticks elements =
   do
-    elements <- mapM (processBundleElement world) (Set.toList elements)
+    elements <- mapM (processBundleElement world ticks) (Set.toList elements)
     archetypeId <- getArchetypeId (map (\x -> x.id) elements) world.archetypes
     return
       ProcessedBundleData {elements}
@@ -69,6 +81,35 @@ combineProcessedBundles world bundle1 bundle2 =
         archetypeId <- getArchetypeId (map (\x -> x.id) elements) world.archetypes
         return
           ProcessedBundleData {elements}
+
+isInProcessedBundle :: ProcessedBundleData -> ComponentId -> Bool
+isInProcessedBundle ProcessedBundleData {elements} id = id `elem` map (\element -> element.id) elements
+
+setChangedTickOfComponents :: ProcessedBundleData -> (ComponentId -> Bool) -> Tick -> ProcessedBundleData
+setChangedTickOfComponents ProcessedBundleData {elements} shouldChange tick =
+  ProcessedBundleData
+    { elements =
+        map
+          ( \ProcessedBundleElement {id, component = ComponentData {value, ticks = ComponentTicks {added, changed}}} ->
+              if shouldChange id
+                then ProcessedBundleElement {id, component = ComponentData {value, ticks = ComponentTicks {added, changed = tick}}}
+                else ProcessedBundleElement {id, component = ComponentData {value, ticks = ComponentTicks {added, changed}}}
+          )
+          elements
+    }
+
+setAddedTickOfComponents :: ProcessedBundleData -> (ComponentId -> Bool) -> Tick -> ProcessedBundleData
+setAddedTickOfComponents ProcessedBundleData {elements} shouldChange tick =
+  ProcessedBundleData
+    { elements =
+        map
+          ( \ProcessedBundleElement {id, component = ComponentData {value, ticks = ComponentTicks {added, changed}}} ->
+              if shouldChange id
+                then ProcessedBundleElement {id, component = ComponentData {value, ticks = ComponentTicks {added = tick, changed}}}
+                else ProcessedBundleElement {id, component = ComponentData {value, ticks = ComponentTicks {added, changed}}}
+          )
+          elements
+    }
 
 removeComponentFromProcessedBundle :: World -> ComponentId -> ProcessedBundleData -> IO ProcessedBundleData
 removeComponentFromProcessedBundle world componentId bundle =
@@ -88,7 +129,9 @@ spawn bundle =
 
     let BundleData {elements, required} = addComponentToBundleData entity $ bundleData bundle
 
-    bundle <- liftIO $ processBundleElements world $ Set.union elements required
+    currentTick <- liftIO $ readIORef world.tick
+
+    bundle <- liftIO $ processBundleElements world ComponentTicks {changed = currentTick, added = currentTick} $ Set.union elements required
 
     archetypeId <- liftIO $ archetypeOfProcessedBundle world.archetypes bundle
 
@@ -134,14 +177,16 @@ insert bundle entity =
     world <- ask
     let BundleData {elements, required} = bundleData bundle
 
-    bundleData <- liftIO $ processBundleElements world elements
+    currentTick <- liftIO $ readIORef world.tick
+
+    bundleData <- liftIO $ processBundleElements world ComponentTicks {changed = currentTick, added = currentTick} elements
     let newComponents = sort $ map (\x -> x.id) bundleData.elements
 
     entityPointers <- liftIO $ readIORef world.entities.pointers
     case Map.lookup entity entityPointers of
       Nothing -> undefined
       Just currentPointer -> do
-        currentPointerInternal <- liftIO $ readIORef currentPointer
+        currentPointerInternal :: EntityPointer <- liftIO $ readIORef currentPointer
 
         let Tables tables = world.tables
         tables <- liftIO $ readIORef tables
@@ -152,12 +197,15 @@ insert bundle entity =
             -- Simple case, no archetype change.
             if newComponents `isSubsequenceOf` currentTable.components
               then
-                liftIO $ replaceComponentsIntoTable bundleData currentPointerInternal currentTable
+                liftIO $ replaceComponentsIntoTable bundleData (Just currentTick) currentPointerInternal currentTable
               -- Complex case, archetype change.
               else do
                 collectedComponents <- liftIO $ takeComponentsFromTable currentPointerInternal currentTable
                 newBundle <- liftIO $ combineProcessedBundles world collectedComponents bundleData
                 archetype <- liftIO $ archetypeOfProcessedBundle world.archetypes newBundle
+
+                let newBundle' = setChangedTickOfComponents newBundle (isInProcessedBundle collectedComponents) currentTick
+                let newBundle'' = setAddedTickOfComponents newBundle (\id -> isInProcessedBundle bundleData id && not (isInProcessedBundle collectedComponents id)) currentTick
 
                 liftIO $ insertEntityIntoTables newBundle world.tables archetype (entity, currentPointer)
                 newPointer <- liftIO $ readIORef currentPointer
@@ -168,7 +216,7 @@ insert bundle entity =
                 case Map.lookup newPointer.archetypeId tables of
                   Nothing -> undefined
                   Just newTable -> do
-                    liftIO $ replaceComponentsIntoTable bundleData newPointer newTable
+                    liftIO $ replaceComponentsIntoTable bundleData Nothing newPointer newTable
 
     insertNew (BundleData {elements = required, required = Set.empty}) entity
 
@@ -178,7 +226,9 @@ insertNew bundle entity =
     world <- ask
     let BundleData {elements, required} = bundleData bundle
 
-    bundleData <- liftIO $ processBundleElements world (Set.union elements required)
+    currentTick <- liftIO $ readIORef world.tick
+
+    bundleData <- liftIO $ processBundleElements world ComponentTicks {changed = currentTick, added = currentTick} (Set.union elements required)
     let components = sort $ map (\x -> x.id) bundleData.elements
 
     entityPointers <- liftIO $ readIORef world.entities.pointers

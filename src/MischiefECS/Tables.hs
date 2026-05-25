@@ -22,7 +22,7 @@ data Table = Table
     entities :: IOVec (Entity, IORef EntityPointer)
   }
 
-newtype Column = Column (IOVec ErasedComponent)
+newtype Column = Column (IOVec ComponentData)
 
 baseline_entities_cap :: Int
 baseline_entities_cap = 256
@@ -71,11 +71,19 @@ insertComponentsIntoTable bundle table = do
   cols <- readIORef table.columns
   insertComponentsIntoMap bundle cols
 
-replaceComponentsIntoMap :: ProcessedBundleData -> EntityPointer -> Map ComponentId Column -> IO ()
-replaceComponentsIntoMap bundle pointer tableMap = do
+replaceComponentsIntoMap ::
+  ProcessedBundleData ->
+  -- | The current tick that will be as the components' change tick.
+  Maybe Tick ->
+  EntityPointer ->
+  Map ComponentId Column ->
+  IO ()
+replaceComponentsIntoMap bundle tick pointer tableMap = do
   for_ bundle.elements $ \el ->
     tapMap tableMap el.id $ \(Column col) ->
-      Vec.write col pointer.rowIndex el.component
+      case tick of
+        Just tick -> Vec.modify_ col pointer.rowIndex (\ComponentData {value, ticks = ComponentTicks {changed, added}} -> ComponentData {value = el.component.value, ticks = ComponentTicks {changed = tick, added}})
+        Nothing -> Vec.modify_ col pointer.rowIndex (\ComponentData {value, ticks} -> ComponentData {value = el.component.value, ticks})
 
 --   foldl' modifyMap tableMap bundle.elements
 --  where
@@ -84,12 +92,18 @@ replaceComponentsIntoMap bundle pointer tableMap = do
 --     let (x', _ : ys) = splitAt pointer.rowIndex x
 --      in Column $ x' ++ [element.component] ++ ys
 
-replaceComponentsIntoTable :: ProcessedBundleData -> EntityPointer -> Table -> IO ()
-replaceComponentsIntoTable bundle pointer table = do
+replaceComponentsIntoTable ::
+  ProcessedBundleData ->
+  -- | The current tick that will be as the components' change tick.
+  Maybe Tick ->
+  EntityPointer ->
+  Table ->
+  IO ()
+replaceComponentsIntoTable bundle tick pointer table = do
   cols <- readIORef table.columns
-  replaceComponentsIntoMap bundle pointer cols
+  replaceComponentsIntoMap bundle tick pointer cols
 
-takeFromColumn :: EntityPointer -> Column -> IO ErasedComponent
+takeFromColumn :: EntityPointer -> Column -> IO ComponentData
 takeFromColumn pointer (Column col) = Vec.takeSwap col pointer.rowIndex
 
 takeComponentsFromTable :: EntityPointer -> Table -> IO ProcessedBundleData
@@ -154,7 +168,7 @@ insertEntityIntoTables bundle (Tables tables) archetype pointerRef =
 tryGetComponentFromColumn :: forall c. (Component c) => Column -> EntityPointer -> IO (Maybe c)
 tryGetComponentFromColumn (Column components) pointer = do
   element <- Vec.read components pointer.rowIndex
-  pure $ tryGetComponent element
+  pure $ tryGetComponent element.value
 
 tryGetComponentFromTable :: forall c. (Component c) => Table -> EntityPointer -> ComponentId -> IO (Maybe c)
 tryGetComponentFromTable table pointer componentId =
@@ -179,7 +193,7 @@ tryGetComponentFromTables (Tables tables) pointer componentId =
 tryGetComponentsFromColumn :: forall c. (Component c) => Column -> IO [c]
 tryGetComponentsFromColumn (Column components) = do
   frozen <- Vec.freeze components
-  let x = Vector.mapM tryGetComponent frozen
+  let x = Vector.mapM (\x -> tryGetComponent x.value) frozen
   pure $ maybe [] Vector.toList x
 
 tryGetComponentsFromTable :: forall c. (Component c) => Table -> ComponentId -> IO [ComponentResult c]

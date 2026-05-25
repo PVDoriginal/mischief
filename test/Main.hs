@@ -19,7 +19,7 @@ data C3 = C3 String deriving (Component, Queryable, Show)
 
 main :: IO ()
 main = do
-  app <- newApp [test5]
+  app <- newApp [test4]
   runApp app
 
 plugin :: Plugin ()
