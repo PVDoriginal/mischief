@@ -39,7 +39,5 @@ update :: System ()
 update = do
   res <- queryF @(Entity, (Counter, Name)) $ changed @(Name, Counter)
 
-  world <- ask
-
   for_ res $ \(entity, (counter, name)) -> do
     liftIO $ putStrLn $ show entity ++ " has name: " ++ show name ++ " and counter: " ++ show counter
