@@ -6,7 +6,7 @@ module MischiefECS.Components
     emptyComponents,
     getComponentId,
     tryGetComponent,
-    Archetypes (Archetypes),
+    Archetypes (Archetypes, map),
     ArchetypeId (ArchetypeId),
     emptyArchetypes,
     getArchetypeId,

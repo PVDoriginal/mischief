@@ -6,6 +6,10 @@ import Control.Monad
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Reader
 import Data.Data
+import Data.Foldable hiding (and)
+import Data.IORef
+import Data.Map (Map)
+import Data.Map qualified as Map
 import Data.Proxy (Proxy (..))
 import Data.Set (Set)
 import Data.Set qualified as Set
@@ -44,11 +48,23 @@ class (QueryData qd) => Queryable qd where
   default runQueryInternal ::
     (Component qd, QueryOutput qd ~ ComponentResult qd) =>
     Proxy qd -> [ArchetypeId] -> World -> IO [QueryOutput qd]
-  runQueryInternal _ archetypes world = tryGetComponents @qd world archetypes
+  runQueryInternal _ archetypes world = do
+    res <- tryGetComponents @qd world archetypes
+    x <- tryGetTicks (typeRep $ Proxy @qd) world archetypes
+    for_ (zip res x) $ \(result, ticks) -> do
+      liftIO $ putStrLn $ "component on entity " ++ show result.entity ++ " has ticks " ++ show ticks
+    return res
+
+  outputEntity :: (Queryable qd) => Proxy qd -> QueryOutput qd -> Entity
+  default outputEntity ::
+    (Component qd, QueryOutput qd ~ ComponentResult qd) =>
+    Proxy qd -> QueryOutput qd -> Entity
+  outputEntity _ x = x.entity
 
 instance (Queryable q0, Queryable q1) => Queryable (q0, q1) where
   type QueryOutput (q0, q1) = (QueryOutput q0, QueryOutput q1)
 
+  runQueryEntity :: (Queryable q0, Queryable q1) => Proxy (q0, q1) -> World -> Entity -> IO (Maybe (QueryOutput (q0, q1)))
   runQueryEntity _ world entity = do
     r0 <- runQueryEntity (Proxy @q0) world entity
     r1 <- runQueryEntity (Proxy @q1) world entity
@@ -61,6 +77,9 @@ instance (Queryable q0, Queryable q1) => Queryable (q0, q1) where
 
     return $ zip r0 r1
 
+  outputEntity :: (Queryable q0, Queryable q1) => Proxy (q0, q1) -> (QueryOutput q0, QueryOutput q1) -> Entity
+  outputEntity _ (a, _) = outputEntity (Proxy @q0) a
+
 instance Queryable Entity where
   type QueryOutput Entity = Entity
 
@@ -68,6 +87,8 @@ instance Queryable Entity where
   runQueryInternal _ archetypes world = do
     results <- tryGetComponents @Entity world archetypes
     pure $ fmap (\cr -> cr.entity) results
+
+  outputEntity _ x = x
 
 runQuery :: forall qd. (Queryable qd) => Proxy qd -> QueryFilter -> World -> IO [QueryOutput qd]
 runQuery query filter world =
@@ -89,6 +110,52 @@ queryF :: forall qd r. (Queryable qd) => QueryFilter -> System [QueryOutput qd]
 queryF filter = do
   world <- ask
   liftIO $ runQuery (Proxy @qd) filter world
+
+filterQuery :: forall qd r. (Queryable qd) => QueryFilter -> [(Int, QueryOutput qd)] -> System [(Int, QueryOutput qd)]
+filterQuery NoFilter x = return x
+filterQuery (With x) outputs = do
+  world <- ask
+  component <- liftIO $ getComponentId x world.components
+  filterM
+    ( \(index, output) -> do
+        let entity = outputEntity (Proxy @qd) output
+        components <- findComponentsOfEntity entity
+        case components of
+          Nothing -> return True
+          Just components ->
+            return $ component `elem` components
+    )
+    outputs
+filterQuery (Without x) outputs = do
+  world <- ask
+  component <- liftIO $ getComponentId x world.components
+  filterM
+    ( \(index, output) -> do
+        let entity = outputEntity (Proxy @qd) output
+        components <- findComponentsOfEntity entity
+        case components of
+          Nothing -> return True
+          Just components ->
+            return $ component `notElem` components
+    )
+    outputs
+
+findComponentsOfEntity :: Entity -> System (Maybe [ComponentId])
+findComponentsOfEntity entity = do
+  world <- ask
+  pointers <- liftIO $ readIORef world.entities.pointers
+
+  let Tables t = world.tables
+  tables <- liftIO $ readIORef t
+
+  case Map.lookup entity pointers of
+    Nothing -> return Nothing
+    Just x -> do
+      pointer <- liftIO $ readIORef x
+
+      return $ case Map.lookup pointer.archetypeId tables of
+        Nothing -> Nothing
+        Just x -> Just x.components
 
 instance Queryable Name
 

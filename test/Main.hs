@@ -19,7 +19,7 @@ data C3 = C3 String deriving (Component, Queryable, Show)
 
 main :: IO ()
 main = do
-  app <- newApp [test4]
+  app <- newApp [test6]
   runApp app
 
 plugin :: Plugin ()
@@ -130,3 +130,28 @@ test5 = do
     query' <- queryF @(Entity, Name) $ without @Counter `or` with @Entity
 
     liftIO $ print query'
+
+test6 :: Plugin ()
+test6 = do
+  addSystem Startup $ do
+    tick
+    -- tick 1
+    e1 <- spawn (Name "Name")
+
+    tick
+    tick
+    -- tick 3
+    insert (Name "Name2") e1
+
+    tick
+    -- tick 4
+    insert (Counter 0) e1
+
+    tick
+    -- tick 5
+    insert (Counter 1) e1
+
+    query @Name
+    query @Counter
+
+    return ()
