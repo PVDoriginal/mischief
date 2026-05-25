@@ -301,6 +301,12 @@ tryGetComponents world archetypes =
     componentId <- getComponentId (typeRep $ Proxy @c) world.components
     tryGetComponentsFromTables world.tables archetypes componentId
 
+tryGetTicks :: TypeRep -> World -> [ArchetypeId] -> IO [ComponentTicks]
+tryGetTicks rep world archetypes =
+  do
+    componentId <- getComponentId rep world.components
+    tryGetTicksFromTables world.tables archetypes componentId
+
 set :: (Bundle c) => ComponentResult c -> c -> System ()
 set !result !newValue = MischiefECS.World.insert newValue result.entity
 

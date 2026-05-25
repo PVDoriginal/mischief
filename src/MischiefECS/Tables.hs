@@ -190,6 +190,33 @@ tryGetComponentFromTables (Tables tables) pointer componentId =
       Nothing -> return Nothing
       Just table -> tryGetComponentFromTable table pointer componentId
 
+tryGetTicksFromColumn :: Column -> IO [ComponentTicks]
+tryGetTicksFromColumn (Column components) = do
+  frozen <- Vec.freeze components
+  let x = Vector.map (\x -> x.ticks) frozen
+  return $ Vector.toList x
+
+tryGetTicksFromTable :: Table -> ComponentId -> IO [ComponentTicks]
+tryGetTicksFromTable table componentId =
+  do
+    columns <- readIORef table.columns
+    case Map.lookup componentId columns of
+      Nothing -> return []
+      Just column -> tryGetTicksFromColumn column
+
+tryGetTicksFromArchetype :: ArchetypeId -> Map ArchetypeId Table -> ComponentId -> IO [ComponentTicks]
+tryGetTicksFromArchetype archetype tables componentId =
+  case Map.lookup archetype tables of
+    Nothing -> return []
+    Just table -> tryGetTicksFromTable table componentId
+
+tryGetTicksFromTables :: Tables -> [ArchetypeId] -> ComponentId -> IO [ComponentTicks]
+tryGetTicksFromTables (Tables tables) archetypes componentId =
+  do
+    tables <- readIORef tables
+    results <- mapM (\archetype -> tryGetTicksFromArchetype archetype tables componentId) archetypes
+    return $ concat results
+
 tryGetComponentsFromColumn :: forall c. (Component c) => Column -> IO [c]
 tryGetComponentsFromColumn (Column components) = do
   frozen <- Vec.freeze components
