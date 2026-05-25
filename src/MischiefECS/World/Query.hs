@@ -104,8 +104,8 @@ query = do
   world <- ask
   liftIO $ runQuery (Proxy @qd) NoFilter world
 
-queryF :: forall qd r. (Queryable qd) => QueryFilter -> System [QueryOutput qd]
-queryF filter = do
+query' :: forall qd r. (Queryable qd) => QueryFilter -> System [QueryOutput qd]
+query' filter = do
   world <- ask
   liftIO $ runQuery (Proxy @qd) filter world
 

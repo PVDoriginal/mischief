@@ -1,7 +1,6 @@
 module Main where
 
 import Control.Monad.IO.Class
-import Control.Monad.Trans.Reader (ask)
 import Data.Foldable hiding (and, or)
 import Data.List qualified as List
 import Data.Set qualified as Set
@@ -37,7 +36,7 @@ setup = do
 
 update :: System ()
 update = do
-  res <- queryF @(Entity, (Counter, Name)) $ changed @(Name, Counter)
+  res <- query' @(Entity, (Counter, Name)) $ changed @(Name, Counter)
 
   for_ res $ \(entity, (counter, name)) -> do
     liftIO $ putStrLn $ show entity ++ " has name: " ++ show name ++ " and counter: " ++ show counter
