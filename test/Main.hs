@@ -37,10 +37,9 @@ setup = do
 
 update :: System ()
 update = do
-  res <- queryF @(Entity, (Counter, Name)) $ added @Name `or` changed @Counter
+  res <- queryF @(Entity, (Counter, Name)) $ changed @(Name, Counter)
 
   world <- ask
 
   for_ res $ \(entity, (counter, name)) -> do
-    modify counter (\(Counter x) -> Counter $ x + 1)
     liftIO $ putStrLn $ show entity ++ " has name: " ++ show name ++ " and counter: " ++ show counter
