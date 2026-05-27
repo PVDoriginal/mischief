@@ -119,6 +119,7 @@ test-suite mischief-test
     NoGeneralizedNewtypeDeriving
     OverloadedRecordDot
     RequiredTypeArguments
+    TypeFamilyDependencies
 
   -- other-extensions:
   -- The interface type and version of the test suite.

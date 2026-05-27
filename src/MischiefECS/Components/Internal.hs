@@ -9,3 +9,7 @@ data ErasedComponent where
   ErasedComponent :: (Typeable c) => c -> ErasedComponent
 
 data BundleElement = BundleElement {rep :: TypeRep, component :: ErasedComponent}
+
+instance Show BundleElement where
+  show :: BundleElement -> String
+  show e = show e.rep

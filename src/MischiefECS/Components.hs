@@ -12,17 +12,18 @@ module MischiefECS.Components
     getArchetypeId,
     removeArchetypeId,
     findMatchingArchetypes,
-    Component (erase, required),
+    Component (Storage, erase, required),
     ErasedComponent,
     BundleData (BundleData, elements, required),
     BundleElement (BundleElement, rep, component),
     Tick (Tick),
     ComponentTicks (ComponentTicks, changed, added),
     ComponentData (ComponentData, value, ticks),
-    Resource,
+    StorageType (ComponentStorage, ResourceStorage),
   )
 where
 
+import Control.Monad.IO.Class
 import Data.IORef
 import Data.List
 import Data.List qualified as List
@@ -95,7 +96,7 @@ getArchetypeId t Archetypes {map, counter} = do
       return $ ArchetypeId result
 
 removeArchetypeId :: ArchetypeId -> Archetypes -> IO ()
-removeArchetypeId id archetypes = do
+removeArchetypeId id archetypes =
   modifyIORef' archetypes.map (Map.filter (/= id))
 
 findMatchingArchetypes :: [ComponentId] -> Archetypes -> IO [([ComponentId], ArchetypeId)]
@@ -116,8 +117,6 @@ class (Typeable c) => Component c where
 
   required :: DefaultBundleData
   required = DefaultBundleData Set.empty
-
-class (Typeable c, Component c) => Resource c
 
 data BundleData = BundleData {elements :: Set BundleElement, required :: Set BundleElement}
 

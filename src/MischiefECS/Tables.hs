@@ -48,6 +48,11 @@ newTable components = do
 tableIsEmpty :: Table -> IO Bool
 tableIsEmpty table = Vec.null table.entities
 
+removeTable :: ArchetypeId -> Tables -> IO ()
+removeTable archetype tables = do
+  let Tables tables' = tables
+  modifyIORef' tables' $ Map.filterWithKey (\archetype' _ -> archetype' /= archetype)
+
 -- |
 --  runs the specified monadic action with the value of the given map key as input, if the key exists.
 --  if it doesn't, do nothing
@@ -149,21 +154,16 @@ insertResourceIntoTables bundle tick (Tables tables) archetype (entity, pointerR
   do
     innerTables <- readIORef tables
 
-    case Map.lookup archetype innerTables of
-      Just table -> do
-        pointer <- readIORef pointerRef
-        replaceComponentsIntoTable bundle (Just tick) pointer table
-      Nothing -> do
-        table <- newTable bundle
-        let newTables = Map.insert archetype table innerTables
-        writeIORef tables newTables
+    table <- newTable bundle
+    let newTables = Map.insert archetype table innerTables
+    writeIORef tables newTables
 
-        rowIndex <- Vec.length table.entities
-        Vec.pushBack table.entities (entity, pointerRef)
+    rowIndex <- Vec.length table.entities
+    Vec.pushBack table.entities (entity, pointerRef)
 
-        writeIORef pointerRef $ EntityPointer {archetypeId = archetype, rowIndex}
+    writeIORef pointerRef $ EntityPointer {archetypeId = archetype, rowIndex}
 
-        insertComponentsIntoTable bundle table
+    insertComponentsIntoTable bundle table
 
 insertEntityIntoTables :: ProcessedBundleData -> Tables -> ArchetypeId -> (Entity, IORef EntityPointer) -> IO ()
 insertEntityIntoTables bundle (Tables tables) archetype pointerRef =

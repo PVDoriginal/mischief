@@ -17,7 +17,10 @@ newtype C2 = C2 String deriving (Component, Queryable, Show)
 
 newtype C3 = C3 String deriving (Component, Queryable, Show)
 
-newtype Res = Res String deriving (Resource, Component, Queryable, Show)
+newtype Res = Res String deriving (Queryable, Show)
+
+instance Component Res where
+  type Storage Res = ResourceStorage
 
 main :: IO ()
 main = do
@@ -37,7 +40,11 @@ setup = do
 
 update :: System ()
 update = do
-  res <- query' @(Entity, (Name, Res)) $ added @Res
+  res <- query' @(Entity, (Name, Res)) $ NoFilter
 
   for_ res $ \(entity, (name, res)) -> do
     liftIO $ putStrLn $ show entity ++ " has name: " ++ show name ++ " and res: " ++ show res
+    -- set name (Name "aaah")
+
+    insert (C1 "Lol") entity
+    insertResource (Res "lmao")

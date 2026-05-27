@@ -2,6 +2,7 @@
 
 module MischiefECS.World where
 
+import Control.Applicative (WrappedMonad (unwrapMonad))
 import Control.Monad
 import Control.Monad.IO.Class (MonadIO (liftIO))
 import Control.Monad.Trans.Reader
@@ -126,27 +127,55 @@ removeComponentFromProcessedBundle world componentId bundle =
     archetypeId <- getArchetypeId (map (\x -> x.id) elements) world.archetypes
     return ProcessedBundleData {elements}
 
+findResourceArchetype :: (Component r, Storage r ~ ResourceStorage) => r -> System (Maybe ArchetypeId)
+findResourceArchetype r =
+  do
+    world <- ask
+    componentId <- liftIO $ getComponentId (typeOf r) world.components
+    archetypes <- liftIO $ findMatchingArchetypes [componentId] world.archetypes
+
+    liftIO $ print archetypes
+
+    return $ case archetypes of
+      [(_, x)] -> Just x
+      [] -> Nothing
+      _ -> undefined
+
 -- | Insert a resource into this world. If the resource already exists, its value will be overwritten.
-insertResource :: (Resource r) => r -> System ()
+insertResource :: (Component r, Storage r ~ ResourceStorage) => r -> System ()
 insertResource r =
   do
     world <- ask
-
-    entityIndex <- liftIO $ readIORef world.entities.counter
-    let entity = Entity entityIndex
-    liftIO $ modifyIORef world.entities.counter (+ 1)
-
-    let BundleData {elements} = addComponentToBundleData (Name "Resource") $ addComponentToBundleData entity $ bundleDataRes r
-
     currentTick <- liftIO $ readIORef world.tick
-    bundle <- liftIO $ processBundleElements world ComponentTicks {changed = currentTick, added = currentTick} elements
 
-    archetypeId <- liftIO $ archetypeOfProcessedBundle world.archetypes bundle
-    entityPointer <- liftIO $ newIORef EntityPointer {archetypeId = ArchetypeId 0, rowIndex = 0}
+    archetype <- findResourceArchetype r
+    case archetype of
+      Just archetype -> do
+        liftIO $ putStrLn $ "modifying resource on archetype " ++ show archetype
+        let Tables tables = world.tables
+        tables <- liftIO $ readIORef tables
 
-    liftIO $ insertResourceIntoTables bundle currentTick world.tables archetypeId (entity, entityPointer)
+        case Map.lookup archetype tables of
+          Nothing -> undefined
+          Just table -> do
+            let bundleData = bundleDataRes r
+            bundle <- liftIO $ processBundleElements world ComponentTicks {added = currentTick, changed = currentTick} bundleData.elements
+            liftIO $ replaceComponentsIntoTable bundle (Just currentTick) EntityPointer {archetypeId = archetype, rowIndex = 0} table
+      Nothing -> do
+        entityIndex <- liftIO $ readIORef world.entities.counter
+        let entity = Entity entityIndex
+        liftIO $ modifyIORef world.entities.counter (+ 1)
 
-    liftIO $ modifyIORef' world.entities.pointers $ Map.insert entity entityPointer
+        let BundleData {elements} = addComponentToBundleData (Name "Resource") $ addComponentToBundleData entity $ bundleDataRes r
+
+        bundle <- liftIO $ processBundleElements world ComponentTicks {changed = currentTick, added = currentTick} elements
+
+        archetypeId <- liftIO $ archetypeOfProcessedBundle world.archetypes bundle
+        entityPointer <- liftIO $ newIORef EntityPointer {archetypeId = ArchetypeId 0, rowIndex = 0}
+
+        liftIO $ insertResourceIntoTables bundle currentTick world.tables archetypeId (entity, entityPointer)
+
+        liftIO $ modifyIORef' world.entities.pointers $ Map.insert entity entityPointer
 
 -- | Spawn an entity in this World given a bundle of components.
 spawn :: (Bundle b) => b -> System Entity
@@ -195,9 +224,16 @@ despawn entity =
             empty <- liftIO $ tableIsEmpty table
 
             when empty $ do
-              liftIO $ removeArchetypeId currentPointer.archetypeId world.archetypes
+              liftIO $ removeTableAndArchetype world currentPointer.archetypeId
 
             liftIO $ removeEntity entity world.entities
+
+removeTableAndArchetype :: World -> ArchetypeId -> IO ()
+removeTableAndArchetype !world !archetype =
+  do
+    putStrLn $ "deleting " ++ show archetype
+    removeArchetypeId archetype world.archetypes
+    removeTable archetype world.tables
 
 insert :: (Bundle b) => b -> Entity -> System ()
 insert bundle entity =
@@ -214,7 +250,7 @@ insert bundle entity =
     case Map.lookup entity entityPointers of
       Nothing -> undefined
       Just currentPointer -> do
-        currentPointerInternal :: EntityPointer <- liftIO $ readIORef currentPointer
+        currentPointerInternal <- liftIO $ readIORef currentPointer
 
         let Tables tables = world.tables
         tables <- liftIO $ readIORef tables
@@ -229,6 +265,11 @@ insert bundle entity =
               -- Complex case, archetype change.
               else do
                 collectedComponents <- liftIO $ takeComponentsFromTable currentPointerInternal currentTable
+
+                empty <- liftIO $ tableIsEmpty currentTable
+                when empty $ do
+                  liftIO $ removeTableAndArchetype world currentPointerInternal.archetypeId
+
                 newBundle <- liftIO $ combineProcessedBundles world collectedComponents bundleData
                 archetype <- liftIO $ archetypeOfProcessedBundle world.archetypes newBundle
 
@@ -246,6 +287,7 @@ insert bundle entity =
                   Just newTable -> do
                     liftIO $ replaceComponentsIntoTable bundleData Nothing newPointer newTable
 
+    liftIO $ print ("required: " ++ show required)
     insertNew (BundleData {elements = required, required = Set.empty}) entity
 
 insertNew :: (Bundle b) => b -> Entity -> System ()
@@ -274,6 +316,11 @@ insertNew bundle entity =
             let newComponents = filter (\c -> c `notElem` currentTable.components) components
 
             collectedComponents <- liftIO $ takeComponentsFromTable currentPointerInternal currentTable
+
+            empty <- liftIO $ tableIsEmpty currentTable
+            when empty $ do
+              liftIO $ removeTableAndArchetype world currentPointerInternal.archetypeId
+
             newBundle <- liftIO $ combineProcessedBundles world collectedComponents bundleData
             archetype <- liftIO $ archetypeOfProcessedBundle world.archetypes newBundle
 
@@ -298,6 +345,11 @@ removeComponentFromEntity entity =
           Just currentTable -> do
             when (componentId `elem` currentTable.components) $ do
               collectedComponents <- liftIO $ takeComponentsFromTable currentPointer currentTable
+
+              empty <- liftIO $ tableIsEmpty currentTable
+              when empty $ do
+                liftIO $ removeTableAndArchetype world currentPointer.archetypeId
+
               newBundle <- liftIO $ removeComponentFromProcessedBundle world componentId collectedComponents
               archetype <- liftIO $ archetypeOfProcessedBundle world.archetypes newBundle
 
