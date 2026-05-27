@@ -44,7 +44,6 @@ update = do
 
   for_ res $ \(entity, (name, res)) -> do
     liftIO $ putStrLn $ show entity ++ " has name: " ++ show name ++ " and res: " ++ show res
-    -- set name (Name "aaah")
 
     insert (C1 "Lol") entity
     insertResource (Res "lmao")

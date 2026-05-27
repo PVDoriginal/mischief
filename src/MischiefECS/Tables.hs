@@ -87,8 +87,10 @@ replaceComponentsIntoMap bundle tick pointer tableMap = do
   for_ bundle.elements $ \el ->
     tapMap tableMap el.id $ \(Column col) ->
       case tick of
-        Just tick -> Vec.modify_ col pointer.rowIndex (\ComponentData {value, ticks = ComponentTicks {changed, added}} -> ComponentData {value = el.component.value, ticks = ComponentTicks {changed = tick, added}})
-        Nothing -> Vec.modify_ col pointer.rowIndex (\ComponentData {value, ticks} -> ComponentData {value = el.component.value, ticks})
+        Just tick ->
+          Vec.modify_ col pointer.rowIndex (\ComponentData {value, ticks = ComponentTicks {changed, added}} -> ComponentData {value = el.component.value, ticks = ComponentTicks {changed = tick, added}})
+        Nothing ->
+          Vec.modify_ col pointer.rowIndex (\ComponentData {value, ticks} -> ComponentData {value = el.component.value, ticks})
 
 --   foldl' modifyMap tableMap bundle.elements
 --  where

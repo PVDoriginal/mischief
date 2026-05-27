@@ -79,7 +79,6 @@ processBundleElements :: World -> ComponentTicks -> Set BundleElement -> IO Proc
 processBundleElements world ticks elements =
   do
     elements <- mapM (processBundleElement world ticks) (Set.toList elements)
-    archetypeId <- getArchetypeId (map (\x -> x.id) elements) world.archetypes
     return
       ProcessedBundleData {elements}
 
@@ -158,6 +157,7 @@ insertResource r =
         case Map.lookup archetype tables of
           Nothing -> undefined
           Just table -> do
+            -- return ()
             let bundleData = bundleDataRes r
             bundle <- liftIO $ processBundleElements world ComponentTicks {added = currentTick, changed = currentTick} bundleData.elements
             liftIO $ replaceComponentsIntoTable bundle (Just currentTick) EntityPointer {archetypeId = archetype, rowIndex = 0} table
