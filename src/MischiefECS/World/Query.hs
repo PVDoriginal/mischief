@@ -109,6 +109,20 @@ query' filter = do
   world <- ask
   liftIO $ runQuery (Proxy @qd) filter world
 
+single :: forall qd r. (Queryable qd) => System (Maybe (QueryOutput qd))
+single = do
+  res <- query @qd
+  case res of
+    [x] -> return $ Just x
+    _ -> return Nothing
+
+single' :: forall qd r. (Queryable qd) => QueryFilter -> System (Maybe (QueryOutput qd))
+single' filter = do
+  res <- query' @qd filter
+  case res of
+    [x] -> return $ Just x
+    _ -> return Nothing
+
 filterQuery :: forall qd r. (Queryable qd) => World -> QueryFilter -> [ArchetypeId] -> [(Int, QueryOutput qd)] -> IO [(Int, QueryOutput qd)]
 filterQuery _ NoFilter _ x = return x
 filterQuery world (With x) _ outputs = do
