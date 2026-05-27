@@ -5,9 +5,7 @@ import Data.Foldable hiding (and, or)
 import Data.List qualified as List
 import Data.Set qualified as Set
 import GHC.Generics (Generic)
-import MischiefECS
-import MischiefECS.Prelude
-import Prelude hiding (and, or)
+import Mischief
 
 newtype Counter = Counter Int deriving (Component, Queryable, Show)
 
@@ -45,6 +43,4 @@ update = do
   for_ res $ \(entity, (name, res)) -> do
     liftIO $ putStrLn $ show entity ++ " has name: " ++ show name ++ " and res: " ++ show res
 
-    set name $ Name "ah"
-    insert (C1 "Lol") entity
-    insertResource (Res "lmao")
+    modify res (\_ -> Res "Lol")

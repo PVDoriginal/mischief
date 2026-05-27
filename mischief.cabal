@@ -49,23 +49,25 @@ library
   import: warnings
   -- Modules exported by the library.
   exposed-modules:
+    Mischief
     MischiefECS
-    MischiefECS.Prelude
-    MischiefECS.Vec
-
-  -- Modules included in this library but not exported.
-  -- other-modules:
-  other-modules:
     MischiefECS.App
     MischiefECS.Components
     MischiefECS.Components.Bundle
     MischiefECS.Components.Default
-    MischiefECS.Components.Internal
     MischiefECS.Entities
+    MischiefECS.Prelude
     MischiefECS.Tables
+    MischiefECS.Vec
     MischiefECS.World
     MischiefECS.World.Query
     MischiefECS.World.Remove
+    MischiefInput
+
+  -- Modules included in this library but not exported.
+  -- other-modules:
+  other-modules:
+    MischiefECS.Components.Internal
 
   -- LANGUAGE extensions used by modules in this package.z
   default-extensions:
@@ -96,7 +98,10 @@ library
     vector,
 
   -- Directories containing source files.
-  hs-source-dirs: src
+  hs-source-dirs:
+    src
+    src/Mischief
+
   -- Base language which the package is written in.
   default-language:
     GHC2024

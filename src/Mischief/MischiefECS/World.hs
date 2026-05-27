@@ -385,8 +385,16 @@ tryGetTicks rep world archetypes =
 set :: (Bundle c) => ComponentResult c -> c -> System ()
 set !result !newValue = MischiefECS.World.insert newValue result.entity
 
-modify :: (Bundle c) => ComponentResult c -> (c -> c) -> System ()
-modify !result !f = MischiefECS.World.insert (f result.value) result.entity
+class Modify c t where
+  modify :: (Storage c ~ t) => ComponentResult c -> (c -> c) -> System ()
+
+instance (Bundle c) => Modify c ComponentStorage where
+  modify :: (Bundle c) => ComponentResult c -> (c -> c) -> System ()
+  modify !result !f = MischiefECS.World.insert (f result.value) result.entity
+
+instance (Component c, Storage c ~ ResourceStorage) => Modify c ResourceStorage where
+  modify :: (Component c, Storage c ~ ResourceStorage) => ComponentResult c -> (c -> c) -> System ()
+  modify !result !f = insertResource (f result.value)
 
 type System = ReaderT World IO
 
