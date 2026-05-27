@@ -10,7 +10,7 @@ cabal-version: 3.0
 --   http://haskell.org/cabal/users-guide/
 --
 -- The name of the package.
-name: mischief
+name: mischief-ecs
 -- The package version.
 -- See the Haskell package versioning policy (PVP) for standards
 -- guiding when and how versions should be incremented.
@@ -49,7 +49,6 @@ library
   import: warnings
   -- Modules exported by the library.
   exposed-modules:
-    Mischief
     MischiefECS
     MischiefECS.App
     MischiefECS.Components
@@ -62,7 +61,6 @@ library
     MischiefECS.World
     MischiefECS.World.Query
     MischiefECS.World.Remove
-    MischiefInput
 
   -- Modules included in this library but not exported.
   -- other-modules:
@@ -144,3 +142,4 @@ test-suite mischief-test
     mischief,
     primitive,
     transformers,
+    sdl3-hs
