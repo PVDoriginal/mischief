@@ -126,6 +126,28 @@ removeComponentFromProcessedBundle world componentId bundle =
     archetypeId <- getArchetypeId (map (\x -> x.id) elements) world.archetypes
     return ProcessedBundleData {elements}
 
+-- | Insert a resource into this world. If the resource already exists, its value will be overwritten.
+insertResource :: (Resource r) => r -> System ()
+insertResource r =
+  do
+    world <- ask
+
+    entityIndex <- liftIO $ readIORef world.entities.counter
+    let entity = Entity entityIndex
+    liftIO $ modifyIORef world.entities.counter (+ 1)
+
+    let BundleData {elements} = addComponentToBundleData (Name "Resource") $ addComponentToBundleData entity $ bundleDataRes r
+
+    currentTick <- liftIO $ readIORef world.tick
+    bundle <- liftIO $ processBundleElements world ComponentTicks {changed = currentTick, added = currentTick} elements
+
+    archetypeId <- liftIO $ archetypeOfProcessedBundle world.archetypes bundle
+    entityPointer <- liftIO $ newIORef EntityPointer {archetypeId = ArchetypeId 0, rowIndex = 0}
+
+    liftIO $ insertResourceIntoTables bundle currentTick world.tables archetypeId (entity, entityPointer)
+
+    liftIO $ modifyIORef' world.entities.pointers $ Map.insert entity entityPointer
+
 -- | Spawn an entity in this World given a bundle of components.
 spawn :: (Bundle b) => b -> System Entity
 spawn bundle =
@@ -134,16 +156,14 @@ spawn bundle =
 
     entityIndex <- liftIO $ readIORef world.entities.counter
     let entity = Entity entityIndex
+    liftIO $ modifyIORef world.entities.counter (+ 1)
 
     let BundleData {elements, required} = addComponentToBundleData entity $ bundleData bundle
 
     currentTick <- liftIO $ readIORef world.tick
-
     bundle <- liftIO $ processBundleElements world ComponentTicks {changed = currentTick, added = currentTick} $ Set.union elements required
 
     archetypeId <- liftIO $ archetypeOfProcessedBundle world.archetypes bundle
-
-    liftIO $ modifyIORef world.entities.counter (+ 1)
 
     entityPointer <- liftIO $ newIORef EntityPointer {archetypeId = ArchetypeId 0, rowIndex = 0}
 

@@ -63,3 +63,7 @@ instance {-# OVERLAPPING #-} (Bundle c0, Bundle c1) => Bundle (c0, c1) where
 
 bundleData :: (Bundle b) => b -> BundleData
 bundleData = bundleDataInternal
+
+bundleDataRes :: (Resource r) => r -> BundleData
+bundleDataRes r =
+  BundleData (Set.fromList [BundleElement {rep = typeOf r, component = erase r}]) Set.empty

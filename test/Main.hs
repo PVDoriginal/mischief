@@ -11,11 +11,13 @@ import Prelude hiding (and, or)
 
 newtype Counter = Counter Int deriving (Component, Queryable, Show)
 
-data C1 = C1 String deriving (Component, Queryable, Show)
+newtype C1 = C1 String deriving (Component, Queryable, Show)
 
-data C2 = C2 String deriving (Component, Queryable, Show)
+newtype C2 = C2 String deriving (Component, Queryable, Show)
 
-data C3 = C3 String deriving (Component, Queryable, Show)
+newtype C3 = C3 String deriving (Component, Queryable, Show)
+
+newtype Res = Res String deriving (Resource, Component, Queryable, Show)
 
 main :: IO ()
 main = do
@@ -29,14 +31,13 @@ plugin = do
 
 setup :: System ()
 setup = do
-  spawn (Counter 0)
-  spawn (Name "Lol", Counter $ -100000)
+  insertResource (Res "Resource")
 
   return ()
 
 update :: System ()
 update = do
-  res <- query' @(Entity, (Counter, Name)) $ changed @(Name, Counter)
+  res <- query' @(Entity, (Name, Res)) $ added @Res
 
-  for_ res $ \(entity, (counter, name)) -> do
-    liftIO $ putStrLn $ show entity ++ " has name: " ++ show name ++ " and counter: " ++ show counter
+  for_ res $ \(entity, (name, res)) -> do
+    liftIO $ putStrLn $ show entity ++ " has name: " ++ show name ++ " and res: " ++ show res

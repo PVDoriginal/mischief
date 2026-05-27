@@ -19,6 +19,7 @@ module MischiefECS.Components
     Tick (Tick),
     ComponentTicks (ComponentTicks, changed, added),
     ComponentData (ComponentData, value, ticks),
+    Resource,
   )
 where
 
@@ -104,12 +105,19 @@ findMatchingArchetypes components archetypes =
     let archetypesList = Map.toList archetypes
     return $ List.filter (\(archetype, _) -> sort components `isSubsequenceOf` sort archetype) archetypesList
 
+data StorageType = ComponentStorage | ResourceStorage
+
 class (Typeable c) => Component c where
+  type Storage c :: StorageType
+  type Storage c = ComponentStorage
+
   erase :: c -> ErasedComponent
   erase = ErasedComponent
 
   required :: DefaultBundleData
   required = DefaultBundleData Set.empty
+
+class (Typeable c, Component c) => Resource c
 
 data BundleData = BundleData {elements :: Set BundleElement, required :: Set BundleElement}
 

@@ -144,6 +144,27 @@ removeRow row_idx vec = do
 removeEntityFromTable :: Int -> Table -> IO ()
 removeEntityFromTable row table = removeRow row table.entities
 
+insertResourceIntoTables :: ProcessedBundleData -> Tick -> Tables -> ArchetypeId -> (Entity, IORef EntityPointer) -> IO ()
+insertResourceIntoTables bundle tick (Tables tables) archetype (entity, pointerRef) =
+  do
+    innerTables <- readIORef tables
+
+    case Map.lookup archetype innerTables of
+      Just table -> do
+        pointer <- readIORef pointerRef
+        replaceComponentsIntoTable bundle (Just tick) pointer table
+      Nothing -> do
+        table <- newTable bundle
+        let newTables = Map.insert archetype table innerTables
+        writeIORef tables newTables
+
+        rowIndex <- Vec.length table.entities
+        Vec.pushBack table.entities (entity, pointerRef)
+
+        writeIORef pointerRef $ EntityPointer {archetypeId = archetype, rowIndex}
+
+        insertComponentsIntoTable bundle table
+
 insertEntityIntoTables :: ProcessedBundleData -> Tables -> ArchetypeId -> (Entity, IORef EntityPointer) -> IO ()
 insertEntityIntoTables bundle (Tables tables) archetype pointerRef =
   do
