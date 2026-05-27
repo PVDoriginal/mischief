@@ -1,0 +1,8 @@
+packages: 
+  ./Mischief/ECS/
+  ./Mischief/Input/
+
+source-repository-package
+    type: git
+    location: https://github.com/klukaszek/sdl3-hs.git
+    commit: d4a6b6e

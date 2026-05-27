@@ -6,6 +6,7 @@ import Data.List qualified as List
 import Data.Set qualified as Set
 import GHC.Generics (Generic)
 import Mischief
+import MischiefInput (inputPlugin)
 
 newtype Counter = Counter Int deriving (Component, Queryable, Show)
 
@@ -22,7 +23,7 @@ instance Component Res where
 
 main :: IO ()
 main = do
-  app <- newApp [plugin]
+  app <- newApp [inputPlugin]
   runApp app
 
 plugin :: Plugin ()
