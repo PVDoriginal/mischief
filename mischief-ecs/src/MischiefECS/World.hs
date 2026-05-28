@@ -28,8 +28,11 @@ data World = World
     deferred :: IORef [System ()],
     tick :: IORef Tick,
     lastSystemTick :: Tick,
-    currentSystemTick :: Tick
+    currentSystemTick :: Tick,
+    systemId :: SystemId
   }
+
+newtype SystemId = SystemId Int deriving (Show, Eq, Ord)
 
 newWorld :: IO World
 newWorld = do
@@ -49,12 +52,13 @@ newWorld = do
         deferred,
         tick,
         lastSystemTick = Tick 0,
-        currentSystemTick = Tick 0
+        currentSystemTick = Tick 0,
+        systemId = SystemId 0
       }
 
 setSystemTicks :: Tick -> Tick -> World -> World
-setSystemTicks lastSystemTick currentSystemTick World {archetypes, components, entities, tables, deferred, tick} =
-  World {archetypes, components, entities, tables, deferred, tick, lastSystemTick, currentSystemTick}
+setSystemTicks lastSystemTick currentSystemTick World {archetypes, components, entities, tables, deferred, tick, systemId} =
+  World {archetypes, components, entities, tables, deferred, tick, lastSystemTick, currentSystemTick, systemId}
 
 tick :: System ()
 tick = do

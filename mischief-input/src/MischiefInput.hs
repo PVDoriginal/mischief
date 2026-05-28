@@ -3,9 +3,18 @@ module MischiefInput where
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.Default (Default (def))
+import Data.Map (Map)
 import GHC.Generics (Generic)
 import MischiefECS
 import SDL3
+
+class InputType a where
+  type PhysicalKeys a
+  type VirtualKeys a
+
+newtype Input a = Input {inputs :: Map (VirtualKeys a) InputState}
+
+data InputState = InputState {pressed :: Bool, justPressed :: Bool, justReleased :: Bool}
 
 -- data Key = Enter | Space | Unknown
 
@@ -20,14 +29,6 @@ newtype KeyManager = KeyManager
   { events :: [SDLKeyboardEvent]
   }
   deriving (Generic, Default, Show, Eq, Queryable)
-
-isPressed :: SDLKeycode -> KeyManager -> Bool
-isPressed key manager =
-  any
-    ( \event ->
-        (event.sdlKeyboardKey == key) && event.sdlKeyboardDown
-    )
-    manager.events
 
 instance Component KeyManager where
   type Storage KeyManager = ResourceStorage

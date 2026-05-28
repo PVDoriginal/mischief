@@ -48,7 +48,10 @@ library
   -- Import common warning flags.
   import: warnings
   -- Modules exported by the library.
-  exposed-modules: MischiefInput
+  exposed-modules:
+    MischiefInput
+    MischiefInput.Keyboard
+
   -- Modules included in this library but not exported.
   -- other-modules:
   other-modules:

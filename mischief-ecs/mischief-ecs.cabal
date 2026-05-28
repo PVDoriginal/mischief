@@ -54,6 +54,7 @@ library
     MischiefECS.Components
     MischiefECS.Components.Bundle
     MischiefECS.Components.Default
+    MischiefECS.Messages 
     MischiefECS.Entities
     MischiefECS.Prelude
     MischiefECS.Tables

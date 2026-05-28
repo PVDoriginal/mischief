@@ -13,7 +13,7 @@ import MischiefECS.World
 import SDL3
 import System.Exit
 
-data App = App {systems :: IORef (Map TypeRep [(System (), IORef Tick)]), world :: World, schedules :: Schedules}
+data App = App {systems :: IORef (Map TypeRep [(System (), IORef Tick)]), world :: World, schedules :: Schedules, systemCounter :: Int}
 
 type Plugin = ReaderT App IO
 
