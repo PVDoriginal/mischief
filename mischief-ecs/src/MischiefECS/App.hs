@@ -1,6 +1,6 @@
 module MischiefECS.App where
 
-import Control.Monad (forM, forever)
+import Control.Monad (forM, forever, unless)
 import Control.Monad.IO.Class (MonadIO (liftIO))
 import Control.Monad.Trans.Reader
 import Data.Data
@@ -10,6 +10,8 @@ import Data.Map
 import Data.Map qualified as Map
 import MischiefECS.Components
 import MischiefECS.World
+import SDL3
+import System.Exit
 
 data App = App {systems :: IORef (Map TypeRep [(System (), IORef Tick)]), world :: World, schedules :: Schedules}
 
@@ -30,6 +32,14 @@ newApp plugins = do
 
 runApp :: App -> IO ()
 runApp app = do
+  initSuccess <- liftIO $ sdlInit [SDL_INIT_VIDEO, SDL_INIT_EVENTS]
+
+  liftIO $ unless initSuccess $ do
+    sdlLog "Failed to initialize SDL!"
+    exitFailure
+
+  _ <- sdlCreateWindow "SDL3 Haskell Event Loop" 800 600 [SDL_WINDOW_RESIZABLE]
+
   systemMap <- readIORef app.systems
 
   startups <- readIORef app.schedules.startup

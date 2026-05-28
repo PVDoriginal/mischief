@@ -1,12 +1,21 @@
-packages: ./mischief-ecs
+packages: 
+  ./mischief-ecs
+  ./mischief-input 
+
 with-compiler: ghc-9.12.2
 
 package mischief-ecs
   optimization: 2
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates
                -Wincomplete-uni-patterns -Wpartial-fields -Wredundant-constraints
+               -Wno-name-shadowing
 
-  
+package mischief-input
+  optimization: 2
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates
+               -Wincomplete-uni-patterns -Wpartial-fields -Wredundant-constraints
+               -Wno-name-shadowing
+
 source-repository-package
   type: git
   location: https://github.com/klukaszek/sdl3-hs

@@ -267,3 +267,8 @@ isArchetypeFilter (With x) = True
 isArchetypeFilter (Without x) = True
 isArchetypeFilter (a `And` b) = isArchetypeFilter a || isArchetypeFilter b
 isArchetypeFilter (a `Or` b) = isArchetypeFilter a && isArchetypeFilter b
+
+modifyResource :: forall r. (Component r, Queryable r, Storage r ~ ResourceStorage, QueryOutput r ~ ComponentResult r) => (r -> r) -> System ()
+modifyResource f = do
+  Just res <- single @r
+  modify res f

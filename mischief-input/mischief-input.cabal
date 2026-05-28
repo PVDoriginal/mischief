@@ -10,7 +10,7 @@ cabal-version: 3.0
 --   http://haskell.org/cabal/users-guide/
 --
 -- The name of the package.
-name: mischief-ecs
+name: mischief-input
 -- The package version.
 -- See the Haskell package versioning policy (PVP) for standards
 -- guiding when and how versions should be incremented.
@@ -48,25 +48,10 @@ library
   -- Import common warning flags.
   import: warnings
   -- Modules exported by the library.
-  exposed-modules:
-    MischiefECS
-    MischiefECS.App
-    MischiefECS.Components
-    MischiefECS.Components.Bundle
-    MischiefECS.Components.Default
-    MischiefECS.Entities
-    MischiefECS.Prelude
-    MischiefECS.Tables
-    MischiefECS.Vec
-    MischiefECS.World
-    MischiefECS.World.Query
-    MischiefECS.World.Remove
-
+  exposed-modules: MischiefInput
   -- Modules included in this library but not exported.
   -- other-modules:
   other-modules:
-    MischiefECS.Components.Internal
-
   -- LANGUAGE extensions used by modules in this package.z
   default-extensions:
     DefaultSignatures
@@ -78,6 +63,7 @@ library
     NoFieldSelectors
     NoGeneralizedNewtypeDeriving
     OverloadedRecordDot
+    PatternSynonyms
     RequiredTypeArguments
     TemplateHaskell
     TypeFamilyDependencies
@@ -92,6 +78,7 @@ library
     bytestring,
     containers,
     data-default,
+    mischief-ecs,
     primitive,
     sdl3,
     transformers,
@@ -138,5 +125,7 @@ test-suite mischief-test
     containers,
     data-default,
     mischief-ecs,
+    mischief-input,
     primitive,
+    sdl3,
     transformers,
