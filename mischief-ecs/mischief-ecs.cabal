@@ -139,7 +139,6 @@ test-suite mischief-test
     base ^>=4.21.0.0,
     containers,
     data-default,
-    mischief,
+    mischief-ecs,
     primitive,
     transformers,
-    sdl3-hs
