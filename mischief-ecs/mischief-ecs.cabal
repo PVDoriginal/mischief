@@ -93,6 +93,7 @@ library
     containers,
     data-default,
     primitive,
+    sdl3,
     transformers,
     vector,
 
