@@ -24,7 +24,7 @@ import MischiefECS.World.Query (Modify (modify), Queryable)
 
 class (Typeable m) => Message m
 
-data Messages m = Messages {messages :: [(Tick, m)], readers :: Map SystemId Reader}
+data Messages m = Messages {messages :: [(Frame, Tick, m)], readers :: Map SystemId Reader}
 
 newMessages :: forall m. Messages m
 newMessages = Messages {messages = [], readers = Map.empty}
@@ -49,7 +49,8 @@ instance (Message m) => Queryable (Messages m)
 writeMessage :: (Message m) => m -> ComponentResult (Messages m) -> System ()
 writeMessage !message !messages = do
   world <- ask
-  let message' = (world.currentSystemTick, message)
+  frame <- liftIO $ readIORef world.frame
+  let message' = (frame, world.currentSystemTick, message)
   modify messages (\Messages {messages, readers} -> Messages {messages = message' : messages, readers})
   clearOldMessages messages
 
@@ -59,7 +60,7 @@ readMessages !m = do
   Reader tick <- getReader m
   readerTick <- liftIO $ readIORef tick
 
-  let newMessages = map snd $ filter (\(tick, _) -> tick < world.currentSystemTick && tick > readerTick) m.value.messages
+  let newMessages = map (\(_, _, x) -> x) $ filter (\(_, tick, _) -> tick < world.currentSystemTick && tick > readerTick) m.value.messages
   liftIO $ writeIORef tick world.currentSystemTick
 
   return newMessages
@@ -72,7 +73,5 @@ registerMessage = do
 clearOldMessages :: (Message m) => ComponentResult (Messages m) -> System ()
 clearOldMessages !m = do
   world <- ask
-  return ()
-
--- TODO: clear old messages!!
--- modify m (\Messages {messages, readers} -> Messages {messages = filter (\(Tick x, _) -> Tick (x + 2) >= world.currentSystemTick) messages, readers})
+  frame <- liftIO $ readIORef world.frame
+  modify m (\Messages {messages, readers} -> Messages {messages = filter (\(Frame x, _, _) -> Frame (x + 2) >= frame) messages, readers})

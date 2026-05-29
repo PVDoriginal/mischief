@@ -50,7 +50,9 @@ runApp app = do
   runSchedulesLoop updates systemMap
   where
     runSchedulesLoop schedules systemMap = do
-      forever $ runSchedules schedules systemMap
+      forever $ do
+        runSchedules schedules systemMap
+        modifyIORef' app.world.frame (\(Frame x) -> Frame $ x + 1)
 
     runSchedules schedules systemMap =
       for_ schedules $ \schedule -> do

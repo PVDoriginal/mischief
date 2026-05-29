@@ -29,8 +29,11 @@ data World = World
     tick :: IORef Tick,
     lastSystemTick :: Tick,
     currentSystemTick :: Tick,
-    systemId :: SystemId
+    systemId :: SystemId,
+    frame :: IORef Frame
   }
+
+newtype Frame = Frame Int deriving (Show, Eq, Ord)
 
 newtype SystemId = SystemId Int deriving (Show, Eq, Ord)
 
@@ -42,6 +45,7 @@ newWorld = do
   tables <- emptyTables
   deferred <- newIORef []
   tick <- newIORef (Tick 0)
+  frame <- newIORef (Frame 0)
 
   return
     World
@@ -53,16 +57,17 @@ newWorld = do
         tick,
         lastSystemTick = Tick 0,
         currentSystemTick = Tick 0,
-        systemId = SystemId 0
+        systemId = SystemId 0,
+        frame
       }
 
 setSystemTicks :: Tick -> Tick -> World -> World
-setSystemTicks lastSystemTick currentSystemTick World {archetypes, components, entities, tables, deferred, tick, systemId} =
-  World {archetypes, components, entities, tables, deferred, tick, lastSystemTick, currentSystemTick, systemId}
+setSystemTicks lastSystemTick currentSystemTick World {archetypes, components, entities, tables, deferred, tick, systemId, frame} =
+  World {archetypes, components, entities, tables, deferred, tick, lastSystemTick, currentSystemTick, systemId, frame}
 
 setSystemId :: SystemId -> World -> World
-setSystemId systemId World {archetypes, components, entities, tables, deferred, tick, lastSystemTick, currentSystemTick} =
-  World {archetypes, components, entities, tables, deferred, tick, lastSystemTick, currentSystemTick, systemId}
+setSystemId systemId World {archetypes, components, entities, tables, deferred, tick, lastSystemTick, currentSystemTick, frame} =
+  World {archetypes, components, entities, tables, deferred, tick, lastSystemTick, currentSystemTick, systemId, frame}
 
 tick :: System ()
 tick = do
