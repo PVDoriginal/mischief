@@ -7,40 +7,36 @@ import Data.Set qualified as Set
 import GHC.Generics (Generic)
 import MischiefECS
 
-newtype Counter = Counter Int deriving (Component, Queryable, Show)
-
-newtype C1 = C1 String deriving (Component, Queryable, Show)
-
-newtype C2 = C2 String deriving (Component, Queryable, Show)
-
-newtype C3 = C3 String deriving (Component, Queryable, Show)
-
-newtype Res = Res String deriving (Queryable, Show)
-
-instance Component Res where
-  type Storage Res = ResourceStorage
+newtype Msg = Msg String deriving (Message, Show)
 
 main :: IO ()
 main = do
-  app <- newApp []
+  app <- newApp [plugin]
   runApp app
 
 plugin :: Plugin ()
 plugin = do
-  addSystem Startup setup
-  addSystem Update update
+  registerMessage @Msg
+  addSystem Update writer
+  addSystem Update reader1
+  addSystem Update reader2
 
-setup :: System ()
-setup = do
-  insertResource (Res "Resource")
+writer :: System ()
+writer = do
+  Just msg <- single @(Messages Msg)
 
-  return ()
+  writeMessage (Msg "M1") msg
+  writeMessage (Msg "M2") msg
+  writeMessage (Msg "M3") msg
 
-update :: System ()
-update = do
-  res <- query' @(Entity, (Name, Res)) $ NoFilter
+reader1 :: System ()
+reader1 = do
+  Just msg <- single @(Messages Msg)
+  messages <- readMessages msg
+  liftIO $ putStrLn $ "reader1: " ++ show messages
 
-  for_ res $ \(entity, (name, res)) -> do
-    liftIO $ putStrLn $ show entity ++ " has name: " ++ show name ++ " and res: " ++ show res
-
-    modify res (\_ -> Res "Lol")
+reader2 :: System ()
+reader2 = do
+  Just msg <- single @(Messages Msg)
+  messages <- readMessages msg
+  liftIO $ putStrLn $ "reader2: " ++ show messages

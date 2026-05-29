@@ -13,7 +13,7 @@ import MischiefECS.World
 import SDL3
 import System.Exit
 
-data App = App {systems :: IORef (Map TypeRep [(System (), IORef Tick)]), world :: World, schedules :: Schedules, systemCounter :: Int}
+data App = App {systems :: IORef (Map TypeRep [(SystemId, System (), IORef Tick)]), world :: World, schedules :: Schedules, systemCounter :: IORef Int}
 
 type Plugin = ReaderT App IO
 
@@ -22,8 +22,9 @@ newApp plugins = do
   world <- newWorld
   systems <- newIORef Map.empty
   schedules <- newSchedules
+  systemCounter <- newIORef 0
 
-  let app = App {systems, world, schedules}
+  let app = App {systems, world, schedules, systemCounter}
 
   for_ plugins $ \plugin ->
     runReaderT plugin app
@@ -56,12 +57,12 @@ runApp app = do
         case Map.lookup schedule systemMap of
           Nothing -> return ()
           Just systems -> do
-            for_ systems $ \(system, systemTick) -> do
+            for_ systems $ \(systemId, system, systemTick) -> do
               lastSystemTick <- readIORef systemTick
               currentSystemTick <- readIORef app.world.tick
               writeIORef systemTick currentSystemTick
 
-              let world = setSystemTicks lastSystemTick currentSystemTick app.world
+              let world = setSystemId systemId $ setSystemTicks lastSystemTick currentSystemTick app.world
 
               runReaderT system world
               runReaderT flush world
@@ -72,10 +73,13 @@ addSystem schedule system = do
   app <- ask
   t0 <- liftIO $ newIORef $ Tick 0
   t1 <- liftIO $ newIORef $ Tick 0
-  liftIO $ modifyIORef' app.systems (Map.alter (alterMap t0 t1) (typeOf schedule))
+  systemId <- liftIO $ readIORef app.systemCounter
+  liftIO $ modifyIORef' app.systemCounter (+ 1)
+
+  liftIO $ modifyIORef' app.systems (Map.alter (alterMap t0 t1 (SystemId systemId)) (typeOf schedule))
   where
-    alterMap t0 _ Nothing = Just [(system, t0)]
-    alterMap t0 t1 (Just l) = Just $ l ++ [(system, t1)]
+    alterMap t0 _ systemId Nothing = Just [(systemId, system, t0)]
+    alterMap _ t1 systemId (Just l) = Just $ l ++ [(systemId, system, t1)]
 
 addPlugin :: Plugin () -> Plugin ()
 addPlugin plugin = do

@@ -15,6 +15,7 @@ import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Typeable (TypeRep, Typeable, typeRep)
 import MischiefECS.Components
+import MischiefECS.Components.Bundle
 import MischiefECS.Entities
 import MischiefECS.Tables
 import MischiefECS.World
@@ -103,6 +104,11 @@ query :: forall qd r. (Queryable qd) => System [QueryOutput qd]
 query = do
   world <- ask
   liftIO $ runQuery (Proxy @qd) NoFilter world
+
+entityQuery :: forall qd r. (Queryable qd) => Entity -> System (Maybe (QueryOutput qd))
+entityQuery entity = do
+  world <- ask
+  liftIO $ runQueryEntity (Proxy @qd) world entity
 
 query' :: forall qd r. (Queryable qd) => QueryFilter -> System [QueryOutput qd]
 query' filter = do
@@ -272,3 +278,18 @@ modifyResource :: forall r. (Component r, Queryable r, Storage r ~ ResourceStora
 modifyResource f = do
   Just res <- single @r
   modify res f
+
+class Modify c t where
+  modify :: (Storage c ~ t) => ComponentResult c -> (c -> c) -> System ()
+
+instance (Bundle c, Queryable c, QueryOutput c ~ ComponentResult c) => Modify c ComponentStorage where
+  modify :: ComponentResult c -> (c -> c) -> System ()
+  modify !result !f = do
+    Just res <- entityQuery @c result.entity
+    MischiefECS.World.insert (f res.value) result.entity
+
+instance (Component c, Queryable c, QueryOutput c ~ ComponentResult c, Storage c ~ ResourceStorage) => Modify c ResourceStorage where
+  modify :: ComponentResult c -> (c -> c) -> System ()
+  modify !result !f = do
+    Just res <- entityQuery @c result.entity
+    insertResource (f res.value)

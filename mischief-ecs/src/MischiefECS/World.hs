@@ -60,6 +60,10 @@ setSystemTicks :: Tick -> Tick -> World -> World
 setSystemTicks lastSystemTick currentSystemTick World {archetypes, components, entities, tables, deferred, tick, systemId} =
   World {archetypes, components, entities, tables, deferred, tick, lastSystemTick, currentSystemTick, systemId}
 
+setSystemId :: SystemId -> World -> World
+setSystemId systemId World {archetypes, components, entities, tables, deferred, tick, lastSystemTick, currentSystemTick} =
+  World {archetypes, components, entities, tables, deferred, tick, lastSystemTick, currentSystemTick, systemId}
+
 tick :: System ()
 tick = do
   world <- ask
@@ -388,17 +392,6 @@ tryGetTicks rep world archetypes =
 
 set :: (Bundle c) => ComponentResult c -> c -> System ()
 set !result !newValue = MischiefECS.World.insert newValue result.entity
-
-class Modify c t where
-  modify :: (Storage c ~ t) => ComponentResult c -> (c -> c) -> System ()
-
-instance (Bundle c) => Modify c ComponentStorage where
-  modify :: (Bundle c) => ComponentResult c -> (c -> c) -> System ()
-  modify !result !f = MischiefECS.World.insert (f result.value) result.entity
-
-instance (Component c, Storage c ~ ResourceStorage) => Modify c ResourceStorage where
-  modify :: (Component c, Storage c ~ ResourceStorage) => ComponentResult c -> (c -> c) -> System ()
-  modify !result !f = insertResource (f result.value)
 
 type System = ReaderT World IO
 
