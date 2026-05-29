@@ -83,6 +83,9 @@ readEvents = do
 
   processedKeys' <- liftIO $ readIORef processedKeys
 
+  -- NOTE: This is inefficient, could just store the JustPressed / JustReleased states from last frame and only iterate those.
+  -- Maybe a good use for Local?
+
   for_ (Map.toList keys'.value.physical) $ \(key, state) -> do
     unless (key `elem` map fst processedKeys') $ do
       let state' = updateState Nothing state
