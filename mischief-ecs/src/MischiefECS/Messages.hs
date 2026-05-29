@@ -5,7 +5,7 @@ module MischiefECS.Messages
     Messages,
     writeMessage,
     readMessages,
-    registerMessage,
+    addMessage,
   )
 where
 
@@ -65,10 +65,9 @@ readMessages !m = do
 
   return newMessages
 
-registerMessage :: forall (m :: Type). (Message m) => Plugin ()
-registerMessage = do
-  addSystem Startup $ do
-    insertResource $ newMessages @m
+addMessage :: forall (m :: Type). (Message m) => Plugin ()
+addMessage = do
+  addResource $ newMessages @m
 
 clearOldMessages :: (Message m) => ComponentResult (Messages m) -> System ()
 clearOldMessages !m = do

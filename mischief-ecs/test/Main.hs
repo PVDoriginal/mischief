@@ -16,7 +16,7 @@ main = do
 
 plugin :: Plugin ()
 plugin = do
-  registerMessage @Msg
+  addMessage @Msg
   addSystem Update writer
   addSystem Update reader1
   addSystem Update reader2

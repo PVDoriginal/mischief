@@ -51,6 +51,7 @@ library
   exposed-modules:
     MischiefECS
     MischiefECS.App
+    MischiefECS.SDL 
     MischiefECS.Components
     MischiefECS.Components.Bundle
     MischiefECS.Components.Default
