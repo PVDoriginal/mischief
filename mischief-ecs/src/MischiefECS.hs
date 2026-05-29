@@ -11,6 +11,7 @@ module MischiefECS
     module MischiefECS.World.Remove,
     module MischiefECS.App,
     module MischiefECS.Messages,
+    module MischiefECS.SDL,
   )
 where
 
@@ -21,6 +22,7 @@ import MischiefECS.Components.Bundle
 import MischiefECS.Components.Default
 import MischiefECS.Entities
 import MischiefECS.Messages
+import MischiefECS.SDL
 import MischiefECS.Tables
 import MischiefECS.World
 import MischiefECS.World.Query

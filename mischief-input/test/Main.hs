@@ -4,10 +4,12 @@ import Control.Monad
 import Control.Monad.IO.Class
 import MischiefECS
 import MischiefInput
+import MischiefInput.Keyboard
+import SDL3
 
 main :: IO ()
 main = do
-  app <- newApp [inputPlugin, plugin]
+  app <- newApp [sdlPlugin, keyboardPlugin, plugin]
   runApp app
 
 plugin :: Plugin ()
@@ -16,7 +18,6 @@ plugin = do
 
 update :: System ()
 update = do
-  Just keys <- single @KeyManager
-  when (isPressed Enter keys.value) $
-    liftIO $
-      print "aah"
+  Just keys <- single @Keys
+  when (pressed SDL_SCANCODE_RETURN keys) $ do
+    liftIO $ print "Lol"

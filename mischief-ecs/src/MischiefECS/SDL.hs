@@ -18,7 +18,7 @@ initSdl = do
     exitFailure
 
   _ <- sdlCreateWindow "SDL3 Haskell Event Loop" 800 600 [SDL_WINDOW_RESIZABLE]
-  undefined
+  return ()
 
 newtype SDLMessage e = SDLMessage e deriving (Message, Show)
 
