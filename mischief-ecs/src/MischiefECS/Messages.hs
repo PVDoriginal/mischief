@@ -72,4 +72,7 @@ registerMessage = do
 clearOldMessages :: (Message m) => ComponentResult (Messages m) -> System ()
 clearOldMessages !m = do
   world <- ask
-  modify m (\Messages {messages, readers} -> Messages {messages = filter (\(Tick x, _) -> Tick (x + 2) >= world.currentSystemTick) messages, readers})
+  return ()
+
+-- TODO: clear old messages!!
+-- modify m (\Messages {messages, readers} -> Messages {messages = filter (\(Tick x, _) -> Tick (x + 2) >= world.currentSystemTick) messages, readers})
