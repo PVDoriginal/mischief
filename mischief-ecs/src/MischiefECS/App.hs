@@ -74,6 +74,9 @@ addSystem schedule system = do
     alterMap t0 _ systemId Nothing = Just [(systemId, system, t0)]
     alterMap _ t1 systemId (Just l) = Just $ l ++ [(systemId, system, t1)]
 
+addSystems :: (Schedule s) => s -> [System ()] -> Plugin ()
+addSystems schedule systems = for_ systems (addSystem schedule)
+
 addResource :: (Component r, Storage r ~ ResourceStorage) => r -> Plugin ()
 addResource r = do
   app <- ask
