@@ -19,5 +19,5 @@ plugin = do
 update :: System ()
 update = do
   Just keys <- single @Keys
-  when (pressed SDL_SCANCODE_RETURN keys) $ do
+  when (justPressed SDL_SCANCODE_RETURN keys) $ do
     liftIO $ print "Lol"
