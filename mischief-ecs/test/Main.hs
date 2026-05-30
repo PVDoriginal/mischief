@@ -2,9 +2,6 @@ module Main where
 
 import Control.Monad.IO.Class
 import Data.Foldable hiding (and, or)
-import Data.List qualified as List
-import Data.Set qualified as Set
-import GHC.Generics (Generic)
 import MischiefECS
 
 newtype Msg = Msg String deriving (Message, Show)

@@ -51,13 +51,14 @@ library
   exposed-modules:
     MischiefECS
     MischiefECS.App
-    MischiefECS.SDL 
     MischiefECS.Components
     MischiefECS.Components.Bundle
     MischiefECS.Components.Default
-    MischiefECS.Messages 
     MischiefECS.Entities
+    MischiefECS.Events
+    MischiefECS.Messages
     MischiefECS.Prelude
+    MischiefECS.SDL
     MischiefECS.Tables
     MischiefECS.Vec
     MischiefECS.World
@@ -68,6 +69,7 @@ library
   -- other-modules:
   other-modules:
     MischiefECS.Components.Internal
+    MischiefECS.Events.Internal
 
   -- LANGUAGE extensions used by modules in this package.z
   default-extensions:

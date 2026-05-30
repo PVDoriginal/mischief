@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
-{-# OPTIONS_GHC -Wno-redundant-constraints #-}
+
+-- {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
 module MischiefECS.World where
 
@@ -17,6 +18,7 @@ import Data.Typeable
 import MischiefECS.Components
 import MischiefECS.Components.Bundle
 import MischiefECS.Entities
+import MischiefECS.Events.Internal
 import MischiefECS.Tables
 
 -- | The World is the main data structure storing the entities, components, archetypes, and so on.
@@ -25,6 +27,7 @@ data World = World
     components :: Components,
     entities :: Entities,
     tables :: Tables,
+    events :: IORef [ErasedEvent],
     -- | A list of deferred systems that are ran at the end of each system, or can be flushed manually using 'flush'.
     deferred :: IORef [System ()],
     -- | The current Tick, incremented each time a system is ran, used for change detection.

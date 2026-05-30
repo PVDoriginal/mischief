@@ -12,6 +12,7 @@ module MischiefECS
     module MischiefECS.App,
     module MischiefECS.Messages,
     module MischiefECS.SDL,
+    module MischiefECS.Events,
   )
 where
 
@@ -20,6 +21,7 @@ import MischiefECS.Components
 import MischiefECS.Components.Bundle
 import MischiefECS.Components.Default
 import MischiefECS.Entities
+import MischiefECS.Events
 import MischiefECS.Messages
 import MischiefECS.SDL
 import MischiefECS.Tables
