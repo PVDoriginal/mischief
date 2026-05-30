@@ -5,6 +5,7 @@ module MischiefECS.World.Remove where
 import Data.Data
 import MischiefECS.Components
 import MischiefECS.Entities
+import MischiefECS.Events
 import MischiefECS.Tables
 import MischiefECS.World
 
@@ -12,11 +13,13 @@ class Removable c where
   removeInternal :: Proxy c -> Entity -> System ()
 
 instance {-# OVERLAPPABLE #-} (Component c) => Removable c where
-  removeInternal :: (Component c) => Proxy c -> Entity -> System ()
-  removeInternal _ = removeComponentFromEntity @c
+  removeInternal :: Proxy c -> Entity -> System ()
+  removeInternal _ entity = do
+    runEvent $ eraseEvent (OnRemove @c entity)
+    removeComponentFromEntity @c entity
 
 instance {-# OVERLAPPING #-} (Removable c0, Removable c1) => Removable (c0, c1) where
-  removeInternal :: (Removable c0, Removable c1) => Proxy (c0, c1) -> Entity -> System ()
+  removeInternal :: Proxy (c0, c1) -> Entity -> System ()
   removeInternal _ !entity = do
     removeInternal (Proxy @c0) entity
     removeInternal (Proxy @c1) entity

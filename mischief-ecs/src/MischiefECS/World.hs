@@ -457,7 +457,7 @@ flush = do
   liftIO $ writeIORef world.deferred []
 
 -- | A 'Component' that's inserted automatically on each 'Entity', but can also be set manually.
-newtype Name = Name String deriving (Component)
+newtype Name = Name String deriving (Component, Eq)
 
 instance Show Name where
   show :: Name -> String

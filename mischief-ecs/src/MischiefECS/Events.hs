@@ -6,6 +6,7 @@ import Data.Data (Typeable)
 import Data.Foldable (for_)
 import Data.IORef (modifyIORef', readIORef, writeIORef)
 import MischiefECS.Components
+import MischiefECS.Entities
 import MischiefECS.Events.Internal
 import MischiefECS.Tables
 import MischiefECS.World
@@ -42,3 +43,9 @@ flushEvents = do
   events <- liftIO $ readIORef world.events
   for_ events runEvent
   liftIO $ writeIORef world.events []
+
+newtype OnAdd c = OnAdd Entity deriving (Event)
+
+newtype OnInsert c = OnInsert Entity deriving (Event)
+
+newtype OnRemove c = OnRemove Entity deriving (Event)

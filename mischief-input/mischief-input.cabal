@@ -100,7 +100,10 @@ library
 test-suite mischief-test
   -- Import common warning flags.
   import: warnings
-  ghc-options: -fno-omit-yields
+  ghc-options:
+    -fno-omit-yields
+    -Wno-unused-do-bind
+
   -- Base language which the package is written in.
   default-language: GHC2024
   -- Modules included in this executable, other than Main.
