@@ -141,13 +141,13 @@ setAddedTickOfComponents ProcessedBundleData {elements} shouldChange tick =
           elements
     }
 
-removeComponentFromProcessedBundle :: World -> ComponentId -> ProcessedBundleData -> IO ProcessedBundleData
-removeComponentFromProcessedBundle world componentId bundle =
+removeComponentFromProcessedBundle :: ComponentId -> ProcessedBundleData -> ProcessedBundleData
+removeComponentFromProcessedBundle componentId bundle =
   do
     let elements = filter (\x -> x.id /= componentId) bundle.elements
-    return ProcessedBundleData {elements}
+     in ProcessedBundleData {elements}
 
-findResourceArchetype :: (Component r, Storage r ~ ResourceStorage) => r -> System (Maybe ArchetypeId)
+findResourceArchetype :: (Component r) => r -> System (Maybe ArchetypeId)
 findResourceArchetype r =
   do
     world <- ask
@@ -375,7 +375,7 @@ removeComponentFromEntity entity =
               when empty $ do
                 liftIO $ removeTableAndArchetype world currentPointer.archetypeId
 
-              newBundle <- liftIO $ removeComponentFromProcessedBundle world componentId collectedComponents
+              let newBundle = removeComponentFromProcessedBundle componentId collectedComponents
               archetype <- liftIO $ archetypeOfProcessedBundle world.archetypes newBundle
 
               liftIO $ insertEntityIntoTables newBundle world.tables archetype (entity, pointer)
