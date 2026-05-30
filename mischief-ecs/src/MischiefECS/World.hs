@@ -24,11 +24,17 @@ data World = World
     components :: Components,
     entities :: Entities,
     tables :: Tables,
+    -- | A list of deferred systems that are ran at the end of each system, or can be flushed manually using 'flush'.
     deferred :: IORef [System ()],
+    -- | The current Tick, incremented each time a system is ran, used for change detection.
     tick :: IORef Tick,
+    -- | The tick on which the last instance of the current system ran.
     lastSystemTick :: Tick,
+    -- | The tick on which the current system has started.
     currentSystemTick :: Tick,
+    -- | ID of the current system.
     systemId :: SystemId,
+    -- | The current frame.
     frame :: IORef Frame
   }
 
@@ -68,11 +74,13 @@ setSystemId :: SystemId -> World -> World
 setSystemId systemId World {archetypes, components, entities, tables, deferred, tick, lastSystemTick, currentSystemTick, frame} =
   World {archetypes, components, entities, tables, deferred, tick, lastSystemTick, currentSystemTick, systemId, frame}
 
+-- | Increment the World's tick.
 tick :: System ()
 tick = do
   world <- ask
   liftIO $ modifyIORef' world.tick (\(Tick x) -> Tick $ x + 1)
 
+-- | Process a 'BundleElement', turning its 'TypeRep' into a 'ComponentId'.
 processBundleElement :: World -> ComponentTicks -> BundleElement -> IO ProcessedBundleElement
 processBundleElement world ticks BundleElement {rep, component} =
   do
@@ -87,6 +95,7 @@ processBundleElement world ticks BundleElement {rep, component} =
               }
         }
 
+-- | Process a set of 'BundleElement's into a 'ProcessedBundleData'.
 processBundleElements :: World -> ComponentTicks -> Set BundleElement -> IO ProcessedBundleData
 processBundleElements world ticks elements =
   do
@@ -94,17 +103,17 @@ processBundleElements world ticks elements =
     return
       ProcessedBundleData {elements}
 
-combineProcessedBundles :: World -> ProcessedBundleData -> ProcessedBundleData -> IO ProcessedBundleData
-combineProcessedBundles world bundle1 bundle2 =
+-- | Combine two 'ProcessedBundleData's, merging their sets of elements.
+combineProcessedBundles :: ProcessedBundleData -> ProcessedBundleData -> ProcessedBundleData
+combineProcessedBundles bundle1 bundle2 =
   let elements = Set.toList $ Set.union (Set.fromList bundle1.elements) (Set.fromList bundle2.elements)
-   in do
-        archetypeId <- getArchetypeId (map (\x -> x.id) elements) world.archetypes
-        return
-          ProcessedBundleData {elements}
+   in ProcessedBundleData {elements}
 
+-- | Check if a 'ComponentId' is inside a 'ProcessedBundleData'.
 isInProcessedBundle :: ProcessedBundleData -> ComponentId -> Bool
 isInProcessedBundle ProcessedBundleData {elements} id = id `elem` map (\element -> element.id) elements
 
+-- | Sets the change tick of certain elements of the bundle to the specified 'Tick'.
 setChangedTickOfComponents :: ProcessedBundleData -> (ComponentId -> Bool) -> Tick -> ProcessedBundleData
 setChangedTickOfComponents ProcessedBundleData {elements} shouldChange tick =
   ProcessedBundleData
@@ -118,6 +127,7 @@ setChangedTickOfComponents ProcessedBundleData {elements} shouldChange tick =
           elements
     }
 
+-- | Sets the added tick of certain elements of the bundle to the specified 'Tick'.
 setAddedTickOfComponents :: ProcessedBundleData -> (ComponentId -> Bool) -> Tick -> ProcessedBundleData
 setAddedTickOfComponents ProcessedBundleData {elements} shouldChange tick =
   ProcessedBundleData
@@ -135,7 +145,6 @@ removeComponentFromProcessedBundle :: World -> ComponentId -> ProcessedBundleDat
 removeComponentFromProcessedBundle world componentId bundle =
   do
     let elements = filter (\x -> x.id /= componentId) bundle.elements
-    archetypeId <- getArchetypeId (map (\x -> x.id) elements) world.archetypes
     return ProcessedBundleData {elements}
 
 findResourceArchetype :: (Component r, Storage r ~ ResourceStorage) => r -> System (Maybe ArchetypeId)
@@ -185,7 +194,7 @@ insertResource r =
 
         liftIO $ modifyIORef' world.entities.pointers $ Map.insert entity entityPointer
 
--- | Spawn an entity in this World given a bundle of components.
+-- | Spawn an entity given a bundle of components.
 spawn :: (Bundle b) => b -> System Entity
 spawn bundle =
   do
@@ -212,6 +221,7 @@ spawn bundle =
 
     return entity
 
+-- | Despawn an entity.
 despawn :: Entity -> System ()
 despawn entity =
   do
@@ -242,6 +252,10 @@ removeTableAndArchetype !world !archetype =
     removeArchetypeId archetype world.archetypes
     removeTable archetype world.tables
 
+-- | Insert a bundle of components on an Entity.
+--
+-- If the entity already contains these components, their values will be
+-- updated in-place instead of causing an archetype change.
 insert :: (Bundle b) => b -> Entity -> System ()
 insert bundle entity =
   do
@@ -277,13 +291,13 @@ insert bundle entity =
                 when empty $ do
                   liftIO $ removeTableAndArchetype world currentPointerInternal.archetypeId
 
-                newBundle <- liftIO $ combineProcessedBundles world collectedComponents bundleData
+                let newBundle = combineProcessedBundles collectedComponents bundleData
                 archetype <- liftIO $ archetypeOfProcessedBundle world.archetypes newBundle
 
                 let newBundle' = setChangedTickOfComponents newBundle (isInProcessedBundle collectedComponents) currentTick
-                let newBundle'' = setAddedTickOfComponents newBundle (\id -> isInProcessedBundle bundleData id && not (isInProcessedBundle collectedComponents id)) currentTick
+                let newBundle'' = setAddedTickOfComponents newBundle' (\id -> isInProcessedBundle bundleData id && not (isInProcessedBundle collectedComponents id)) currentTick
 
-                liftIO $ insertEntityIntoTables newBundle world.tables archetype (entity, currentPointer)
+                liftIO $ insertEntityIntoTables newBundle'' world.tables archetype (entity, currentPointer)
                 newPointer <- liftIO $ readIORef currentPointer
 
                 let Tables tables = world.tables
@@ -296,6 +310,9 @@ insert bundle entity =
 
     unless (null required) $ insertNew (BundleData {elements = required, required = Set.empty}) entity
 
+-- | Insert a bundle of components on an Entity.
+--
+-- Only the components that the entity doesn't already have will be inserted, and the rest ignored.
 insertNew :: (Bundle b) => b -> Entity -> System ()
 insertNew bundle entity =
   do
@@ -328,11 +345,12 @@ insertNew bundle entity =
               when empty $ do
                 liftIO $ removeTableAndArchetype world currentPointerInternal.archetypeId
 
-              newBundle <- liftIO $ combineProcessedBundles world collectedComponents bundleData
+              let newBundle = combineProcessedBundles collectedComponents bundleData
               archetype <- liftIO $ archetypeOfProcessedBundle world.archetypes newBundle
 
               liftIO $ insertEntityIntoTables newBundle world.tables archetype (entity, currentPointer)
 
+-- | Remove a component from an entity.
 removeComponentFromEntity :: forall c. (Component c) => Entity -> System ()
 removeComponentFromEntity entity =
   do
@@ -394,16 +412,35 @@ tryGetTicks rep world archetypes =
     componentId <- getComponentId rep world.components
     tryGetTicksFromTables world.tables archetypes componentId
 
+-- | Set the value of a component obtained as query result.
+--
+-- Note that the local 'ComponentResult' won't be mutated.
+-- You'll need to query the component again or use 'get' to update the current result.
 set :: (Bundle c) => ComponentResult c -> c -> System ()
 set !result !newValue = MischiefECS.World.insert newValue result.entity
 
+-- | Update the value of a 'ComponentResult'.
+--
+-- Useful if you've done changed to the component and want to grab the live value
+-- without re-querying.
+get :: ComponentResult c -> System (ComponentResult c)
+get = undefined
+
+-- | A System is a set of instructions applied over a World.
+-- It can be added to the app to be ran on a certain schedule.
+--
+-- A system is actually a 'ReaderT' 'World' 'IO', meaning you can 'ask' for the World,
+-- or do IO operations directly by using 'liftIO'.
 type System = ReaderT World IO
 
+-- | Defer a command to be ran after the current 'System' is finished,
+-- or when 'flush' is called.
 defer :: System a -> System ()
 defer !system = do
   world <- ask
   liftIO $ modifyIORef' world.deferred (++ [system $> ()])
 
+-- | Flush the current list of deferred commands.
 flush :: System ()
 flush = do
   world <- ask
@@ -413,6 +450,7 @@ flush = do
 
   liftIO $ writeIORef world.deferred []
 
+-- | A 'Component' that's inserted automatically on each 'Entity', but can also be set manually.
 newtype Name = Name String deriving (Component)
 
 instance Show Name where
