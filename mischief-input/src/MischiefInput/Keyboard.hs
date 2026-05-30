@@ -17,6 +17,11 @@ data Keys = Keys
   }
   deriving (Generic, Queryable, Default)
 
+newtype HotKeys = HotKeys [((SDLScancode, SDLKeycode), KeyState)] deriving (Generic, Queryable, Default)
+
+instance Component HotKeys where
+  type Storage HotKeys = ResourceStorage
+
 pressed :: SDLScancode -> ComponentResult Keys -> Bool
 pressed scancode keys = case Map.lookup scancode keys.value.physical of
   Just Pressed -> True
@@ -58,11 +63,12 @@ instance Component Keys where
   type Storage Keys = ResourceStorage
 
 data KeyState = Pressed | JustPressed | Released | JustReleased
-  deriving (Show)
+  deriving (Show, Eq)
 
 keyboardPlugin :: Plugin ()
 keyboardPlugin = do
   addResource (def @Keys)
+  addResource (def @HotKeys)
   addSystem Update readEvents
 
 readEvents :: System ()
@@ -73,28 +79,31 @@ readEvents = do
   Just keys' <- single @Keys
 
   keys <- liftIO $ newIORef keys'.value
+  hotKeys <- liftIO $ newIORef []
   processedKeys <- liftIO $ newIORef []
 
   for_ messages $ \(SDLMessage event) -> do
     state <- liftIO $ getState event.sdlKeyboardScancode keys
     let state' = updateState (Just event.sdlKeyboardType) state
     liftIO $ setState state' (event.sdlKeyboardScancode, event.sdlKeyboardKey) keys
+
+    when (state' == JustReleased || state' == JustPressed) $
+      liftIO $
+        modifyIORef' hotKeys (++ [((event.sdlKeyboardScancode, event.sdlKeyboardKey), state')])
+
     liftIO $ modifyIORef' processedKeys (++ [(event.sdlKeyboardScancode, event.sdlKeyboardKey)])
 
-  processedKeys' <- liftIO $ readIORef processedKeys
+  Just oldHotKeys' <- single @HotKeys
+  let HotKeys oldHotKeys = oldHotKeys'.value
+  processedKeys <- liftIO $ readIORef processedKeys
 
-  -- NOTE: This is inefficient, could just store the JustPressed / JustReleased states from last frame and only iterate those.
-  -- Maybe a good use for Local?
-
-  for_ (Map.toList keys'.value.physical) $ \(key, state) -> do
-    unless (key `elem` map fst processedKeys') $ do
+  for_ oldHotKeys $ \(key, state) -> do
+    unless (key `elem` processedKeys) $ do
       let state' = updateState Nothing state
-      liftIO $ setStatePhysical state' key keys
+      liftIO $ setState state' key keys
 
-  for_ (Map.toList keys'.value.virtual) $ \(key, state) -> do
-    unless (key `elem` map snd processedKeys') $ do
-      let state' = updateState Nothing state
-      liftIO $ setStateVirtual state' key keys
+  newHotKeys <- liftIO $ readIORef hotKeys
+  insertResource $ HotKeys newHotKeys
 
   newKeys <- liftIO $ readIORef keys
   insertResource newKeys
