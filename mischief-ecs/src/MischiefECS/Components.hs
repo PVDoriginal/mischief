@@ -23,13 +23,12 @@ module MischiefECS.Components
   )
 where
 
-import Control.Monad.IO.Class
 import Data.IORef
 import Data.List
 import Data.List qualified as List
-import Data.Map
+import Data.Map (Map)
 import Data.Map qualified as Map
-import Data.Set
+import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Typeable
 import MischiefECS.Components.Internal
@@ -51,13 +50,13 @@ getComponentId :: TypeRep -> Components -> IO ComponentId
 getComponentId t Components {map, counter} = do
   innerMap <- readIORef map
 
-  case Data.Map.lookup t innerMap of
+  case Map.lookup t innerMap of
     Just t -> return t
     Nothing -> do
       result <- readIORef counter
       modifyIORef counter (+ 1)
 
-      modifyIORef map $ Data.Map.insert t (ComponentId result)
+      modifyIORef map $ Map.insert t (ComponentId result)
 
       return $ ComponentId result
 
@@ -85,13 +84,13 @@ getArchetypeId :: [ComponentId] -> Archetypes -> IO ArchetypeId
 getArchetypeId t Archetypes {map, counter} = do
   innerMap <- readIORef map
 
-  case Data.Map.lookup t innerMap of
+  case Map.lookup t innerMap of
     Just t -> return t
     Nothing -> do
       result <- readIORef counter
       modifyIORef counter (+ 1)
 
-      modifyIORef map $ Data.Map.insert t (ArchetypeId result)
+      modifyIORef map $ Map.insert t (ArchetypeId result)
 
       return $ ArchetypeId result
 
@@ -120,13 +119,10 @@ class (Typeable c) => Component c where
 
 data BundleData = BundleData {elements :: Set BundleElement, required :: Set BundleElement}
 
-instance Eq BundleElement where
-  (==) :: BundleElement -> BundleElement -> Bool
-  (==) BundleElement {rep = rep1} BundleElement {rep = rep2} = rep1 == rep2
-
-instance Ord BundleElement where
-  compare :: BundleElement -> BundleElement -> Ordering
-  compare BundleElement {rep = rep1} BundleElement {rep = rep2} = compare rep1 rep2
+instance Show BundleData where
+  show BundleData {elements, required} = mconcat ["BundleData [", List.intercalate ", " ts, "]"]
+    where
+      ts = map (\bundle -> show bundle.rep) (Set.toList (Set.union elements required))
 
 newtype Tick = Tick Int deriving (Show, Eq, Ord)
 

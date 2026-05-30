@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
 module MischiefECS.World where
 
@@ -147,7 +148,7 @@ removeComponentFromProcessedBundle componentId bundle =
     let elements = filter (\x -> x.id /= componentId) bundle.elements
      in ProcessedBundleData {elements}
 
-findResourceArchetype :: (Component r) => r -> System (Maybe ArchetypeId)
+findResourceArchetype :: (Component r, Storage r ~ ResourceStorage) => r -> System (Maybe ArchetypeId)
 findResourceArchetype r =
   do
     world <- ask

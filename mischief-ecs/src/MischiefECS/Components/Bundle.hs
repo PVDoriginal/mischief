@@ -1,7 +1,5 @@
 module MischiefECS.Components.Bundle where
 
-import Data.List qualified as List
-import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Typeable
 import MischiefECS.Components
@@ -28,11 +26,6 @@ instance Eq ProcessedBundleElement where
 instance Ord ProcessedBundleElement where
   compare :: ProcessedBundleElement -> ProcessedBundleElement -> Ordering
   compare ProcessedBundleElement {id = id1} ProcessedBundleElement {id = id2} = compare id1 id2
-
-instance Show BundleData where
-  show BundleData {elements, required} = mconcat ["BundleData [", List.intercalate ", " ts, "]"]
-    where
-      ts = map (\bundle -> show bundle.rep) (Set.toList (Set.union elements required))
 
 class Bundle b where
   bundleDataInternal :: b -> BundleData
@@ -64,6 +57,6 @@ instance {-# OVERLAPPING #-} (Bundle c0, Bundle c1) => Bundle (c0, c1) where
 bundleData :: (Bundle b) => b -> BundleData
 bundleData = bundleDataInternal
 
-bundleDataRes :: (Component r, Storage r ~ ResourceStorage) => r -> BundleData
+bundleDataRes :: (Component r) => r -> BundleData
 bundleDataRes r =
   BundleData (Set.fromList [BundleElement {rep = typeOf r, component = erase r}]) Set.empty
