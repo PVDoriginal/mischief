@@ -53,6 +53,7 @@ newWorld = do
   entities <- emptyEntities
   tables <- emptyTables
   deferred <- newIORef []
+  events <- newIORef []
   tick <- newIORef (Tick 0)
   frame <- newIORef (Frame 0)
 
@@ -62,6 +63,7 @@ newWorld = do
         components,
         entities,
         tables,
+        events,
         deferred,
         tick,
         lastSystemTick = Tick 0,
@@ -71,12 +73,12 @@ newWorld = do
       }
 
 setSystemTicks :: Tick -> Tick -> World -> World
-setSystemTicks lastSystemTick currentSystemTick World {archetypes, components, entities, tables, deferred, tick, systemId, frame} =
-  World {archetypes, components, entities, tables, deferred, tick, lastSystemTick, currentSystemTick, systemId, frame}
+setSystemTicks lastSystemTick currentSystemTick World {archetypes, components, entities, tables, deferred, tick, systemId, frame, events} =
+  World {archetypes, components, entities, tables, deferred, tick, lastSystemTick, currentSystemTick, systemId, frame, events}
 
 setSystemId :: SystemId -> World -> World
-setSystemId systemId World {archetypes, components, entities, tables, deferred, tick, lastSystemTick, currentSystemTick, frame} =
-  World {archetypes, components, entities, tables, deferred, tick, lastSystemTick, currentSystemTick, systemId, frame}
+setSystemId systemId World {archetypes, components, entities, tables, deferred, tick, lastSystemTick, currentSystemTick, frame, events} =
+  World {archetypes, components, entities, tables, deferred, tick, lastSystemTick, currentSystemTick, systemId, frame, events}
 
 -- | Increment the World's tick.
 tick :: System ()

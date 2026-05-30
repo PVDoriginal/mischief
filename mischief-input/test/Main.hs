@@ -7,6 +7,8 @@ import MischiefInput
 import MischiefInput.Keyboard
 import SDL3
 
+newtype E = E String deriving (Event, Show)
+
 main :: IO ()
 main = do
   app <- newApp [sdlPlugin, keyboardPlugin, plugin]
@@ -15,9 +17,14 @@ main = do
 plugin :: Plugin ()
 plugin = do
   addSystem Update update
+  addObserver observer
 
 update :: System ()
 update = do
   Just keys <- single @Keys
   when (justPressed SDL_SCANCODE_RETURN keys) $ do
-    liftIO $ print "Lol"
+    trigger (E "lol")
+
+observer :: E -> System ()
+observer e = do
+  liftIO $ print e

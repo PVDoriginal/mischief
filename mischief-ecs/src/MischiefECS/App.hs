@@ -10,6 +10,7 @@ import Data.Map
 import Data.Map qualified as Map
 import GHC.Base (runRW#)
 import MischiefECS.Components
+import MischiefECS.Events
 import MischiefECS.World
 
 data App = App {systems :: IORef (Map TypeRep [(SystemId, System (), IORef Tick)]), world :: World, schedules :: Schedules, systemCounter :: IORef Int}
@@ -59,6 +60,7 @@ runApp app = do
 
               runReaderT system world
               runReaderT flush world
+              runReaderT flushEvents world
               runReaderT tick world
 
 addSystem :: (Schedule s) => s -> System () -> Plugin ()
@@ -81,6 +83,11 @@ addResource :: (Component r, Storage r ~ ResourceStorage) => r -> Plugin ()
 addResource r = do
   app <- ask
   liftIO $ runReaderT (insertResource r) app.world
+
+addObserver :: (Event e) => (e -> System ()) -> Plugin ()
+addObserver observer = do
+  app <- ask
+  liftIO $ runReaderT (spawnObserver $ Observer observer) app.world
 
 addPlugin :: Plugin () -> Plugin ()
 addPlugin plugin = do
