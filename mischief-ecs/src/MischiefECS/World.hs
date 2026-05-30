@@ -2,14 +2,12 @@
 
 module MischiefECS.World where
 
-import Control.Applicative (WrappedMonad (unwrapMonad))
 import Control.Monad
 import Control.Monad.IO.Class (MonadIO (liftIO))
 import Control.Monad.Trans.Reader
 import Data.Functor
 import Data.IORef
 import Data.List
-import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Proxy
 import Data.Set (Set)
@@ -20,6 +18,7 @@ import MischiefECS.Components.Bundle
 import MischiefECS.Entities
 import MischiefECS.Tables
 
+-- | The World is the main data structure storing the entities, components, archetypes, and so on.
 data World = World
   { archetypes :: Archetypes,
     components :: Components,
