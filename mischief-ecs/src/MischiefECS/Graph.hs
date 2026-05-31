@@ -41,7 +41,7 @@ takeRemoveableNodes edges = do
   edgeList <- Vec.toList edges
   len <- Vec.length edges
   let nodes = concatMap unwrap (filter (\((a, x), _) -> null x && isJust a) (zip edgeList [0 :: Int ..]))
-  for_ nodes $ \(_, i) -> Vec.modify_ edges i (\(a, l) -> (Nothing, l))
+  for_ nodes $ \(_, i) -> Vec.modify_ edges i (\(_, l) -> (Nothing, l))
   for_ nodes $ \(_, i) -> for_ [0 .. len - 1] $ \j -> Vec.modify_ edges j (\(a, l) -> (a, List.delete i l))
   return (map fst nodes)
   where
