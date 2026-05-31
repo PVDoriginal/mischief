@@ -16,8 +16,6 @@ module MischiefECS.Prelude
     flush,
     System,
     Plugin,
-    Startup (Startup),
-    Update (Update),
     newApp,
     runApp,
     addSystem,
@@ -27,7 +25,7 @@ module MischiefECS.Prelude
   )
 where
 
-import MischiefECS.App (Plugin, Startup (Startup), Update (Update), addPlugin, addSystem, newApp, runApp)
+import MischiefECS.App (Plugin, addPlugin, addSystem, newApp, runApp)
 import MischiefECS.Components (Component (required))
 import MischiefECS.Components.Default (require)
 import MischiefECS.Entities (Entity)

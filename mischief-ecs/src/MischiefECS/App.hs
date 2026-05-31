@@ -9,6 +9,7 @@ import Data.IORef
 import Data.Map
 import Data.Map qualified as Map
 import GHC.Base (runRW#)
+import MischiefECS.App.Scheduler
 import MischiefECS.Components
 import MischiefECS.Events
 import MischiefECS.World
@@ -101,13 +102,3 @@ newSchedules = do
   startup <- newIORef [typeOf Startup]
   update <- newIORef [typeOf PreUpdate, typeOf Update, typeOf PostUpdate]
   return Schedules {startup, update}
-
-class (Typeable s) => Schedule s
-
-data Startup = Startup deriving (Schedule)
-
-data Update = Update deriving (Schedule)
-
-data PreUpdate = PreUpdate deriving (Schedule)
-
-data PostUpdate = PostUpdate deriving (Schedule)
