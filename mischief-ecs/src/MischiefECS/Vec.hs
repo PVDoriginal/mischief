@@ -3,59 +3,64 @@
 -- adds new elements at the end of vector.
 --
 -- We reallocate vector with 1.5x length to get amortized append.
-module MischiefECS.Vec (
-  Vec (..),
-  IOVec,
+module MischiefECS.Vec
+  ( Vec (..),
+    IOVec,
 
-  -- * Quering info about vector
-  length,
-  null,
-  capacity,
+    -- * Quering info about vector
+    length,
+    null,
+    capacity,
 
-  -- * Creation
-  new,
-  newSized,
+    -- * Creation
+    new,
+    newSized,
 
-  -- * Quering subvectors
-  slice,
+    -- * Quering subvectors
+    slice,
 
-  -- * Converting to immutable
-  thaw,
-  freeze,
-  toList,
+    -- * Converting to immutable
+    thaw,
+    freeze,
+    toList,
 
-  -- * Capacity maninuplation
-  ensure,
-  ensureAppend,
+    -- * Capacity maninuplation
+    ensure,
+    ensureAppend,
 
-  -- * Accessing individual elements
-  read,
-  write,
-  unsafeRead,
-  unsafeWrite,
+    -- * Accessing individual elements
+    read,
+    write,
+    unsafeRead,
+    unsafeWrite,
 
-  -- * Appending to vector
-  pushBack,
-  unsafePushBack,
+    -- * Appending to vector
+    pushBack,
+    unsafePushBack,
 
-  -- * modify an element
-  modify,
-  modify_,
-  modifyM,
-  modifyM_,
+    -- * modify an element
+    modify,
+    modify_,
+    modifyM,
+    modifyM_,
 
-  -- * general utilities
-  swap,
-  tap,
-  shrink,
+    -- * general utilities
+    swap,
+    tap,
+    shrink,
 
-  -- * O(1) amortized swap backed operations
-  takeSwap,
-  removeSwap,
-) where
+    -- * O(1) amortized swap backed operations
+    takeSwap,
+    removeSwap,
+
+    -- * cloning, very naive approach
+    clone,
+  )
+where
 
 import Control.Monad
 import Control.Monad.Primitive
+import Data.Foldable (for_)
 import Data.Primitive.MutVar
 import Data.Vector (Vector)
 import Data.Vector qualified as Vector
@@ -68,8 +73,8 @@ import Prelude hiding (length, null, read)
 
 -- | Normal rust-like vector with buffer (the MVector) + len (the len field) + cap (the `buffer` length)
 data Vec s a = Vec
-  { buffer :: !(MutVar s (MVector s a))
-  , len :: !(MutVar s Int)
+  { buffer :: !(MutVar s (MVector s a)),
+    len :: !(MutVar s Int)
   }
   deriving (Generic)
 
@@ -95,15 +100,14 @@ new :: (PrimMonad m) => Int -> m (Vec (PrimState m) a)
 new = newSized 0
 {-# INLINE new #-}
 
-{- | Allocation of new growable vector with given filled size and capacity.
-Elements is not initialized. Capacity must be greater than filled size.
--}
+-- | Allocation of new growable vector with given filled size and capacity.
+-- Elements is not initialized. Capacity must be greater than filled size.
 newSized :: (PrimMonad m) => Int -> Int -> m (Vec (PrimState m) a)
 newSized n cap = do
   buffer <- MVector.new cap
   buffer <- newMutVar buffer
   len <- newMutVar n
-  pure Vec{buffer, len}
+  pure Vec {buffer, len}
 {-# INLINEABLE newSized #-}
 
 -- | Yield a part of mutable vector without copying it. The vector must contain at least i+n elements.
@@ -119,12 +123,11 @@ slice i n v = do
   len <- newMutVar n
   mv <- readMutVar v.buffer
   buffer <- newMutVar $! MVector.slice i n mv
-  pure $! Vec{len, buffer}
+  pure $! Vec {len, buffer}
 {-# INLINEABLE slice #-}
 
-{- | Convert immutable vector to grow mutable version. Doesn't allocate additonal memory for appending,
-use 'ensure' to add capacity to the vector.
--}
+-- | Convert immutable vector to grow mutable version. Doesn't allocate additonal memory for appending,
+-- use 'ensure' to add capacity to the vector.
 thaw ::
   (PrimMonad m) =>
   Vector a ->
@@ -132,13 +135,12 @@ thaw ::
 thaw u = do
   buffer <- newMutVar =<< Vector.thaw u
   len <- newMutVar $! Vector.length u
-  pure Vec{buffer, len}
+  pure Vec {buffer, len}
 {-# INLINEABLE thaw #-}
 
-{- | Freezing growable vector. It will contain only actual elements of the vector not including capacity
-space, but you should call 'U.force' on resulting vector to not hold the allocated capacity of original
-vector in memory.
--}
+-- | Freezing growable vector. It will contain only actual elements of the vector not including capacity
+-- space, but you should call 'U.force' on resulting vector to not hold the allocated capacity of original
+-- vector in memory.
 freeze ::
   (PrimMonad m) =>
   Vec (PrimState m) a ->
@@ -183,9 +185,8 @@ ensure v cap = do
     writeMutVar v.buffer grown
 {-# INLINEABLE ensure #-}
 
-{- | Ensure that grow vector has enough space for additonal n elements.
-We grow vector by 1.5 factor or by required elements count * 1.5.
--}
+-- | Ensure that grow vector has enough space for additonal n elements.
+-- We grow vector by 1.5 factor or by required elements count * 1.5.
 ensureAppend ::
   (PrimMonad m) =>
   Vec (PrimState m) a ->
@@ -201,9 +202,9 @@ ensureAppend vec i = do
     let newCap = ceiling $ max (growFactor * fromIntegral cap) (fromIntegral cap + growFactor * fromIntegral (len + i - cap))
     new_buf <- MVector.grow buf (newCap - cap)
     writeMutVar vec.buffer new_buf
- where
-  growFactor :: Double
-  growFactor = 1.5
+  where
+    growFactor :: Double
+    growFactor = 1.5
 {-# INLINEABLE ensureAppend #-}
 
 -- | Read element from vector at given index.
@@ -330,9 +331,8 @@ pushBack vec value = do
   unsafePushBack vec value
 {-# INLINEABLE pushBack #-}
 
-{- | O(1) amortized appending to vector. Doesn't reallocate vector, so
-there must by capacity - length >= 1.
--}
+-- | O(1) amortized appending to vector. Doesn't reallocate vector, so
+-- there must by capacity - length >= 1.
 unsafePushBack ::
   (PrimMonad m) =>
   Vec (PrimState m) a ->
@@ -382,10 +382,18 @@ takeSwap vec i = do
 removeSwap ::
   (PrimMonad m) =>
   Vec (PrimState m) a ->
-  Int ->
   -- | index of element to remove
+  Int ->
   m ()
 removeSwap vec i = do
   len <- length vec
   swap vec i (len - 1)
   shrink vec 1
+
+clone :: (PrimMonad m) => Vec (PrimState m) a -> m (Vec (PrimState m) a)
+clone vec = do
+  list <- toList vec
+  len <- length vec
+  newVec <- new len
+  for_ list $ pushBack newVec
+  return newVec
