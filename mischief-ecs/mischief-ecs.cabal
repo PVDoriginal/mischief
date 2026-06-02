@@ -64,8 +64,10 @@ library
     MischiefECS.Tables
     MischiefECS.Vec
     MischiefECS.World
+    MischiefECS.World.Insert
     MischiefECS.World.Query
     MischiefECS.World.Remove
+    MischiefECS.World.Spawn
     MischiefECS.World.Systems
 
   -- Modules included in this library but not exported.

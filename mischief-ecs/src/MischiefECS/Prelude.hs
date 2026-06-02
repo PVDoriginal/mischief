@@ -1,9 +1,6 @@
 module MischiefECS.Prelude
   ( Entity,
     despawn,
-    insert,
-    insertNew,
-    spawn,
     Component,
     required,
     require,
@@ -11,7 +8,6 @@ module MischiefECS.Prelude
     query,
     remove,
     defer,
-    set,
     modify,
     flush,
     System,
@@ -30,6 +26,6 @@ import MischiefECS.Components (Component (required))
 import MischiefECS.Components.Default (require)
 import MischiefECS.Entities (Entity)
 import MischiefECS.Tables (ComponentResult (value))
-import MischiefECS.World (Name (Name), System, defer, despawn, flush, insert, insertNew, set, spawn)
+import MischiefECS.World (Name (Name), System, defer, despawn, flush)
 import MischiefECS.World.Query (Queryable, modify, query)
 import MischiefECS.World.Remove (remove)

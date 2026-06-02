@@ -1,0 +1,40 @@
+module MischiefECS.World.Spawn where
+
+import Control.Monad.IO.Class
+import Control.Monad.Trans.Reader
+import Data.IORef
+import Data.Map qualified as Map
+import Data.Set qualified as Set
+import MischiefECS.Components
+import MischiefECS.Components.Bundle
+import MischiefECS.Entities
+import MischiefECS.Tables
+import MischiefECS.World
+import MischiefECS.World.Insert
+
+-- | Spawn an entity given a bundle of components.
+spawn :: (Bundle b) => b -> System Entity
+spawn bundle =
+  do
+    world <- ask
+
+    entityIndex <- liftIO $ readIORef world.entities.counter
+    let entity = Entity entityIndex
+    liftIO $ modifyIORef world.entities.counter (+ 1)
+
+    let BundleData {elements, required} = addComponentToBundleData entity $ bundleData bundle
+
+    currentTick <- liftIO $ readIORef world.tick
+    bundle <- liftIO $ processBundleElements world ComponentTicks {changed = currentTick, added = currentTick} $ Set.union elements required
+
+    archetypeId <- liftIO $ archetypeOfProcessedBundle world.archetypes bundle
+
+    entityPointer <- liftIO $ newIORef EntityPointer {archetypeId = ArchetypeId 0, rowIndex = 0}
+
+    liftIO $ insertEntityIntoTables bundle world.tables archetypeId (entity, entityPointer)
+
+    liftIO $ modifyIORef' world.entities.pointers $ Map.insert entity entityPointer
+
+    insertNew (Name (show entity)) entity
+
+    return entity

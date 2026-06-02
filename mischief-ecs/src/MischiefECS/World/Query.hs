@@ -19,6 +19,7 @@ import MischiefECS.Components.Bundle
 import MischiefECS.Entities
 import MischiefECS.Tables
 import MischiefECS.World
+import MischiefECS.World.Insert
 import Prelude hiding (and)
 
 class QueryData qd where
@@ -134,7 +135,7 @@ filterQuery _ NoFilter _ x = return x
 filterQuery world (With x) _ outputs = do
   component <- liftIO $ getComponentId x world.components
   filterM
-    ( \(index, output) -> do
+    ( \(_, output) -> do
         let entity = outputEntity (Proxy @qd) output
         components <- findComponentsOfEntity world entity
         case components of
@@ -146,7 +147,7 @@ filterQuery world (With x) _ outputs = do
 filterQuery world (Without x) _ outputs = do
   component <- liftIO $ getComponentId x world.components
   filterM
-    ( \(index, output) -> do
+    ( \(_, output) -> do
         let entity = outputEntity (Proxy @qd) output
         components <- findComponentsOfEntity world entity
         case components of
@@ -243,6 +244,7 @@ filterArchetype (a `Or` b) c w = do
   x <- filterArchetype a c w
   y <- filterArchetype b c w
   return $ x || y
+filterArchetype _ _ _ = pure True
 
 -- | Extracts archetype-level filters from the bigger filter where possible, to be applied at the start of querying for better performance.
 extractArchetypeFilters :: QueryFilter -> (QueryFilter, QueryFilter)
@@ -267,10 +269,10 @@ extractArchetypeFilters (a `Or` b) =
 
 isArchetypeFilter :: QueryFilter -> Bool
 isArchetypeFilter NoFilter = True
-isArchetypeFilter (Changed x) = False
-isArchetypeFilter (Added x) = False
-isArchetypeFilter (With x) = True
-isArchetypeFilter (Without x) = True
+isArchetypeFilter (Changed _) = False
+isArchetypeFilter (Added _) = False
+isArchetypeFilter (With _) = True
+isArchetypeFilter (Without _) = True
 isArchetypeFilter (a `And` b) = isArchetypeFilter a || isArchetypeFilter b
 isArchetypeFilter (a `Or` b) = isArchetypeFilter a && isArchetypeFilter b
 
@@ -286,7 +288,7 @@ instance (Bundle c, Queryable c, QueryOutput c ~ ComponentResult c) => Modify c 
   modify :: ComponentResult c -> (c -> c) -> System ()
   modify !result !f = do
     Just res <- entityQuery @c result.entity
-    MischiefECS.World.insert (f res.value) result.entity
+    MischiefECS.World.Insert.insert (f res.value) result.entity
 
 instance (Component c, Queryable c, QueryOutput c ~ ComponentResult c, Storage c ~ ResourceStorage) => Modify c ResourceStorage where
   modify :: ComponentResult c -> (c -> c) -> System ()

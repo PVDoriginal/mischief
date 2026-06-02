@@ -11,6 +11,7 @@ import MischiefECS.Events.Internal
 import MischiefECS.Tables
 import MischiefECS.World
 import MischiefECS.World.Query
+import MischiefECS.World.Spawn
 
 data EventProxy e = EventProxy deriving (Component, Queryable)
 
