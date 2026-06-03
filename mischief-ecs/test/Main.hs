@@ -19,7 +19,9 @@ plugin = do
     _ <- spawn C
     return ()
 
-  addSystems Update [s1, s2, s3]
+  addSystem PreUpdate s1
+  addSystem Update s2
+  addSystem PostUpdate s3
 
 s1 :: System ()
 s1 = do
