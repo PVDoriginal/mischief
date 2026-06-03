@@ -15,6 +15,7 @@ import MischiefECS.Components.Internal
 import MischiefECS.Entities
 import MischiefECS.Events
 import MischiefECS.Tables
+import MischiefECS.Vec qualified as Vec
 import MischiefECS.World
 
 -- | Insert a bundle of components on an Entity.
@@ -88,7 +89,6 @@ insertNew bundle entity =
     currentTick <- liftIO $ readIORef world.tick
 
     bundleData <- liftIO $ processBundleElements world ComponentTicks {changed = currentTick, added = currentTick} (Set.union elements required)
-    let components = sort $ map (\x -> x.id) bundleData.elements
 
     entityPointers <- liftIO $ readIORef world.entities.pointers
     case Map.lookup entity entityPointers of
@@ -102,20 +102,21 @@ insertNew bundle entity =
         case Map.lookup currentPointerInternal.archetypeId tables of
           Nothing -> undefined
           Just currentTable -> do
-            let newComponents = filter (\c -> c `notElem` currentTable.components) components
+            let newComponents = ProcessedBundleData $ filter (\c -> c.id `notElem` currentTable.components) bundleData.elements
 
-            unless (null newComponents) $ do
+            unless (null newComponents.elements) $ do
               collectedComponents <- liftIO $ takeComponentsFromTable currentPointerInternal currentTable
 
               empty <- liftIO $ tableIsEmpty currentTable
               when empty $ do
                 liftIO $ removeTableAndArchetype world currentPointerInternal.archetypeId
 
-              let newBundle = combineProcessedBundles collectedComponents bundleData
+              let newBundle = combineProcessedBundles collectedComponents newComponents
               archetype <- liftIO $ archetypeOfProcessedBundle world.archetypes newBundle
 
               liftIO $ insertEntityIntoTables newBundle world.tables archetype (entity, currentPointer)
-              triggerInsertEvent collectedComponents entity
+
+              triggerInsertEvent newComponents entity
 
 findResourceArchetype :: (Component r, Storage r ~ ResourceStorage) => r -> System (Maybe ArchetypeId)
 findResourceArchetype r =
@@ -130,11 +131,13 @@ findResourceArchetype r =
       _ -> undefined
 
 -- | Insert a resource into this world. If the resource already exists, its value will be overwritten.
-insertResource :: (Component r, Storage r ~ ResourceStorage) => r -> System ()
+insertResource :: forall r. (Component r, Storage r ~ ResourceStorage) => r -> System ()
 insertResource r =
   do
     world <- ask
     currentTick <- liftIO $ readIORef world.tick
+
+    resourceEntity <- liftIO $ newIORef Nothing
 
     archetype <- findResourceArchetype r
     case archetype of
@@ -148,10 +151,16 @@ insertResource r =
             let bundleData = bundleDataRes r
             bundle <- liftIO $ processBundleElements world ComponentTicks {added = currentTick, changed = currentTick} bundleData.elements
             liftIO $ replaceComponentsIntoTable bundle (Just currentTick) EntityPointer {archetypeId = archetype, rowIndex = 0} table
+
+            (entity, _) <- Vec.read table.entities 0
+            triggerInsertEvent bundle entity
+
+            liftIO $ writeIORef resourceEntity $ Just entity
       Nothing -> do
         entityIndex <- liftIO $ readIORef world.entities.counter
         let entity = Entity entityIndex
         liftIO $ modifyIORef world.entities.counter (+ 1)
+        liftIO $ writeIORef resourceEntity $ Just entity
 
         let BundleData {elements} = addComponentToBundleData (Name "Resource") $ addComponentToBundleData entity $ bundleDataRes r
 
@@ -163,6 +172,18 @@ insertResource r =
         liftIO $ insertResourceIntoTables bundle currentTick world.tables archetypeId (entity, entityPointer)
 
         liftIO $ modifyIORef' world.entities.pointers $ Map.insert entity entityPointer
+        triggerInsertEvent bundle entity
+
+        insertNew (Name $ show entity) entity
+
+    entity <- liftIO $ readIORef resourceEntity
+    case entity of
+      Nothing -> undefined
+      Just entity -> do
+        -- runEvent $ eraseEvent $ OnInsert @r entity
+
+        let BundleData {required} = bundleDataRes r
+        unless (null required) $ insertNew (BundleData {elements = required, required = Set.empty}) entity
 
 -- applySystem (Proxy @b) $ triggerInsertEvent entity
 
@@ -182,8 +203,9 @@ get = undefined
 
 triggerInsertEvent :: ProcessedBundleData -> Entity -> System ()
 triggerInsertEvent bundle entity =
-  for_ bundle.elements $ \x -> triggerInsertEvent' x.component.value entity
+  for_ bundle.elements $ \x ->
+    triggerInsertEvent' x.component.value entity
 
 triggerInsertEvent' :: ErasedComponent -> Entity -> System ()
-triggerInsertEvent' (ErasedComponent (_ :: c)) entity = do
+triggerInsertEvent' (ErasedComponent (_ :: c)) entity =
   runEvent $ eraseEvent $ OnInsert @c entity

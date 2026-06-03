@@ -56,6 +56,8 @@ getComponentId t Components {map, counter} = do
       result <- readIORef counter
       modifyIORef counter (+ 1)
 
+      -- putStrLn $ show t ++ " --- " ++ show result
+
       modifyIORef map $ Map.insert t (ComponentId result)
 
       return $ ComponentId result
