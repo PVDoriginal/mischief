@@ -39,8 +39,6 @@ runEvent (ErasedEvent (event :: e)) = do
     let Observer f = observer.value
     f event
 
-newtype OnAdd c = OnAdd Entity deriving (Event)
-
 newtype OnInsert c = OnInsert Entity deriving (Event)
 
 newtype OnRemove c = OnRemove Entity deriving (Event)
