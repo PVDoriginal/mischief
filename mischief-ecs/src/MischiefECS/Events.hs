@@ -11,32 +11,19 @@ import MischiefECS.Events.Internal
 import MischiefECS.Tables
 import MischiefECS.World
 import MischiefECS.World.Query
-import MischiefECS.World.Spawn
 
 data EventProxy e = EventProxy deriving (Component, Queryable)
+
+newtype Observer e = Observer (e -> System ()) deriving (Component, Queryable)
 
 class (Typeable e) => Event e where
   eraseEvent :: e -> ErasedEvent
   eraseEvent = ErasedEvent
 
-newtype Observer e = Observer (e -> System ()) deriving (Component, Queryable)
-
-spawnObserver :: forall e. (Event e) => Observer e -> System ()
-spawnObserver observer = do
-  _ <- spawn (observer, EventProxy @e)
-  return ()
-
 trigger :: (Event e) => e -> System ()
 trigger event = do
   world <- ask
   liftIO $ modifyIORef' world.events (++ [eraseEvent event])
-
-runEvent :: ErasedEvent -> System ()
-runEvent (ErasedEvent (event :: e)) = do
-  observers <- query @(Observer e, EventProxy e)
-  for_ observers $ \(observer, _) -> do
-    let Observer f = observer.value
-    f event
 
 flushEvents :: System ()
 flushEvents = do
@@ -44,6 +31,13 @@ flushEvents = do
   events <- liftIO $ readIORef world.events
   for_ events runEvent
   liftIO $ writeIORef world.events []
+
+runEvent :: ErasedEvent -> System ()
+runEvent (ErasedEvent (event :: e)) = do
+  observers <- query @(Observer e, EventProxy e)
+  for_ observers $ \(observer, _) -> do
+    let Observer f = observer.value
+    f event
 
 newtype OnAdd c = OnAdd Entity deriving (Event)
 

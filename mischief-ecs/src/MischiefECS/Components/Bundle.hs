@@ -44,6 +44,7 @@ instance Bundle BundleData where
   bundleDataInternal = id
 
 instance {-# OVERLAPPABLE #-} (Component c, Storage c ~ ComponentStorage) => Bundle c where
+  bundleDataInternal :: (Component c, Storage c ~ ComponentStorage) => c -> BundleData
   bundleDataInternal c =
     let DefaultBundleData req = required @c
      in BundleData (Set.fromList [BundleElement {rep = typeOf c, component = erase c}]) req

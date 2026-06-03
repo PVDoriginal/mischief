@@ -9,6 +9,7 @@ import Data.Map (Map)
 import Data.Map qualified as Map
 import GHC.Generics
 import MischiefECS
+import MischiefECS.App.Scheduler
 import SDL3
 
 data Keys = Keys

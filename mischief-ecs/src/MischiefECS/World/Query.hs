@@ -19,7 +19,6 @@ import MischiefECS.Components.Bundle
 import MischiefECS.Entities
 import MischiefECS.Tables
 import MischiefECS.World
-import MischiefECS.World.Insert
 import Prelude hiding (and)
 
 class QueryData qd where
@@ -275,23 +274,3 @@ isArchetypeFilter (With _) = True
 isArchetypeFilter (Without _) = True
 isArchetypeFilter (a `And` b) = isArchetypeFilter a || isArchetypeFilter b
 isArchetypeFilter (a `Or` b) = isArchetypeFilter a && isArchetypeFilter b
-
-modifyResource :: forall r. (Component r, Queryable r, Storage r ~ ResourceStorage, QueryOutput r ~ ComponentResult r) => (r -> r) -> System ()
-modifyResource f = do
-  Just res <- single @r
-  modify res f
-
-class Modify c t where
-  modify :: (Storage c ~ t) => ComponentResult c -> (c -> c) -> System ()
-
-instance (Bundle c, Queryable c, QueryOutput c ~ ComponentResult c) => Modify c ComponentStorage where
-  modify :: ComponentResult c -> (c -> c) -> System ()
-  modify !result !f = do
-    Just res <- entityQuery @c result.entity
-    MischiefECS.World.Insert.insert (f res.value) result.entity
-
-instance (Component c, Queryable c, QueryOutput c ~ ComponentResult c, Storage c ~ ResourceStorage) => Modify c ResourceStorage where
-  modify :: ComponentResult c -> (c -> c) -> System ()
-  modify !result !f = do
-    Just res <- entityQuery @c result.entity
-    insertResource (f res.value)

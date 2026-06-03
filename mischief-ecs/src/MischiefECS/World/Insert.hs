@@ -3,13 +3,17 @@ module MischiefECS.World.Insert where
 import Control.Monad
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Reader
+import Data.Data
+import Data.Foldable (for_)
 import Data.IORef
 import Data.List
 import Data.Map qualified as Map
 import Data.Set qualified as Set
 import MischiefECS.Components
 import MischiefECS.Components.Bundle
+import MischiefECS.Components.Internal
 import MischiefECS.Entities
+import MischiefECS.Events
 import MischiefECS.Tables
 import MischiefECS.World
 
@@ -17,7 +21,7 @@ import MischiefECS.World
 --
 -- If the entity already contains these components, their values will be
 -- updated in-place instead of causing an archetype change.
-insert :: (Bundle b) => b -> Entity -> System ()
+insert :: forall b. (Bundle b) => b -> Entity -> System ()
 insert bundle entity =
   do
     world <- ask
@@ -69,12 +73,13 @@ insert bundle entity =
                   Just newTable -> do
                     liftIO $ replaceComponentsIntoTable bundleData Nothing newPointer newTable
 
+    triggerInsertEvent bundleData entity
     unless (null required) $ insertNew (BundleData {elements = required, required = Set.empty}) entity
 
 -- | Insert a bundle of components on an Entity.
 --
 -- Only the components that the entity doesn't already have will be inserted, and the rest ignored.
-insertNew :: (Bundle b) => b -> Entity -> System ()
+insertNew :: forall b. (Bundle b) => b -> Entity -> System ()
 insertNew bundle entity =
   do
     world <- ask
@@ -110,6 +115,56 @@ insertNew bundle entity =
               archetype <- liftIO $ archetypeOfProcessedBundle world.archetypes newBundle
 
               liftIO $ insertEntityIntoTables newBundle world.tables archetype (entity, currentPointer)
+              triggerInsertEvent collectedComponents entity
+
+findResourceArchetype :: (Component r, Storage r ~ ResourceStorage) => r -> System (Maybe ArchetypeId)
+findResourceArchetype r =
+  do
+    world <- ask
+    componentId <- liftIO $ getComponentId (typeOf r) world.components
+    archetypes <- liftIO $ findMatchingArchetypes [componentId] world.archetypes
+
+    return $ case archetypes of
+      [(_, x)] -> Just x
+      [] -> Nothing
+      _ -> undefined
+
+-- | Insert a resource into this world. If the resource already exists, its value will be overwritten.
+insertResource :: (Component r, Storage r ~ ResourceStorage) => r -> System ()
+insertResource r =
+  do
+    world <- ask
+    currentTick <- liftIO $ readIORef world.tick
+
+    archetype <- findResourceArchetype r
+    case archetype of
+      Just archetype -> do
+        let Tables tables = world.tables
+        tables <- liftIO $ readIORef tables
+
+        case Map.lookup archetype tables of
+          Nothing -> undefined
+          Just table -> do
+            let bundleData = bundleDataRes r
+            bundle <- liftIO $ processBundleElements world ComponentTicks {added = currentTick, changed = currentTick} bundleData.elements
+            liftIO $ replaceComponentsIntoTable bundle (Just currentTick) EntityPointer {archetypeId = archetype, rowIndex = 0} table
+      Nothing -> do
+        entityIndex <- liftIO $ readIORef world.entities.counter
+        let entity = Entity entityIndex
+        liftIO $ modifyIORef world.entities.counter (+ 1)
+
+        let BundleData {elements} = addComponentToBundleData (Name "Resource") $ addComponentToBundleData entity $ bundleDataRes r
+
+        bundle <- liftIO $ processBundleElements world ComponentTicks {changed = currentTick, added = currentTick} elements
+
+        archetypeId <- liftIO $ archetypeOfProcessedBundle world.archetypes bundle
+        entityPointer <- liftIO $ newIORef EntityPointer {archetypeId = ArchetypeId 0, rowIndex = 0}
+
+        liftIO $ insertResourceIntoTables bundle currentTick world.tables archetypeId (entity, entityPointer)
+
+        liftIO $ modifyIORef' world.entities.pointers $ Map.insert entity entityPointer
+
+-- applySystem (Proxy @b) $ triggerInsertEvent entity
 
 -- | Set the value of a component obtained as query result.
 --
@@ -124,3 +179,11 @@ set !result !newValue = MischiefECS.World.Insert.insert newValue result.entity
 -- without re-querying.
 get :: ComponentResult c -> System (ComponentResult c)
 get = undefined
+
+triggerInsertEvent :: ProcessedBundleData -> Entity -> System ()
+triggerInsertEvent bundle entity =
+  for_ bundle.elements $ \x -> triggerInsertEvent' x.component.value entity
+
+triggerInsertEvent' :: ErasedComponent -> Entity -> System ()
+triggerInsertEvent' (ErasedComponent (_ :: c)) entity = do
+  runEvent $ eraseEvent $ OnInsert @c entity

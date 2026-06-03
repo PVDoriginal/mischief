@@ -8,7 +8,6 @@ module MischiefECS.Prelude
     query,
     remove,
     defer,
-    modify,
     flush,
     System,
     Plugin,
@@ -27,5 +26,5 @@ import MischiefECS.Components.Default (require)
 import MischiefECS.Entities (Entity)
 import MischiefECS.Tables (ComponentResult (value))
 import MischiefECS.World (Name (Name), System, defer, despawn, flush)
-import MischiefECS.World.Query (Queryable, modify, query)
+import MischiefECS.World.Query (Queryable, query)
 import MischiefECS.World.Remove (remove)

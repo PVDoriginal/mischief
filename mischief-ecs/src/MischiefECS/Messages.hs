@@ -20,7 +20,8 @@ import MischiefECS.App
 import MischiefECS.Components
 import MischiefECS.Tables
 import MischiefECS.World
-import MischiefECS.World.Query (Modify (modify), Queryable)
+import MischiefECS.World.Modify
+import MischiefECS.World.Query (Queryable)
 
 class (Typeable m) => Message m
 

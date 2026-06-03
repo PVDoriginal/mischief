@@ -8,6 +8,7 @@ import Data.Set qualified as Set
 import MischiefECS.Components
 import MischiefECS.Components.Bundle
 import MischiefECS.Entities
+import MischiefECS.Events
 import MischiefECS.Tables
 import MischiefECS.World
 import MischiefECS.World.Insert
@@ -27,6 +28,8 @@ spawn bundle =
     currentTick <- liftIO $ readIORef world.tick
     bundle <- liftIO $ processBundleElements world ComponentTicks {changed = currentTick, added = currentTick} $ Set.union elements required
 
+    triggerInsertEvent bundle entity
+
     archetypeId <- liftIO $ archetypeOfProcessedBundle world.archetypes bundle
 
     entityPointer <- liftIO $ newIORef EntityPointer {archetypeId = ArchetypeId 0, rowIndex = 0}
@@ -38,3 +41,8 @@ spawn bundle =
     insertNew (Name (show entity)) entity
 
     return entity
+
+spawnObserver :: forall e. (Event e) => Observer e -> System ()
+spawnObserver observer = do
+  _ <- spawn (observer, EventProxy @e)
+  return ()

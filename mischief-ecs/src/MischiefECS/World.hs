@@ -153,53 +153,6 @@ removeComponentFromProcessedBundle componentId bundle =
     let elements = filter (\x -> x.id /= componentId) bundle.elements
      in ProcessedBundleData {elements}
 
-findResourceArchetype :: (Component r, Storage r ~ ResourceStorage) => r -> System (Maybe ArchetypeId)
-findResourceArchetype r =
-  do
-    world <- ask
-    componentId <- liftIO $ getComponentId (typeOf r) world.components
-    archetypes <- liftIO $ findMatchingArchetypes [componentId] world.archetypes
-
-    return $ case archetypes of
-      [(_, x)] -> Just x
-      [] -> Nothing
-      _ -> undefined
-
--- | Insert a resource into this world. If the resource already exists, its value will be overwritten.
-insertResource :: (Component r, Storage r ~ ResourceStorage) => r -> System ()
-insertResource r =
-  do
-    world <- ask
-    currentTick <- liftIO $ readIORef world.tick
-
-    archetype <- findResourceArchetype r
-    case archetype of
-      Just archetype -> do
-        let Tables tables = world.tables
-        tables <- liftIO $ readIORef tables
-
-        case Map.lookup archetype tables of
-          Nothing -> undefined
-          Just table -> do
-            let bundleData = bundleDataRes r
-            bundle <- liftIO $ processBundleElements world ComponentTicks {added = currentTick, changed = currentTick} bundleData.elements
-            liftIO $ replaceComponentsIntoTable bundle (Just currentTick) EntityPointer {archetypeId = archetype, rowIndex = 0} table
-      Nothing -> do
-        entityIndex <- liftIO $ readIORef world.entities.counter
-        let entity = Entity entityIndex
-        liftIO $ modifyIORef world.entities.counter (+ 1)
-
-        let BundleData {elements} = addComponentToBundleData (Name "Resource") $ addComponentToBundleData entity $ bundleDataRes r
-
-        bundle <- liftIO $ processBundleElements world ComponentTicks {changed = currentTick, added = currentTick} elements
-
-        archetypeId <- liftIO $ archetypeOfProcessedBundle world.archetypes bundle
-        entityPointer <- liftIO $ newIORef EntityPointer {archetypeId = ArchetypeId 0, rowIndex = 0}
-
-        liftIO $ insertResourceIntoTables bundle currentTick world.tables archetypeId (entity, entityPointer)
-
-        liftIO $ modifyIORef' world.entities.pointers $ Map.insert entity entityPointer
-
 -- | Despawn an entity.
 despawn :: Entity -> System ()
 despawn entity =

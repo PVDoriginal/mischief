@@ -65,6 +65,7 @@ library
     MischiefECS.Vec
     MischiefECS.World
     MischiefECS.World.Insert
+    MischiefECS.World.Modify
     MischiefECS.World.Query
     MischiefECS.World.Remove
     MischiefECS.World.Spawn
