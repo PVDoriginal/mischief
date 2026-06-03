@@ -8,79 +8,88 @@ import Data.Foldable
 import Data.IORef
 import Data.Map
 import Data.Map qualified as Map
-import GHC.Base (runRW#)
-import MischiefECS.App.Scheduler
+import MischiefECS.App.Scheduler (ScheduleType (..), Scheduler)
+import MischiefECS.App.Scheduler qualified as Scheduler
+import MischiefECS.App.Schedules
+import MischiefECS.App.Systems (Systems)
+import MischiefECS.App.Systems qualified as Systems
 import MischiefECS.Components
 import MischiefECS.Events
 import MischiefECS.World
 import MischiefECS.World.Insert
 import MischiefECS.World.Spawn
 
-data App = App {systems :: IORef (Map TypeRep [(SystemId, System (), IORef Tick)]), world :: World, schedules :: Schedules, systemCounter :: IORef Int}
+data App = App
+  { world :: World,
+    systems :: Systems,
+    scheduler :: Scheduler
+  }
 
 type Plugin = ReaderT App IO
 
 newApp :: [Plugin ()] -> IO App
 newApp plugins = do
   world <- newWorld
-  systems <- newIORef Map.empty
-  schedules <- newSchedules
-  systemCounter <- newIORef 0
+  systems <- Systems.newSystems
+  scheduler <- Scheduler.newScheduler
 
-  let app = App {systems, world, schedules, systemCounter}
+  let app = App {world, systems, scheduler}
 
-  for_ plugins $ \plugin ->
+  for_ (appInit : plugins) $ \plugin ->
     runReaderT plugin app
 
   return app
 
 runApp :: App -> IO ()
 runApp app = do
-  systemMap <- readIORef app.systems
+  startups <- Scheduler.getSchedules StartupSchedule app.scheduler
+  updates <- Scheduler.getSchedules UpdateSchedule app.scheduler
 
-  startups <- readIORef app.schedules.startup
-  updates <- readIORef app.schedules.update
-
-  runSchedules startups systemMap
-  runSchedulesLoop updates systemMap
+  runSchedules startups
+  runSchedulesLoop updates
   where
-    runSchedulesLoop schedules systemMap = do
+    runSchedulesLoop schedules = do
       forever $ do
-        runSchedules schedules systemMap
+        runSchedules schedules
         modifyIORef' app.world.frame (\(Frame x) -> Frame $ x + 1)
 
-    runSchedules schedules systemMap =
+    runSchedules schedules =
       for_ schedules $ \schedule -> do
-        case Map.lookup schedule systemMap of
-          Nothing -> return ()
-          Just systems -> do
-            for_ systems $ \(systemId, system, systemTick) -> do
-              lastSystemTick <- readIORef systemTick
-              currentSystemTick <- readIORef app.world.tick
-              writeIORef systemTick currentSystemTick
+        systems <- Scheduler.getScheduleSystems schedule app.scheduler
 
-              let world = setSystemId systemId $ setSystemTicks lastSystemTick currentSystemTick app.world
+        for_ (concat systems) $ \systemId -> do
+          (system, systemTick) <- Systems.getSystemData systemId app.systems
 
-              runReaderT system world
-              runReaderT flush world
-              runReaderT flushEvents world
-              runReaderT tick world
+          lastSystemTick <- readIORef systemTick
+          currentSystemTick <- readIORef app.world.tick
+          writeIORef systemTick currentSystemTick
+
+          let world = setSystemId systemId $ setSystemTicks lastSystemTick currentSystemTick app.world
+
+          runReaderT system world
+          runReaderT flush world
+          runReaderT flushEvents world
+          runReaderT tick world
 
 addSystem :: (Schedule s) => s -> System () -> Plugin ()
 addSystem schedule system = do
-  app <- ask
-  t0 <- liftIO $ newIORef $ Tick 0
-  t1 <- liftIO $ newIORef $ Tick 0
-  systemId <- liftIO $ readIORef app.systemCounter
-  liftIO $ modifyIORef' app.systemCounter (+ 1)
-
-  liftIO $ modifyIORef' app.systems (Map.alter (alterMap t0 t1 (SystemId systemId)) (typeOf schedule))
-  where
-    alterMap t0 _ systemId Nothing = Just [(systemId, system, t0)]
-    alterMap _ t1 systemId (Just l) = Just $ l ++ [(systemId, system, t1)]
+  App {systems, scheduler} <- ask
+  let label = ScheduleLabel $ typeOf schedule
+  systemId <- liftIO $ Systems.getSystemId label system systems
+  liftIO $ Scheduler.addSystem label systemId scheduler
 
 addSystems :: (Schedule s) => s -> [System ()] -> Plugin ()
 addSystems schedule systems = for_ systems (addSystem schedule)
+
+addSchedule :: (Schedule s) => s -> ScheduleType -> Plugin ()
+addSchedule schedule scheduleType = do
+  App {scheduler} <- ask
+  liftIO $ Scheduler.addSchedule (ScheduleLabel $ typeOf schedule) scheduleType scheduler
+
+addScheduleEdge :: (Schedule s1, Schedule s2) => (s1, s2) -> ScheduleType -> Plugin ()
+addScheduleEdge (s1, s2) scheduleType = do
+  App {scheduler} <- ask
+  liftIO $ Scheduler.addScheduleEdge (ScheduleLabel $ typeOf s1, ScheduleLabel $ typeOf s2) scheduleType scheduler
 
 addResource :: (Component r, Storage r ~ ResourceStorage) => r -> Plugin ()
 addResource r = do
@@ -104,3 +113,14 @@ newSchedules = do
   startup <- newIORef [typeOf Startup]
   update <- newIORef [typeOf PreUpdate, typeOf Update, typeOf PostUpdate]
   return Schedules {startup, update}
+
+appInit :: Plugin ()
+appInit = do
+  addSchedule Startup StartupSchedule
+
+  addSchedule PreUpdate UpdateSchedule
+  addSchedule Update UpdateSchedule
+  addSchedule PostUpdate UpdateSchedule
+
+  addScheduleEdge (PreUpdate, Update) UpdateSchedule
+  addScheduleEdge (Update, PostUpdate) UpdateSchedule

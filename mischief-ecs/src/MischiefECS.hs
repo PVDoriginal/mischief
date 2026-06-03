@@ -13,6 +13,7 @@ module MischiefECS
     module MischiefECS.World.Modify,
     module MischiefECS.World.Remove,
     module MischiefECS.App,
+    module MischiefECS.App.Schedules,
     module MischiefECS.Messages,
     module MischiefECS.SDL,
     module MischiefECS.Events,
@@ -20,6 +21,7 @@ module MischiefECS
 where
 
 import MischiefECS.App
+import MischiefECS.App.Schedules
 import MischiefECS.Components
 import MischiefECS.Components.Bundle
 import MischiefECS.Components.Default

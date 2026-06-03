@@ -1,60 +1,40 @@
 module Main where
 
+import Control.Monad
 import Control.Monad.IO.Class
 import Data.Foldable hiding (and, or)
+import Data.Maybe
 import MischiefECS
-import MischiefECS.App.Scheduler
-import MischiefECS.Graph
 
-newtype Msg = Msg String deriving (Message, Show)
+data C = C deriving (Component, Queryable)
 
 main :: IO ()
 main = do
-  -- app <- newApp [plugin]
-  -- runApp app
-  testGraph
+  app <- newApp [plugin]
+  runApp app
 
 plugin :: Plugin ()
 plugin = do
-  addMessage @Msg
-  addSystem Update writer
-  addSystem Update reader1
-  addSystem Update reader2
+  addSystem Startup $ do
+    _ <- spawn C
+    return ()
 
-writer :: System ()
-writer = do
-  Just msg <- single @(Messages Msg)
+  addSystems Update [s1, s2, s3]
 
-  writeMessage (Msg "M1") msg
-  writeMessage (Msg "M2") msg
-  writeMessage (Msg "M3") msg
+s1 :: System ()
+s1 = do
+  single <- single' @Entity $ added @C
+  when (isJust single) $ do
+    liftIO $ print "1"
 
-reader1 :: System ()
-reader1 = do
-  Just msg <- single @(Messages Msg)
-  messages <- readMessages msg
-  liftIO $ putStrLn $ "reader1: " ++ show messages
+s2 :: System ()
+s2 = do
+  single <- single' @Entity $ added @C
+  when (isJust single) $ do
+    liftIO $ print "2"
 
-reader2 :: System ()
-reader2 = do
-  Just msg <- single @(Messages Msg)
-  messages <- readMessages msg
-  liftIO $ putStrLn $ "reader2: " ++ show messages
-
-testGraph :: IO ()
-testGraph = do
-  graph <- newGraph
-  for_ [0 :: Int .. 10] $ \i -> addNode i graph
-
-  addEdge (0, 1) graph
-  addEdge (0, 2) graph
-  addEdge (0, 3) graph
-
-  addEdge (2, 4) graph
-  addEdge (2, 3) graph
-
-  addEdge (3, 10) graph
-
-  nodes <- getNodes graph
-  for_ nodes $ \nodes ->
-    print nodes
+s3 :: System ()
+s3 = do
+  single <- single' @Entity $ added @C
+  when (isJust single) $ do
+    liftIO $ print "3"

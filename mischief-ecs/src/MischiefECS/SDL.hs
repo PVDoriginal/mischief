@@ -3,7 +3,7 @@ module MischiefECS.SDL where
 import Control.Monad
 import Control.Monad.IO.Class
 import MischiefECS.App
-import MischiefECS.App.Scheduler
+import MischiefECS.App.Schedules
 import MischiefECS.Messages
 import MischiefECS.World
 import MischiefECS.World.Query
