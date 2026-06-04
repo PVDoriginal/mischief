@@ -13,14 +13,14 @@ module MischiefECS.Prelude
     Plugin,
     newApp,
     runApp,
-    addSystem,
+    addSystems,
     addPlugin,
     Name (Name),
     ComponentResult (value),
   )
 where
 
-import MischiefECS.App (Plugin, addPlugin, addSystem, newApp, runApp)
+import MischiefECS.App (Plugin, addPlugin, addSystems, newApp, runApp)
 import MischiefECS.Components (Component (required))
 import MischiefECS.Components.Default (require)
 import MischiefECS.Entities (Entity)

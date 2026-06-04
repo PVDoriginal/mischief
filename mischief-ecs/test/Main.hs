@@ -15,13 +15,17 @@ main = do
 
 plugin :: Plugin ()
 plugin = do
-  addSystem Startup $ do
+  addSystems Startup $ do
     _ <- spawn C
     return ()
 
-  addSystem PreUpdate s1
-  addSystem Update s2
-  addSystem PostUpdate s3
+  addSystems PreUpdate s1
+
+  addSystems Update $ s2 `before` s4
+  addSystems Update (s2, s4)
+  addSystems Update $ s2 `before` s4 `after` s1
+
+  addSystems PostUpdate s3
 
 s1 :: System ()
 s1 = do
@@ -40,3 +44,9 @@ s3 = do
   single <- single' @Entity $ added @C
   when (isJust single) $ do
     liftIO $ print "3"
+
+s4 :: System ()
+s4 = do
+  single <- single' @Entity $ added @C
+  when (isJust single) $ do
+    liftIO $ print "4"

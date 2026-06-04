@@ -53,6 +53,7 @@ library
     MischiefECS.App
     MischiefECS.App.Scheduler
     MischiefECS.App.Schedules
+    MischiefECS.App.SystemConfig 
     MischiefECS.App.Systems
     MischiefECS.Components
     MischiefECS.Components.Bundle

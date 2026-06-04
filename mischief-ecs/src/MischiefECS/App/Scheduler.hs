@@ -1,5 +1,6 @@
 module MischiefECS.App.Scheduler where
 
+import Data.Functor
 import Data.IORef
 import Data.Map (Map)
 import Data.Map qualified as Map
@@ -24,8 +25,8 @@ newScheduler = do
   return Scheduler {startup, update, systems}
 
 addSchedule :: ScheduleLabel -> ScheduleType -> Scheduler -> IO ()
-addSchedule label StartupSchedule Scheduler {startup} = Graph.addNode label startup
-addSchedule label UpdateSchedule Scheduler {update} = Graph.addNode label update
+addSchedule label StartupSchedule Scheduler {startup} = Graph.addNode label startup $> ()
+addSchedule label UpdateSchedule Scheduler {update} = Graph.addNode label update $> ()
 
 addScheduleEdge :: (ScheduleLabel, ScheduleLabel) -> ScheduleType -> Scheduler -> IO ()
 addScheduleEdge edge StartupSchedule Scheduler {startup} = Graph.addEdge edge startup
@@ -52,7 +53,7 @@ getScheduleGraph label Scheduler {systems} = do
 addSystem :: ScheduleLabel -> SystemId -> Scheduler -> IO ()
 addSystem label systemId scheduler = do
   graph <- getScheduleGraph label scheduler
-  Graph.addNode systemId graph
+  Graph.addNode systemId graph $> ()
 
 addSystemEdge :: ScheduleLabel -> (SystemId, SystemId) -> Scheduler -> IO ()
 addSystemEdge label edge scheduler = do

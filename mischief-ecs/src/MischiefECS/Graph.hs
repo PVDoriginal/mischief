@@ -21,20 +21,26 @@ newGraph = do
 
   return Graph {nodes, counter, edges}
 
-addNode :: (Ord a) => a -> Graph a -> IO ()
+addNode :: (Ord a) => a -> Graph a -> IO Int
 addNode node Graph {nodes, counter, edges} = do
   index <- readIORef counter
   modifyIORef' counter (+ 1)
   Vec.pushBack edges (Just node, [])
   modifyIORef' nodes (Map.insert node index)
+  return index
+
+getOrAddNode :: (Ord a) => a -> Graph a -> IO Int
+getOrAddNode node graph = do
+  nodes' <- readIORef graph.nodes
+  case Map.lookup node nodes' of
+    Just x -> return x
+    Nothing -> addNode node graph
 
 addEdge :: (Ord a) => (a, a) -> Graph a -> IO ()
-addEdge (a, b) Graph {nodes, edges} = do
-  nodes <- readIORef nodes
-
-  case (Map.lookup a nodes, Map.lookup b nodes) of
-    (Just a, Just b) -> Vec.modify_ edges b (\(x, l) -> (x, a : l))
-    _ -> print "Couldn't add edge!"
+addEdge (a, b) graph = do
+  a' <- getOrAddNode a graph
+  b' <- getOrAddNode b graph
+  Vec.modify_ graph.edges b' (\(x, l) -> (x, a' : l))
 
 takeRemoveableNodes :: IOVec (Maybe a, [Int]) -> IO [a]
 takeRemoveableNodes edges = do

@@ -11,6 +11,7 @@ import Data.Map qualified as Map
 import MischiefECS.App.Scheduler (ScheduleType (..), Scheduler)
 import MischiefECS.App.Scheduler qualified as Scheduler
 import MischiefECS.App.Schedules
+import MischiefECS.App.SystemConfig
 import MischiefECS.App.Systems (Systems)
 import MischiefECS.App.Systems qualified as Systems
 import MischiefECS.Components
@@ -71,15 +72,20 @@ runApp app = do
           runReaderT flushEvents world
           runReaderT tick world
 
-addSystem :: (Schedule s) => s -> System () -> Plugin ()
-addSystem schedule system = do
-  App {systems, scheduler} <- ask
+addSystems :: (Schedule sc, SystemConfig s) => sc -> s -> Plugin ()
+addSystems schedule system = do
+  app <- ask
   let label = ScheduleLabel $ typeOf schedule
-  systemId <- liftIO $ Systems.getSystemId label system systems
-  liftIO $ Scheduler.addSystem label systemId scheduler
+  let SystemConfigData {systems, edges} = systemConfigData system
 
-addSystems :: (Schedule s) => s -> [System ()] -> Plugin ()
-addSystems schedule systems = for_ systems (addSystem schedule)
+  for_ systems $ \system -> do
+    systemId <- liftIO $ Systems.getSystemId label system app.systems
+    liftIO $ Scheduler.addSystem label systemId app.scheduler
+
+  for_ edges $ \(s1, s2) -> do
+    id1 <- liftIO $ Systems.getSystemId label s1 app.systems
+    id2 <- liftIO $ Systems.getSystemId label s2 app.systems
+    liftIO $ Scheduler.addSystemEdge label (id1, id2) app.scheduler
 
 addSchedule :: (Schedule s) => s -> ScheduleType -> Plugin ()
 addSchedule schedule scheduleType = do
@@ -116,11 +122,11 @@ newSchedules = do
 
 appInit :: Plugin ()
 appInit = do
+  addScheduleEdge (PreUpdate, Update) UpdateSchedule
+  addScheduleEdge (Update, PostUpdate) UpdateSchedule
+
   addSchedule Startup StartupSchedule
 
   addSchedule PreUpdate UpdateSchedule
   addSchedule Update UpdateSchedule
   addSchedule PostUpdate UpdateSchedule
-
-  addScheduleEdge (PreUpdate, Update) UpdateSchedule
-  addScheduleEdge (Update, PostUpdate) UpdateSchedule

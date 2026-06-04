@@ -35,7 +35,7 @@ sdlPlugin = do
   addMessage @(SDLMessage SDLMouseButtonEvent)
   addMessage @(SDLMessage SDLMouseMotionEvent)
 
-  addSystem PreUpdate handleEvents
+  addSystems PreUpdate handleEvents
 
 handleEvents :: System ()
 handleEvents = do
