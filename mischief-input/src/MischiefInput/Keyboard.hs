@@ -70,7 +70,7 @@ keyboardPlugin :: Plugin ()
 keyboardPlugin = do
   addResource (def @Keys)
   addResource (def @HotKeys)
-  addSystem Update readEvents
+  addSystems Update readEvents
 
 readEvents :: System ()
 readEvents = do

@@ -21,10 +21,8 @@ plugin = do
 
   addSystems PreUpdate s1
 
-  addSystems Update $ s2 `before` s4
-  addSystems Update (s2, s4)
-  addSystems Update $ s2 `before` s4 `after` s1
-
+  addSystems Update $ s4 `before` s2
+  addSystems Update s2
   addSystems PostUpdate s3
 
 s1 :: System ()
