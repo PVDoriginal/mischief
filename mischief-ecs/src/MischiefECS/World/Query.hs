@@ -128,6 +128,26 @@ single' filter = do
     [x] -> return $ Just x
     _ -> return Nothing
 
+iter :: forall qd m w. (Queryable qd, MonadSystem w m) => (QueryOutput qd -> m ()) -> m ()
+iter system = do
+  res <- query @qd
+  for_ res system
+
+iter' :: forall qd m w. (Queryable qd, MonadSystem w m) => QueryFilter -> (QueryOutput qd -> m ()) -> m ()
+iter' filter system = do
+  res <- query' @qd filter
+  for_ res system
+
+parIter :: forall qd m w. (Queryable qd, MonadSystem w m) => (QueryOutput qd -> ParSystem ()) -> m ()
+parIter system = do
+  res <- query @qd
+  parIterList res $ \chunk -> for_ chunk system
+
+parIter' :: forall qd m w. (Queryable qd, MonadSystem w m) => QueryFilter -> (QueryOutput qd -> ParSystem ()) -> m ()
+parIter' filter system = do
+  res <- query' @qd filter
+  parIterList res $ \chunk -> for_ chunk system
+
 filterQuery :: forall qd. (Queryable qd) => World -> QueryFilter -> [ArchetypeId] -> [(Int, QueryOutput qd)] -> IO [(Int, QueryOutput qd)]
 filterQuery _ NoFilter _ x = return x
 filterQuery world (With x) _ outputs = do

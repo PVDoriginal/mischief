@@ -23,24 +23,28 @@ spawn bundle =
     let entity = Entity entityIndex
     liftIO $ modifyIORef world.entities.counter (+ 1)
 
-    let BundleData{elements, required} = addComponentToBundleData entity $ bundleData bundle
-
-    currentTick <- liftIO $ readIORef world.tick
-    bundle <- liftIO $ processBundleElements world ComponentTicks{changed = currentTick, added = currentTick} $ Set.union elements required
-
-    triggerInsertEvent bundle entity
-
-    archetypeId <- liftIO $ archetypeOfProcessedBundle world.archetypes bundle
-
-    entityPointer <- liftIO $ newIORef EntityPointer{archetypeId = ArchetypeId 0, rowIndex = 0}
-
-    liftIO $ insertEntityIntoTables bundle world.tables archetypeId (entity, entityPointer)
-
-    liftIO $ modifyIORef' world.entities.pointers $ Map.insert entity entityPointer
-
-    insertNew (Name (show entity)) entity
-
+    spawnEntity entity bundle
     return entity
+
+spawnEntity :: (Bundle b) => Entity -> b -> System ()
+spawnEntity entity bundle = do
+  world <- ask
+  let BundleData {elements, required} = addComponentToBundleData entity $ bundleData bundle
+
+  currentTick <- liftIO $ readIORef world.tick
+  bundle <- liftIO $ processBundleElements world ComponentTicks {changed = currentTick, added = currentTick} $ Set.union elements required
+
+  triggerInsertEvent bundle entity
+
+  archetypeId <- liftIO $ archetypeOfProcessedBundle world.archetypes bundle
+
+  entityPointer <- liftIO $ newIORef EntityPointer {archetypeId = ArchetypeId 0, rowIndex = 0}
+
+  liftIO $ insertEntityIntoTables bundle world.tables archetypeId (entity, entityPointer)
+
+  liftIO $ modifyIORef' world.entities.pointers $ Map.insert entity entityPointer
+
+  insertNew (Name (show entity)) entity
 
 spawnObserver :: forall e. (Event e) => Observer e -> System ()
 spawnObserver observer = do
