@@ -7,7 +7,6 @@ import Control.Monad.Trans.Reader (ReaderT (..))
 import Data.Data
 import Data.Foldable
 import Data.IORef
-
 -- import Data.Map
 -- import Data.Map qualified as Map
 import MischiefECS.App.Scheduler (ScheduleType (..), Scheduler)
@@ -19,13 +18,14 @@ import MischiefECS.App.Systems qualified as Systems
 import MischiefECS.Components
 import MischiefECS.Events
 import MischiefECS.World
+import MischiefECS.World.Defer
 import MischiefECS.World.Insert
 import MischiefECS.World.Spawn
 
 data App = App
-  { world :: World
-  , systems :: Systems
-  , scheduler :: Scheduler
+  { world :: World,
+    systems :: Systems,
+    scheduler :: Scheduler
   }
 
 newtype Plugin a = Plugin (ReaderT App IO a)
@@ -40,7 +40,7 @@ newApp plugins = do
   systems <- Systems.newSystems
   scheduler <- Scheduler.newScheduler
 
-  let app = App{world, systems, scheduler}
+  let app = App {world, systems, scheduler}
 
   for_ (appInit : plugins) $ \plugin ->
     runPlugin plugin app
@@ -54,35 +54,35 @@ runApp app = do
 
   runSchedules startups
   runSchedulesLoop updates
- where
-  runSchedulesLoop schedules = do
-    forever $ do
-      runSchedules schedules
-      modifyIORef' app.world.frame (\(Frame x) -> Frame $ x + 1)
+  where
+    runSchedulesLoop schedules = do
+      forever $ do
+        runSchedules schedules
+        modifyIORef' app.world.frame (\(Frame x) -> Frame $ x + 1)
 
-  runSchedules schedules =
-    for_ schedules $ \schedule -> do
-      systems <- Scheduler.getScheduleSystems schedule app.scheduler
+    runSchedules schedules =
+      for_ schedules $ \schedule -> do
+        systems <- Scheduler.getScheduleSystems schedule app.scheduler
 
-      for_ (concat systems) $ \systemId -> do
-        (system, systemTick) <- Systems.getSystemData systemId app.systems
+        for_ (concat systems) $ \systemId -> do
+          (system, systemTick) <- Systems.getSystemData systemId app.systems
 
-        lastSystemTick <- readIORef systemTick
-        currentSystemTick <- readIORef app.world.tick
-        writeIORef systemTick currentSystemTick
+          lastSystemTick <- readIORef systemTick
+          currentSystemTick <- readIORef app.world.tick
+          writeIORef systemTick currentSystemTick
 
-        let world = setSystemId systemId $ setSystemTicks lastSystemTick currentSystemTick app.world
+          let world = setSystemId systemId $ setSystemTicks lastSystemTick currentSystemTick app.world
 
-        runSystem system world
-        runSystem flush world
-        runSystem flushEvents world
-        runSystem tick world
+          runSystem system world
+          runSystem flush world
+          runSystem flushEvents world
+          runSystem tick world
 
 addSystems :: (Schedule sc, SystemConfig s) => sc -> s -> Plugin ()
 addSystems schedule system = do
   app <- ask
   let label = ScheduleLabel $ typeOf schedule
-  let SystemConfigData{systems, edges} = systemConfigData system
+  let SystemConfigData {systems, edges} = systemConfigData system
 
   for_ systems $ \system -> do
     systemId <- liftIO $ Systems.getSystemId label system app.systems
@@ -95,12 +95,12 @@ addSystems schedule system = do
 
 addSchedule :: (Schedule s) => s -> ScheduleType -> Plugin ()
 addSchedule schedule scheduleType = do
-  App{scheduler} <- ask
+  App {scheduler} <- ask
   liftIO $ Scheduler.addSchedule (ScheduleLabel $ typeOf schedule) scheduleType scheduler
 
 addScheduleEdge :: (Schedule s1, Schedule s2) => (s1, s2) -> ScheduleType -> Plugin ()
 addScheduleEdge (s1, s2) scheduleType = do
-  App{scheduler} <- ask
+  App {scheduler} <- ask
   liftIO $ Scheduler.addScheduleEdge (ScheduleLabel $ typeOf s1, ScheduleLabel $ typeOf s2) scheduleType scheduler
 
 addResource :: (Component r, Storage r ~ ResourceStorage) => r -> Plugin ()
@@ -124,7 +124,7 @@ newSchedules :: IO Schedules
 newSchedules = do
   startup <- newIORef [typeOf Startup]
   update <- newIORef [typeOf PreUpdate, typeOf Update, typeOf PostUpdate]
-  return Schedules{startup, update}
+  return Schedules {startup, update}
 
 appInit :: Plugin ()
 appInit = do

@@ -5,7 +5,7 @@ module MischiefECS.World.Query where
 
 import Control.Monad
 import Control.Monad.IO.Class
-import Control.Monad.Reader (MonadReader (..))
+import Control.Monad.Reader (MonadReader (..), asks)
 import Data.Data
 import Data.Foldable hiding (and)
 import Data.IORef
@@ -16,6 +16,7 @@ import MischiefECS.Components
 import MischiefECS.Entities
 import MischiefECS.Tables
 import MischiefECS.World
+import MischiefECS.World.Par
 import Prelude hiding (and)
 
 class QueryData qd where
@@ -97,9 +98,9 @@ runQuery query filter world =
     outputs' <- filterQuery @qd world otherFilter (map snd archetypes') (zip [0 ..] outputs)
     return $ map snd outputs'
 
-query :: forall qd. (Queryable qd) => System [QueryOutput qd]
+query :: forall qd m w. (Queryable qd, MonadSystem w m) => m [QueryOutput qd]
 query = do
-  world <- ask
+  world <- asks getWorld
   liftIO $ runQuery (Proxy @qd) NoFilter world
 
 entityQuery :: forall qd. (Queryable qd) => Entity -> System (Maybe (QueryOutput qd))
@@ -107,19 +108,19 @@ entityQuery entity = do
   world <- ask
   liftIO $ runQueryEntity (Proxy @qd) world entity
 
-query' :: forall qd. (Queryable qd) => QueryFilter -> System [QueryOutput qd]
+query' :: forall qd m w. (Queryable qd, MonadSystem w m) => QueryFilter -> m [QueryOutput qd]
 query' filter = do
-  world <- ask
+  world <- asks getWorld
   liftIO $ runQuery (Proxy @qd) filter world
 
-single :: forall qd. (Queryable qd) => System (Maybe (QueryOutput qd))
+single :: forall qd m w. (Queryable qd, MonadSystem w m) => m (Maybe (QueryOutput qd))
 single = do
   res <- query @qd
   case res of
     [x] -> return $ Just x
     _ -> return Nothing
 
-single' :: forall qd. (Queryable qd) => QueryFilter -> System (Maybe (QueryOutput qd))
+single' :: forall qd m w. (Queryable qd, MonadSystem w m) => QueryFilter -> m (Maybe (QueryOutput qd))
 single' filter = do
   res <- query' @qd filter
   case res of
@@ -250,18 +251,18 @@ extractArchetypeFilters (Changed x) = (Changed x, NoFilter)
 extractArchetypeFilters (Added x) = (Added x, NoFilter)
 extractArchetypeFilters (Without x) = (NoFilter, Without x)
 extractArchetypeFilters (a `And` b) = (filter1 `And` filter2, res1 `And` res2)
- where
-  (filter1, res1) = extractArchetypeFilters a
-  (filter2, res2) = extractArchetypeFilters b
+  where
+    (filter1, res1) = extractArchetypeFilters a
+    (filter2, res2) = extractArchetypeFilters b
 extractArchetypeFilters (a `Or` b) =
   if isArchetypeFilter a && isArchetypeFilter b
     then
       (filter1 `Or` filter2, res1 `Or` res2)
     else
       (a `Or` b, NoFilter)
- where
-  (filter1, res1) = extractArchetypeFilters a
-  (filter2, res2) = extractArchetypeFilters b
+  where
+    (filter1, res1) = extractArchetypeFilters a
+    (filter2, res2) = extractArchetypeFilters b
 
 isArchetypeFilter :: QueryFilter -> Bool
 isArchetypeFilter NoFilter = True
