@@ -1,11 +1,13 @@
 module MischiefECS.Entities where
 
+import Control.Concurrent
 import Data.IORef
-import Data.Map
+import Data.Map (Map)
 import Data.Map qualified as Map
+import GHC.Conc
 import MischiefECS.Components
 
-newtype Entity = Entity {id :: Int} deriving (Show, Eq, Ord)
+data Entity = Entity {id :: Int, gen :: Int} deriving (Show, Eq, Ord)
 
 instance Component Entity
 
@@ -20,15 +22,31 @@ decreaseRowIndex EntityPointer {archetypeId, rowIndex} = EntityPointer {archetyp
 
 data Entities = Entities
   { pointers :: IORef (Map Entity (IORef EntityPointer)),
-    counter :: IORef Int
+    counter :: TVar EntityCounter
   }
+
+data EntityCounter = EntityCounter {counter :: Int, free :: [Entity]}
+
+getNewEntity :: Entities -> IO Entity
+getNewEntity entities = atomically $ do
+  EntityCounter {counter, free} <- readTVar entities.counter
+  case free of
+    [] -> do
+      writeTVar entities.counter EntityCounter {counter = counter + 1, free}
+      return $ Entity {id = counter, gen = 0}
+    (Entity {id, gen} : xs) -> do
+      writeTVar entities.counter EntityCounter {counter = counter, free = xs}
+      return $ Entity {id, gen = gen + 1}
 
 removeEntity :: Entity -> Entities -> IO ()
 removeEntity entity entities = do
   modifyIORef' entities.pointers (Map.delete entity)
+  atomically $ do
+    EntityCounter {counter, free} <- readTVar entities.counter
+    writeTVar entities.counter EntityCounter {counter, free = entity : free}
 
 emptyEntities :: IO Entities
 emptyEntities = do
-  map <- newIORef empty
-  counter <- newIORef 0
+  map <- newIORef Map.empty
+  counter <- newTVarIO EntityCounter {counter = 0, free = []}
   return $ Entities map counter

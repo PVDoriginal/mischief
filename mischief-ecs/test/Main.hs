@@ -17,14 +17,23 @@ main = do
 plugin :: Plugin ()
 plugin = do
   addSystems Startup setup
+  addSystems Update update
 
 setup :: System ()
 setup = do
   par
-    [ for_ [0 .. 100 :: Int] $ \i -> do
-        liftIO $ threadDelay 10000
-        liftIO $ print i,
-      for_ [0 .. 100 :: Int] $ \i -> do
-        liftIO $ threadDelay 10000
-        liftIO $ print i
+    [ do
+        _ <- spawnDefer C
+        return (),
+      do
+        _ <- spawnDefer C
+        return (),
+      do
+        _ <- spawnDefer C
+        return ()
     ]
+
+update :: System ()
+update = do
+  iter' @Entity (added @C) $ \entity -> do
+    liftIO $ print entity

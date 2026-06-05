@@ -18,12 +18,11 @@ par !parSystems = do
   x <- forM parSystems $ \(ParSystem p) -> do
     systems <- liftIO $ newIORef []
     id <- liftIO $ async $ runReaderT p ParWorld {world, deferred = systems}
-    -- liftIO $ print "started a thread!"
     return (id, systems)
 
   for_ x $ \(id, systems) -> do
-    systems <- liftIO $ readIORef systems
     liftIO $ wait id
+    systems <- liftIO $ readIORef systems
     liftIO $ modifyIORef' world.deferred (++ systems)
 
 parIterList :: (MonadSystem w m) => [a] -> ([a] -> ParSystem ()) -> m ()

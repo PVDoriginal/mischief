@@ -20,20 +20,19 @@ import MischiefECS.Tables
 import MischiefECS.Vec qualified as Vec
 import MischiefECS.World
 
-{- | Insert a bundle of components on an Entity.
-
-If the entity already contains these components, their values will be
-updated in-place instead of causing an archetype change.
--}
+-- | Insert a bundle of components on an Entity.
+--
+-- If the entity already contains these components, their values will be
+-- updated in-place instead of causing an archetype change.
 insert :: forall b. (Bundle b) => b -> Entity -> System ()
 insert bundle entity =
   do
     world <- ask
-    let BundleData{elements, required} = bundleData bundle
+    let BundleData {elements, required} = bundleData bundle
 
     currentTick <- liftIO $ readIORef world.tick
 
-    bundleData <- liftIO $ processBundleElements world ComponentTicks{changed = currentTick, added = currentTick} elements
+    bundleData <- liftIO $ processBundleElements world ComponentTicks {changed = currentTick, added = currentTick} elements
     let newComponents = sort $ map (\x -> x.id) bundleData.elements
 
     entityPointers <- liftIO $ readIORef world.entities.pointers
@@ -78,21 +77,20 @@ insert bundle entity =
                     liftIO $ replaceComponentsIntoTable bundleData Nothing newPointer newTable
 
     triggerInsertEvent bundleData entity
-    unless (null required) $ insertNew (BundleData{elements = required, required = Set.empty}) entity
+    unless (null required) $ insertNew (BundleData {elements = required, required = Set.empty}) entity
 
-{- | Insert a bundle of components on an Entity.
-
-Only the components that the entity doesn't already have will be inserted, and the rest ignored.
--}
+-- | Insert a bundle of components on an Entity.
+--
+-- Only the components that the entity doesn't already have will be inserted, and the rest ignored.
 insertNew :: forall b. (Bundle b) => b -> Entity -> System ()
 insertNew bundle entity =
   do
     world <- ask
-    let BundleData{elements, required} = bundleData bundle
+    let BundleData {elements, required} = bundleData bundle
 
     currentTick <- liftIO $ readIORef world.tick
 
-    bundleData <- liftIO $ processBundleElements world ComponentTicks{changed = currentTick, added = currentTick} (Set.union elements required)
+    bundleData <- liftIO $ processBundleElements world ComponentTicks {changed = currentTick, added = currentTick} (Set.union elements required)
 
     entityPointers <- liftIO $ readIORef world.entities.pointers
     case Map.lookup entity entityPointers of
@@ -153,25 +151,23 @@ insertResource r =
           Nothing -> undefined
           Just table -> do
             let bundleData = bundleDataRes r
-            bundle <- liftIO $ processBundleElements world ComponentTicks{added = currentTick, changed = currentTick} bundleData.elements
-            liftIO $ replaceComponentsIntoTable bundle (Just currentTick) EntityPointer{archetypeId = archetype, rowIndex = 0} table
+            bundle <- liftIO $ processBundleElements world ComponentTicks {added = currentTick, changed = currentTick} bundleData.elements
+            liftIO $ replaceComponentsIntoTable bundle (Just currentTick) EntityPointer {archetypeId = archetype, rowIndex = 0} table
 
             (entity, _) <- Vec.read table.entities 0
             triggerInsertEvent bundle entity
 
             liftIO $ writeIORef resourceEntity $ Just entity
       Nothing -> do
-        entityIndex <- liftIO $ readIORef world.entities.counter
-        let entity = Entity entityIndex
-        liftIO $ modifyIORef world.entities.counter (+ 1)
+        entity <- liftIO $ getNewEntity world.entities
         liftIO $ writeIORef resourceEntity $ Just entity
 
-        let BundleData{elements} = addComponentToBundleData (Name "Resource") $ addComponentToBundleData entity $ bundleDataRes r
+        let BundleData {elements} = addComponentToBundleData (Name "Resource") $ addComponentToBundleData entity $ bundleDataRes r
 
-        bundle <- liftIO $ processBundleElements world ComponentTicks{changed = currentTick, added = currentTick} elements
+        bundle <- liftIO $ processBundleElements world ComponentTicks {changed = currentTick, added = currentTick} elements
 
         archetypeId <- liftIO $ archetypeOfProcessedBundle world.archetypes bundle
-        entityPointer <- liftIO $ newIORef EntityPointer{archetypeId = ArchetypeId 0, rowIndex = 0}
+        entityPointer <- liftIO $ newIORef EntityPointer {archetypeId = ArchetypeId 0, rowIndex = 0}
 
         liftIO $ insertResourceIntoTables bundle currentTick world.tables archetypeId (entity, entityPointer)
 
@@ -186,24 +182,22 @@ insertResource r =
       Just entity -> do
         -- runEvent $ eraseEvent $ OnInsert @r entity
 
-        let BundleData{required} = bundleDataRes r
-        unless (null required) $ insertNew (BundleData{elements = required, required = Set.empty}) entity
+        let BundleData {required} = bundleDataRes r
+        unless (null required) $ insertNew (BundleData {elements = required, required = Set.empty}) entity
 
 -- applySystem (Proxy @b) $ triggerInsertEvent entity
 
-{- | Set the value of a component obtained as query result.
-
-Note that the local 'ComponentResult' won't be mutated.
-You'll need to query the component again or use 'get' to update the current result.
--}
+-- | Set the value of a component obtained as query result.
+--
+-- Note that the local 'ComponentResult' won't be mutated.
+-- You'll need to query the component again or use 'get' to update the current result.
 set :: (Bundle c) => ComponentResult c -> c -> System ()
 set !result !newValue = MischiefECS.World.Insert.insert newValue result.entity
 
-{- | Update the value of a 'ComponentResult'.
-
-Useful if you've done changed to the component and want to grab the live value
-without re-querying.
--}
+-- | Update the value of a 'ComponentResult'.
+--
+-- Useful if you've done changed to the component and want to grab the live value
+-- without re-querying.
 get :: ComponentResult c -> System (ComponentResult c)
 get = undefined
 
