@@ -1,11 +1,11 @@
 module MischiefECS.World.Defer where
 
 import Control.Monad.IO.Class
-import Control.Monad.Trans.Reader
+import Control.Monad.Reader
 import Data.Functor
 import Data.IORef
 import MischiefECS.World
-import MischiefECS.World.Par
+import MischiefECS.World.Internal
 
 class Defer s where
   -- | Defer a command to be ran after the current 'System' is finished,
@@ -21,8 +21,8 @@ instance Defer (System ()) where
 instance Defer (ParSystem ()) where
   defer :: System a -> ParSystem ()
   defer !system = do
-    (_, systems) <- ask
-    liftIO $ modifyIORef' systems.systems (++ [system $> ()])
+    ParWorld {deferred} <- ask
+    liftIO $ modifyIORef' deferred (++ [system $> ()])
 
 -- | Flush the current list of deferred commands.
 flush :: System ()

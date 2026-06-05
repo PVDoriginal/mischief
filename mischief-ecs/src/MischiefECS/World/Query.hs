@@ -16,6 +16,7 @@ import MischiefECS.Components
 import MischiefECS.Entities
 import MischiefECS.Tables
 import MischiefECS.World
+import MischiefECS.World.Internal
 import MischiefECS.World.Par
 import Prelude hiding (and)
 

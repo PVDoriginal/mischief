@@ -67,6 +67,7 @@ library
     MischiefECS.Tables
     MischiefECS.Vec
     MischiefECS.World
+    MischiefECS.World.Defer
     MischiefECS.World.Insert
     MischiefECS.World.Modify
     MischiefECS.World.Par
@@ -101,6 +102,7 @@ library
   -- Other library packages from which modules are imported.
   build-depends:
     -- sdl3-hs,
+    async,
     base ^>=4.21.0.0,
     binary,
     bytestring,

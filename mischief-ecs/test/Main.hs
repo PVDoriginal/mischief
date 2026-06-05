@@ -1,5 +1,6 @@
 module Main where
 
+import Control.Concurrent
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.Foldable hiding (and, or)
@@ -15,36 +16,15 @@ main = do
 
 plugin :: Plugin ()
 plugin = do
-  addSystems Startup $ do
-    _ <- spawn C
-    return ()
+  addSystems Startup setup
 
-  addSystems PreUpdate s1
-
-  addSystems Update $ s4 `before` s2
-  addSystems Update s2
-  addSystems PostUpdate s3
-
-s1 :: System ()
-s1 = do
-  single <- single' @Entity $ added @C
-  when (isJust single) $ do
-    liftIO $ print "1"
-
-s2 :: System ()
-s2 = do
-  single <- single' @Entity $ added @C
-  when (isJust single) $ do
-    liftIO $ print "2"
-
-s3 :: System ()
-s3 = do
-  single <- single' @Entity $ added @C
-  when (isJust single) $ do
-    liftIO $ print "3"
-
-s4 :: System ()
-s4 = do
-  single <- single' @Entity $ added @C
-  when (isJust single) $ do
-    liftIO $ print "4"
+setup :: System ()
+setup = do
+  par
+    [ for_ [0 .. 100 :: Int] $ \i -> do
+        liftIO $ threadDelay 10000
+        liftIO $ print i,
+      for_ [0 .. 100 :: Int] $ \i -> do
+        liftIO $ threadDelay 10000
+        liftIO $ print i
+    ]
