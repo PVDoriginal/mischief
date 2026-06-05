@@ -21,7 +21,9 @@ initSdl = do
   _ <- sdlCreateWindow "SDL3 Haskell Event Loop" 800 600 [SDL_WINDOW_RESIZABLE]
   return ()
 
-newtype SDLMessage e = SDLMessage e deriving (Message, Show)
+newtype SDLMessage e = SDLMessage e
+  deriving anyclass (Message)
+  deriving newtype (Show)
 
 data X = X
 

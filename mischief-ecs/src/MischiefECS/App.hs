@@ -2,12 +2,14 @@ module MischiefECS.App where
 
 import Control.Monad (forever)
 import Control.Monad.IO.Class (MonadIO (liftIO))
-import Control.Monad.Trans.Reader
+import Control.Monad.Reader (MonadReader (..))
+import Control.Monad.Trans.Reader (ReaderT (..))
 import Data.Data
 import Data.Foldable
 import Data.IORef
-import Data.Map
-import Data.Map qualified as Map
+
+-- import Data.Map
+-- import Data.Map qualified as Map
 import MischiefECS.App.Scheduler (ScheduleType (..), Scheduler)
 import MischiefECS.App.Scheduler qualified as Scheduler
 import MischiefECS.App.Schedules
@@ -21,12 +23,16 @@ import MischiefECS.World.Insert
 import MischiefECS.World.Spawn
 
 data App = App
-  { world :: World,
-    systems :: Systems,
-    scheduler :: Scheduler
+  { world :: World
+  , systems :: Systems
+  , scheduler :: Scheduler
   }
 
-type Plugin = ReaderT App IO
+newtype Plugin a = Plugin (ReaderT App IO a)
+  deriving newtype (Functor, Applicative, Monad, MonadReader App, MonadIO)
+
+runPlugin :: Plugin a -> App -> IO a
+runPlugin (Plugin r) = runReaderT r
 
 newApp :: [Plugin ()] -> IO App
 newApp plugins = do
@@ -34,10 +40,10 @@ newApp plugins = do
   systems <- Systems.newSystems
   scheduler <- Scheduler.newScheduler
 
-  let app = App {world, systems, scheduler}
+  let app = App{world, systems, scheduler}
 
   for_ (appInit : plugins) $ \plugin ->
-    runReaderT plugin app
+    runPlugin plugin app
 
   return app
 
@@ -48,35 +54,35 @@ runApp app = do
 
   runSchedules startups
   runSchedulesLoop updates
-  where
-    runSchedulesLoop schedules = do
-      forever $ do
-        runSchedules schedules
-        modifyIORef' app.world.frame (\(Frame x) -> Frame $ x + 1)
+ where
+  runSchedulesLoop schedules = do
+    forever $ do
+      runSchedules schedules
+      modifyIORef' app.world.frame (\(Frame x) -> Frame $ x + 1)
 
-    runSchedules schedules =
-      for_ schedules $ \schedule -> do
-        systems <- Scheduler.getScheduleSystems schedule app.scheduler
+  runSchedules schedules =
+    for_ schedules $ \schedule -> do
+      systems <- Scheduler.getScheduleSystems schedule app.scheduler
 
-        for_ (concat systems) $ \systemId -> do
-          (system, systemTick) <- Systems.getSystemData systemId app.systems
+      for_ (concat systems) $ \systemId -> do
+        (system, systemTick) <- Systems.getSystemData systemId app.systems
 
-          lastSystemTick <- readIORef systemTick
-          currentSystemTick <- readIORef app.world.tick
-          writeIORef systemTick currentSystemTick
+        lastSystemTick <- readIORef systemTick
+        currentSystemTick <- readIORef app.world.tick
+        writeIORef systemTick currentSystemTick
 
-          let world = setSystemId systemId $ setSystemTicks lastSystemTick currentSystemTick app.world
+        let world = setSystemId systemId $ setSystemTicks lastSystemTick currentSystemTick app.world
 
-          runReaderT system world
-          runReaderT flush world
-          runReaderT flushEvents world
-          runReaderT tick world
+        runSystem system world
+        runSystem flush world
+        runSystem flushEvents world
+        runSystem tick world
 
 addSystems :: (Schedule sc, SystemConfig s) => sc -> s -> Plugin ()
 addSystems schedule system = do
   app <- ask
   let label = ScheduleLabel $ typeOf schedule
-  let SystemConfigData {systems, edges} = systemConfigData system
+  let SystemConfigData{systems, edges} = systemConfigData system
 
   for_ systems $ \system -> do
     systemId <- liftIO $ Systems.getSystemId label system app.systems
@@ -89,28 +95,28 @@ addSystems schedule system = do
 
 addSchedule :: (Schedule s) => s -> ScheduleType -> Plugin ()
 addSchedule schedule scheduleType = do
-  App {scheduler} <- ask
+  App{scheduler} <- ask
   liftIO $ Scheduler.addSchedule (ScheduleLabel $ typeOf schedule) scheduleType scheduler
 
 addScheduleEdge :: (Schedule s1, Schedule s2) => (s1, s2) -> ScheduleType -> Plugin ()
 addScheduleEdge (s1, s2) scheduleType = do
-  App {scheduler} <- ask
+  App{scheduler} <- ask
   liftIO $ Scheduler.addScheduleEdge (ScheduleLabel $ typeOf s1, ScheduleLabel $ typeOf s2) scheduleType scheduler
 
 addResource :: (Component r, Storage r ~ ResourceStorage) => r -> Plugin ()
 addResource r = do
   app <- ask
-  liftIO $ runReaderT (insertResource r) app.world
+  liftIO $ runSystem (insertResource r) app.world
 
 addObserver :: (Event e) => (e -> System ()) -> Plugin ()
 addObserver observer = do
   app <- ask
-  liftIO $ runReaderT (spawnObserver $ Observer observer) app.world
+  liftIO $ runSystem (spawnObserver $ Observer observer) app.world
 
 addPlugin :: Plugin () -> Plugin ()
 addPlugin plugin = do
   app <- ask
-  liftIO $ runReaderT plugin app
+  liftIO $ runPlugin plugin app
 
 data Schedules = Schedules {startup :: IORef [TypeRep], update :: IORef [TypeRep]}
 
@@ -118,7 +124,7 @@ newSchedules :: IO Schedules
 newSchedules = do
   startup <- newIORef [typeOf Startup]
   update <- newIORef [typeOf PreUpdate, typeOf Update, typeOf PostUpdate]
-  return Schedules {startup, update}
+  return Schedules{startup, update}
 
 appInit :: Plugin ()
 appInit = do

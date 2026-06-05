@@ -53,7 +53,7 @@ library
     MischiefECS.App
     MischiefECS.App.Scheduler
     MischiefECS.App.Schedules
-    MischiefECS.App.SystemConfig 
+    MischiefECS.App.SystemConfig
     MischiefECS.App.Systems
     MischiefECS.Components
     MischiefECS.Components.Bundle
@@ -89,7 +89,6 @@ library
     ImportQualifiedPost
     MagicHash
     NoFieldSelectors
-    NoGeneralizedNewtypeDeriving
     OverloadedRecordDot
     RequiredTypeArguments
     TemplateHaskell
@@ -105,6 +104,7 @@ library
     bytestring,
     containers,
     data-default,
+    mtl,
     primitive,
     sdl3,
     transformers,

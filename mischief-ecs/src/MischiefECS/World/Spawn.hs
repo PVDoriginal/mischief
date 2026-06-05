@@ -1,7 +1,7 @@
 module MischiefECS.World.Spawn where
 
 import Control.Monad.IO.Class
-import Control.Monad.Trans.Reader
+import Control.Monad.Reader (MonadReader (..))
 import Data.IORef
 import Data.Map qualified as Map
 import Data.Set qualified as Set
@@ -23,16 +23,16 @@ spawn bundle =
     let entity = Entity entityIndex
     liftIO $ modifyIORef world.entities.counter (+ 1)
 
-    let BundleData {elements, required} = addComponentToBundleData entity $ bundleData bundle
+    let BundleData{elements, required} = addComponentToBundleData entity $ bundleData bundle
 
     currentTick <- liftIO $ readIORef world.tick
-    bundle <- liftIO $ processBundleElements world ComponentTicks {changed = currentTick, added = currentTick} $ Set.union elements required
+    bundle <- liftIO $ processBundleElements world ComponentTicks{changed = currentTick, added = currentTick} $ Set.union elements required
 
     triggerInsertEvent bundle entity
 
     archetypeId <- liftIO $ archetypeOfProcessedBundle world.archetypes bundle
 
-    entityPointer <- liftIO $ newIORef EntityPointer {archetypeId = ArchetypeId 0, rowIndex = 0}
+    entityPointer <- liftIO $ newIORef EntityPointer{archetypeId = ArchetypeId 0, rowIndex = 0}
 
     liftIO $ insertEntityIntoTables bundle world.tables archetypeId (entity, entityPointer)
 

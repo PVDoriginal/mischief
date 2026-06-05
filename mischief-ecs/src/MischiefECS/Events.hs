@@ -1,7 +1,7 @@
 module MischiefECS.Events where
 
 import Control.Monad.IO.Class
-import Control.Monad.Trans.Reader (ask)
+import Control.Monad.Reader (MonadReader (..))
 import Data.Data (Typeable)
 import Data.Foldable (for_)
 import Data.IORef (modifyIORef', readIORef, writeIORef)
@@ -14,7 +14,7 @@ import MischiefECS.World.Query
 
 data EventProxy e = EventProxy deriving (Component, Queryable)
 
-newtype Observer e = Observer (e -> System ()) deriving (Component, Queryable)
+newtype Observer e = Observer (e -> System ()) deriving anyclass (Component, Queryable)
 
 class (Typeable e) => Event e where
   eraseEvent :: e -> ErasedEvent
@@ -39,6 +39,6 @@ runEvent (ErasedEvent (event :: e)) = do
     let Observer f = observer.value
     f event
 
-newtype OnInsert c = OnInsert Entity deriving (Event)
+newtype OnInsert c = OnInsert Entity deriving anyclass (Event)
 
-newtype OnRemove c = OnRemove Entity deriving (Event)
+newtype OnRemove c = OnRemove Entity deriving anyclass (Event)

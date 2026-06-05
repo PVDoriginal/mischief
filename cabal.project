@@ -2,7 +2,7 @@ packages:
   ./mischief-ecs
   ./mischief-input 
 
-with-compiler: ghc-9.12.2
+with-compiler: ghc-9.12
 
 package mischief-ecs
   optimization: 2

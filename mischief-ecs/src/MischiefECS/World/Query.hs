@@ -1,21 +1,18 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
 module MischiefECS.World.Query where
 
 import Control.Monad
 import Control.Monad.IO.Class
-import Control.Monad.Trans.Reader
+import Control.Monad.Reader (MonadReader (..))
 import Data.Data
 import Data.Foldable hiding (and)
 import Data.IORef
-import Data.Map (Map)
 import Data.Map qualified as Map
-import Data.Proxy (Proxy (..))
 import Data.Set (Set)
 import Data.Set qualified as Set
-import Data.Typeable (TypeRep, Typeable, typeRep)
 import MischiefECS.Components
-import MischiefECS.Components.Bundle
 import MischiefECS.Entities
 import MischiefECS.Tables
 import MischiefECS.World
@@ -100,36 +97,36 @@ runQuery query filter world =
     outputs' <- filterQuery @qd world otherFilter (map snd archetypes') (zip [0 ..] outputs)
     return $ map snd outputs'
 
-query :: forall qd r. (Queryable qd) => System [QueryOutput qd]
+query :: forall qd. (Queryable qd) => System [QueryOutput qd]
 query = do
   world <- ask
   liftIO $ runQuery (Proxy @qd) NoFilter world
 
-entityQuery :: forall qd r. (Queryable qd) => Entity -> System (Maybe (QueryOutput qd))
+entityQuery :: forall qd. (Queryable qd) => Entity -> System (Maybe (QueryOutput qd))
 entityQuery entity = do
   world <- ask
   liftIO $ runQueryEntity (Proxy @qd) world entity
 
-query' :: forall qd r. (Queryable qd) => QueryFilter -> System [QueryOutput qd]
+query' :: forall qd. (Queryable qd) => QueryFilter -> System [QueryOutput qd]
 query' filter = do
   world <- ask
   liftIO $ runQuery (Proxy @qd) filter world
 
-single :: forall qd r. (Queryable qd) => System (Maybe (QueryOutput qd))
+single :: forall qd. (Queryable qd) => System (Maybe (QueryOutput qd))
 single = do
   res <- query @qd
   case res of
     [x] -> return $ Just x
     _ -> return Nothing
 
-single' :: forall qd r. (Queryable qd) => QueryFilter -> System (Maybe (QueryOutput qd))
+single' :: forall qd. (Queryable qd) => QueryFilter -> System (Maybe (QueryOutput qd))
 single' filter = do
   res <- query' @qd filter
   case res of
     [x] -> return $ Just x
     _ -> return Nothing
 
-filterQuery :: forall qd r. (Queryable qd) => World -> QueryFilter -> [ArchetypeId] -> [(Int, QueryOutput qd)] -> IO [(Int, QueryOutput qd)]
+filterQuery :: forall qd. (Queryable qd) => World -> QueryFilter -> [ArchetypeId] -> [(Int, QueryOutput qd)] -> IO [(Int, QueryOutput qd)]
 filterQuery _ NoFilter _ x = return x
 filterQuery world (With x) _ outputs = do
   component <- liftIO $ getComponentId x world.components
@@ -253,18 +250,18 @@ extractArchetypeFilters (Changed x) = (Changed x, NoFilter)
 extractArchetypeFilters (Added x) = (Added x, NoFilter)
 extractArchetypeFilters (Without x) = (NoFilter, Without x)
 extractArchetypeFilters (a `And` b) = (filter1 `And` filter2, res1 `And` res2)
-  where
-    (filter1, res1) = extractArchetypeFilters a
-    (filter2, res2) = extractArchetypeFilters b
+ where
+  (filter1, res1) = extractArchetypeFilters a
+  (filter2, res2) = extractArchetypeFilters b
 extractArchetypeFilters (a `Or` b) =
   if isArchetypeFilter a && isArchetypeFilter b
     then
       (filter1 `Or` filter2, res1 `Or` res2)
     else
       (a `Or` b, NoFilter)
-  where
-    (filter1, res1) = extractArchetypeFilters a
-    (filter2, res2) = extractArchetypeFilters b
+ where
+  (filter1, res1) = extractArchetypeFilters a
+  (filter2, res2) = extractArchetypeFilters b
 
 isArchetypeFilter :: QueryFilter -> Bool
 isArchetypeFilter NoFilter = True
