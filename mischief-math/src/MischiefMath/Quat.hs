@@ -2,9 +2,9 @@ module MischiefMath.Quat where
 
 import Data.Default (Default (def))
 import Linear (Quaternion (Quaternion), V3 (V3), axisAngle, fromQuaternion)
-import MischiefMath.Mat (Euler, Mat3 (Mat3))
+import MischiefMath.Mat (Euler (Euler, x, y, z), Mat3 (Mat3))
 import MischiefMath.Mat qualified as Mat
-import MischiefMath.Vec (Dir3 (inner))
+import MischiefMath.Vec (Dir3 (inner), Vec3, vec3)
 
 newtype Quat = Quat (Quaternion Float) deriving newtype (Show, Eq, Ord, Num)
 
@@ -34,6 +34,12 @@ fromRotationZ :: Float -> Quat
 fromRotationZ angle =
   let (s, c) = (sin angle, cos angle)
    in fromXYZW (0, 0, s, c)
+
+fromAngles :: Vec3 -> Quat
+fromAngles vec3 = rotateX vec3.x $ rotateY vec3.y $ rotateZ vec3.z identity
+
+fromEuler :: Euler -> Quat
+fromEuler Euler {x, y, z} = fromAngles $ vec3 (x, y, z)
 
 rotateAxis :: Dir3 -> Float -> Quat -> Quat
 rotateAxis dir angle quat = quat * fromAxisAngle dir angle
