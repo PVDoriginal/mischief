@@ -8,6 +8,8 @@ class (Typeable s) => Schedule s
 
 data Startup = Startup deriving (Schedule)
 
+data First = First deriving (Schedule)
+
 data Update = Update deriving (Schedule)
 
 data PreUpdate = PreUpdate deriving (Schedule)

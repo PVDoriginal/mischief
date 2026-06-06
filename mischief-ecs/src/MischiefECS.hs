@@ -20,6 +20,7 @@ module MischiefECS
     module MischiefECS.Messages,
     module MischiefECS.SDL,
     module MischiefECS.Events,
+    module MischiefECS.Time,
   )
 where
 
@@ -34,6 +35,7 @@ import MischiefECS.Events
 import MischiefECS.Messages
 import MischiefECS.SDL
 import MischiefECS.Tables
+import MischiefECS.Time
 import MischiefECS.World
 import MischiefECS.World.Defer
 import MischiefECS.World.Insert

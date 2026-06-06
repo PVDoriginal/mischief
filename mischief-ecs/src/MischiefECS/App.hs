@@ -128,11 +128,13 @@ newSchedules = do
 
 appInit :: Plugin ()
 appInit = do
-  addScheduleEdge (PreUpdate, Update) UpdateSchedule
-  addScheduleEdge (Update, PostUpdate) UpdateSchedule
-
   addSchedule Startup StartupSchedule
 
+  addSchedule First UpdateSchedule
   addSchedule PreUpdate UpdateSchedule
   addSchedule Update UpdateSchedule
   addSchedule PostUpdate UpdateSchedule
+
+  addScheduleEdge (First, PreUpdate) UpdateSchedule
+  addScheduleEdge (PreUpdate, Update) UpdateSchedule
+  addScheduleEdge (Update, PostUpdate) UpdateSchedule

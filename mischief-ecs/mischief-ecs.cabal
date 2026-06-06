@@ -65,6 +65,7 @@ library
     MischiefECS.Prelude
     MischiefECS.SDL
     MischiefECS.Tables
+    MischiefECS.Time
     MischiefECS.Vec
     MischiefECS.World
     MischiefECS.World.Defer
@@ -101,16 +102,17 @@ library
   -- other-extensions:
   -- Other library packages from which modules are imported.
   build-depends:
-    -- sdl3-hs,
     async,
     base ^>=4.21.0.0,
     binary,
     bytestring,
+    clock,
     containers,
     data-default,
     mtl,
     primitive,
     sdl3,
+    time,
     transformers,
     vector,
 

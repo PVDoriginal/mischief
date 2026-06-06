@@ -11,30 +11,14 @@ data C = C deriving (Component, Queryable)
 
 main :: IO ()
 main = do
-  app <- newApp [plugin]
+  app <- newApp [timePlugin, plugin]
   runApp app
 
 plugin :: Plugin ()
 plugin = do
-  addSystems Startup setup
   addSystems Update update
-
-setup :: System ()
-setup = do
-  par
-    [ do
-        _ <- spawnDefer C
-        return (),
-      do
-        _ <- spawnDefer C
-        return (),
-      do
-        _ <- spawnDefer C
-        return ()
-    ]
 
 update :: System ()
 update = do
-  parIter' @Entity (added @C) $ \entity -> do
-    defer $ insert C entity
-    liftIO $ print entity
+  Just time <- single @Time
+  liftIO $ print time
