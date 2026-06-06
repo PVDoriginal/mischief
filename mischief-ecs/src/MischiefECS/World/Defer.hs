@@ -29,13 +29,13 @@ class Defer m where
 
 instance Defer System where
   defer :: System a -> System ()
-  defer s = do
+  defer !s = do
     world <- ask
     liftIO $ modifyIORef' world.deferred (++ [s $> ()])
 
 instance Defer ParSystem where
   defer :: System a -> ParSystem ()
-  defer s = do
+  defer !s = do
     ParWorld {deferred} <- ask
     liftIO $ modifyIORef' deferred (++ [s $> ()])
 

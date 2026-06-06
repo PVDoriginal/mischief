@@ -29,7 +29,7 @@ plugin = do
 
 setup :: System ()
 setup = do
-  spawn (Counter 0, Name "Some name")
+  _ <- spawn (Counter 0, Name "Some name")
   return ()
 
 system :: System ()
