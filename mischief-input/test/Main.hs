@@ -18,7 +18,7 @@ data E = E deriving (Event)
 
 main :: IO ()
 main = do
-  app <- newApp [plugin, sdlPlugin, keyboardPlugin]
+  app <- newApp [sdlPlugin, keyboardPlugin, plugin]
   runApp app
 
 plugin :: Plugin ()
@@ -34,7 +34,7 @@ setup = do
 
 system :: System ()
 system = do
-  Just keys <- single' @Keys $ with @Counter `and` changed @Keys
+  Just keys <- single @Keys
   when (justPressed SDL_SCANCODE_RETURN keys) $ do
     trigger E
 

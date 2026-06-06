@@ -124,7 +124,7 @@ findResourceArchetype :: (Component r, Storage r ~ ResourceStorage) => r -> Syst
 findResourceArchetype r =
   do
     world <- ask
-    componentId <- liftIO $ getComponentId (typeOf r) world.components
+    componentId <- liftIO $ getOrAddComponentId (typeOf r) world.components
     archetypes <- liftIO $ findMatchingArchetypes [componentId] world.archetypes
 
     return $ case archetypes of

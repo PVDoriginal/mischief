@@ -2,8 +2,10 @@ module MischiefECS.SDL where
 
 import Control.Monad
 import Control.Monad.IO.Class
+import Data.Foldable
 import MischiefECS.App
 import MischiefECS.App.Schedules
+import MischiefECS.App.SystemConfig
 import MischiefECS.Messages
 import MischiefECS.World
 import MischiefECS.World.Query
@@ -36,8 +38,10 @@ sdlPlugin = do
   addMessage @(SDLMessage SDLKeyboardEvent)
   addMessage @(SDLMessage SDLMouseButtonEvent)
   addMessage @(SDLMessage SDLMouseMotionEvent)
+  addMessage @(SDLMessage SDLQuitEvent)
 
-  addSystems PreUpdate handleEvents
+  addSystems First handleEvents
+  addSystems First $ handleQuit `after` handleEvents
 
 handleEvents :: System ()
 handleEvents = do
@@ -65,4 +69,14 @@ handleEvent (SDLEventMouseButton event) = do
 handleEvent (SDLEventMouseMotion event) = do
   Just m <- single @(Messages (SDLMessage SDLMouseMotionEvent))
   writeMessage (SDLMessage event) m
+handleEvent (SDLEventQuit event) = do
+  Just m <- single @(Messages (SDLMessage SDLQuitEvent))
+  writeMessage (SDLMessage event) m
 handleEvent _ = pure ()
+
+handleQuit :: System ()
+handleQuit = do
+  Just msg <- single @(Messages (SDLMessage SDLQuitEvent))
+  messages <- readMessages msg
+  for_ messages $ \(SDLMessage _) -> do
+    liftIO exitSuccess
