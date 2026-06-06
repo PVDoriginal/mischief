@@ -10,6 +10,7 @@ import Data.Data
 import Data.Foldable hiding (and)
 import Data.IORef
 import Data.Map qualified as Map
+import Data.Maybe
 import Data.Set (Set)
 import Data.Set qualified as Set
 import MischiefECS.Components
@@ -89,7 +90,7 @@ runQuery :: forall qd. (Queryable qd) => Proxy qd -> QueryFilter -> World -> IO 
 runQuery query filter world =
   do
     components <- mapM (\c -> getComponentId c world.components) (Set.toList (types query))
-    archetypes <- findMatchingArchetypes components world.archetypes
+    archetypes <- findMatchingArchetypes (catMaybes components) world.archetypes
 
     let (otherFilter, archetypeFilter) = extractArchetypeFilters filter
 
@@ -152,28 +153,34 @@ filterQuery :: forall qd. (Queryable qd) => World -> QueryFilter -> [ArchetypeId
 filterQuery _ NoFilter _ x = return x
 filterQuery world (With x) _ outputs = do
   component <- liftIO $ getComponentId x world.components
-  filterM
-    ( \(_, output) -> do
-        let entity = outputEntity (Proxy @qd) output
-        components <- findComponentsOfEntity world entity
-        case components of
-          Nothing -> return True
-          Just components ->
-            return $ component `elem` components
-    )
-    outputs
+  case component of
+    Nothing -> return []
+    Just component ->
+      filterM
+        ( \(_, output) -> do
+            let entity = outputEntity (Proxy @qd) output
+            components <- findComponentsOfEntity world entity
+            case components of
+              Nothing -> return True
+              Just components ->
+                return $ component `elem` components
+        )
+        outputs
 filterQuery world (Without x) _ outputs = do
   component <- liftIO $ getComponentId x world.components
-  filterM
-    ( \(_, output) -> do
-        let entity = outputEntity (Proxy @qd) output
-        components <- findComponentsOfEntity world entity
-        case components of
-          Nothing -> return True
-          Just components ->
-            return $ component `notElem` components
-    )
-    outputs
+  case component of
+    Nothing -> return outputs
+    Just component ->
+      filterM
+        ( \(_, output) -> do
+            let entity = outputEntity (Proxy @qd) output
+            components <- findComponentsOfEntity world entity
+            case components of
+              Nothing -> return True
+              Just components ->
+                return $ component `notElem` components
+        )
+        outputs
 filterQuery world (Changed x) archetypes outputs = do
   res <- liftIO $ tryGetTicks x world archetypes
   return $
@@ -250,10 +257,14 @@ filterArchetype :: QueryFilter -> [ComponentId] -> World -> IO Bool
 filterArchetype NoFilter _ _ = return True
 filterArchetype (With x) components world = do
   component <- getComponentId x world.components
-  return $ component `elem` components
+  return $ case component of
+    Nothing -> False
+    Just component -> component `elem` components
 filterArchetype (Without x) components world = do
   component <- getComponentId x world.components
-  return $ component `notElem` components
+  return $ case component of
+    Nothing -> True
+    Just component -> component `notElem` components
 filterArchetype (a `And` b) c w = do
   x <- filterArchetype a c w
   y <- filterArchetype b c w

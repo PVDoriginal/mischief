@@ -91,7 +91,7 @@ tick = do
 processBundleElement :: World -> ComponentTicks -> BundleElement -> IO ProcessedBundleElement
 processBundleElement world ticks BundleElement {rep, component} =
   do
-    id <- getComponentId rep world.components
+    id <- getOrAddComponentId rep world.components
     return
       ProcessedBundleElement
         { id,
@@ -190,7 +190,7 @@ removeComponentFromEntity :: forall c. (Component c) => Entity -> System ()
 removeComponentFromEntity entity =
   do
     world <- ask
-    componentId <- liftIO $ getComponentId (typeRep $ Proxy @c) world.components
+    componentId <- liftIO $ getOrAddComponentId (typeRep $ Proxy @c) world.components
     entityPointers <- liftIO $ readIORef world.entities.pointers
 
     case Map.lookup entity entityPointers of
@@ -239,13 +239,19 @@ tryGetComponents :: forall c. (Component c) => World -> [ArchetypeId] -> IO [Com
 tryGetComponents world archetypes =
   do
     componentId <- getComponentId (typeRep $ Proxy @c) world.components
-    tryGetComponentsFromTables world.tables archetypes componentId
+    case componentId of
+      Nothing -> return []
+      Just componentId ->
+        tryGetComponentsFromTables world.tables archetypes componentId
 
 tryGetTicks :: TypeRep -> World -> [ArchetypeId] -> IO [ComponentTicks]
 tryGetTicks rep world archetypes =
   do
     componentId <- getComponentId rep world.components
-    tryGetTicksFromTables world.tables archetypes componentId
+    case componentId of
+      Nothing -> return []
+      Just componentId ->
+        tryGetTicksFromTables world.tables archetypes componentId
 
 -- | A System is a set of instructions applied over a World.
 -- It can be added to the app to be ran on a certain schedule.

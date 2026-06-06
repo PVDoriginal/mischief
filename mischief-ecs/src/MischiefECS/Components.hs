@@ -4,11 +4,13 @@ module MischiefECS.Components
   ( Components (Components, map),
     ComponentId (ComponentId),
     emptyComponents,
+    getOrAddComponentId,
     getComponentId,
     tryGetComponent,
     Archetypes (Archetypes, map),
     ArchetypeId (ArchetypeId),
     emptyArchetypes,
+    getOrAddArchetypeId,
     getArchetypeId,
     removeArchetypeId,
     findMatchingArchetypes,
@@ -46,8 +48,8 @@ emptyComponents = do
   counter <- newIORef 0
   return $ Components map counter
 
-getComponentId :: TypeRep -> Components -> IO ComponentId
-getComponentId t Components {map, counter} = do
+getOrAddComponentId :: TypeRep -> Components -> IO ComponentId
+getOrAddComponentId t Components {map, counter} = do
   innerMap <- readIORef map
 
   case Map.lookup t innerMap of
@@ -56,11 +58,14 @@ getComponentId t Components {map, counter} = do
       result <- readIORef counter
       modifyIORef counter (+ 1)
 
-      -- putStrLn $ show t ++ " --- " ++ show result
-
       modifyIORef map $ Map.insert t (ComponentId result)
-
       return $ ComponentId result
+
+getComponentId :: TypeRep -> Components -> IO (Maybe ComponentId)
+getComponentId t Components {map} = do
+  innerMap <- readIORef map
+
+  return (Just =<< Map.lookup t innerMap)
 
 tryGetComponent :: forall c. (Component c) => ErasedComponent -> Maybe c
 tryGetComponent (ErasedComponent (s :: c')) =
@@ -81,9 +86,8 @@ emptyArchetypes = do
   counter <- newIORef 0
   return $ Archetypes map counter
 
--- | Get the archetype ID from a list of component IDs.
-getArchetypeId :: [ComponentId] -> Archetypes -> IO ArchetypeId
-getArchetypeId t Archetypes {map, counter} = do
+getOrAddArchetypeId :: [ComponentId] -> Archetypes -> IO ArchetypeId
+getOrAddArchetypeId t Archetypes {map, counter} = do
   innerMap <- readIORef map
 
   case Map.lookup t innerMap of
@@ -95,6 +99,12 @@ getArchetypeId t Archetypes {map, counter} = do
       modifyIORef map $ Map.insert t (ArchetypeId result)
 
       return $ ArchetypeId result
+
+-- | Get the archetype ID from a list of component IDs.
+getArchetypeId :: [ComponentId] -> Archetypes -> IO (Maybe ArchetypeId)
+getArchetypeId t Archetypes {map} = do
+  innerMap <- readIORef map
+  return (Just =<< Map.lookup t innerMap)
 
 removeArchetypeId :: ArchetypeId -> Archetypes -> IO ()
 removeArchetypeId id archetypes =
