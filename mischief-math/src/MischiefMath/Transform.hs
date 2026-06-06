@@ -8,30 +8,30 @@ import MischiefMath.Vec
 
 data Transform = Transform {translation :: Vec3, rotation :: Quat, scale :: Vec3} deriving (Generic, Show, Default)
 
-withRotation :: Transform -> Quat -> Transform
-withRotation Transform {translation, scale} rotation =
+setRotation :: Quat -> Transform -> Transform
+setRotation rotation Transform {translation, scale} =
   Transform {translation, rotation, scale}
 
-withTranslation :: Transform -> Vec3 -> Transform
-withTranslation Transform {rotation, scale} translation =
+setTranslation :: Vec3 -> Transform -> Transform
+setTranslation translation Transform {rotation, scale} =
   Transform {translation, rotation, scale}
 
-withScale :: Transform -> Vec3 -> Transform
-withScale Transform {rotation, translation} scale =
+setScale :: Vec3 -> Transform -> Transform
+setScale scale Transform {rotation, translation} =
   Transform {translation, rotation, scale}
 
-translate :: Transform -> Vec3 -> Transform
-translate Transform {translation, rotation, scale} trans =
+translate :: Vec3 -> Transform -> Transform
+translate trans Transform {translation, rotation, scale} =
   Transform {translation = translation + trans, rotation, scale}
 
-scale :: Transform -> Vec3 -> Transform
-scale Transform {translation, rotation, scale} sc =
+scale :: Vec3 -> Transform -> Transform
+scale sc Transform {translation, rotation, scale} =
   Transform {translation, rotation, scale = scale * sc}
 
-rotate :: Transform -> Quat -> Transform
-rotate Transform {translation, rotation, scale} rot =
+rotate :: Quat -> Transform -> Transform
+rotate rot Transform {translation, rotation, scale} =
   Transform {translation, rotation = rotation * rot, scale}
 
-rotateAxis :: Transform -> Dir3 -> Float -> Transform
-rotateAxis Transform {translation, rotation, scale} dir angle =
+rotateAxis :: Dir3 -> Float -> Transform -> Transform
+rotateAxis dir angle Transform {translation, rotation, scale} =
   Transform {translation, rotation = rotation * Quat.fromAxisAngle dir angle, scale}
