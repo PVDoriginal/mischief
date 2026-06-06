@@ -1,6 +1,7 @@
 packages: 
   ./mischief-ecs
   ./mischief-input 
+  ./mischief-math 
 
 with-compiler: ghc-9.12
 
@@ -11,6 +12,12 @@ package mischief-ecs
                -Wno-name-shadowing 
 
 package mischief-input
+  optimization: 2
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates
+               -Wincomplete-uni-patterns -Wpartial-fields -Wredundant-constraints
+               -Wno-name-shadowing 
+
+package mischief-math 
   optimization: 2
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates
                -Wincomplete-uni-patterns -Wpartial-fields -Wredundant-constraints
