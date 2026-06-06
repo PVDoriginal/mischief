@@ -26,13 +26,13 @@ par !parSystems = do
     liftIO $ modifyIORef' world.deferred (++ systems)
 
 parIterList :: (MonadSystem w m) => [a] -> ([a] -> ParSystem ()) -> m ()
-parIterList list s = do
+parIterList !list !s = do
   world <- asks getWorld
 
   let n = numCapabilities
   let len = length list
 
-  let chunks = group (n `div` len) list
+  let chunks = group (len `div` n) list
 
   x <- forM chunks $ \chunk -> do
     systems <- liftIO $ newIORef []
@@ -41,10 +41,11 @@ parIterList list s = do
     return (id, systems)
 
   for_ x $ \(id, systems) -> do
-    systems <- liftIO $ readIORef systems
     liftIO $ wait id
+    systems <- liftIO $ readIORef systems
     liftIO $ modifyIORef' world.deferred (++ systems)
 
 group :: Int -> [a] -> [[a]]
 group _ [] = []
-group n l = take n l : group n (drop n l)
+group 0 l = [l]
+group !n !l = take n l : group n (drop n l)

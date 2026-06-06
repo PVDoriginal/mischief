@@ -35,5 +35,6 @@ setup = do
 
 update :: System ()
 update = do
-  iter' @Entity (added @C) $ \entity -> do
+  parIter' @Entity (added @C) $ \entity -> do
+    defer $ insert C entity
     liftIO $ print entity
