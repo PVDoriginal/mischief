@@ -51,6 +51,7 @@ library
   exposed-modules:
     MischiefMath
     MischiefMath.Affine
+    MischiefMath.Mat
     MischiefMath.Quat
     MischiefMath.Transform
     MischiefMath.Vec

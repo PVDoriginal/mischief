@@ -12,6 +12,10 @@ setRotation :: Quat -> Transform -> Transform
 setRotation rotation Transform {translation, scale} =
   Transform {translation, rotation, scale}
 
+setRotationAxis :: Dir3 -> Float -> Transform -> Transform
+setRotationAxis dir angle Transform {translation, scale} =
+  Transform {translation, rotation = Quat.fromAxisAngle dir angle, scale}
+
 setTranslation :: Vec3 -> Transform -> Transform
 setTranslation translation Transform {rotation, scale} =
   Transform {translation, rotation, scale}
@@ -34,4 +38,16 @@ rotate rot Transform {translation, rotation, scale} =
 
 rotateAxis :: Dir3 -> Float -> Transform -> Transform
 rotateAxis dir angle Transform {translation, rotation, scale} =
-  Transform {translation, rotation = rotation * Quat.fromAxisAngle dir angle, scale}
+  Transform {translation, rotation = Quat.rotateAxis dir angle rotation, scale}
+
+rotateX :: Float -> Transform -> Transform
+rotateX angle Transform {translation, rotation, scale} =
+  Transform {translation, rotation = Quat.rotateX angle rotation, scale}
+
+rotateY :: Float -> Transform -> Transform
+rotateY angle Transform {translation, rotation, scale} =
+  Transform {translation, rotation = Quat.rotateY angle rotation, scale}
+
+rotateZ :: Float -> Transform -> Transform
+rotateZ angle Transform {translation, rotation, scale} =
+  Transform {translation, rotation = Quat.rotateZ angle rotation, scale}
