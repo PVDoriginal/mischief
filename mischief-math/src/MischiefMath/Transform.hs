@@ -2,11 +2,13 @@ module MischiefMath.Transform where
 
 import Data.Default (Default)
 import GHC.Generics (Generic)
+import MischiefECS (Component, Queryable)
 import MischiefMath.Quat (Quat)
 import MischiefMath.Quat qualified as Quat
 import MischiefMath.Vec
+import MischiefMath.Vec.Orphans.Default ()
 
-data Transform = Transform {translation :: Vec3, rotation :: Quat, scale :: Vec3} deriving (Generic, Show, Default)
+data Transform = Transform {translation :: Vec3, rotation :: Quat, scale :: Vec3} deriving (Generic, Show, Default, Component, Queryable)
 
 setRotation :: Quat -> Transform -> Transform
 setRotation rotation Transform {translation, scale} =

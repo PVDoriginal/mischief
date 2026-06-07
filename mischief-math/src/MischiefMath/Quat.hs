@@ -4,7 +4,8 @@ import Data.Default (Default (def))
 import Linear (Quaternion (Quaternion), V3 (V3), axisAngle, fromQuaternion)
 import MischiefMath.Mat (Euler (Euler, x, y, z), Mat3 (Mat3))
 import MischiefMath.Mat qualified as Mat
-import MischiefMath.Vec (Dir3 (inner), Vec3, vec3)
+import MischiefMath.Vec (Dir3 (Dir3), Vec3, vec3)
+import MischiefMath.Vec.Orphans.FieldAccessors ()
 
 newtype Quat = Quat (Quaternion Float) deriving newtype (Show, Eq, Ord, Num)
 
@@ -15,7 +16,7 @@ identity :: Quat
 identity = Quat $ Quaternion 1 $ V3 0 0 0
 
 fromAxisAngle :: Dir3 -> Float -> Quat
-fromAxisAngle dir angle = Quat $ axisAngle dir.inner angle
+fromAxisAngle (Dir3 dir) angle = Quat $ axisAngle dir angle
 
 fromXYZW :: (Float, Float, Float, Float) -> Quat
 fromXYZW (x, y, z, w) = Quat $ Quaternion w (V3 x y z)

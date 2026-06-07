@@ -21,4 +21,4 @@ plugin = do
 update :: System ()
 update = do
   Just time <- single @Time
-  liftIO $ print time
+  liftIO $ print time.value.deltaSecs

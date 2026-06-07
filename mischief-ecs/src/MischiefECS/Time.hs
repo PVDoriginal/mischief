@@ -1,6 +1,7 @@
 module MischiefECS.Time where
 
 import Control.Monad.IO.Class
+import GHC.Records (HasField (getField))
 import MischiefECS.App
 import MischiefECS.App.Schedules
 import MischiefECS.Components
@@ -15,6 +16,10 @@ data Time = Time
     elapsed :: TimeSpec
   }
   deriving (Show, Queryable)
+
+instance HasField "deltaSecs" Time Float where
+  getField :: Time -> Float
+  getField Time {delta} = fromIntegral delta.sec + fromIntegral delta.nsec / 1000000000
 
 instance Component Time where
   type Storage Time = ResourceStorage

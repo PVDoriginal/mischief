@@ -1,1 +1,3 @@
-module MischiefMath where
+module MischiefMath (module Linear) where
+
+import Linear

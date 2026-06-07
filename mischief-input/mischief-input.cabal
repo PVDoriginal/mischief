@@ -132,6 +132,7 @@ test-suite mischief-test
     data-default,
     mischief-ecs,
     mischief-input,
+    mischief-math,
     primitive,
     sdl3,
     transformers,
