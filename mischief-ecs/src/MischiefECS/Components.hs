@@ -28,11 +28,14 @@ module MischiefECS.Components
   )
 where
 
+import Control.Monad
+import Data.Foldable
 import Data.IORef
 import Data.List
 import Data.List qualified as List
 import Data.Map (Map)
 import Data.Map qualified as Map
+import Data.Maybe
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Typeable
@@ -46,13 +49,14 @@ newtype ComponentId = ComponentId
 
 newtype Pair = Pair (TypeRep, Entity) deriving newtype (Eq, Ord)
 
-data Components = Components {components :: IORef (Map TypeRep Int), counter :: IORef Int}
+data Components = Components {components :: IORef (Map TypeRep Int), archetypes :: IORef (Map Int (IORef [ArchetypeId])), counter :: IORef Int}
 
 emptyComponents :: IO Components
 emptyComponents = do
   components <- newIORef Map.empty
+  archetypes <- newIORef Map.empty
   counter <- newIORef 1
-  return $ Components components counter
+  return $ Components components archetypes counter
 
 getOrAddPairId :: Pair -> Components -> IO ComponentId
 getOrAddPairId (Pair (t, entity)) components = do
@@ -60,7 +64,7 @@ getOrAddPairId (Pair (t, entity)) components = do
   return $ ComponentId (id, entity.id)
 
 getOrAddComponentId :: TypeRep -> Components -> IO ComponentId
-getOrAddComponentId t Components {components, counter} = do
+getOrAddComponentId t Components {components, archetypes, counter} = do
   innerMap <- readIORef components
 
   case Map.lookup t innerMap of
@@ -70,6 +74,10 @@ getOrAddComponentId t Components {components, counter} = do
       modifyIORef counter (+ 1)
 
       modifyIORef components $ Map.insert t result
+
+      l <- newIORef []
+      modifyIORef archetypes $ Map.insert result l
+
       return $ ComponentId (result, 0)
 
 getComponentId :: TypeRep -> Components -> IO (Maybe ComponentId)
@@ -98,8 +106,8 @@ emptyArchetypes = do
   counter <- newIORef 0
   return $ Archetypes map counter
 
-getOrAddArchetypeId :: [ComponentId] -> Archetypes -> IO ArchetypeId
-getOrAddArchetypeId t Archetypes {map, counter} = do
+getOrAddArchetypeId :: [ComponentId] -> Archetypes -> Components -> IO ArchetypeId
+getOrAddArchetypeId t Archetypes {map, counter} Components {archetypes} = do
   innerMap <- readIORef map
 
   case Map.lookup t innerMap of
@@ -109,6 +117,12 @@ getOrAddArchetypeId t Archetypes {map, counter} = do
       modifyIORef counter (+ 1)
 
       modifyIORef map $ Map.insert t (ArchetypeId result)
+
+      archetypes <- readIORef archetypes
+      for_ t $ \t -> do
+        case Map.lookup (fst t.id) archetypes of
+          Nothing -> undefined
+          Just list -> modifyIORef' list (++ [ArchetypeId result])
 
       return $ ArchetypeId result
 
@@ -122,12 +136,23 @@ removeArchetypeId :: ArchetypeId -> Archetypes -> IO ()
 removeArchetypeId id archetypes =
   modifyIORef' archetypes.map (Map.filter (/= id))
 
-findMatchingArchetypes :: [ComponentId] -> Archetypes -> IO [([ComponentId], ArchetypeId)]
-findMatchingArchetypes components archetypes =
+findMatchingArchetypes :: [ComponentId] -> Archetypes -> Components -> IO [([ComponentId], ArchetypeId)]
+findMatchingArchetypes components Archetypes {map = map'} Components {archetypes} =
   do
-    archetypes <- readIORef archetypes.map
-    let archetypesList = Map.toList archetypes
-    return $ List.filter (\(archetype, _) -> sort components `isSubsequenceOf` sort archetype) archetypesList
+    archetypes' <- readIORef archetypes
+    archetypes'' <- forM components $ \component ->
+      maybe undefined readIORef (Map.lookup (fst component.id) archetypes')
+
+    map' <- readIORef map'
+
+    case archetypes'' of
+      [] -> return []
+      h : tail -> do
+        let archetypes = foldr intersect h tail
+        return $
+          mapMaybe
+            (\archetype -> find (\(_, id) -> id == archetype) $ Map.toList map')
+            archetypes
 
 data StorageType = ComponentStorage | ResourceStorage
 
@@ -156,4 +181,4 @@ data ComponentData = ComponentData {value :: ErasedComponent, ticks :: Component
 
 instance Component Entity
 
-data Relationship c = R (c, Entity)
+newtype Relationship c = R (c, Entity)

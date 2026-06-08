@@ -11,8 +11,8 @@ newtype ProcessedBundleData = ProcessedBundleData {elements :: [ProcessedBundleE
 
 data ProcessedBundleElement = ProcessedBundleElement {id :: ComponentId, component :: ComponentData}
 
-archetypeOfProcessedBundle :: Archetypes -> ProcessedBundleData -> IO ArchetypeId
-archetypeOfProcessedBundle archetypes bundle = getOrAddArchetypeId (map (\x -> x.id) bundle.elements) archetypes
+archetypeOfProcessedBundle :: Archetypes -> Components -> ProcessedBundleData -> IO ArchetypeId
+archetypeOfProcessedBundle archetypes components bundle = getOrAddArchetypeId (map (\x -> x.id) bundle.elements) archetypes components
 
 addComponentToBundleData :: (Component c) => c -> BundleData -> BundleData
 addComponentToBundleData c (BundleData {elements, required}) =

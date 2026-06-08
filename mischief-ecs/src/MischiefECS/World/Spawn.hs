@@ -43,7 +43,7 @@ spawnEntity entity bundle = do
 
   triggerInsertEvent bundle entity
 
-  archetypeId <- liftIO $ archetypeOfProcessedBundle world.archetypes bundle
+  archetypeId <- liftIO $ archetypeOfProcessedBundle world.archetypes world.components bundle
 
   entityPointer <- liftIO $ newIORef EntityPointer {archetypeId = ArchetypeId 0, rowIndex = 0}
 

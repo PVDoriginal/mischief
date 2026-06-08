@@ -223,7 +223,7 @@ removeComponentFromEntity entity =
                 liftIO $ removeTableAndArchetype world currentPointer.archetypeId
 
               let newBundle = removeComponentFromProcessedBundle componentId collectedComponents
-              archetype <- liftIO $ archetypeOfProcessedBundle world.archetypes newBundle
+              archetype <- liftIO $ archetypeOfProcessedBundle world.archetypes world.components newBundle
 
               liftIO $ insertEntityIntoTables newBundle world.tables archetype (entity, pointer)
 

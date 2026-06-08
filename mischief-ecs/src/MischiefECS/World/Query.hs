@@ -92,7 +92,7 @@ runQuery :: forall qd. (Queryable qd) => Proxy qd -> QueryFilter -> World -> IO 
 runQuery query filter world =
   do
     components <- mapM (\c -> getComponentId c world.components) (Set.toList (types query))
-    archetypes <- findMatchingArchetypes (catMaybes components) world.archetypes
+    archetypes <- findMatchingArchetypes (catMaybes components) world.archetypes world.components
 
     let (otherFilter, archetypeFilter) = extractArchetypeFilters filter
 

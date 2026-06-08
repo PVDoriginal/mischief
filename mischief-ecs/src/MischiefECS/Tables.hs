@@ -1,16 +1,18 @@
 module MischiefECS.Tables where
 
-import Control.Monad (when)
+import Control.Monad (forM, when)
 import Data.Foldable (for_)
 import Data.IORef
+import Data.List (transpose)
 import Data.Map (Map)
 import Data.Map qualified as Map
-import Data.Maybe (fromMaybe)
+import Data.Maybe (catMaybes, fromMaybe)
 import Data.Traversable (for)
 import Data.Vector qualified as Vector
 import MischiefECS.Components
 import MischiefECS.Components.Bundle
 import MischiefECS.Entities
+import MischiefECS.Entities.Internal
 import MischiefECS.Vec (IOVec)
 import MischiefECS.Vec qualified as Vec
 
@@ -246,6 +248,26 @@ tryGetComponentsFromColumn (Column components) = do
   let x = Vector.mapM (\x -> tryGetComponent x.value) frozen
   pure $ maybe [] Vector.toList x
 
+tryGetRelationshipCollectionsFromTable :: forall c. (Component c) => Table -> ComponentId -> IO [RelationshipCollection c]
+tryGetRelationshipCollectionsFromTable table (ComponentId (id, _)) =
+  do
+    columns <- readIORef table.columns
+    -- TODO: improve lookup performance for partial tuples
+
+    components' <- forM (Map.toList columns) $ \(ComponentId (id', entityId), column) -> do
+      if id == id'
+        then do
+          components <- tryGetComponentsFromColumn @c column
+          return $ Just $ map (,entityId) components
+        else return Nothing
+
+    entities <- Vec.toList table.entities
+    let components'' = zip (map fst entities) $ transpose $ catMaybes components'
+    return $
+      map
+        (\(entity, components) -> RelationshipCollection $ map (\(c, i) -> RelationshipResult {value = c, entity, target = Entity {id = i, gen = 0}}) components)
+        components''
+
 tryGetComponentsFromTable :: forall c. (Component c) => Table -> ComponentId -> IO [ComponentResult c]
 tryGetComponentsFromTable table componentId =
   do
@@ -257,11 +279,24 @@ tryGetComponentsFromTable table componentId =
         entities <- Vec.toList table.entities
         return $ zipWith ComponentResult results (map fst entities)
 
+tryGetRelationshipCollectionsFromArchetype :: forall c. (Component c) => ArchetypeId -> Map ArchetypeId Table -> ComponentId -> IO [RelationshipCollection c]
+tryGetRelationshipCollectionsFromArchetype archetype tables componentId =
+  case Map.lookup archetype tables of
+    Nothing -> return []
+    Just table -> tryGetRelationshipCollectionsFromTable table componentId
+
 tryGetComponentsFromArchetype :: forall c. (Component c) => ArchetypeId -> Map ArchetypeId Table -> ComponentId -> IO [ComponentResult c]
 tryGetComponentsFromArchetype archetype tables componentId =
   case Map.lookup archetype tables of
     Nothing -> return []
     Just table -> tryGetComponentsFromTable table componentId
+
+tryGetRelationshipCollectionsFromTables :: forall c. (Component c) => Tables -> [ArchetypeId] -> ComponentId -> IO [RelationshipCollection c]
+tryGetRelationshipCollectionsFromTables (Tables tables) archetypes componentId =
+  do
+    tables <- readIORef tables
+    results <- mapM (\archetype -> tryGetRelationshipCollectionsFromArchetype archetype tables componentId) archetypes
+    return $ concat results
 
 tryGetComponentsFromTables :: forall c. (Component c) => Tables -> [ArchetypeId] -> ComponentId -> IO [ComponentResult c]
 tryGetComponentsFromTables (Tables tables) archetypes componentId =
@@ -283,3 +318,7 @@ instance (Eq c) => Eq (ComponentResult c) where
 instance (Ord c) => Ord (ComponentResult c) where
   compare :: ComponentResult c -> ComponentResult c -> Ordering
   compare a b = compare a.value b.value
+
+data RelationshipResult c = RelationshipResult {value :: c, target :: Entity, entity :: Entity}
+
+newtype RelationshipCollection c = RelationshipCollection {collection :: [RelationshipResult c]}

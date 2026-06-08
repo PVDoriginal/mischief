@@ -60,7 +60,7 @@ insert bundle entity =
                   liftIO $ removeTableAndArchetype world currentPointerInternal.archetypeId
 
                 let newBundle = combineProcessedBundles collectedComponents bundleData
-                archetype <- liftIO $ archetypeOfProcessedBundle world.archetypes newBundle
+                archetype <- liftIO $ archetypeOfProcessedBundle world.archetypes world.components newBundle
 
                 let newBundle' = setChangedTickOfComponents newBundle (isInProcessedBundle collectedComponents) currentTick
                 let newBundle'' = setAddedTickOfComponents newBundle' (\id -> isInProcessedBundle bundleData id && not (isInProcessedBundle collectedComponents id)) currentTick
@@ -114,7 +114,7 @@ insertNew bundle entity =
                 liftIO $ removeTableAndArchetype world currentPointerInternal.archetypeId
 
               let newBundle = combineProcessedBundles collectedComponents newComponents
-              archetype <- liftIO $ archetypeOfProcessedBundle world.archetypes newBundle
+              archetype <- liftIO $ archetypeOfProcessedBundle world.archetypes world.components newBundle
 
               liftIO $ insertEntityIntoTables newBundle world.tables archetype (entity, currentPointer)
 
@@ -125,7 +125,7 @@ findResourceArchetype r =
   do
     world <- ask
     componentId <- liftIO $ getOrAddComponentId (typeOf r) world.components
-    archetypes <- liftIO $ findMatchingArchetypes [componentId] world.archetypes
+    archetypes <- liftIO $ findMatchingArchetypes [componentId] world.archetypes world.components
 
     return $ case archetypes of
       [(_, x)] -> Just x
@@ -166,7 +166,7 @@ insertResource r =
 
         bundle <- liftIO $ processBundleElements world ComponentTicks {changed = currentTick, added = currentTick} elements
 
-        archetypeId <- liftIO $ archetypeOfProcessedBundle world.archetypes bundle
+        archetypeId <- liftIO $ archetypeOfProcessedBundle world.archetypes world.components bundle
         entityPointer <- liftIO $ newIORef EntityPointer {archetypeId = ArchetypeId 0, rowIndex = 0}
 
         liftIO $ insertResourceIntoTables bundle currentTick world.tables archetypeId (entity, entityPointer)
