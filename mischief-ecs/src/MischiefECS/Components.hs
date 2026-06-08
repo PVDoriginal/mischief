@@ -1,7 +1,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 
 module MischiefECS.Components
-  ( Components (Components, map),
+  ( Components (..),
     ComponentId (ComponentId),
     emptyComponents,
     getOrAddComponentId,
@@ -10,7 +10,9 @@ module MischiefECS.Components
     Archetypes (Archetypes, map),
     ArchetypeId (ArchetypeId),
     emptyArchetypes,
+    getOrAddPairId,
     getOrAddArchetypeId,
+    getPairId,
     getArchetypeId,
     removeArchetypeId,
     findMatchingArchetypes,
@@ -22,6 +24,8 @@ module MischiefECS.Components
     ComponentTicks (ComponentTicks, changed, added),
     ComponentData (ComponentData, value, ticks),
     StorageType (ComponentStorage, ResourceStorage),
+    Pair (..),
+    Relationship (R),
   )
 where
 
@@ -34,23 +38,27 @@ import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Typeable
 import MischiefECS.Components.Internal
+import MischiefECS.Entities.Internal
 
 newtype ComponentId = ComponentId
   { id :: Int
   }
   deriving (Show, Eq, Ord)
 
-data Components = Components {map :: IORef (Map TypeRep ComponentId), counter :: IORef Int}
+newtype Pair = Pair (TypeRep, Entity) deriving newtype (Eq, Ord)
+
+data Components = Components {components :: IORef (Map TypeRep ComponentId), pairs :: IORef (Map Pair ComponentId), counter :: IORef Int}
 
 emptyComponents :: IO Components
 emptyComponents = do
-  map <- newIORef Map.empty
+  components <- newIORef Map.empty
+  pairs <- newIORef Map.empty
   counter <- newIORef 0
-  return $ Components map counter
+  return $ Components components pairs counter
 
-getOrAddComponentId :: TypeRep -> Components -> IO ComponentId
-getOrAddComponentId t Components {map, counter} = do
-  innerMap <- readIORef map
+getOrAddPairId :: Pair -> Components -> IO ComponentId
+getOrAddPairId t Components {pairs, counter} = do
+  innerMap <- readIORef pairs
 
   case Map.lookup t innerMap of
     Just t -> return t
@@ -58,13 +66,30 @@ getOrAddComponentId t Components {map, counter} = do
       result <- readIORef counter
       modifyIORef counter (+ 1)
 
-      modifyIORef map $ Map.insert t (ComponentId result)
+      modifyIORef pairs $ Map.insert t (ComponentId result)
       return $ ComponentId result
 
-getComponentId :: TypeRep -> Components -> IO (Maybe ComponentId)
-getComponentId t Components {map} = do
-  innerMap <- readIORef map
+getOrAddComponentId :: TypeRep -> Components -> IO ComponentId
+getOrAddComponentId t Components {components, counter} = do
+  innerMap <- readIORef components
 
+  case Map.lookup t innerMap of
+    Just t -> return t
+    Nothing -> do
+      result <- readIORef counter
+      modifyIORef counter (+ 1)
+
+      modifyIORef components $ Map.insert t (ComponentId result)
+      return $ ComponentId result
+
+getPairId :: Pair -> Components -> IO (Maybe ComponentId)
+getPairId t Components {pairs} = do
+  innerMap <- readIORef pairs
+  return (Just =<< Map.lookup t innerMap)
+
+getComponentId :: TypeRep -> Components -> IO (Maybe ComponentId)
+getComponentId t Components {components} = do
+  innerMap <- readIORef components
   return (Just =<< Map.lookup t innerMap)
 
 tryGetComponent :: forall c. (Component c) => ErasedComponent -> Maybe c
@@ -141,3 +166,7 @@ newtype Tick = Tick Int deriving (Show, Eq, Ord)
 data ComponentTicks = ComponentTicks {changed :: Tick, added :: Tick} deriving (Show)
 
 data ComponentData = ComponentData {value :: ErasedComponent, ticks :: ComponentTicks}
+
+instance Component Entity
+
+data Relationship c = R (c, Entity)

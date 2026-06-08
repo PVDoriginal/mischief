@@ -19,7 +19,7 @@ instance {-# OVERLAPPABLE #-} (Component c, Default c) => DefaultBundle c where
   defaultBundleData :: Proxy c -> DefaultBundleData
   defaultBundleData _ =
     let DefaultBundleData other = required @c
-     in DefaultBundleData $ Set.union (Set.fromList [BundleElement {rep = typeRep (Proxy @c), component = ErasedComponent $ def @c}]) other
+     in DefaultBundleData $ Set.union (Set.fromList [BundleElement {rep = ComponentRep $ typeRep (Proxy @c), component = ErasedComponent $ def @c}]) other
 
 instance {-# OVERLAPPING #-} (DefaultBundle b0, DefaultBundle b1) => DefaultBundle (b0, b1) where
   defaultBundleData :: Proxy (b0, b1) -> DefaultBundleData

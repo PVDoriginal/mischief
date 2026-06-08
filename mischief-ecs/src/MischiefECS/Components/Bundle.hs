@@ -6,6 +6,7 @@ import Data.Set qualified as Set
 import Data.Typeable
 import MischiefECS.Components
 import MischiefECS.Components.Internal
+import MischiefECS.Entities.Internal
 
 newtype ProcessedBundleData = ProcessedBundleData {elements :: [ProcessedBundleElement]}
 
@@ -16,7 +17,7 @@ archetypeOfProcessedBundle archetypes bundle = getOrAddArchetypeId (map (\x -> x
 
 addComponentToBundleData :: (Component c) => c -> BundleData -> BundleData
 addComponentToBundleData c (BundleData {elements, required}) =
-  let rep = typeOf c
+  let rep = ComponentRep $ typeOf c
       component = ErasedComponent c
       element = BundleElement {rep, component}
    in BundleData {elements = Set.insert element elements, required}
@@ -45,11 +46,17 @@ instance Bundle BundleData where
   bundleDataInternal :: BundleData -> BundleData
   bundleDataInternal = id
 
+instance {-# OVERLAPPABLE #-} (Component c, Storage c ~ ComponentStorage) => Bundle (Relationship c) where
+  bundleDataInternal :: (Component c, Storage c ~ ComponentStorage) => Relationship c -> BundleData
+  bundleDataInternal (R (c, entity)) =
+    let DefaultBundleData req = required @c
+     in BundleData (Set.fromList [BundleElement {rep = PairRep (typeOf c, entity), component = erase c}]) req
+
 instance {-# OVERLAPPABLE #-} (Component c, Storage c ~ ComponentStorage) => Bundle c where
   bundleDataInternal :: (Component c, Storage c ~ ComponentStorage) => c -> BundleData
   bundleDataInternal c =
     let DefaultBundleData req = required @c
-     in BundleData (Set.fromList [BundleElement {rep = typeOf c, component = erase c}]) req
+     in BundleData (Set.fromList [BundleElement {rep = ComponentRep $ typeOf c, component = erase c}]) req
 
 instance {-# OVERLAPPING #-} (Bundle c0, Bundle c1) => Bundle (c0, c1) where
   bundleDataInternal (c0, c1) =
@@ -63,4 +70,4 @@ bundleData = bundleDataInternal
 bundleDataRes :: forall r. (Component r) => r -> BundleData
 bundleDataRes r =
   let DefaultBundleData req = required @r
-   in BundleData (Set.fromList [BundleElement {rep = typeOf r, component = erase r}]) req
+   in BundleData (Set.fromList [BundleElement {rep = ComponentRep $ typeOf r, component = erase r}]) req

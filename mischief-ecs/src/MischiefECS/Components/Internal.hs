@@ -2,13 +2,16 @@ module MischiefECS.Components.Internal where
 
 import Data.Data
 import Data.Set
+import MischiefECS.Entities.Internal
 
 newtype DefaultBundleData = DefaultBundleData (Set BundleElement)
 
 data ErasedComponent where
   ErasedComponent :: (Typeable c) => c -> ErasedComponent
 
-data BundleElement = BundleElement {rep :: TypeRep, component :: ErasedComponent}
+data ComponentRep = ComponentRep TypeRep | PairRep (TypeRep, Entity) deriving (Show, Eq, Ord)
+
+data BundleElement = BundleElement {rep :: ComponentRep, component :: ErasedComponent}
 
 instance Show BundleElement where
   show :: BundleElement -> String

@@ -81,6 +81,7 @@ library
   -- other-modules:
   other-modules:
     MischiefECS.Components.Internal
+    MischiefECS.Entities.Internal
     MischiefECS.Events.Internal
     MischiefECS.World.Internal
 

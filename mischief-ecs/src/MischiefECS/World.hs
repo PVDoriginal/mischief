@@ -9,7 +9,6 @@ import Control.Monad.Primitive (PrimMonad (..))
 import Control.Monad.Reader.Class (MonadReader (..))
 import Control.Monad.Trans (MonadTrans (..))
 import Control.Monad.Trans.Reader (ReaderT (runReaderT))
-import Data.Functor
 import Data.IORef
 import Data.Map qualified as Map
 import Data.Proxy
@@ -18,6 +17,7 @@ import Data.Set qualified as Set
 import Data.Typeable
 import MischiefECS.Components
 import MischiefECS.Components.Bundle
+import MischiefECS.Components.Internal
 import MischiefECS.Entities
 import MischiefECS.Events.Internal
 import MischiefECS.Tables
@@ -89,9 +89,21 @@ tick = do
 
 -- | Process a 'BundleElement', turning its 'TypeRep' into a 'ComponentId'.
 processBundleElement :: World -> ComponentTicks -> BundleElement -> IO ProcessedBundleElement
-processBundleElement world ticks BundleElement {rep, component} =
+processBundleElement world ticks BundleElement {rep = (ComponentRep r), component} =
   do
-    id <- getOrAddComponentId rep world.components
+    id <- getOrAddComponentId r world.components
+    return
+      ProcessedBundleElement
+        { id,
+          component =
+            ComponentData
+              { value = component,
+                ticks
+              }
+        }
+processBundleElement world ticks BundleElement {rep = (PairRep (r, entity)), component} =
+  do
+    id <- getOrAddPairId (Pair (r, entity)) world.components
     return
       ProcessedBundleElement
         { id,
@@ -219,7 +231,7 @@ tryGetEntityComponent :: forall c. (Component c) => World -> Entity -> IO (Maybe
 tryGetEntityComponent world entity =
   do
     pointers <- readIORef world.entities.pointers
-    components <- readIORef world.components.map
+    components <- readIORef world.components.components
 
     let componentId = Map.lookup (typeRep $ Proxy @c) components
 

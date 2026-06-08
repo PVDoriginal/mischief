@@ -1,15 +1,21 @@
-module MischiefECS.Entities where
+module MischiefECS.Entities
+  ( EntityPointer (..),
+    decreaseRowIndex,
+    Entities (..),
+    EntityCounter,
+    getNewEntity,
+    removeEntity,
+    emptyEntities,
+    Entity,
+  )
+where
 
-import Control.Concurrent
 import Data.IORef
 import Data.Map (Map)
 import Data.Map qualified as Map
 import GHC.Conc
 import MischiefECS.Components
-
-data Entity = Entity {id :: Int, gen :: Int} deriving (Show, Eq, Ord)
-
-instance Component Entity
+import MischiefECS.Entities.Internal
 
 data EntityPointer = EntityPointer
   { archetypeId :: ArchetypeId,

@@ -9,6 +9,8 @@ import MischiefECS
 
 data C = C deriving (Component, Queryable)
 
+data ChildOf = ChildOf deriving (Component, Queryable)
+
 main :: IO ()
 main = do
   app <- newApp [timePlugin, plugin]
@@ -17,6 +19,12 @@ main = do
 plugin :: Plugin ()
 plugin = do
   addSystems Update update
+
+setup :: System ()
+setup = do
+  p <- spawn ()
+  _ <- spawn (R (ChildOf, p))
+  return ()
 
 update :: System ()
 update = do
