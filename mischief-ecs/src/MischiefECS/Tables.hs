@@ -277,9 +277,9 @@ instance (Show c) => Show (ComponentResult c) where
   show c = show c.value
 
 instance (Eq c) => Eq (ComponentResult c) where
-  (==) :: (Eq c) => ComponentResult c -> ComponentResult c -> Bool
+  (==) :: ComponentResult c -> ComponentResult c -> Bool
   (==) a b = a.value == b.value
 
 instance (Ord c) => Ord (ComponentResult c) where
-  compare :: (Ord c) => ComponentResult c -> ComponentResult c -> Ordering
+  compare :: ComponentResult c -> ComponentResult c -> Ordering
   compare a b = compare a.value b.value

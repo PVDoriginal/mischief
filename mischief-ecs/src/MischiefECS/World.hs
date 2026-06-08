@@ -231,10 +231,8 @@ tryGetEntityComponent :: forall c. (Component c) => World -> Entity -> IO (Maybe
 tryGetEntityComponent world entity =
   do
     pointers <- readIORef world.entities.pointers
-    components <- readIORef world.components.components
 
-    let componentId = Map.lookup (typeRep $ Proxy @c) components
-
+    componentId <- getComponentId (typeOf $ Proxy @c) world.components
     case componentId of
       Nothing -> return Nothing
       Just componentId -> do

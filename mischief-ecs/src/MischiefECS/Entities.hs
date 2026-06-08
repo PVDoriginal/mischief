@@ -54,5 +54,5 @@ removeEntity entity entities = do
 emptyEntities :: IO Entities
 emptyEntities = do
   map <- newIORef Map.empty
-  counter <- newTVarIO EntityCounter {counter = 0, free = []}
+  counter <- newTVarIO EntityCounter {counter = 1, free = []}
   return $ Entities map counter

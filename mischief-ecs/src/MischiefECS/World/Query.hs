@@ -9,12 +9,14 @@ import Control.Monad.Reader (MonadReader (..), asks)
 import Data.Data
 import Data.Foldable hiding (and)
 import Data.IORef
+import Data.Kind
 import Data.Map qualified as Map
 import Data.Maybe
 import Data.Set (Set)
 import Data.Set qualified as Set
 import MischiefECS.Components
 import MischiefECS.Entities
+import MischiefECS.Entities.Internal
 import MischiefECS.Tables
 import MischiefECS.World
 import MischiefECS.World.Internal
@@ -166,6 +168,22 @@ filterQuery world (With x) _ outputs = do
                 return $ component `elem` components
         )
         outputs
+filterQuery world (WithR x e) _ outputs = do
+  component <- liftIO $ getComponentId x world.components
+  case component of
+    Nothing -> return []
+    Just (ComponentId (id, _)) -> do
+      let component = ComponentId (id, e.id)
+      filterM
+        ( \(_, output) -> do
+            let entity = outputEntity (Proxy @qd) output
+            components <- findComponentsOfEntity world entity
+            case components of
+              Nothing -> return True
+              Just components ->
+                return $ component `elem` components
+        )
+        outputs
 filterQuery world (Without x) _ outputs = do
   component <- liftIO $ getComponentId x world.components
   case component of
@@ -229,11 +247,22 @@ findComponentsOfEntity world entity = do
 
 instance Queryable Name
 
-data QueryFilter = NoFilter | With TypeRep | Without TypeRep | And QueryFilter QueryFilter | Or QueryFilter QueryFilter | Changed TypeRep | Added TypeRep
+data QueryFilter
+  = NoFilter
+  | With TypeRep
+  | WithR TypeRep Entity
+  | Without TypeRep
+  | And QueryFilter QueryFilter
+  | Or QueryFilter QueryFilter
+  | Changed TypeRep
+  | Added TypeRep
   deriving (Show)
 
 with :: forall qd. (QueryData qd) => QueryFilter
 with = and' $ map With (Set.toList $ types (Proxy @qd))
+
+withR :: forall c. (Component c) => Entity -> QueryFilter
+withR = WithR (typeRep $ Proxy @c)
 
 without :: forall qd. (QueryData qd) => QueryFilter
 without = and' $ map Without (Set.toList $ types (Proxy @qd))
@@ -260,6 +289,13 @@ filterArchetype (With x) components world = do
   return $ case component of
     Nothing -> False
     Just component -> component `elem` components
+filterArchetype (WithR x e) components world = do
+  component <- getComponentId x world.components
+  case component of
+    Nothing -> pure False
+    Just (ComponentId (id, _)) -> do
+      let component = ComponentId (id, e.id)
+      return $ component `elem` components
 filterArchetype (Without x) components world = do
   component <- getComponentId x world.components
   return $ case component of
@@ -279,6 +315,7 @@ filterArchetype _ _ _ = pure True
 extractArchetypeFilters :: QueryFilter -> (QueryFilter, QueryFilter)
 extractArchetypeFilters NoFilter = (NoFilter, NoFilter)
 extractArchetypeFilters (With x) = (NoFilter, With x)
+extractArchetypeFilters (WithR x e) = (NoFilter, WithR x e)
 extractArchetypeFilters (Changed x) = (Changed x, NoFilter)
 extractArchetypeFilters (Added x) = (Added x, NoFilter)
 extractArchetypeFilters (Without x) = (NoFilter, Without x)
@@ -301,6 +338,7 @@ isArchetypeFilter NoFilter = True
 isArchetypeFilter (Changed _) = False
 isArchetypeFilter (Added _) = False
 isArchetypeFilter (With _) = True
+isArchetypeFilter (WithR _ _) = True
 isArchetypeFilter (Without _) = True
 isArchetypeFilter (a `And` b) = isArchetypeFilter a || isArchetypeFilter b
 isArchetypeFilter (a `Or` b) = isArchetypeFilter a && isArchetypeFilter b
