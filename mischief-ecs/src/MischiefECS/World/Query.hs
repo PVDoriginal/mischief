@@ -30,6 +30,10 @@ instance {-# OVERLAPPABLE #-} (Component c) => QueryData c where
   types :: (Component c) => Proxy c -> Set TypeRep
   types = Set.singleton . typeRep
 
+instance {-# OVERLAPPING #-} (Component c) => QueryData (Relationship c) where
+  types :: Proxy (Relationship c) -> Set TypeRep
+  types _ = Set.singleton $ typeRep $ Proxy @c
+
 instance (QueryData a0, QueryData a1) => QueryData (a0, a1) where
   types :: (QueryData a0, QueryData a1) => Proxy (a0, a1) -> Set TypeRep
   types _ = Set.union (types $ Proxy @a0) (types $ Proxy @a1)
@@ -78,6 +82,14 @@ instance (Queryable q0, Queryable q1) => Queryable (q0, q1) where
   outputEntity :: (Queryable q0, Queryable q1) => Proxy (q0, q1) -> (QueryOutput q0, QueryOutput q1) -> Entity
   outputEntity _ (a, _) = outputEntity (Proxy @q0) a
 
+instance (Component c) => Queryable (Relationship c) where
+  type QueryOutput (Relationship c) = RelationshipCollection c
+  runQueryEntity = undefined
+  runQueryInternal :: (Component c) => Proxy (Relationship c) -> [ArchetypeId] -> World -> IO [QueryOutput (Relationship c)]
+  runQueryInternal _ archetypes world = tryGetRelationshipCollections @c world archetypes
+
+  outputEntity _ x = x.entity
+
 instance Queryable Entity where
   type QueryOutput Entity = Entity
 
@@ -93,7 +105,6 @@ runQuery query filter world =
   do
     components <- mapM (\c -> getComponentId c world.components) (Set.toList (types query))
     archetypes <- findMatchingArchetypes (catMaybes components) world.archetypes world.components
-
     let (otherFilter, archetypeFilter) = extractArchetypeFilters filter
 
     archetypes' <- filterM (\(components, _) -> filterArchetype archetypeFilter components world) archetypes

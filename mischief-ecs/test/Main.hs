@@ -13,11 +13,11 @@ data Parent1 = Parent1 deriving (Component, Queryable)
 
 data Parent2 = Parent2 deriving (Component, Queryable)
 
-data ChildOf = ChildOf deriving (Component, Queryable)
+data ChildOf = ChildOf deriving (Component, Queryable, Show)
 
 main :: IO ()
 main = do
-  app <- newApp [timePlugin, plugin]
+  app <- newApp [plugin]
   runApp app
 
 plugin :: Plugin ()
@@ -37,20 +37,25 @@ setup = do
   _ <- spawn (R (ChildOf, p2), Name "Child of p2")
   _ <- spawn (R (ChildOf, p2), Name "Child of p2")
 
-  q1 <- query' @Name $ withR @ChildOf p1
-  q2 <- query' @Name $ withR @ChildOf p2
-  q3 <- query' @Name $ with @Parent1
+  -- q1 <- query' @Name $ withR @ChildOf p1
+  -- q2 <- query' @Name $ withR @ChildOf p2
+  -- q3 <- query' @Name $ with @Parent1
 
-  liftIO $ print "p1 children:"
-  for_ q1 $ \name ->
-    liftIO $ print name
+  -- liftIO $ print "p1 children:"
+  -- for_ q1 $ \name ->
+  --   liftIO $ print name
 
-  liftIO $ print "p2 children:"
-  for_ q2 $ \name ->
-    liftIO $ print name
+  -- liftIO $ print "p2 children:"
+  -- for_ q2 $ \name ->
+  --   liftIO $ print name
 
-  liftIO $ print "p1:"
-  for_ q3 $ \name ->
+  -- liftIO $ print "p1:"
+  -- for_ q3 $ \name ->
+  --   liftIO $ print name
+
+  liftIO $ print "weird:"
+  q4 <- query @(Relationship ChildOf)
+  for_ q4 $ \name ->
     liftIO $ print name
 
 exit :: System ()

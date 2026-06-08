@@ -122,7 +122,9 @@ getOrAddArchetypeId t Archetypes {map, counter} Components {archetypes} = do
       for_ t $ \t -> do
         case Map.lookup (fst t.id) archetypes of
           Nothing -> undefined
-          Just list -> modifyIORef' list (++ [ArchetypeId result])
+          Just list -> do
+            print $ "Adding archetype to " ++ show (fst t.id)
+            modifyIORef' list (++ [ArchetypeId result])
 
       return $ ArchetypeId result
 
@@ -140,7 +142,8 @@ findMatchingArchetypes :: [ComponentId] -> Archetypes -> Components -> IO [([Com
 findMatchingArchetypes components Archetypes {map = map'} Components {archetypes} =
   do
     archetypes' <- readIORef archetypes
-    archetypes'' <- forM components $ \component ->
+    archetypes'' <- forM components $ \component -> do
+      print $ "Looking up " ++ show (fst component.id)
       maybe undefined readIORef (Map.lookup (fst component.id) archetypes')
 
     map' <- readIORef map'
@@ -182,3 +185,5 @@ data ComponentData = ComponentData {value :: ErasedComponent, ticks :: Component
 instance Component Entity
 
 newtype Relationship c = R (c, Entity)
+
+instance (Component c) => Component (Relationship c)

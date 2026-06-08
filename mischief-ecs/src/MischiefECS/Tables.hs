@@ -265,7 +265,7 @@ tryGetRelationshipCollectionsFromTable table (ComponentId (id, _)) =
     let components'' = zip (map fst entities) $ transpose $ catMaybes components'
     return $
       map
-        (\(entity, components) -> RelationshipCollection $ map (\(c, i) -> RelationshipResult {value = c, entity, target = Entity {id = i, gen = 0}}) components)
+        (\(entity, components) -> RelationshipCollection {collection = map (\(c, i) -> RelationshipResult {value = c, entity, target = Entity {id = i, gen = 0}}) components, entity})
         components''
 
 tryGetComponentsFromTable :: forall c. (Component c) => Table -> ComponentId -> IO [ComponentResult c]
@@ -319,6 +319,6 @@ instance (Ord c) => Ord (ComponentResult c) where
   compare :: ComponentResult c -> ComponentResult c -> Ordering
   compare a b = compare a.value b.value
 
-data RelationshipResult c = RelationshipResult {value :: c, target :: Entity, entity :: Entity}
+data RelationshipResult c = RelationshipResult {value :: c, target :: Entity, entity :: Entity} deriving (Show)
 
-newtype RelationshipCollection c = RelationshipCollection {collection :: [RelationshipResult c]}
+data RelationshipCollection c = RelationshipCollection {collection :: [RelationshipResult c], entity :: Entity} deriving (Show)

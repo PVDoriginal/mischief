@@ -245,6 +245,15 @@ tryGetEntityComponent world entity =
               pointer <- readIORef pointer
               tryGetComponentFromTables world.tables pointer componentId
 
+tryGetRelationshipCollections :: forall c. (Component c) => World -> [ArchetypeId] -> IO [RelationshipCollection c]
+tryGetRelationshipCollections world archetypes =
+  do
+    componentId <- getComponentId (typeRep $ Proxy @c) world.components
+    case componentId of
+      Nothing -> return []
+      Just componentId ->
+        tryGetRelationshipCollectionsFromTables world.tables archetypes componentId
+
 tryGetComponents :: forall c. (Component c) => World -> [ArchetypeId] -> IO [ComponentResult c]
 tryGetComponents world archetypes =
   do
