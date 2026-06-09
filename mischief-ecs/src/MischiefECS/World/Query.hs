@@ -30,8 +30,8 @@ instance {-# OVERLAPPABLE #-} (Component c) => QueryData c where
   types :: (Component c) => Proxy c -> Set TypeRep
   types = Set.singleton . typeRep
 
-instance {-# OVERLAPPING #-} (Component c) => QueryData (Relationship c) where
-  types :: Proxy (Relationship c) -> Set TypeRep
+instance {-# OVERLAPPING #-} (Component c) => QueryData (R c) where
+  types :: Proxy (R c) -> Set TypeRep
   types _ = Set.singleton $ typeRep $ Proxy @c
 
 instance (QueryData a0, QueryData a1) => QueryData (a0, a1) where
@@ -82,10 +82,10 @@ instance (Queryable q0, Queryable q1) => Queryable (q0, q1) where
   outputEntity :: (Queryable q0, Queryable q1) => Proxy (q0, q1) -> (QueryOutput q0, QueryOutput q1) -> Entity
   outputEntity _ (a, _) = outputEntity (Proxy @q0) a
 
-instance (Component c) => Queryable (Relationship c) where
-  type QueryOutput (Relationship c) = RelationshipCollection c
+instance (Component c) => Queryable (R c) where
+  type QueryOutput (R c) = RelationshipCollection c
   runQueryEntity = undefined
-  runQueryInternal :: (Component c) => Proxy (Relationship c) -> [ArchetypeId] -> World -> IO [QueryOutput (Relationship c)]
+  runQueryInternal :: (Component c) => Proxy (R c) -> [ArchetypeId] -> World -> IO [QueryOutput (R c)]
   runQueryInternal _ archetypes world = tryGetRelationshipCollections @c world archetypes
 
   outputEntity _ x = x.entity

@@ -27,5 +27,16 @@ instance {-# OVERLAPPING #-} (Removable c0, Removable c1) => Removable (c0, c1) 
 remove :: forall r. (Removable r) => Entity -> System ()
 remove = removeInternal (Proxy @r)
 
-delete :: forall c. (Removable c) => ComponentResult c -> System ()
-delete result = remove @c result.entity
+class Delete r where
+  delete :: r -> System ()
+
+instance (Component c) => Delete (ComponentResult c) where
+  delete :: ComponentResult c -> System ()
+  delete result = remove @c result.entity
+
+instance (Component c) => Delete (RelationshipResult c) where
+  delete :: RelationshipResult c -> System ()
+  delete result = removeRelationshipFromEntity @c result.target result.entity
+
+-- delete :: forall c. (Removable c) => ComponentResult c -> System ()
+-- delete result = remove @c result.entity

@@ -35,28 +35,12 @@ setup = do
   _ <- spawn (R (ChildOf, p1), Name "Child of p1")
 
   _ <- spawn (R (ChildOf, p2), Name "Child of p2")
-  _ <- spawn (R (ChildOf, p2), Name "Child of p2")
+  _ <- spawn ((R (ChildOf, p2), R (ChildOf, p1)), Name "Child of p2")
 
-  -- q1 <- query' @Name $ withR @ChildOf p1
-  -- q2 <- query' @Name $ withR @ChildOf p2
-  -- q3 <- query' @Name $ with @Parent1
-
-  -- liftIO $ print "p1 children:"
-  -- for_ q1 $ \name ->
-  --   liftIO $ print name
-
-  -- liftIO $ print "p2 children:"
-  -- for_ q2 $ \name ->
-  --   liftIO $ print name
-
-  -- liftIO $ print "p1:"
-  -- for_ q3 $ \name ->
-  --   liftIO $ print name
-
-  liftIO $ print "weird:"
-  q4 <- query @(Relationship ChildOf)
-  for_ q4 $ \name ->
-    liftIO $ print name
+  q4 <- query @(R ChildOf)
+  for_ q4 $ \result ->
+    for_ result.collection $ \rel -> do
+      liftIO $ putStrLn $ show rel.entity ++ " is child of " ++ show rel.target
 
 exit :: System ()
 exit = do

@@ -194,7 +194,7 @@ despawn entity =
 removeTableAndArchetype :: World -> ArchetypeId -> IO ()
 removeTableAndArchetype !world !archetype =
   do
-    removeArchetypeId archetype world.archetypes
+    removeArchetypeId archetype world.archetypes world.components
     removeTable archetype world.tables
 
 -- | Remove a component from an entity.
@@ -203,29 +203,40 @@ removeComponentFromEntity entity =
   do
     world <- ask
     componentId <- liftIO $ getOrAddComponentId (typeRep $ Proxy @c) world.components
-    entityPointers <- liftIO $ readIORef world.entities.pointers
+    removeFromEntity componentId entity
 
-    case Map.lookup entity entityPointers of
-      Nothing -> undefined
-      Just pointer -> do
-        let Tables tables = world.tables
-        tables <- liftIO $ readIORef tables
-        currentPointer <- liftIO $ readIORef pointer
+removeRelationshipFromEntity :: forall c. (Component c) => Entity -> Entity -> System ()
+removeRelationshipFromEntity target entity = do
+  world <- ask
+  componentId <- liftIO $ getOrAddPairId (Pair (typeRep $ Proxy @c, target)) world.components
+  removeFromEntity componentId entity
 
-        case Map.lookup currentPointer.archetypeId tables of
-          Nothing -> undefined
-          Just currentTable -> do
-            when (componentId `elem` currentTable.components) $ do
-              collectedComponents <- liftIO $ takeComponentsFromTable currentPointer currentTable
+removeFromEntity :: ComponentId -> Entity -> System ()
+removeFromEntity componentId entity = do
+  world <- ask
+  entityPointers <- liftIO $ readIORef world.entities.pointers
 
-              empty <- liftIO $ tableIsEmpty currentTable
-              when empty $ do
-                liftIO $ removeTableAndArchetype world currentPointer.archetypeId
+  case Map.lookup entity entityPointers of
+    Nothing -> undefined
+    Just pointer -> do
+      let Tables tables = world.tables
+      tables <- liftIO $ readIORef tables
+      currentPointer <- liftIO $ readIORef pointer
 
-              let newBundle = removeComponentFromProcessedBundle componentId collectedComponents
-              archetype <- liftIO $ archetypeOfProcessedBundle world.archetypes world.components newBundle
+      case Map.lookup currentPointer.archetypeId tables of
+        Nothing -> undefined
+        Just currentTable -> do
+          when (componentId `elem` currentTable.components) $ do
+            collectedComponents <- liftIO $ takeComponentsFromTable currentPointer currentTable
 
-              liftIO $ insertEntityIntoTables newBundle world.tables archetype (entity, pointer)
+            empty <- liftIO $ tableIsEmpty currentTable
+            when empty $ do
+              liftIO $ removeTableAndArchetype world currentPointer.archetypeId
+
+            let newBundle = removeComponentFromProcessedBundle componentId collectedComponents
+            archetype <- liftIO $ archetypeOfProcessedBundle world.archetypes world.components newBundle
+
+            liftIO $ insertEntityIntoTables newBundle world.tables archetype (entity, pointer)
 
 tryGetEntityComponent :: forall c. (Component c) => World -> Entity -> IO (Maybe c)
 tryGetEntityComponent world entity =

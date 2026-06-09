@@ -45,8 +45,8 @@ instance Bundle BundleData where
   bundleDataInternal :: BundleData -> BundleData
   bundleDataInternal = id
 
-instance {-# OVERLAPPABLE #-} (Component c, Storage c ~ ComponentStorage) => Bundle (Relationship c) where
-  bundleDataInternal :: (Component c, Storage c ~ ComponentStorage) => Relationship c -> BundleData
+instance {-# OVERLAPPABLE #-} (Component c, Storage c ~ ComponentStorage) => Bundle (R c) where
+  bundleDataInternal :: (Component c, Storage c ~ ComponentStorage) => R c -> BundleData
   bundleDataInternal (R (c, entity)) =
     let DefaultBundleData req = required @c
      in BundleData (Set.fromList [BundleElement {rep = PairRep (typeOf c, entity), component = erase c}]) req

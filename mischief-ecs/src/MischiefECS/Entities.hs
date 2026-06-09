@@ -6,7 +6,7 @@ module MischiefECS.Entities
     getNewEntity,
     removeEntity,
     emptyEntities,
-    Entity,
+    Entity (Entity, id),
   )
 where
 
