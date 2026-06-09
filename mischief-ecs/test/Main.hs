@@ -27,8 +27,8 @@ plugin = do
 
 setup :: System ()
 setup = do
-  p1 <- spawn Parent1
-  p2 <- spawn Parent2
+  p1 <- spawn (Parent1, Name "Parent 1")
+  p2 <- spawn (Parent2, Name "Parent 2")
 
   _ <- spawn (R (ChildOf, p1), Name "Child of p1")
   _ <- spawn (R (ChildOf, p1), Name "Child of p1")
@@ -41,6 +41,13 @@ setup = do
   for_ q4 $ \result ->
     for_ result.collection $ \rel -> do
       liftIO $ putStrLn $ show rel.entity ++ " is child of " ++ show rel.target
+
+      Just name <- get @Name rel.target
+      liftIO $ print name
+
+  names <- query @(Entity, Name)
+  for_ names $ \(entity, name) -> do
+    liftIO $ putStrLn $ show entity ++ " has name " ++ show name
 
 exit :: System ()
 exit = do

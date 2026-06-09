@@ -6,7 +6,7 @@ import Data.IORef
 import Data.List (transpose)
 import Data.Map (Map)
 import Data.Map qualified as Map
-import Data.Maybe (catMaybes, fromMaybe)
+import Data.Maybe (catMaybes, fromMaybe, isNothing)
 import Data.Traversable (for)
 import Data.Vector qualified as Vector
 import GHC.Records

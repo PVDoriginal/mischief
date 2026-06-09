@@ -190,7 +190,7 @@ insertResource r =
 -- | Set the value of a component obtained as query result.
 --
 -- Note that the local 'ComponentResult' won't be mutated.
--- You'll need to query the component again or use 'get' to update the current result.
+-- You'll need to query the component again or use 'update' to update the current result.
 set :: (Bundle c) => ComponentResult c -> c -> System ()
 set !result !newValue = MischiefECS.World.Insert.insert newValue result.entity
 
@@ -198,8 +198,8 @@ set !result !newValue = MischiefECS.World.Insert.insert newValue result.entity
 --
 -- Useful if you've done changed to the component and want to grab the live value
 -- without re-querying.
-get :: ComponentResult c -> System (ComponentResult c)
-get = undefined
+update :: ComponentResult c -> System (ComponentResult c)
+update = undefined
 
 triggerInsertEvent :: ProcessedBundleData -> Entity -> System ()
 triggerInsertEvent bundle entity =

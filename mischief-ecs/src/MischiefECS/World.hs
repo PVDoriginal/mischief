@@ -243,7 +243,8 @@ tryGetEntityComponent world entity =
   do
     pointers <- readIORef world.entities.pointers
 
-    componentId <- getComponentId (typeOf $ Proxy @c) world.components
+    componentId <- getComponentId (typeRep $ Proxy @c) world.components
+
     case componentId of
       Nothing -> return Nothing
       Just componentId -> do
