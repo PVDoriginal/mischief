@@ -3,6 +3,7 @@
 module MischiefECS.World.Remove where
 
 import Data.Data
+import Data.Foldable
 import MischiefECS.Components
 import MischiefECS.Entities
 import MischiefECS.Events
@@ -38,5 +39,6 @@ instance (Component c) => Delete (RelationshipResult c) where
   delete :: RelationshipResult c -> System ()
   delete result = removeRelationshipFromEntity @c result.target result.entity
 
--- delete :: forall c. (Removable c) => ComponentResult c -> System ()
--- delete result = remove @c result.entity
+instance (Component c) => Delete (RelationshipCollection c) where
+  delete :: RelationshipCollection c -> System ()
+  delete collection = for_ collection.collection delete
