@@ -147,12 +147,12 @@ query = do
   world <- asks getWorld
   liftIO $ runQuery (Proxy @qd) NoFilter world
 
-entityQuery :: forall qd. (Queryable qd) => Entity -> System (Maybe (QueryOutput qd))
+entityQuery :: forall qd m w. (Queryable qd, MonadSystem w m) => Entity -> m (Maybe (QueryOutput qd))
 entityQuery entity = do
-  world <- ask
+  world <- asks getWorld
   liftIO $ runQueryEntity (Proxy @qd) world entity
 
-get :: forall qd. (Queryable qd) => Entity -> System (Maybe (QueryOutput qd))
+get :: forall qd m w. (Queryable qd, MonadSystem w m) => Entity -> m (Maybe (QueryOutput qd))
 get = entityQuery @qd
 
 query' :: forall qd m w. (Queryable qd, MonadSystem w m) => QueryFilter -> m [QueryOutput qd]

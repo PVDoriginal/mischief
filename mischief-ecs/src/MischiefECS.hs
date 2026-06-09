@@ -23,6 +23,7 @@ module MischiefECS
     module MischiefECS.Time,
     module MischiefECS.Relationships,
     module MischiefECS.Relationships.ChildOf,
+    ParSystem,
   )
 where
 
@@ -43,6 +44,7 @@ import MischiefECS.Time
 import MischiefECS.World
 import MischiefECS.World.Defer
 import MischiefECS.World.Insert
+import MischiefECS.World.Internal (ParSystem)
 import MischiefECS.World.Modify
 import MischiefECS.World.Par
 import MischiefECS.World.Query
