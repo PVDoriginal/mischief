@@ -35,7 +35,7 @@ setup = do
   _ <- spawn (R (ChildOf, p1), Name "Child of p1")
 
   _ <- spawn (R (ChildOf, p2), Name "Child of p2")
-  _ <- spawn ((R (ChildOf, p2), R (ChildOf, p1)), Name "Child of p2")
+  _ <- spawn ((R (ChildOf, p2), R (ChildOf, p1)), Name "Child of p1 and p2")
 
   q4 <- query @(R ChildOf)
   for_ q4 $ \result ->
