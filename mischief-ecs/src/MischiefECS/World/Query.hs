@@ -17,6 +17,7 @@ import Data.Set qualified as Set
 import MischiefECS.Components
 import MischiefECS.Entities
 import MischiefECS.Entities.Internal
+import MischiefECS.Relationships
 import MischiefECS.Tables
 import MischiefECS.World
 import MischiefECS.World.Internal

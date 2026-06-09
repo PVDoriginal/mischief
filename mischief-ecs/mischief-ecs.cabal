@@ -63,6 +63,8 @@ library
     MischiefECS.Graph
     MischiefECS.Messages
     MischiefECS.Prelude
+    MischiefECS.Relationships
+    MischiefECS.Relationships.ChildOf
     MischiefECS.SDL
     MischiefECS.Tables
     MischiefECS.Time

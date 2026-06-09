@@ -24,7 +24,6 @@ module MischiefECS.Components
     ComponentData (ComponentData, value, ticks),
     StorageType (ComponentStorage, ResourceStorage),
     Pair (..),
-    R (R),
   )
 where
 
@@ -240,7 +239,3 @@ data ComponentTicks = ComponentTicks {changed :: Tick, added :: Tick} deriving (
 data ComponentData = ComponentData {value :: ErasedComponent, ticks :: ComponentTicks}
 
 instance Component Entity
-
-newtype R c = R (c, Entity)
-
-instance (Component c) => Component (R c)

@@ -21,6 +21,8 @@ module MischiefECS
     module MischiefECS.SDL,
     module MischiefECS.Events,
     module MischiefECS.Time,
+    module MischiefECS.Relationships,
+    module MischiefECS.Relationships.ChildOf,
   )
 where
 
@@ -33,6 +35,8 @@ import MischiefECS.Components.Default
 import MischiefECS.Entities
 import MischiefECS.Events
 import MischiefECS.Messages
+import MischiefECS.Relationships
+import MischiefECS.Relationships.ChildOf
 import MischiefECS.SDL
 import MischiefECS.Tables
 import MischiefECS.Time

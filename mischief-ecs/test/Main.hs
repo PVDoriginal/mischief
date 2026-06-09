@@ -13,8 +13,6 @@ data Parent1 = Parent1 deriving (Component, Queryable)
 
 data Parent2 = Parent2 deriving (Component, Queryable)
 
-data ChildOf = ChildOf deriving (Component, Queryable, Show)
-
 main :: IO ()
 main = do
   app <- newApp [plugin]
