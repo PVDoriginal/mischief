@@ -54,6 +54,7 @@ library
     MischiefMath.Mat
     MischiefMath.Quat
     MischiefMath.Transform
+    MischiefMath.Transform.Plugin 
     MischiefMath.Vec
     MischiefMath.Vec.Orphans.Default
     MischiefMath.Vec.Orphans.FieldAccessors

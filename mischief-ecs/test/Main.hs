@@ -45,10 +45,6 @@ setup = do
       Just name <- get @Name rel.target
       liftIO $ print name
 
-  names <- query @(Entity, Name)
-  for_ names $ \(entity, name) -> do
-    liftIO $ putStrLn $ show entity ++ " has name " ++ show name
-
 exit :: System ()
 exit = do
   liftIO exitSuccess

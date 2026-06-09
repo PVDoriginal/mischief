@@ -38,6 +38,10 @@ instance (QueryData a0, QueryData a1) => QueryData (a0, a1) where
   types :: (QueryData a0, QueryData a1) => Proxy (a0, a1) -> Set TypeRep
   types _ = Set.union (types $ Proxy @a0) (types $ Proxy @a1)
 
+instance (QueryData a0, QueryData a1, QueryData a2) => QueryData (a0, a1, a2) where
+  types :: (QueryData a0, QueryData a1, QueryData a2) => Proxy (a0, a1, a2) -> Set TypeRep
+  types _ = Set.unions [types $ Proxy @a0, types $ Proxy @a1, types $ Proxy @a2]
+
 class (QueryData qd) => Queryable qd where
   type QueryOutput qd
   type QueryOutput qd = ComponentResult qd
@@ -81,6 +85,30 @@ instance (Queryable q0, Queryable q1) => Queryable (q0, q1) where
 
   outputEntity :: (Queryable q0, Queryable q1) => Proxy (q0, q1) -> (QueryOutput q0, QueryOutput q1) -> Entity
   outputEntity _ (a, _) = outputEntity (Proxy @q0) a
+
+instance (Queryable q0, Queryable q1, Queryable q2) => Queryable (q0, q1, q2) where
+  type QueryOutput (q0, q1, q2) = (QueryOutput q0, QueryOutput q1, QueryOutput q2)
+
+  runQueryEntity :: (Queryable q0, Queryable q1, Queryable q2) => Proxy (q0, q1, q2) -> World -> Entity -> IO (Maybe (QueryOutput (q0, q1, q2)))
+  runQueryEntity _ world entity = do
+    r0 <- runQueryEntity (Proxy @q0) world entity
+    r1 <- runQueryEntity (Proxy @q1) world entity
+    r2 <- runQueryEntity (Proxy @q2) world entity
+
+    return $ do
+      r0' <- r0
+      r1' <- r1
+      r2' <- r2
+      return (r0', r1', r2')
+
+  runQueryInternal _ archetypes world = do
+    r0 <- runQueryInternal (Proxy @q0) archetypes world
+    r1 <- runQueryInternal (Proxy @q1) archetypes world
+    r2 <- runQueryInternal (Proxy @q2) archetypes world
+
+    return $ zip3 r0 r1 r2
+
+  outputEntity _ (a, _, _) = outputEntity (Proxy @q0) a
 
 instance (Component c) => Queryable (R c) where
   type QueryOutput (R c) = RelationshipCollection c
