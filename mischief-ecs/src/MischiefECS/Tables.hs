@@ -9,6 +9,7 @@ import Data.Map qualified as Map
 import Data.Maybe (catMaybes, fromMaybe)
 import Data.Traversable (for)
 import Data.Vector qualified as Vector
+import GHC.Records
 import MischiefECS.Components
 import MischiefECS.Components.Bundle
 import MischiefECS.Entities
@@ -322,3 +323,7 @@ instance (Ord c) => Ord (ComponentResult c) where
 data RelationshipResult c = RelationshipResult {value :: c, target :: Entity, entity :: Entity} deriving (Show)
 
 data RelationshipCollection c = RelationshipCollection {collection :: [RelationshipResult c], entity :: Entity} deriving (Show)
+
+instance HasField "targets" (RelationshipCollection c) [Entity] where
+  getField :: RelationshipCollection c -> [Entity]
+  getField r = map (\x -> x.target) r.collection
