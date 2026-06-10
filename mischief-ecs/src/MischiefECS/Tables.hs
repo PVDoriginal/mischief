@@ -196,6 +196,21 @@ tryGetComponentFromColumn (Column components) pointer = do
   element <- Vec.read components pointer.rowIndex
   pure $ tryGetComponent element.value
 
+tryGetRelationshipCollectionFromTable :: forall c. (Component c) => Table -> Entity -> EntityPointer -> ComponentId -> IO (Maybe (RelationshipCollection c))
+tryGetRelationshipCollectionFromTable table entity pointer componentId =
+  do
+    columns <- readIORef table.columns
+    -- TODO: improve lookup performance for partial tuples
+
+    components' <- forM (Map.toList columns) $ \(ComponentId (id', entityId), column) -> do
+      if id' == componentId.component
+        then do
+          component <- tryGetComponentFromColumn @c column pointer
+          return $ fmap (,entityId) component
+        else return Nothing
+
+    return $ Just $ RelationshipCollection (map (\(c, target) -> RelationshipResult {value = c, entity, target = Entity {id = target, gen = 0}}) $ catMaybes components') entity
+
 tryGetComponentFromTable :: forall c. (Component c) => Table -> EntityPointer -> ComponentId -> IO (Maybe c)
 tryGetComponentFromTable table pointer componentId =
   do
@@ -205,6 +220,16 @@ tryGetComponentFromTable table pointer componentId =
     case column of
       Nothing -> return Nothing
       Just column -> tryGetComponentFromColumn column pointer
+
+tryGetRelationshipCollectionFromTables :: forall c. (Component c) => Tables -> Entity -> EntityPointer -> ComponentId -> IO (Maybe (RelationshipCollection c))
+tryGetRelationshipCollectionFromTables (Tables tables) entity pointer componentId =
+  do
+    tables <- readIORef tables
+    let table = Map.lookup pointer.archetypeId tables
+
+    case table of
+      Nothing -> return Nothing
+      Just table -> tryGetRelationshipCollectionFromTable table entity pointer componentId
 
 tryGetComponentFromTables :: forall c. (Component c) => Tables -> EntityPointer -> ComponentId -> IO (Maybe c)
 tryGetComponentFromTables (Tables tables) pointer componentId =

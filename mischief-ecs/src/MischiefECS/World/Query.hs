@@ -17,7 +17,6 @@ import Data.Set qualified as Set
 import MischiefECS.Components
 import MischiefECS.Entities
 import MischiefECS.Entities.Internal
-import MischiefECS.Relationships
 import MischiefECS.Tables
 import MischiefECS.World
 import MischiefECS.World.Internal
@@ -113,7 +112,7 @@ instance (Queryable q0, Queryable q1, Queryable q2) => Queryable (q0, q1, q2) wh
 
 instance (Component c) => Queryable (R c) where
   type QueryOutput (R c) = RelationshipCollection c
-  runQueryEntity = undefined
+  runQueryEntity _ = tryGetEntityRelationshipCollection
   runQueryInternal :: (Component c) => Proxy (R c) -> [ArchetypeId] -> World -> IO [QueryOutput (R c)]
   runQueryInternal _ archetypes world = tryGetRelationshipCollections @c world archetypes
 
@@ -274,12 +273,12 @@ filterQuery world (a `Or` b) archetypes outputs = do
 
 findComponentsOfEntity :: World -> Entity -> IO (Maybe [ComponentId])
 findComponentsOfEntity world entity = do
-  pointers <- liftIO $ readIORef world.entities.pointers
+  pointer <- liftIO $ getPointer entity world.entities
 
   let Tables t = world.tables
   tables <- liftIO $ readIORef t
 
-  case Map.lookup entity pointers of
+  case pointer of
     Nothing -> return Nothing
     Just x -> do
       pointer <- liftIO $ readIORef x

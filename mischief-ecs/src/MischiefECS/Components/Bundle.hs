@@ -6,7 +6,6 @@ import Data.Set qualified as Set
 import Data.Typeable
 import MischiefECS.Components
 import MischiefECS.Components.Internal
-import MischiefECS.Relationships
 
 newtype ProcessedBundleData = ProcessedBundleData {elements :: [ProcessedBundleElement]}
 

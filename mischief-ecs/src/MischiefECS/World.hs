@@ -11,6 +11,7 @@ import Control.Monad.Trans (MonadTrans (..))
 import Control.Monad.Trans.Reader (ReaderT (runReaderT))
 import Data.IORef
 import Data.Map qualified as Map
+import Data.Maybe (isNothing)
 import Data.Proxy
 import Data.Set (Set)
 import Data.Set qualified as Set
@@ -171,8 +172,8 @@ despawn :: Entity -> System ()
 despawn entity =
   do
     world <- ask
-    pointers <- liftIO $ readIORef world.entities.pointers
-    case Map.lookup entity pointers of
+    pointer <- liftIO $ getPointer entity world.entities
+    case pointer of
       Nothing -> undefined
       Just pointer -> do
         let Tables tables = world.tables
@@ -214,9 +215,9 @@ removeRelationshipFromEntity target entity = do
 removeFromEntity :: ComponentId -> Entity -> System ()
 removeFromEntity componentId entity = do
   world <- ask
-  entityPointers <- liftIO $ readIORef world.entities.pointers
+  pointer <- liftIO $ getPointer entity world.entities
 
-  case Map.lookup entity entityPointers of
+  case pointer of
     Nothing -> undefined
     Just pointer -> do
       let Tables tables = world.tables
@@ -238,17 +239,31 @@ removeFromEntity componentId entity = do
 
             liftIO $ insertEntityIntoTables newBundle world.tables archetype (entity, pointer)
 
+tryGetEntityRelationshipCollection :: forall c. (Component c) => World -> Entity -> IO (Maybe (RelationshipCollection c))
+tryGetEntityRelationshipCollection world entity =
+  do
+    componentId <- getComponentId (typeRep $ Proxy @c) world.components
+    case componentId of
+      Nothing -> return Nothing
+      Just componentId -> do
+        pointer <- getPointer entity world.entities
+        case pointer of
+          Nothing -> do
+            return Nothing
+          Just pointer ->
+            do
+              pointer <- readIORef pointer
+              tryGetRelationshipCollectionFromTables world.tables entity pointer componentId
+
 tryGetEntityComponent :: forall c. (Component c) => World -> Entity -> IO (Maybe c)
 tryGetEntityComponent world entity =
   do
-    pointers <- readIORef world.entities.pointers
-
     componentId <- getComponentId (typeRep $ Proxy @c) world.components
 
     case componentId of
       Nothing -> return Nothing
       Just componentId -> do
-        let pointer = Map.lookup entity pointers
+        pointer <- getPointer entity world.entities
 
         case pointer of
           Nothing -> return Nothing

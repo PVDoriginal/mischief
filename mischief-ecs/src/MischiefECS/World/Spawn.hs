@@ -4,6 +4,7 @@ import Control.Monad.IO.Class
 import Control.Monad.Reader (MonadReader (..))
 import Data.IORef
 import Data.Map qualified as Map
+import Data.Maybe
 import Data.Set qualified as Set
 import MischiefECS.Components
 import MischiefECS.Components.Bundle
@@ -41,19 +42,19 @@ spawnEntity entity bundle = do
   currentTick <- liftIO $ readIORef world.tick
   bundle <- liftIO $ processBundleElements world ComponentTicks {changed = currentTick, added = currentTick} $ Set.union elements required
 
-  triggerInsertEvent bundle entity
-
   archetypeId <- liftIO $ archetypeOfProcessedBundle world.archetypes world.components bundle
 
   entityPointer <- liftIO $ newIORef EntityPointer {archetypeId = ArchetypeId 0, rowIndex = 0}
 
   liftIO $ insertEntityIntoTables bundle world.tables archetypeId (entity, entityPointer)
 
-  liftIO $ modifyIORef' world.entities.pointers $ Map.insert entity entityPointer
+  liftIO $ insertPointer entity entityPointer world.entities
 
+  triggerInsertEvent bundle entity
   insertNew (Name (show entity)) entity
 
-spawnObserver :: forall e. (Event e) => Observer e -> System ()
-spawnObserver observer = do
-  _ <- spawn (observer, EventProxy @e)
+spawnObserver :: forall e. (Event e) => Observer e -> Maybe ObserverOrder -> System ()
+spawnObserver observer order' = do
+  let order = fromMaybe (ObserverOrder 0) order'
+  _ <- spawn ((observer, order), EventProxy @e)
   return ()

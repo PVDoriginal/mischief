@@ -2,7 +2,7 @@
 
 module MischiefECS.Components
   ( Components (..),
-    ComponentId (ComponentId),
+    ComponentId (..),
     emptyComponents,
     getOrAddComponentId,
     getComponentId,
@@ -24,6 +24,7 @@ module MischiefECS.Components
     ComponentData (ComponentData, value, ticks),
     StorageType (ComponentStorage, ResourceStorage),
     Pair (..),
+    R (..),
   )
 where
 
@@ -38,6 +39,7 @@ import Data.Maybe
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Typeable
+import GHC.Records
 import MischiefECS.Components.Internal
 import MischiefECS.Entities.Internal
 
@@ -52,6 +54,14 @@ newtype ComponentId = ComponentId
       )
   }
   deriving (Show, Eq, Ord)
+
+instance HasField "component" ComponentId Int where
+  getField :: ComponentId -> Int
+  getField (ComponentId (id, _)) = id
+
+instance HasField "entity" ComponentId Int where
+  getField :: ComponentId -> Int
+  getField (ComponentId (_, id)) = id
 
 newtype Pair = Pair (TypeRep, Entity) deriving newtype (Eq, Ord)
 
@@ -239,3 +249,7 @@ data ComponentTicks = ComponentTicks {changed :: Tick, added :: Tick} deriving (
 data ComponentData = ComponentData {value :: ErasedComponent, ticks :: ComponentTicks}
 
 instance Component Entity
+
+newtype R c = R (c, Entity)
+
+instance (Component c) => Component (R c)

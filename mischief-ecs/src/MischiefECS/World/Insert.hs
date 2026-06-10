@@ -15,6 +15,7 @@ import MischiefECS.Components
 import MischiefECS.Components.Bundle
 import MischiefECS.Components.Internal
 import MischiefECS.Entities
+import MischiefECS.Entities.Internal
 import MischiefECS.Events
 import MischiefECS.Tables
 import MischiefECS.Vec qualified as Vec
@@ -35,8 +36,8 @@ insert bundle entity =
     bundleData <- liftIO $ processBundleElements world ComponentTicks {changed = currentTick, added = currentTick} elements
     let newComponents = sort $ map (\x -> x.id) bundleData.elements
 
-    entityPointers <- liftIO $ readIORef world.entities.pointers
-    case Map.lookup entity entityPointers of
+    pointer <- liftIO $ getPointer entity world.entities
+    case pointer of
       Nothing -> undefined
       Just currentPointer -> do
         currentPointerInternal <- liftIO $ readIORef currentPointer
@@ -92,8 +93,8 @@ insertNew bundle entity =
 
     bundleData <- liftIO $ processBundleElements world ComponentTicks {changed = currentTick, added = currentTick} (Set.union elements required)
 
-    entityPointers <- liftIO $ readIORef world.entities.pointers
-    case Map.lookup entity entityPointers of
+    pointer <- liftIO $ getPointer entity world.entities
+    case pointer of
       Nothing -> undefined
       Just currentPointer -> do
         currentPointerInternal <- liftIO $ readIORef currentPointer
@@ -171,7 +172,7 @@ insertResource r =
 
         liftIO $ insertResourceIntoTables bundle currentTick world.tables archetypeId (entity, entityPointer)
 
-        liftIO $ modifyIORef' world.entities.pointers $ Map.insert entity entityPointer
+        liftIO $ insertPointer entity entityPointer world.entities
         triggerInsertEvent bundle entity
 
         insertNew (Name $ show entity) entity
@@ -203,9 +204,17 @@ update = undefined
 
 triggerInsertEvent :: ProcessedBundleData -> Entity -> System ()
 triggerInsertEvent bundle entity =
-  for_ bundle.elements $ \x ->
-    triggerInsertEvent' x.component.value entity
+  for_ bundle.elements $ \x -> do
+    if x.id.entity == 0
+      then
+        triggerInsertEventC x.component.value entity
+      else
+        triggerInsertEventR x.component.value x.id entity
 
-triggerInsertEvent' :: ErasedComponent -> Entity -> System ()
-triggerInsertEvent' (ErasedComponent (_ :: c)) entity =
+triggerInsertEventC :: ErasedComponent -> Entity -> System ()
+triggerInsertEventC (ErasedComponent (_ :: c)) entity =
   runEvent $ eraseEvent $ OnInsert @c entity
+
+triggerInsertEventR :: ErasedComponent -> ComponentId -> Entity -> System ()
+triggerInsertEventR (ErasedComponent (_ :: c)) id entity = do
+  runEvent $ eraseEvent $ OnInsertR @c entity (Entity {id = id.entity, gen = 0})

@@ -118,6 +118,7 @@ library
     time,
     transformers,
     vector,
+    stm, 
 
   -- Directories containing source files.
   hs-source-dirs:

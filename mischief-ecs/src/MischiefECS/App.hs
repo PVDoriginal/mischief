@@ -111,7 +111,12 @@ addResource r = do
 addObserver :: (Event e) => (e -> System ()) -> Plugin ()
 addObserver observer = do
   app <- ask
-  liftIO $ runSystem (spawnObserver $ Observer observer) app.world
+  liftIO $ runSystem (spawnObserver (Observer observer) Nothing) app.world
+
+addObserverOrdered :: (Event e) => (e -> System ()) -> Int -> Plugin ()
+addObserverOrdered observer order = do
+  app <- ask
+  liftIO $ runSystem (spawnObserver (Observer observer) $ Just (ObserverOrder order)) app.world
 
 addPlugin :: Plugin () -> Plugin ()
 addPlugin plugin = do
