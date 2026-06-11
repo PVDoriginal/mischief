@@ -2,12 +2,19 @@
 
 module MischiefMath.Transform.Plugin where
 
+import Control.Monad.IO.Class
 import MischiefECS
 import MischiefMath.Transform (GlobalTransform (GlobalTransform), Transform)
 
 transformPlugin :: Plugin ()
 transformPlugin = do
-  addSystems First propagateTransform
+  addSystems First initGlobals
+  addSystems First $ propagateTransform `after` initGlobals
+
+initGlobals :: System ()
+initGlobals = do
+  iter' @(Entity, Transform) (added @Transform) $ \(entity, transform) -> do
+    insert (GlobalTransform transform.value) entity
 
 propagateTransform :: System ()
 propagateTransform = do

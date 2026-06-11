@@ -16,7 +16,7 @@ newtype GlobalTransform = GlobalTransform {transform :: Transform}
   deriving stock (Generic, Show)
   deriving newtype (Num)
 
-data Transform = Transform {translation :: Vec3, rotation :: Quat, scale :: Vec3} deriving (Generic, Show, Default, Queryable)
+data Transform = Transform {translation :: Vec3, rotation :: Quat, scale :: Vec3} deriving (Generic, Show, Default, Component, Queryable)
 
 instance Num Transform where
   (*) :: Transform -> Transform -> Transform
@@ -26,9 +26,6 @@ instance Num Transform where
         rotation = t1.rotation * t2.rotation,
         scale = t1.scale * t2.scale
       }
-
-instance Component Transform where
-  required = require @GlobalTransform
 
 setRotation :: Quat -> Transform -> Transform
 setRotation rotation Transform {translation, scale} =
