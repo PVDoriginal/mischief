@@ -42,6 +42,8 @@ setup = do
   for_ q4 $ \(name, result) ->
     for_ result.collection $ \rel -> do
       liftIO $ putStrLn $ show name ++ " is child of " ++ show rel.target
+      Just parentName <- get @Name rel.target
+      liftIO $ print parentName
 
 -- observer :: OnInsertR ChildOf -> System ()
 -- observer event = liftIO $ putStrLn $ show event.entity ++ " is now a child of " ++ show event.target

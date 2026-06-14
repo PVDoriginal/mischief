@@ -35,7 +35,7 @@ data Entities = Entities
     counter :: TVar EntityCounter
   }
 
-data EntityCounter = EntityCounter {counter :: Int, free :: [Entity], generations :: TVar (Map Int Int)}
+data EntityCounter = EntityCounter {counter :: Int, free :: [Entity]}
 
 insertPointer :: Entity -> IORef EntityPointer -> Entities -> IO ()
 insertPointer entity pointer entities = do
@@ -44,42 +44,28 @@ insertPointer entity pointer entities = do
 getPointer :: Entity -> Entities -> IO (Maybe (IORef EntityPointer))
 getPointer entity entities = do
   pointers <- readIORef entities.pointers
-  if entity.gen /= 0
-    then return $ Map.lookup entity pointers
-    else do
-      gen <- atomically $ do
-        counter <- readTVar entities.counter
-        generations <- readTVar counter.generations
-        return (Map.lookup entity.id generations)
-
-      return $ do
-        gen' <- gen
-        Map.lookup (Entity {id = entity.id, gen = gen'}) pointers
+  return $ Map.lookup entity pointers
 
 getNewEntity :: Entities -> IO Entity
 getNewEntity entities = atomically $ do
-  EntityCounter {counter, free, generations} <- readTVar entities.counter
+  EntityCounter {counter, free} <- readTVar entities.counter
   case free of
     [] -> do
-      modifyTVar' generations (Map.insert counter 1)
-      writeTVar entities.counter EntityCounter {counter = counter + 1, free, generations}
+      writeTVar entities.counter EntityCounter {counter = counter + 1, free}
       return $ Entity {id = counter, gen = 1}
     (Entity {id, gen} : xs) -> do
-      modifyTVar' generations (Map.insert counter (gen + 1))
-      writeTVar entities.counter EntityCounter {counter = counter, free = xs, generations}
+      writeTVar entities.counter EntityCounter {counter = counter, free = xs}
       return $ Entity {id, gen = gen + 1}
 
 removeEntity :: Entity -> Entities -> IO ()
 removeEntity entity entities = do
   modifyIORef' entities.pointers (Map.delete entity)
   atomically $ do
-    EntityCounter {counter, free, generations} <- readTVar entities.counter
-    modifyTVar' generations (Map.delete entity.id)
-    writeTVar entities.counter EntityCounter {counter, free = entity : free, generations}
+    EntityCounter {counter, free} <- readTVar entities.counter
+    writeTVar entities.counter EntityCounter {counter, free = entity : free}
 
 emptyEntities :: IO Entities
 emptyEntities = do
   map <- newIORef Map.empty
-  generations <- newTVarIO Map.empty
-  counter <- newTVarIO EntityCounter {counter = 1, free = [], generations}
+  counter <- newTVarIO EntityCounter {counter = 1, free = []}
   return $ Entities map counter
