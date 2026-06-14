@@ -202,14 +202,15 @@ tryGetRelationshipCollectionFromTable table entity pointer componentId =
     columns <- readIORef table.columns
     -- TODO: improve lookup performance for partial tuples
 
-    components' <- forM (Map.toList columns) $ \(ComponentId (id', entityId), column) -> do
-      if id' == componentId.component
+    components' <- forM (Map.toList columns) $ \(componentId', column) -> do
+      if componentId'.id == componentId.id
         then do
+          let entity = fromMaybe undefined componentId'.entity
           component <- tryGetComponentFromColumn @c column pointer
-          return $ fmap (,entityId) component
+          return $ fmap (,entity) component
         else return Nothing
 
-    return $ Just $ RelationshipCollection (map (\(c, target) -> RelationshipResult {value = c, entity, target = Entity {id = target, gen = 0}}) $ catMaybes components') entity
+    return $ Just $ RelationshipCollection (map (\(value, target) -> RelationshipResult {value, entity, target}) $ catMaybes components') entity
 
 tryGetComponentFromTable :: forall c. (Component c) => Table -> EntityPointer -> ComponentId -> IO (Maybe c)
 tryGetComponentFromTable table pointer componentId =
@@ -275,23 +276,25 @@ tryGetComponentsFromColumn (Column components) = do
   pure $ maybe [] Vector.toList x
 
 tryGetRelationshipCollectionsFromTable :: forall c. (Component c) => Table -> ComponentId -> IO [RelationshipCollection c]
-tryGetRelationshipCollectionsFromTable table (ComponentId (id, _)) =
+tryGetRelationshipCollectionsFromTable table componentId =
   do
+    -- let Just entity = componentId.entity
     columns <- readIORef table.columns
     -- TODO: improve lookup performance for partial tuples
 
-    components' <- forM (Map.toList columns) $ \(ComponentId (id', entityId), column) -> do
-      if id == id'
+    components' :: [Maybe [(c, Entity)]] <- forM (Map.toList columns) $ \(componentId', column) -> do
+      if componentId.id == componentId'.id
         then do
+          let entity = fromMaybe undefined componentId'.entity
           components <- tryGetComponentsFromColumn @c column
-          return $ Just $ map (,entityId) components
+          return $ Just $ map (,entity) components
         else return Nothing
 
     entities <- Vec.toList table.entities
     let components'' = zip (map fst entities) $ transpose $ catMaybes components'
     return $
       map
-        (\(entity, components) -> RelationshipCollection {collection = map (\(c, i) -> RelationshipResult {value = c, entity, target = Entity {id = i, gen = 0}}) components, entity})
+        (\(entity, components) -> RelationshipCollection {collection = map (\(value, target) -> RelationshipResult {value, entity, target}) components, entity})
         components''
 
 tryGetComponentsFromTable :: forall c. (Component c) => Table -> ComponentId -> IO [ComponentResult c]

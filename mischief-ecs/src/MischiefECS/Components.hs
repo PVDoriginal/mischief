@@ -44,24 +44,11 @@ import MischiefECS.Components.Internal
 import MischiefECS.Entities.Internal
 
 -- | Unique ids for components and component pairs.
-newtype ComponentId = ComponentId
-  { -- | The first Int of the id is the unique id associated with a registered component.
-    --
-    -- The second Int is an optional id of an entity, in case this refers to a relationship.
-    id ::
-      ( Int,
-        Int
-      )
+data ComponentId = ComponentId
+  { id :: Int,
+    entity :: Maybe Entity
   }
   deriving (Show, Eq, Ord)
-
-instance HasField "component" ComponentId Int where
-  getField :: ComponentId -> Int
-  getField (ComponentId (id, _)) = id
-
-instance HasField "entity" ComponentId Int where
-  getField :: ComponentId -> Int
-  getField (ComponentId (_, id)) = id
 
 newtype Pair = Pair (TypeRep, Entity) deriving newtype (Eq, Ord)
 
@@ -91,8 +78,8 @@ emptyComponents = do
 -- | Get the id of a component - entity pair. In case the component isn't registered, it will give it a new id.
 getOrAddPairId :: Pair -> Components -> IO ComponentId
 getOrAddPairId (Pair (t, entity)) components = do
-  ComponentId (id, _) <- getOrAddComponentId t components
-  return $ ComponentId (id, entity.id)
+  component <- getOrAddComponentId t components
+  return $ ComponentId {id = component.id, entity = Just entity}
 
 -- | Get the id of a component. In case the component isn't registered, it will give it a new id.
 getOrAddComponentId :: TypeRep -> Components -> IO ComponentId
@@ -100,7 +87,7 @@ getOrAddComponentId t Components {components, archetypes, counter} = do
   innerMap <- readIORef components
 
   case Map.lookup t innerMap of
-    Just t -> return $ ComponentId (t, 0)
+    Just t -> return $ ComponentId {id = t, entity = Nothing}
     Nothing -> do
       result <- readIORef counter
       modifyIORef counter (+ 1)
@@ -110,7 +97,7 @@ getOrAddComponentId t Components {components, archetypes, counter} = do
       l <- newIORef Set.empty
       modifyIORef archetypes $ Map.insert result l
 
-      return $ ComponentId (result, 0)
+      return $ ComponentId {id = result, entity = Nothing}
 
 -- | Get the id of a component.
 getComponentId :: TypeRep -> Components -> IO (Maybe ComponentId)
@@ -118,7 +105,7 @@ getComponentId t Components {components} = do
   innerMap <- readIORef components
   return $ case Map.lookup t innerMap of
     Nothing -> Nothing
-    Just t -> Just $ ComponentId (t, 0)
+    Just t -> Just ComponentId {id = t, entity = Nothing}
 
 -- | Try to get the inner data of a 'ErasedComponent'.
 tryGetComponent :: forall c. (Component c) => ErasedComponent -> Maybe c
@@ -162,12 +149,11 @@ getOrAddArchetypeId t Archetypes {map, revMap, counter} Components {archetypes, 
       archetypes <- readIORef archetypes
       pairs' <- readIORef pairs
       for_ t $ \t -> do
-        case Map.lookup (fst t.id) archetypes of
+        case Map.lookup t.id archetypes of
           Nothing -> undefined
           Just list -> modifyIORef' list $ Set.insert $ ArchetypeId result
 
-        -- If the second part of the component id is not 0, it means this is a relationship.
-        when (snd t.id /= 0) $ do
+        when (isJust t.entity) $ do
           case Map.lookup t pairs' of
             Nothing -> do
               s <- newIORef $ Set.singleton $ ArchetypeId result
@@ -193,13 +179,13 @@ removeArchetypeId id Archetypes {map, revMap} Components {archetypes, pairs} = d
 
       archetypes <- readIORef archetypes
       pairs <- readIORef pairs
-      for_ componentList $ \(ComponentId (componentId, entityId)) -> do
-        case Map.lookup componentId archetypes of
+      for_ componentList $ \component -> do
+        case Map.lookup component.id archetypes of
           Nothing -> undefined
           Just l -> modifyIORef' l $ Set.delete id
 
-        when (entityId /= 0) $ do
-          case Map.lookup (ComponentId (componentId, entityId)) pairs of
+        when (isJust component.entity) $
+          case Map.lookup component pairs of
             Nothing -> undefined
             Just l -> modifyIORef' l $ Set.delete id
 
@@ -210,7 +196,7 @@ findMatchingArchetypes components Archetypes {map = map'} Components {archetypes
   do
     archetypes' <- readIORef archetypes
     archetypes'' <- forM components $ \component -> do
-      maybe undefined readIORef (Map.lookup (fst component.id) archetypes')
+      maybe undefined readIORef (Map.lookup component.id archetypes')
 
     map' <- readIORef map'
 

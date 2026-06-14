@@ -214,8 +214,8 @@ filterQuery world (WithR x e) _ outputs = do
   component <- liftIO $ getComponentId x world.components
   case component of
     Nothing -> return []
-    Just (ComponentId (id, _)) -> do
-      let component = ComponentId (id, e.id)
+    Just (ComponentId {id}) -> do
+      let component = ComponentId {id, entity = Just e}
       filterM
         ( \(_, output) -> do
             let entity = outputEntity (Proxy @qd) output
@@ -335,8 +335,8 @@ filterArchetype (WithR x e) components world = do
   component <- getComponentId x world.components
   case component of
     Nothing -> pure False
-    Just (ComponentId (id, _)) -> do
-      let component = ComponentId (id, e.id)
+    Just (ComponentId {id}) -> do
+      let component = ComponentId {id, entity = Just e}
       return $ component `elem` components
 filterArchetype (Without x) components world = do
   component <- getComponentId x world.components

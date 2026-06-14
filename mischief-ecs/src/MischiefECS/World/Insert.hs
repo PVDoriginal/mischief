@@ -10,6 +10,7 @@ import Data.Foldable (for_)
 import Data.IORef
 import Data.List
 import Data.Map qualified as Map
+import Data.Maybe (fromMaybe)
 import Data.Set qualified as Set
 import MischiefECS.Components
 import MischiefECS.Components.Bundle
@@ -205,16 +206,16 @@ update = undefined
 triggerInsertEvent :: ProcessedBundleData -> Entity -> System ()
 triggerInsertEvent bundle entity =
   for_ bundle.elements $ \x -> do
-    if x.id.entity == 0
-      then
+    case x.id.entity of
+      Nothing ->
         triggerInsertEventC x.component.value entity
-      else
-        triggerInsertEventR x.component.value x.id entity
+      Just target ->
+        triggerInsertEventR x.component.value target entity
 
 triggerInsertEventC :: ErasedComponent -> Entity -> System ()
 triggerInsertEventC (ErasedComponent (_ :: c)) entity =
   runEvent $ eraseEvent $ OnInsert @c entity
 
-triggerInsertEventR :: ErasedComponent -> ComponentId -> Entity -> System ()
-triggerInsertEventR (ErasedComponent (_ :: c)) id entity = do
-  runEvent $ eraseEvent $ OnInsertR @c entity (Entity {id = id.entity, gen = 0})
+triggerInsertEventR :: ErasedComponent -> Entity -> Entity -> System ()
+triggerInsertEventR (ErasedComponent (_ :: c)) target entity = do
+  runEvent $ eraseEvent $ OnInsertR @c entity target
