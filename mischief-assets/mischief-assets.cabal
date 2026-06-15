@@ -86,6 +86,7 @@ library
     time,
     transformers,
     vector,
+    mischief-ecs
 
   -- Directories containing source files.
   hs-source-dirs:

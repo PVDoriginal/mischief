@@ -75,6 +75,7 @@ runApp app = do
 
           runSystem system world
           runSystem flush world
+          runSystem flushAsync world
           runSystem flushEvents world
           runSystem tick world
 

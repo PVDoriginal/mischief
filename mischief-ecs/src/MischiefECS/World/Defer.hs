@@ -1,5 +1,8 @@
 module MischiefECS.World.Defer where
 
+import Control.Concurrent
+import Control.Concurrent.Async
+import Control.Concurrent.STM
 import Control.Monad.IO.Class
 import Control.Monad.Reader
 import Data.Functor
@@ -46,5 +49,27 @@ flush = do
   systems <- liftIO $ readIORef world.deferred
 
   sequence_ systems
-
   liftIO $ writeIORef world.deferred []
+
+flushAsync :: System ()
+flushAsync = do
+  world <- ask
+
+  systems <- liftIO $ atomically $ do
+    systems <- readTVar world.deferredAsync
+    writeTVar world.deferredAsync []
+    return systems
+
+  sequence_ systems
+
+forkSystem :: ParSystem () -> System ()
+forkSystem (ParSystem !x) = do
+  world <- ask
+  _ <- liftIO $ forkIO $ do
+    deferred <- newIORef []
+    runReaderT x ParWorld {world, deferred}
+    deferred' <- readIORef deferred
+
+    atomically $ modifyTVar' world.deferredAsync (++ deferred')
+
+  return ()

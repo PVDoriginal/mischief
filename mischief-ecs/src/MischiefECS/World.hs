@@ -3,6 +3,7 @@
 -- {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 module MischiefECS.World where
 
+import Control.Concurrent.STM
 import Control.Monad
 import Control.Monad.IO.Class (MonadIO (liftIO))
 import Control.Monad.Primitive (PrimMonad (..))
@@ -32,6 +33,7 @@ data World = World
     events :: IORef [ErasedEvent],
     -- | A list of deferred systems that are ran at the end of each system, or can be flushed manually using 'flush'.
     deferred :: IORef [System ()],
+    deferredAsync :: TVar [System ()],
     -- | The current Tick, incremented each time a system is ran, used for change detection.
     tick :: IORef Tick,
     -- | The tick on which the last instance of the current system ran.
