@@ -124,7 +124,9 @@ test-suite mischief-test
   main-is: Main.hs
   -- Test dependencies.
   build-depends:
+    async,
     base ^>=4.21.0.0,
+    bytestring,
     containers,
     data-default,
     mischief-ecs,
