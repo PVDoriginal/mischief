@@ -12,6 +12,7 @@ import Data.List
 import Data.Map qualified as Map
 import Data.Maybe (fromMaybe)
 import Data.Set qualified as Set
+import MischiefECS.Archetypes
 import MischiefECS.Components
 import MischiefECS.Components.Bundle
 import MischiefECS.Components.Internal

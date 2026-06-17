@@ -4,6 +4,7 @@ module MischiefECS.Components.Bundle where
 
 import Data.Set qualified as Set
 import Data.Typeable
+import MischiefECS.Archetypes
 import MischiefECS.Components
 import MischiefECS.Components.Internal
 

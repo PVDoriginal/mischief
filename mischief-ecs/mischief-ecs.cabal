@@ -78,6 +78,8 @@ library
     MischiefECS.World.Remove
     MischiefECS.World.Spawn
     MischiefECS.World.Systems
+    MischiefECS.Archetypes
+    MischiefECS.Archetypes.Graph 
 
   -- Modules included in this library but not exported.
   -- other-modules:

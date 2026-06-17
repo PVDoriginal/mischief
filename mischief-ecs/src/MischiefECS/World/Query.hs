@@ -14,6 +14,7 @@ import Data.Map qualified as Map
 import Data.Maybe
 import Data.Set (Set)
 import Data.Set qualified as Set
+import MischiefECS.Archetypes
 import MischiefECS.Components
 import MischiefECS.Entities
 import MischiefECS.Entities.Internal
