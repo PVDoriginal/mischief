@@ -9,6 +9,7 @@ import MischiefECS.Entities
 import MischiefECS.Events
 import MischiefECS.Tables
 import MischiefECS.World
+import MischiefECS.World.Utils
 
 class Removable c where
   removeInternal :: Proxy c -> Entity -> System ()

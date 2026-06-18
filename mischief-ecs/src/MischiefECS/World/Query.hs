@@ -22,6 +22,7 @@ import MischiefECS.Tables
 import MischiefECS.World
 import MischiefECS.World.Internal
 import MischiefECS.World.Par
+import MischiefECS.World.Utils
 import Prelude hiding (and)
 
 class QueryData qd where

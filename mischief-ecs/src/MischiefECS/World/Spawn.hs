@@ -1,7 +1,7 @@
 module MischiefECS.World.Spawn where
 
 import Control.Monad.IO.Class
-import Control.Monad.Reader (MonadReader (..))
+import Control.Monad.Reader (MonadReader (..), ReaderT (runReaderT))
 import Data.IORef
 import Data.Map qualified as Map
 import Data.Maybe
@@ -15,6 +15,7 @@ import MischiefECS.World
 import MischiefECS.World.Defer
 import MischiefECS.World.Insert
 import MischiefECS.World.Internal
+import MischiefECS.World.Utils
 
 -- | Spawn an entity given a bundle of components.
 spawn :: (Bundle b) => b -> System Entity
@@ -58,3 +59,12 @@ spawnObserver observer order' = do
   let order = fromMaybe (ObserverOrder 0) order'
   _ <- spawn ((observer, order), EventProxy @e)
   return ()
+
+-- | Spawn an entity given a bundle of components.
+spawnIO :: (Bundle b) => World -> b -> IO Entity
+spawnIO world bundle =
+  do
+    entity <- liftIO $ getNewEntity world.entities
+
+    runSystem (spawnEntity entity bundle) world
+    return entity

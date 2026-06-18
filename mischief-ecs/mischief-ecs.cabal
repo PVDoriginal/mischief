@@ -55,10 +55,12 @@ library
     MischiefECS.App.Schedules
     MischiefECS.App.SystemConfig
     MischiefECS.App.Systems
+    MischiefECS.Archetypes
+    MischiefECS.Archetypes.Graph
     MischiefECS.Components
     MischiefECS.Components.Bundle
-    MischiefECS.Components.Spawn
     MischiefECS.Components.Default
+    MischiefECS.Components.Spawn
     MischiefECS.Entities
     MischiefECS.Events
     MischiefECS.Graph
@@ -79,8 +81,7 @@ library
     MischiefECS.World.Remove
     MischiefECS.World.Spawn
     MischiefECS.World.Systems
-    MischiefECS.Archetypes
-    MischiefECS.Archetypes.Graph 
+    MischiefECS.World.Utils
 
   -- Modules included in this library but not exported.
   -- other-modules:
@@ -118,10 +119,10 @@ library
     mtl,
     primitive,
     sdl3,
+    stm,
     time,
     transformers,
     vector,
-    stm, 
 
   -- Directories containing source files.
   hs-source-dirs:

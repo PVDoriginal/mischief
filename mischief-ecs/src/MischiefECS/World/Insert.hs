@@ -23,6 +23,8 @@ import MischiefECS.Events
 import MischiefECS.Tables
 import MischiefECS.Vec qualified as Vec
 import MischiefECS.World
+import {-# SOURCE #-} MischiefECS.World.Spawn
+import MischiefECS.World.Utils
 
 -- | Insert a bundle of components on an Entity.
 --
@@ -128,7 +130,7 @@ findResourceArchetype :: (Component r, Storage r ~ ResourceStorage) => r -> Syst
 findResourceArchetype r =
   do
     world <- ask
-    componentId <- liftIO $ getOrAddComponentId (typeOf r) world.components
+    componentId <- getOrAddComponentId (typeOf r) world.components
     archetypes <- liftIO $ findMatchingArchetypes [componentId] world.archetypes world.components
 
     return $ case archetypes of
