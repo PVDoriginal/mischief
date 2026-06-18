@@ -229,6 +229,15 @@ tryGetComponents world archetypes =
       Just componentId ->
         tryGetComponentsFromTables world.tables archetypes componentId
 
+tryGetComponentsMaybe :: forall c. (Component c) => World -> [ArchetypeId] -> IO [ComponentResult (Maybe c)]
+tryGetComponentsMaybe world archetypes =
+  do
+    componentId <- getComponentId (typeRep $ Proxy @c) world.components
+    case componentId of
+      Nothing -> return []
+      Just componentId ->
+        tryGetComponentsFromTablesMaybe world.tables archetypes componentId
+
 tryGetTicks :: TypeRep -> World -> [ArchetypeId] -> IO [ComponentTicks]
 tryGetTicks rep world archetypes =
   do

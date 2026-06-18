@@ -13,7 +13,7 @@ import Relationships (testRelationships)
 import System.Exit (exitSuccess)
 import Prelude hiding (and)
 
-data A = A deriving (Queryable)
+data A = A deriving (Queryable, Show)
 
 instance Component A where
   required = require @B
@@ -40,23 +40,8 @@ plugin = do
 
 setup :: System ()
 setup = do
-  _ <- spawn (Name "Lol", A)
-  let x = required @C
-  liftIO $ print x
-
-  iter' @Name (with @(B, C)) $ \name -> do
-    liftIO $ print name
-
-  Just a' <- single' @Entity $ with @(Meta A)
-  liftIO $ print a'
-
-  Just b' <- single' @Entity $ with @(Meta B)
-  liftIO $ print b'
-
-  Just c' <- single' @Entity $ with @(Meta C)
-  liftIO $ print c'
-
-  b <- query' @(R Requires, R RequiredBy) $ with @(Meta B)
-  for_ b $ \(requires, requiredBy) -> do
-    liftIO $ print requires.targets
-    liftIO $ print requiredBy.targets
+  _ <- spawn (Name "Lol", B)
+  _ <- spawn (Name "Lol2", A)
+  q <- query' @(Name, Maybe A) $ with @C
+  for_ q $ \(name, a) -> do
+    liftIO $ putStrLn $ "(" ++ show name ++ ", " ++ show a ++ ")"

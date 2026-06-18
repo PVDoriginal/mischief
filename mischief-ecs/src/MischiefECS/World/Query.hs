@@ -36,6 +36,10 @@ instance {-# OVERLAPPING #-} (Component c) => QueryData (R c) where
   types :: Proxy (R c) -> Set TypeRep
   types _ = Set.singleton $ typeRep $ Proxy @c
 
+instance {-# OVERLAPPING #-} (Component c) => QueryData (Maybe c) where
+  types :: (Component c) => Proxy (Maybe c) -> Set TypeRep
+  types _ = Set.empty
+
 instance (QueryData a0, QueryData a1) => QueryData (a0, a1) where
   types :: (QueryData a0, QueryData a1) => Proxy (a0, a1) -> Set TypeRep
   types _ = Set.union (types $ Proxy @a0) (types $ Proxy @a1)
@@ -119,6 +123,18 @@ instance (Component c) => Queryable (R c) where
   runQueryInternal _ archetypes world = tryGetRelationshipCollections @c world archetypes
 
   outputEntity _ x = x.entity
+
+instance (Component c) => Queryable (Maybe c) where
+  type QueryOutput (Maybe c) = (ComponentResult (Maybe c))
+  runQueryEntity _ world entity = do
+    res <- tryGetEntityComponent @c world entity
+    case res of
+      Nothing -> return Nothing
+      Just x -> return $ Just $ ComponentResult (Just x) entity
+
+  runQueryInternal _ archetypes world = tryGetComponentsMaybe @c world archetypes
+
+  outputEntity _ q = q.entity
 
 instance Queryable Entity where
   type QueryOutput Entity = Entity
