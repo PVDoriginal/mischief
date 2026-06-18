@@ -5,7 +5,7 @@ module MischiefECS
     module MischiefECS.World,
     module MischiefECS.Entities,
     module MischiefECS.Components.Bundle,
-    module MischiefECS.Components.Default,
+    module MischiefECS.Components.Required,
     module MischiefECS.Components,
     module MischiefECS.World.Query,
     module MischiefECS.World.Insert,
@@ -32,7 +32,7 @@ import MischiefECS.App.Schedules
 import MischiefECS.App.SystemConfig
 import MischiefECS.Components
 import MischiefECS.Components.Bundle
-import MischiefECS.Components.Default
+import MischiefECS.Components.Required
 import MischiefECS.Entities
 import MischiefECS.Events
 import MischiefECS.Messages

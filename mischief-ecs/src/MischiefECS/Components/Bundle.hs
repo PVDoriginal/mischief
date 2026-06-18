@@ -7,6 +7,7 @@ import Data.Typeable
 import MischiefECS.Archetypes
 import MischiefECS.Components
 import MischiefECS.Components.Internal
+import MischiefECS.Components.Required (requireAll, toBundleElement)
 
 newtype ProcessedBundleData = ProcessedBundleData {elements :: [ProcessedBundleElement]}
 
@@ -49,13 +50,13 @@ instance Bundle BundleData where
 instance {-# OVERLAPPABLE #-} (Component c, Storage c ~ ComponentStorage) => Bundle (R c) where
   bundleDataInternal :: (Component c, Storage c ~ ComponentStorage) => R c -> BundleData
   bundleDataInternal (R (c, entity)) =
-    let DefaultBundleData req = required @c
+    let req = Set.map toBundleElement $ requireAll @c
      in BundleData (Set.fromList [BundleElement {rep = PairRep (ComponentType $ Proxy @c, entity), component = erase c}]) req
 
 instance {-# OVERLAPPABLE #-} (Component c, Storage c ~ ComponentStorage) => Bundle c where
   bundleDataInternal :: (Component c, Storage c ~ ComponentStorage) => c -> BundleData
   bundleDataInternal c =
-    let DefaultBundleData req = required @c
+    let req = Set.map toBundleElement $ requireAll @c
      in BundleData (Set.fromList [BundleElement {rep = ComponentRep $ ComponentType $ Proxy @c, component = erase c}]) req
 
 instance {-# OVERLAPPING #-} (Bundle c0, Bundle c1) => Bundle (c0, c1) where
@@ -69,5 +70,5 @@ bundleData = bundleDataInternal
 
 bundleDataRes :: forall r. (Component r) => r -> BundleData
 bundleDataRes r =
-  let DefaultBundleData req = required @r
+  let req = Set.map toBundleElement $ requireAll @r
    in BundleData (Set.fromList [BundleElement {rep = ComponentRep $ ComponentType $ Proxy @r, component = erase r}]) req

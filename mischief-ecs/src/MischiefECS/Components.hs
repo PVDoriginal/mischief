@@ -1,31 +1,12 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 
-module MischiefECS.Components
-  ( Components (..),
-    ComponentId (..),
-    emptyComponents,
-    getComponentId,
-    tryGetComponent,
-    ArchetypeId (ArchetypeId),
-    Component (Storage, erase, required),
-    ErasedComponent,
-    BundleData (BundleData, elements, required),
-    BundleElement (BundleElement, rep, component),
-    Tick (Tick),
-    ComponentTicks (ComponentTicks, changed, added),
-    ComponentData (ComponentData, value, ticks),
-    StorageType (ComponentStorage, ResourceStorage),
-    Pair (..),
-    R (..),
-    ComponentType (..),
-    Meta (..),
-    getRep,
-  )
-where
+module MischiefECS.Components where
 
 import Control.Monad
+import Data.Default
 import Data.Foldable
 import Data.IORef
+import Data.Kind
 import Data.List
 import Data.List qualified as List
 import Data.Map (Map)
@@ -107,8 +88,8 @@ class (Typeable c) => Component c where
   erase :: c -> ErasedComponent
   erase = ErasedComponent
 
-  required :: DefaultBundleData
-  required = DefaultBundleData Set.empty
+  required :: Set DefaultComponentType
+  required = Set.empty
 
 data BundleData = BundleData {elements :: Set BundleElement, required :: Set BundleElement}
 
@@ -133,3 +114,71 @@ data Meta c = Meta
   deriving (Component, Show, Eq)
 
 instance Component ComponentType
+
+data RequiredBy = RequiredBy deriving (Component)
+
+data Requires = Requires deriving (Component)
+
+data ErasedComponent where
+  ErasedComponent :: (Typeable c) => c -> ErasedComponent
+
+data ComponentRep = ComponentRep ComponentType | PairRep (ComponentType, Entity) deriving (Show, Eq, Ord)
+
+data BundleElement = BundleElement {rep :: ComponentRep, component :: ErasedComponent}
+
+instance Show BundleElement where
+  show :: BundleElement -> String
+  show e = show e.rep
+
+instance Eq BundleElement where
+  (==) :: BundleElement -> BundleElement -> Bool
+  (==) BundleElement {rep = rep1} BundleElement {rep = rep2} = rep1 == rep2
+
+instance Ord BundleElement where
+  compare :: BundleElement -> BundleElement -> Ordering
+  compare BundleElement {rep = rep1} BundleElement {rep = rep2} = compare rep1 rep2
+
+data ComponentType where
+  ComponentType :: forall (c :: Type). (Component c) => (Proxy c) -> ComponentType
+
+instance Show ComponentType where
+  show :: ComponentType -> String
+  show x = show $ getRep x
+
+instance Eq ComponentType where
+  (==) :: ComponentType -> ComponentType -> Bool
+  (==) a b = getRep a == getRep b
+
+instance Ord ComponentType where
+  compare :: ComponentType -> ComponentType -> Ordering
+  compare a b = compare (getRep a) (getRep b)
+
+data DefaultComponentType where
+  DefaultComponentType :: forall (c :: Type). (Component c, Default c) => (Proxy c) -> DefaultComponentType
+
+instance Show DefaultComponentType where
+  show :: DefaultComponentType -> String
+  show x = show $ getRep x
+
+instance Eq DefaultComponentType where
+  (==) :: DefaultComponentType -> DefaultComponentType -> Bool
+  (==) a b = getRep a == getRep b
+
+instance Ord DefaultComponentType where
+  compare :: DefaultComponentType -> DefaultComponentType -> Ordering
+  compare a b = compare (getRep a) (getRep b)
+
+class GetRep t where
+  getRep :: t -> TypeRep
+
+instance GetRep ComponentType where
+  getRep :: ComponentType -> TypeRep
+  getRep (ComponentType (_ :: (Proxy t))) = typeRep $ Proxy @t
+
+instance GetRep ErasedComponent where
+  getRep :: ErasedComponent -> TypeRep
+  getRep (ErasedComponent (_ :: c)) = typeRep $ Proxy @c
+
+instance GetRep DefaultComponentType where
+  getRep :: DefaultComponentType -> TypeRep
+  getRep (DefaultComponentType (_ :: (Proxy t))) = typeRep $ Proxy @t

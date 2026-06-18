@@ -2,7 +2,6 @@ module MischiefECS.Prelude
   ( Entity,
     Component,
     required,
-    require,
     Queryable,
     query,
     remove,
@@ -19,7 +18,6 @@ where
 
 import MischiefECS.App (Plugin, addPlugin, addSystems, newApp, runApp)
 import MischiefECS.Components (Component (required))
-import MischiefECS.Components.Default (require)
 import MischiefECS.Entities (Entity)
 import MischiefECS.Tables (ComponentResult (value))
 import MischiefECS.World (Name (Name), System)
