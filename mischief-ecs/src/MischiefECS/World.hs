@@ -58,6 +58,7 @@ newWorld = do
   entities <- emptyEntities
   tables <- emptyTables
   deferred <- newIORef []
+  deferredAsync <- newTVarIO []
   events <- newIORef []
   tick <- newIORef (Tick 0)
   frame <- newIORef (Frame 0)
@@ -70,6 +71,7 @@ newWorld = do
         tables,
         events,
         deferred,
+        deferredAsync,
         tick,
         lastSystemTick = Tick 0,
         currentSystemTick = Tick 0,
@@ -78,12 +80,12 @@ newWorld = do
       }
 
 setSystemTicks :: Tick -> Tick -> World -> World
-setSystemTicks lastSystemTick currentSystemTick World {archetypes, components, entities, tables, deferred, tick, systemId, frame, events} =
-  World {archetypes, components, entities, tables, deferred, tick, lastSystemTick, currentSystemTick, systemId, frame, events}
+setSystemTicks lastSystemTick currentSystemTick World {archetypes, components, entities, tables, deferred, deferredAsync, tick, systemId, frame, events} =
+  World {archetypes, components, entities, tables, deferred, deferredAsync, tick, lastSystemTick, currentSystemTick, systemId, frame, events}
 
 setSystemId :: SystemId -> World -> World
-setSystemId systemId World {archetypes, components, entities, tables, deferred, tick, lastSystemTick, currentSystemTick, frame, events} =
-  World {archetypes, components, entities, tables, deferred, tick, lastSystemTick, currentSystemTick, systemId, frame, events}
+setSystemId systemId World {archetypes, components, entities, tables, deferred, deferredAsync, tick, lastSystemTick, currentSystemTick, frame, events} =
+  World {archetypes, components, entities, tables, deferred, deferredAsync, tick, lastSystemTick, currentSystemTick, systemId, frame, events}
 
 -- | Increment the World's tick.
 tick :: System ()

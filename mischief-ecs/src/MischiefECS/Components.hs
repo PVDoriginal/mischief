@@ -70,7 +70,7 @@ data Components = Components
 -- | Construct an empty 'Components'.
 emptyComponents :: IO Components
 emptyComponents = do
-  components <- newIORef $ Map.fromList [(typeRep $ Proxy @ComponentType, Entity 0 0), (typeRep $ Proxy @Entity, Entity 0 0)]
+  components <- newIORef Map.empty
   archetypes <- newIORef Map.empty
   pairs <- newIORef Map.empty
   resources <- newIORef Map.empty
