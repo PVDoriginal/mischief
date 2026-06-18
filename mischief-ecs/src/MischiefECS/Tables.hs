@@ -275,7 +275,7 @@ tryGetComponentsFromColumn (Column components) = do
   let x = Vector.mapM (\x -> tryGetComponent x.value) frozen
   pure $ maybe [] Vector.toList x
 
-tryGetRelationshipCollectionsFromTable :: forall c. (Component c) => Table -> ComponentId -> IO [RelationshipCollection c]
+tryGetRelationshipCollectionsFromTable :: forall c. (Component c) => Table -> ComponentId -> IO [(Entity, RelationshipCollection c)]
 tryGetRelationshipCollectionsFromTable table componentId =
   do
     -- let Just entity = componentId.entity
@@ -294,10 +294,10 @@ tryGetRelationshipCollectionsFromTable table componentId =
     let components'' = zip (map fst entities) $ transpose $ catMaybes components'
     return $
       map
-        (\(entity, components) -> RelationshipCollection {collection = map (\(value, target) -> RelationshipResult {value, entity, target}) components, entity})
+        (\(entity, components) -> (entity, RelationshipCollection {collection = map (\(value, target) -> RelationshipResult {value, entity, target}) components, entity}))
         components''
 
-tryGetComponentsFromTable :: forall c. (Component c) => Table -> ComponentId -> IO [ComponentResult c]
+tryGetComponentsFromTable :: forall c. (Component c) => Table -> ComponentId -> IO [(Entity, ComponentResult c)]
 tryGetComponentsFromTable table componentId =
   do
     columns <- readIORef table.columns
@@ -306,54 +306,55 @@ tryGetComponentsFromTable table componentId =
       Just column -> do
         results <- tryGetComponentsFromColumn @c column
         entities <- Vec.toList table.entities
-        return $ zipWith ComponentResult results (map fst entities)
+        let zipped = zip (map fst entities) results
+        return $ map (\(e, r) -> (e, ComponentResult r e)) zipped
 
-tryGetComponentsFromTableMaybe :: forall c. (Component c) => Table -> ComponentId -> IO [ComponentResult (Maybe c)]
+tryGetComponentsFromTableMaybe :: forall c. (Component c) => Table -> ComponentId -> IO [(Entity, Maybe (ComponentResult c))]
 tryGetComponentsFromTableMaybe table componentId =
   do
     columns <- readIORef table.columns
     case Map.lookup componentId columns of
       Nothing -> do
         entities <- Vec.toList table.entities
-        return $ map (ComponentResult Nothing . fst) entities
+        return $ map ((,Nothing) . fst) entities
       Just column -> do
         results <- tryGetComponentsFromColumn @c column
         entities <- Vec.toList table.entities
-        return $ zipWith ComponentResult (map Just results) (map fst entities)
+        return $ zipWith (\x e -> (e, Just $ ComponentResult x e)) results (map fst entities)
 
-tryGetRelationshipCollectionsFromArchetype :: forall c. (Component c) => ArchetypeId -> Map ArchetypeId Table -> ComponentId -> IO [RelationshipCollection c]
+tryGetRelationshipCollectionsFromArchetype :: forall c. (Component c) => ArchetypeId -> Map ArchetypeId Table -> ComponentId -> IO [(Entity, RelationshipCollection c)]
 tryGetRelationshipCollectionsFromArchetype archetype tables componentId =
   case Map.lookup archetype tables of
     Nothing -> return []
     Just table -> tryGetRelationshipCollectionsFromTable table componentId
 
-tryGetComponentsFromArchetype :: forall c. (Component c) => ArchetypeId -> Map ArchetypeId Table -> ComponentId -> IO [ComponentResult c]
+tryGetComponentsFromArchetype :: forall c. (Component c) => ArchetypeId -> Map ArchetypeId Table -> ComponentId -> IO [(Entity, ComponentResult c)]
 tryGetComponentsFromArchetype archetype tables componentId =
   case Map.lookup archetype tables of
     Nothing -> return []
     Just table -> tryGetComponentsFromTable table componentId
 
-tryGetComponentsFromArchetypeMaybe :: forall c. (Component c) => ArchetypeId -> Map ArchetypeId Table -> ComponentId -> IO [ComponentResult (Maybe c)]
+tryGetComponentsFromArchetypeMaybe :: forall c. (Component c) => ArchetypeId -> Map ArchetypeId Table -> ComponentId -> IO [(Entity, Maybe (ComponentResult c))]
 tryGetComponentsFromArchetypeMaybe archetype tables componentId =
   case Map.lookup archetype tables of
     Nothing -> return []
     Just table -> tryGetComponentsFromTableMaybe table componentId
 
-tryGetRelationshipCollectionsFromTables :: forall c. (Component c) => Tables -> [ArchetypeId] -> ComponentId -> IO [RelationshipCollection c]
+tryGetRelationshipCollectionsFromTables :: forall c. (Component c) => Tables -> [ArchetypeId] -> ComponentId -> IO [(Entity, RelationshipCollection c)]
 tryGetRelationshipCollectionsFromTables (Tables tables) archetypes componentId =
   do
     tables <- readIORef tables
     results <- mapM (\archetype -> tryGetRelationshipCollectionsFromArchetype archetype tables componentId) archetypes
     return $ concat results
 
-tryGetComponentsFromTables :: forall c. (Component c) => Tables -> [ArchetypeId] -> ComponentId -> IO [ComponentResult c]
+tryGetComponentsFromTables :: forall c. (Component c) => Tables -> [ArchetypeId] -> ComponentId -> IO [(Entity, ComponentResult c)]
 tryGetComponentsFromTables (Tables tables) archetypes componentId =
   do
     tables <- readIORef tables
     results <- mapM (\archetype -> tryGetComponentsFromArchetype archetype tables componentId) archetypes
     return $ concat results
 
-tryGetComponentsFromTablesMaybe :: forall c. (Component c) => Tables -> [ArchetypeId] -> ComponentId -> IO [ComponentResult (Maybe c)]
+tryGetComponentsFromTablesMaybe :: forall c. (Component c) => Tables -> [ArchetypeId] -> ComponentId -> IO [(Entity, Maybe (ComponentResult c))]
 tryGetComponentsFromTablesMaybe (Tables tables) archetypes componentId =
   do
     tables <- readIORef tables

@@ -65,17 +65,17 @@ class (QueryData qd) => Queryable qd where
     pure $
       fmap (`ComponentResult` entity) result
 
-  runQueryInternal :: Proxy qd -> [ArchetypeId] -> World -> IO [QueryOutput qd]
+  runQueryInternal :: Proxy qd -> [ArchetypeId] -> World -> IO [(Entity, QueryOutput qd)]
   default runQueryInternal ::
     (Component qd, QueryOutput qd ~ ComponentResult qd) =>
-    Proxy qd -> [ArchetypeId] -> World -> IO [QueryOutput qd]
+    Proxy qd -> [ArchetypeId] -> World -> IO [(Entity, QueryOutput qd)]
   runQueryInternal _ archetypes world = tryGetComponents @qd world archetypes
 
-  outputEntity :: (Queryable qd) => Proxy qd -> QueryOutput qd -> Entity
-  default outputEntity ::
-    (Component qd, QueryOutput qd ~ ComponentResult qd) =>
-    Proxy qd -> QueryOutput qd -> Entity
-  outputEntity _ x = x.entity
+-- outputEntity :: (Queryable qd) => Proxy qd -> QueryOutput qd -> Entity
+-- default outputEntity ::
+--   (Component qd, QueryOutput qd ~ ComponentResult qd) =>
+--   Proxy qd -> QueryOutput qd -> Entity
+-- outputEntity _ x = x.entity
 
 instance (Queryable q0, Queryable q1) => Queryable (q0, q1) where
   type QueryOutput (q0, q1) = (QueryOutput q0, QueryOutput q1)
@@ -91,10 +91,10 @@ instance (Queryable q0, Queryable q1) => Queryable (q0, q1) where
     r0 <- runQueryInternal (Proxy @q0) archetypes world
     r1 <- runQueryInternal (Proxy @q1) archetypes world
 
-    return $ zip r0 r1
+    return $ zipWith (\(e0, r0) (_, r1) -> (e0, (r0, r1))) r0 r1
 
-  outputEntity :: (Queryable q0, Queryable q1) => Proxy (q0, q1) -> (QueryOutput q0, QueryOutput q1) -> Entity
-  outputEntity _ (a, _) = outputEntity (Proxy @q0) a
+-- outputEntity :: (Queryable q0, Queryable q1) => Proxy (q0, q1) -> (QueryOutput q0, QueryOutput q1) -> Entity
+-- outputEntity _ (a, _) = outputEntity (Proxy @q0) a
 
 instance (Queryable q0, Queryable q1, Queryable q2) => Queryable (q0, q1, q2) where
   type QueryOutput (q0, q1, q2) = (QueryOutput q0, QueryOutput q1, QueryOutput q2)
@@ -116,46 +116,46 @@ instance (Queryable q0, Queryable q1, Queryable q2) => Queryable (q0, q1, q2) wh
     r1 <- runQueryInternal (Proxy @q1) archetypes world
     r2 <- runQueryInternal (Proxy @q2) archetypes world
 
-    return $ zip3 r0 r1 r2
+    return $ map (\((e0, r0), (_, r1), (_, r2)) -> (e0, (r0, r1, r2))) $ zip3 r0 r1 r2
 
-  outputEntity _ (a, _, _) = outputEntity (Proxy @q0) a
+-- outputEntity _ (a, _, _) = outputEntity (Proxy @q0) a
 
 instance (Component c) => Queryable (R c) where
   type QueryOutput (R c) = RelationshipCollection c
   runQueryEntity _ = tryGetEntityRelationshipCollection
-  runQueryInternal :: (Component c) => Proxy (R c) -> [ArchetypeId] -> World -> IO [QueryOutput (R c)]
+  runQueryInternal :: (Component c) => Proxy (R c) -> [ArchetypeId] -> World -> IO [(Entity, QueryOutput (R c))]
   runQueryInternal _ archetypes world = tryGetRelationshipCollections @c world archetypes
 
-  outputEntity _ x = x.entity
+-- outputEntity _ x = x.entity
 
 instance (Component c) => Queryable (Maybe c) where
-  type QueryOutput (Maybe c) = (ComponentResult (Maybe c))
+  type QueryOutput (Maybe c) = (Maybe (ComponentResult c))
   runQueryEntity _ world entity = do
     res <- tryGetEntityComponent @c world entity
     case res of
       Nothing -> return Nothing
-      Just x -> return $ Just $ ComponentResult (Just x) entity
+      Just x -> return $ Just $ Just $ ComponentResult x entity
 
   runQueryInternal _ archetypes world = tryGetComponentsMaybe @c world archetypes
 
-  outputEntity _ q = q.entity
+-- outputEntity _ q = q.entity
 
 data Has a = Has
 
 instance (Component c) => Queryable (Has c) where
-  type QueryOutput (Has c) = ComponentResult Bool
+  type QueryOutput (Has c) = Bool
 
   runQueryEntity _ world entity = do
     list <- runQueryEntity (Proxy @(Maybe c)) world entity
     case list of
       Nothing -> return Nothing
-      Just x -> return $ Just $ ComponentResult (isNothing x.value) x.entity
+      Just x -> return $ Just (isNothing x)
 
   runQueryInternal _ archetypes world = do
     list <- runQueryInternal (Proxy @(Maybe c)) archetypes world
-    return $ map (\x -> ComponentResult (isNothing x.value) x.entity) list
+    return $ map (\(e, x) -> (e, isNothing x)) list
 
-  outputEntity _ q = q.entity
+-- outputEntity _ q = q.entity
 
 instance Queryable Entity where
   type QueryOutput Entity = Entity
@@ -163,9 +163,9 @@ instance Queryable Entity where
   runQueryEntity _ _ entity = pure (Just entity)
   runQueryInternal _ archetypes world = do
     results <- tryGetComponents @Entity world archetypes
-    pure $ fmap (\cr -> cr.entity) results
+    pure $ fmap (\cr -> (fst cr, fst cr)) results
 
-  outputEntity _ x = x
+-- outputEntity _ x = x
 
 runQuery :: forall qd. (Queryable qd) => Proxy qd -> QueryFilter -> World -> IO [QueryOutput qd]
 runQuery query filter world =
@@ -178,7 +178,7 @@ runQuery query filter world =
 
     outputs <- runQueryInternal query (map snd archetypes') world
     outputs' <- filterQuery @qd world otherFilter (map snd archetypes') (zip [0 ..] outputs)
-    return $ map snd outputs'
+    return $ map (snd . snd) outputs'
 
 query :: forall qd m w. (Queryable qd, MonadSystem w m) => m [QueryOutput qd]
 query = do
@@ -232,7 +232,7 @@ parIter' filter system = do
   res <- query' @qd filter
   parIterList res $ \chunk -> for_ chunk system
 
-filterQuery :: forall qd. (Queryable qd) => World -> QueryFilter -> [ArchetypeId] -> [(Int, QueryOutput qd)] -> IO [(Int, QueryOutput qd)]
+filterQuery :: forall qd. (Queryable qd) => World -> QueryFilter -> [ArchetypeId] -> [(Int, (Entity, QueryOutput qd))] -> IO [(Int, (Entity, QueryOutput qd))]
 filterQuery _ NoFilter _ x = return x
 filterQuery world (With x) _ outputs = do
   component <- liftIO $ getComponentId x world.components
@@ -240,8 +240,7 @@ filterQuery world (With x) _ outputs = do
     Nothing -> return []
     Just component ->
       filterM
-        ( \(_, output) -> do
-            let entity = outputEntity (Proxy @qd) output
+        ( \(_, (entity, _)) -> do
             components <- findComponentsOfEntity world entity
             case components of
               Nothing -> return True
@@ -256,8 +255,7 @@ filterQuery world (WithR x e) _ outputs = do
     Just (ComponentId {id}) -> do
       let component = ComponentId {id, entity = Just e}
       filterM
-        ( \(_, output) -> do
-            let entity = outputEntity (Proxy @qd) output
+        ( \(_, (entity, _)) -> do
             components <- findComponentsOfEntity world entity
             case components of
               Nothing -> return True
@@ -271,8 +269,7 @@ filterQuery world (Without x) _ outputs = do
     Nothing -> return outputs
     Just component ->
       filterM
-        ( \(_, output) -> do
-            let entity = outputEntity (Proxy @qd) output
+        ( \(_, (entity, _)) -> do
             components <- findComponentsOfEntity world entity
             case components of
               Nothing -> return True

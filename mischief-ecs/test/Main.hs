@@ -18,7 +18,7 @@ data A = A deriving (Queryable, Show)
 instance Component A where
   required = require @B
 
-data B = B deriving (Queryable, Generic, Default)
+data B = B deriving (Queryable, Show, Generic, Default)
 
 instance Component B where
   required = require @C
@@ -42,6 +42,6 @@ setup :: System ()
 setup = do
   _ <- spawn (Name "Lol", B)
   _ <- spawn (Name "Lol2", A)
-  q <- query' @(Name, Maybe A) $ with @C
-  for_ q $ \(name, a) -> do
-    liftIO $ putStrLn $ "(" ++ show name ++ ", " ++ show a ++ ")"
+  q <- query' @(Name, Has A, Maybe B) $ with @C
+  for_ q $ \(name, a, b) -> do
+    liftIO $ putStrLn $ "(" ++ show name ++ ", " ++ show a ++ ", " ++ show b ++ ")"
