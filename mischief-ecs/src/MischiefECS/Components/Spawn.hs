@@ -3,15 +3,18 @@ module MischiefECS.Components.Spawn where
 import Control.Monad.IO.Class
 import Control.Monad.Reader
 import Data.Data
+import Data.Foldable
 import Data.IORef
 import Data.Kind
 import Data.Map qualified as Map
 import Data.Set qualified as Set
 import MischiefECS.Components
 import MischiefECS.Components.Bundle
+import MischiefECS.Components.Required (requireAll)
 import MischiefECS.Entities
 import MischiefECS.Entities.Internal
 import MischiefECS.World
+import MischiefECS.World.Insert
 import MischiefECS.World.Spawn
 
 -- | Get the id of a component - entity pair. In case the component isn't registered, it will give it a new id.
@@ -40,6 +43,11 @@ getOrAddComponentId (ComponentType (_ :: Proxy c)) comp = do
 
       addMetaComponent (Proxy @c) comp
       spawnEntity result ((ComponentType $ Proxy @c, Meta @c), Name $ "Meta entity for " ++ show (typeRep $ Proxy @c))
+
+      for_ (requireAll @c) $ \(DefaultComponentType (_ :: (Proxy other))) -> do
+        other <- getOrAddComponentId (ComponentType $ Proxy @other) comp
+        insert (R (RequiredBy, result)) other.id
+        insert (R (Requires, other.id)) result
 
       return $ ComponentId {id = result, entity = Nothing}
 

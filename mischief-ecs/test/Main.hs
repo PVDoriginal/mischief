@@ -26,7 +26,7 @@ instance Component B where
 data C = C deriving (Queryable, Generic, Default)
 
 instance Component C where
-  required = require @B
+  required = require @()
 
 main :: IO ()
 main = do
@@ -40,9 +40,23 @@ plugin = do
 
 setup :: System ()
 setup = do
-  _ <- spawn (Name "Lol", C)
+  _ <- spawn (Name "Lol", A)
   let x = required @C
   liftIO $ print x
 
   iter' @Name (with @(B, C)) $ \name -> do
     liftIO $ print name
+
+  Just a' <- single' @Entity $ with @(Meta A)
+  liftIO $ print a'
+
+  Just b' <- single' @Entity $ with @(Meta B)
+  liftIO $ print b'
+
+  Just c' <- single' @Entity $ with @(Meta C)
+  liftIO $ print c'
+
+  b <- query' @(R Requires, R RequiredBy) $ with @(Meta B)
+  for_ b $ \(requires, requiredBy) -> do
+    liftIO $ print requires.targets
+    liftIO $ print requiredBy.targets
