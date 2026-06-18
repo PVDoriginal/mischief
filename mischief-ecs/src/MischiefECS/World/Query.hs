@@ -40,6 +40,10 @@ instance {-# OVERLAPPING #-} (Component c) => QueryData (Maybe c) where
   types :: (Component c) => Proxy (Maybe c) -> Set TypeRep
   types _ = Set.empty
 
+instance {-# OVERLAPPING #-} (Component c) => QueryData (Has c) where
+  types :: (Component c) => Proxy (Has c) -> Set TypeRep
+  types _ = Set.empty
+
 instance (QueryData a0, QueryData a1) => QueryData (a0, a1) where
   types :: (QueryData a0, QueryData a1) => Proxy (a0, a1) -> Set TypeRep
   types _ = Set.union (types $ Proxy @a0) (types $ Proxy @a1)
@@ -133,6 +137,23 @@ instance (Component c) => Queryable (Maybe c) where
       Just x -> return $ Just $ ComponentResult (Just x) entity
 
   runQueryInternal _ archetypes world = tryGetComponentsMaybe @c world archetypes
+
+  outputEntity _ q = q.entity
+
+data Has a = Has
+
+instance (Component c) => Queryable (Has c) where
+  type QueryOutput (Has c) = ComponentResult Bool
+
+  runQueryEntity _ world entity = do
+    list <- runQueryEntity (Proxy @(Maybe c)) world entity
+    case list of
+      Nothing -> return Nothing
+      Just x -> return $ Just $ ComponentResult (isNothing x.value) x.entity
+
+  runQueryInternal _ archetypes world = do
+    list <- runQueryInternal (Proxy @(Maybe c)) archetypes world
+    return $ map (\x -> ComponentResult (isNothing x.value) x.entity) list
 
   outputEntity _ q = q.entity
 
