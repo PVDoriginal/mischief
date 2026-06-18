@@ -4,11 +4,9 @@ module MischiefECS.Components
   ( Components (..),
     ComponentId (..),
     emptyComponents,
-    getOrAddComponentId,
     getComponentId,
     tryGetComponent,
     ArchetypeId (ArchetypeId),
-    getOrAddPairId,
     Component (Storage, erase, required),
     ErasedComponent,
     BundleData (BundleData, elements, required),
@@ -75,30 +73,6 @@ emptyComponents = do
   resources <- newIORef Map.empty
   counter <- newIORef 1
   return $ Components components archetypes pairs resources counter
-
--- | Get the id of a component - entity pair. In case the component isn't registered, it will give it a new id.
-getOrAddPairId :: Pair -> Components -> IO ComponentId
-getOrAddPairId (Pair (t, entity)) components = do
-  component <- getOrAddComponentId t components
-  return $ ComponentId {id = component.id, entity = Just entity}
-
--- | Get the id of a component. In case the component isn't registered, it will give it a new id.
-getOrAddComponentId :: TypeRep -> Components -> IO ComponentId
-getOrAddComponentId t Components {components, archetypes, counter} = do
-  innerMap <- readIORef components
-
-  case Map.lookup t innerMap of
-    Just t -> return $ ComponentId {id = t, entity = Nothing}
-    Nothing -> do
-      result <- readIORef counter
-      modifyIORef counter (+ 1)
-
-      modifyIORef components $ Map.insert t result
-
-      l <- newIORef Set.empty
-      modifyIORef archetypes $ Map.insert result l
-
-      return $ ComponentId {id = result, entity = Nothing}
 
 -- | Get the id of a component.
 getComponentId :: TypeRep -> Components -> IO (Maybe ComponentId)

@@ -57,6 +57,7 @@ library
     MischiefECS.App.Systems
     MischiefECS.Components
     MischiefECS.Components.Bundle
+    MischiefECS.Components.Spawn
     MischiefECS.Components.Default
     MischiefECS.Entities
     MischiefECS.Events

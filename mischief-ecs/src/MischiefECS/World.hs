@@ -21,6 +21,7 @@ import MischiefECS.Archetypes
 import MischiefECS.Components
 import MischiefECS.Components.Bundle
 import MischiefECS.Components.Internal
+import {-# SOURCE #-} MischiefECS.Components.Spawn
 import MischiefECS.Entities
 import MischiefECS.Events.Internal
 import MischiefECS.Tables
