@@ -126,11 +126,11 @@ insertNew bundle entity =
 
               triggerInsertEvent newComponents entity
 
-findResourceArchetype :: (Component r, Storage r ~ ResourceStorage) => r -> System (Maybe ArchetypeId)
+findResourceArchetype :: forall r. (Component r, Storage r ~ ResourceStorage) => r -> System (Maybe ArchetypeId)
 findResourceArchetype r =
   do
     world <- ask
-    componentId <- getOrAddComponentId (typeOf r) world.components
+    componentId <- getOrAddComponentId (ComponentType $ Proxy @r) world.components
     archetypes <- liftIO $ findMatchingArchetypes [componentId] world.archetypes world.components
 
     return $ case archetypes of

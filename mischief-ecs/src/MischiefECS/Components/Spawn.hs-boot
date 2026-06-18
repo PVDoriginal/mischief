@@ -7,4 +7,4 @@ import MischiefECS.Entities.Internal
 import MischiefECS.World
 
 getOrAddPairId :: Pair -> Components -> System ComponentId
-getOrAddComponentId :: TypeRep -> Components -> System ComponentId
+getOrAddComponentId :: ComponentType -> Components -> System ComponentId

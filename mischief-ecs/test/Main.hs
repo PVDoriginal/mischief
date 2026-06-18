@@ -20,7 +20,7 @@ main = do
 
 plugin :: Plugin ()
 plugin = do
-  addRelationshipWithSettings @ChildOf RelationshipSettings {exclusivity = Exclusive}
+  -- addRelationshipWithSettings @ChildOf RelationshipSettings {exclusivity = Exclusive}
   addSystems Startup setup
   addSystems Startup $ exit `after` setup
 
@@ -30,20 +30,21 @@ setup :: System ()
 setup = do
   p1 <- spawn (Parent1, Name "Parent 1")
   p2 <- spawn (Parent2, Name "Parent 2")
+  return ()
 
-  _ <- spawn (R (ChildOf, p1), Name "Child 1")
-  _ <- spawn (R (ChildOf, p1), Name "Child 2")
-  _ <- spawn (R (ChildOf, p1), Name "Child 3")
+-- _ <- spawn (R (ChildOf, p1), Name "Child 1")
+-- _ <- spawn (R (ChildOf, p1), Name "Child 2")
+-- _ <- spawn (R (ChildOf, p1), Name "Child 3")
 
-  _ <- spawn (R (ChildOf, p2), Name "Child 4")
-  _ <- spawn ((R (ChildOf, p2), R (ChildOf, p1)), Name "Child 5")
+-- _ <- spawn (R (ChildOf, p2), Name "Child 4")
+-- _ <- spawn ((R (ChildOf, p2), R (ChildOf, p1)), Name "Child 5")
 
-  q4 <- query @(Name, R ChildOf)
-  for_ q4 $ \(name, result) ->
-    for_ result.collection $ \rel -> do
-      liftIO $ putStrLn $ show name ++ " is child of " ++ show rel.target
-      Just parentName <- get @Name rel.target
-      liftIO $ print parentName
+-- q4 <- query @(Name, R ChildOf)
+-- for_ q4 $ \(name, result) ->
+--   for_ result.collection $ \rel -> do
+--     liftIO $ putStrLn $ show name ++ " is child of " ++ show rel.target
+--     Just parentName <- get @Name rel.target
+--     liftIO $ print parentName
 
 -- observer :: OnInsertR ChildOf -> System ()
 -- observer event = liftIO $ putStrLn $ show event.entity ++ " is now a child of " ++ show event.target

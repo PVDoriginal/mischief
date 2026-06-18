@@ -17,6 +17,9 @@ module MischiefECS.Components
     StorageType (ComponentStorage, ResourceStorage),
     Pair (..),
     R (..),
+    ComponentType (..),
+    Meta (..),
+    getRep,
   )
 where
 
@@ -37,20 +40,20 @@ import MischiefECS.Entities.Internal
 
 -- | Unique ids for components and component pairs.
 data ComponentId = ComponentId
-  { id :: Int,
+  { id :: Entity,
     entity :: Maybe Entity
   }
   deriving (Show, Eq, Ord)
 
-newtype Pair = Pair (TypeRep, Entity) deriving newtype (Eq, Ord)
+newtype Pair = Pair (ComponentType, Entity)
 
 -- | Contains data and methods for assigning 'ComponentId's to new components (via their 'TypeRep').
 data Components = Components
   { -- | Maps 'TypeRep's to Ints, to be used as the first half of a 'ComponentId'.
-    components :: IORef (Map TypeRep Int),
+    components :: IORef (Map TypeRep Entity),
     -- | Maps each component int (the first half of a 'ComponentId') to the set of archetypes containing that component.
     -- In the case of relationships, this will contain all archetypes which contain any relationship containing that component.
-    archetypes :: IORef (Map Int (IORef (Set ArchetypeId))),
+    archetypes :: IORef (Map Entity (IORef (Set ArchetypeId))),
     -- | Maps whole 'ComponentId's to the set of archetypes which contain them.
     -- This is meant to be used to check the archetypes of component - entity relationships.
     pairs :: IORef (Map ComponentId (IORef (Set ArchetypeId))),
@@ -67,7 +70,7 @@ data Components = Components
 -- | Construct an empty 'Components'.
 emptyComponents :: IO Components
 emptyComponents = do
-  components <- newIORef Map.empty
+  components <- newIORef $ Map.fromList [(typeRep $ Proxy @ComponentType, Entity 0 0), (typeRep $ Proxy @Entity, Entity 0 0)]
   archetypes <- newIORef Map.empty
   pairs <- newIORef Map.empty
   resources <- newIORef Map.empty
@@ -125,3 +128,8 @@ instance Component Entity
 newtype R c = R (c, Entity)
 
 instance (Component c) => Component (R c)
+
+data Meta c = Meta
+  deriving (Component, Show, Eq)
+
+instance Component ComponentType

@@ -291,6 +291,10 @@ findComponentsOfEntity world entity = do
 
 instance Queryable Name
 
+instance Queryable ComponentType
+
+instance (Component c) => Queryable (Meta c)
+
 data QueryFilter
   = NoFilter
   | With TypeRep

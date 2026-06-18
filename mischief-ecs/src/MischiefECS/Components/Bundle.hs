@@ -15,9 +15,9 @@ data ProcessedBundleElement = ProcessedBundleElement {id :: ComponentId, compone
 archetypeOfProcessedBundle :: Archetypes -> Components -> ProcessedBundleData -> IO ArchetypeId
 archetypeOfProcessedBundle archetypes components bundle = getOrAddArchetypeId (map (\x -> x.id) bundle.elements) archetypes components
 
-addComponentToBundleData :: (Component c) => c -> BundleData -> BundleData
+addComponentToBundleData :: forall c. (Component c) => c -> BundleData -> BundleData
 addComponentToBundleData c (BundleData {elements, required}) =
-  let rep = ComponentRep $ typeOf c
+  let rep = ComponentRep $ ComponentType (Proxy @c)
       component = ErasedComponent c
       element = BundleElement {rep, component}
    in BundleData {elements = Set.insert element elements, required}
@@ -50,13 +50,13 @@ instance {-# OVERLAPPABLE #-} (Component c, Storage c ~ ComponentStorage) => Bun
   bundleDataInternal :: (Component c, Storage c ~ ComponentStorage) => R c -> BundleData
   bundleDataInternal (R (c, entity)) =
     let DefaultBundleData req = required @c
-     in BundleData (Set.fromList [BundleElement {rep = PairRep (typeOf c, entity), component = erase c}]) req
+     in BundleData (Set.fromList [BundleElement {rep = PairRep (ComponentType $ Proxy @c, entity), component = erase c}]) req
 
 instance {-# OVERLAPPABLE #-} (Component c, Storage c ~ ComponentStorage) => Bundle c where
   bundleDataInternal :: (Component c, Storage c ~ ComponentStorage) => c -> BundleData
   bundleDataInternal c =
     let DefaultBundleData req = required @c
-     in BundleData (Set.fromList [BundleElement {rep = ComponentRep $ typeOf c, component = erase c}]) req
+     in BundleData (Set.fromList [BundleElement {rep = ComponentRep $ ComponentType $ Proxy @c, component = erase c}]) req
 
 instance {-# OVERLAPPING #-} (Bundle c0, Bundle c1) => Bundle (c0, c1) where
   bundleDataInternal (c0, c1) =
@@ -70,4 +70,4 @@ bundleData = bundleDataInternal
 bundleDataRes :: forall r. (Component r) => r -> BundleData
 bundleDataRes r =
   let DefaultBundleData req = required @r
-   in BundleData (Set.fromList [BundleElement {rep = ComponentRep $ typeOf r, component = erase r}]) req
+   in BundleData (Set.fromList [BundleElement {rep = ComponentRep $ ComponentType $ Proxy @r, component = erase r}]) req

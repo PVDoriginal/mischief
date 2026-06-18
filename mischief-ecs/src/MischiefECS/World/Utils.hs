@@ -142,13 +142,13 @@ removeComponentFromEntity :: forall c. (Component c) => Entity -> System ()
 removeComponentFromEntity entity =
   do
     world <- ask
-    componentId <- getOrAddComponentId (typeRep $ Proxy @c) world.components
+    componentId <- getOrAddComponentId (ComponentType $ Proxy @c) world.components
     removeFromEntity componentId entity
 
 removeRelationshipFromEntity :: forall c. (Component c) => Entity -> Entity -> System ()
 removeRelationshipFromEntity target entity = do
   world <- ask
-  componentId <- getOrAddPairId (Pair (typeRep $ Proxy @c, target)) world.components
+  componentId <- getOrAddPairId (Pair (ComponentType $ Proxy @c, target)) world.components
   removeFromEntity componentId entity
 
 removeFromEntity :: ComponentId -> Entity -> System ()

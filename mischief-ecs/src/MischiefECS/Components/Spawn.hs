@@ -18,19 +18,21 @@ getOrAddPairId (Pair (t, entity)) components = do
   return $ ComponentId {id = component.id, entity = Just entity}
 
 -- | Get the id of a component. In case the component isn't registered, it will give it a new id.
-getOrAddComponentId :: TypeRep -> Components -> System ComponentId
-getOrAddComponentId t Components {components, archetypes, counter} = do
+getOrAddComponentId :: ComponentType -> Components -> System ComponentId
+getOrAddComponentId (ComponentType (_ :: Proxy c)) Components {components, archetypes} = do
   innerMap <- liftIO $ readIORef components
 
-  case Map.lookup t innerMap of
+  case Map.lookup (typeRep $ Proxy @c) innerMap of
     Just t -> return $ ComponentId {id = t, entity = Nothing}
     Nothing -> do
-      result <- liftIO $ readIORef counter
-      liftIO $ modifyIORef counter (+ 1)
+      liftIO $ putStrLn $ "couldn't find " ++ show (typeRep $ Proxy @c)
+      liftIO $ modifyIORef' components $ Map.insert (typeRep $ Proxy @(Meta c)) (Entity 0 0)
 
-      liftIO $ modifyIORef components $ Map.insert t result
+      result <- spawn (Meta @c, ComponentType $ Proxy @c)
+
+      liftIO $ modifyIORef' components $ Map.insert (typeRep $ Proxy @c) result
 
       l <- liftIO $ newIORef Set.empty
-      liftIO $ modifyIORef archetypes $ Map.insert result l
+      liftIO $ modifyIORef' archetypes $ Map.insert result l
 
       return $ ComponentId {id = result, entity = Nothing}
