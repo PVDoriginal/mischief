@@ -45,3 +45,6 @@ setup = do
   q <- query' @(Name, Has A, Maybe B) $ with @C
   for_ q $ \(name, a, b) -> do
     liftIO $ putStrLn $ "(" ++ show name ++ ", " ++ show a ++ ", " ++ show b ++ ")"
+
+  Just x <- single' @(R Requires) $ with @(Meta A)
+  liftIO $ print x.targets
