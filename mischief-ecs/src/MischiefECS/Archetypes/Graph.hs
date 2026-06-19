@@ -101,6 +101,28 @@ getArchetype (ArchetypeId id) (Inserted component) graph = do
       newNode <- Vec.read graph.nodes newId
       return newNode.archetype
 
+getArchetypeOnInsert :: ArchetypeId -> [ComponentId] -> ArchetypeGraph -> System ArchetypeData
+getArchetypeOnInsert archetype components graph =
+  do
+    let d = ArchetypeData {id = archetype, components = Set.empty}
+    f d components
+  where
+    f archetype [] = return archetype
+    f archetype (component : xs) = do
+      x <- getArchetype archetype.id (Inserted component) graph
+      f x xs
+
+getArchetypeOnRemove :: ArchetypeId -> [ComponentId] -> ArchetypeGraph -> System ArchetypeData
+getArchetypeOnRemove archetype components graph =
+  do
+    let d = ArchetypeData {id = archetype, components = Set.empty}
+    f d components
+  where
+    f archetype [] = return archetype
+    f archetype (component : xs) = do
+      x <- getArchetype archetype.id (Removed component) graph
+      f x xs
+
 getRequirements :: ComponentId -> System (Set ComponentId)
 getRequirements component = do
   Just x <- get @(R Requires) component.id
