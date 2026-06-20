@@ -1,8 +1,11 @@
 module MischiefECS.Archetypes.Graph where
 
+import Control.Monad
 import Control.Monad.IO.Class
+import Control.Monad.Reader
 import Data.IORef
-import Data.Map (Map)
+import Data.List
+import Data.Map (Map, mapMaybe)
 import Data.Map qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set
@@ -13,18 +16,7 @@ import MischiefECS.Vec qualified as Vec
 import MischiefECS.World
 import MischiefECS.World.Query
 
-data ArchetypeGraph = ArchetypeGraph {nodes :: IOVec ArchetypeNode, lookup :: IORef (Map (Set ComponentId) Int), counter :: IORef Int}
-
-newArchetypeGraph :: IO ArchetypeGraph
-newArchetypeGraph = do
-  nodes <- Vec.new 1024
-
-  -- Add the empty archetype to the graph.
-  Vec.pushBack nodes ArchetypeNode {archetype = ArchetypeData {id = ArchetypeId 0, components = Set.empty}, insert = Map.empty, remove = Map.empty}
-
-  counter <- newIORef 1
-  lookup <- newIORef $ Map.singleton Set.empty 0
-  return $ ArchetypeGraph {nodes, lookup, counter}
+data ArchetypeTransition = Inserted ComponentId | Removed ComponentId
 
 getNewId :: ArchetypeGraph -> IO Int
 getNewId ArchetypeGraph {counter} = do
@@ -50,19 +42,6 @@ addEdge :: Int -> Int -> ComponentId -> ArchetypeGraph -> IO ()
 addEdge a b component graph = do
   Vec.modify_ graph.nodes a $ \ArchetypeNode {insert, remove, archetype} -> ArchetypeNode {insert = Map.insert component b insert, remove, archetype}
   Vec.modify_ graph.nodes b $ \ArchetypeNode {insert, remove, archetype} -> ArchetypeNode {insert, remove = Map.insert component b remove, archetype}
-
-data ArchetypeNode = ArchetypeNode
-  { archetype :: ArchetypeData,
-    insert :: Map ComponentId Int,
-    remove :: Map ComponentId Int
-  }
-
-data ArchetypeData = ArchetypeData
-  { id :: ArchetypeId,
-    components :: Set ComponentId
-  }
-
-data ArchetypeTransition = Inserted ComponentId | Removed ComponentId
 
 getArchetype :: ArchetypeId -> ArchetypeTransition -> ArchetypeGraph -> System ArchetypeData
 getArchetype (ArchetypeId id) (Removed component) graph = do
@@ -101,29 +80,57 @@ getArchetype (ArchetypeId id) (Inserted component) graph = do
       newNode <- Vec.read graph.nodes newId
       return newNode.archetype
 
-getArchetypeOnInsert :: ArchetypeId -> [ComponentId] -> ArchetypeGraph -> System ArchetypeData
-getArchetypeOnInsert archetype components graph =
+getArchetypeOnInsert :: ArchetypeId -> [ComponentId] -> System ArchetypeData
+getArchetypeOnInsert archetype components =
   do
-    let d = ArchetypeData {id = archetype, components = Set.empty}
-    f d components
-  where
-    f archetype [] = return archetype
-    f archetype (component : xs) = do
-      x <- getArchetype archetype.id (Inserted component) graph
-      f x xs
+    world <- ask
+    let Archetypes {graph} = world.archetypes
 
-getArchetypeOnRemove :: ArchetypeId -> [ComponentId] -> ArchetypeGraph -> System ArchetypeData
-getArchetypeOnRemove archetype components graph =
-  do
     let d = ArchetypeData {id = archetype, components = Set.empty}
-    f d components
+    f d components graph
   where
-    f archetype [] = return archetype
-    f archetype (component : xs) = do
+    f archetype [] _ = return archetype
+    f archetype (component : xs) graph = do
+      x <- getArchetype archetype.id (Inserted component) graph
+      f x xs graph
+
+getArchetypeOnRemove :: ArchetypeId -> [ComponentId] -> System ArchetypeData
+getArchetypeOnRemove archetype components =
+  do
+    world <- ask
+    let Archetypes {graph} = world.archetypes
+
+    let d = ArchetypeData {id = archetype, components = Set.empty}
+    f d components graph
+  where
+    f archetype [] _ = return archetype
+    f archetype (component : xs) graph = do
       x <- getArchetype archetype.id (Removed component) graph
-      f x xs
+      f x xs graph
 
 getRequirements :: ComponentId -> System (Set ComponentId)
 getRequirements component = do
-  Just x <- get @(R Requires) component.id
-  return $ Set.fromList $ map (\x -> ComponentId {id = x, entity = Nothing}) x.targets
+  x <- get @(R Requires) component.id
+  return $ case x of
+    Nothing -> Set.empty
+    Just x -> Set.fromList $ map (\x -> ComponentId {id = x, entity = Nothing}) x.targets
+
+findMatchingArchetypes :: [ComponentId] -> Components -> Archetypes -> IO [([ComponentId], ArchetypeId)]
+findMatchingArchetypes components Components {archetypes} Archetypes {graph} = do
+  archetypes' <- liftIO $ readIORef archetypes
+  archetypes'' <- forM components $ \component -> do
+    liftIO $ maybe undefined readIORef (Map.lookup component.id archetypes')
+
+  -- map' <- readIORef map'
+
+  case map Set.toList archetypes'' of
+    [] -> return []
+    h : tail -> do
+      let archetypes = foldr intersect h tail
+
+      mapM
+        ( \(ArchetypeId x) -> do
+            x' <- Vec.read graph.nodes 1
+            return (Set.toList x'.archetype.components, ArchetypeId x)
+        )
+        archetypes

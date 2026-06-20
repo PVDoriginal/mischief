@@ -3,6 +3,7 @@ module MischiefECS.Components.Spawn where
 import Control.Monad.IO.Class
 import Control.Monad.Reader
 import Data.Data
+import Data.Default
 import Data.Foldable
 import Data.IORef
 import Data.Kind
@@ -48,6 +49,7 @@ getOrAddComponentId (ComponentType (_ :: Proxy c)) comp = do
         other <- getOrAddComponentId (ComponentType $ Proxy @other) comp
         insert (R (RequiredBy, result)) other.id
         insert (R (Requires, other.id)) result
+        insert (DefaultValue $ ErasedComponent $ def @other) other.id
 
       return $ ComponentId {id = result, entity = Nothing}
 
@@ -60,3 +62,8 @@ addMetaComponent _ Components {components, archetypes} = do
 
   l <- liftIO $ newIORef Set.empty
   liftIO $ modifyIORef' archetypes $ Map.insert id l
+
+-- entityOf :: ComponentId -> System Entity
+-- entityOf component = do
+--   world <- ask
+--   components <- liftIO $ readIORef world.components.components

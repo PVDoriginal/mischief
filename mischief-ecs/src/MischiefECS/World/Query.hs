@@ -15,6 +15,7 @@ import Data.Maybe
 import Data.Set (Set)
 import Data.Set qualified as Set
 import MischiefECS.Archetypes
+import {-# SOURCE #-} MischiefECS.Archetypes.Graph
 import MischiefECS.Components
 import MischiefECS.Entities
 import MischiefECS.Entities.Internal
@@ -171,7 +172,7 @@ runQuery :: forall qd. (Queryable qd) => Proxy qd -> QueryFilter -> World -> IO 
 runQuery query filter world =
   do
     components <- mapM (\c -> getComponentId c world.components) (Set.toList (types query))
-    archetypes <- findMatchingArchetypes (catMaybes components) world.archetypes world.components
+    archetypes <- findMatchingArchetypes (catMaybes components) world.components world.archetypes
     let (otherFilter, archetypeFilter) = extractArchetypeFilters filter
 
     archetypes' <- filterM (\(components, _) -> filterArchetype archetypeFilter components world) archetypes
@@ -332,6 +333,8 @@ instance (Component c) => Queryable (Meta c)
 instance Queryable RequiredBy
 
 instance Queryable Requires
+
+instance Queryable DefaultValue
 
 data QueryFilter
   = NoFilter

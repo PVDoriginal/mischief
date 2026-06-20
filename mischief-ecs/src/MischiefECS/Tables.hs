@@ -17,7 +17,7 @@ import MischiefECS.Entities.Internal
 import MischiefECS.Vec (IOVec)
 import MischiefECS.Vec qualified as Vec
 
-newtype Tables = Tables (IORef (Map ArchetypeId Table))
+newtype Tables = Tables {inner :: IORef (Map ArchetypeId Table)}
 
 data Table = Table
   { columns :: IORef (Map ComponentId Column),

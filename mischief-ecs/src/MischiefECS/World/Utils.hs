@@ -10,8 +10,9 @@ import Control.Monad.Reader.Class (MonadReader (..))
 import Control.Monad.Trans (MonadTrans (..))
 import Control.Monad.Trans.Reader (ReaderT (runReaderT))
 import Data.IORef
+import Data.List
 import Data.Map qualified as Map
-import Data.Maybe (isNothing)
+import Data.Maybe (fromMaybe, isNothing)
 import Data.Proxy
 import Data.Set (Set)
 import Data.Set qualified as Set
@@ -124,20 +125,13 @@ despawn entity =
           Just table -> do
             liftIO $ removeComponentsFromTable currentPointer table
 
-            empty <- liftIO $ tableIsEmpty table
+            -- empty <- liftIO $ tableIsEmpty table
 
-            when empty $ do
-              liftIO $ removeTableAndArchetype world currentPointer.archetypeId
+            -- when empty $ do
+            --   liftIO $ removeTableAndArchetype world currentPointer.archetypeId
 
             liftIO $ removeEntity entity world.entities
 
-removeTableAndArchetype :: World -> ArchetypeId -> IO ()
-removeTableAndArchetype !world !archetype =
-  do
-    removeArchetypeId archetype world.archetypes world.components
-    removeTable archetype world.tables
-
--- | Remove a component from an entity.
 removeComponentFromEntity :: forall c. (Component c) => Entity -> System ()
 removeComponentFromEntity entity =
   do
@@ -169,14 +163,15 @@ removeFromEntity componentId entity = do
           when (componentId `elem` currentTable.components) $ do
             collectedComponents <- liftIO $ takeComponentsFromTable currentPointer currentTable
 
-            empty <- liftIO $ tableIsEmpty currentTable
-            when empty $ do
-              liftIO $ removeTableAndArchetype world currentPointer.archetypeId
+            -- empty <- liftIO $ tableIsEmpty currentTable
+            -- when empty $ do
+            --   liftIO $ removeTableAndArchetype world currentPointer.archetypeId
 
             let newBundle = removeComponentFromProcessedBundle componentId collectedComponents
-            archetype <- liftIO $ archetypeOfProcessedBundle world.archetypes world.components newBundle
+            -- archetype <- liftIO $ archetypeOfProcessedBundle world.archetypes world.components newBundle
 
-            liftIO $ insertEntityIntoTables newBundle world.tables archetype (entity, pointer)
+            -- liftIO $ insertEntityIntoTables newBundle world.tables archetype (entity, pointer)
+            undefined
 
 tryGetEntityRelationshipCollection :: forall c. (Component c) => World -> Entity -> IO (Maybe (RelationshipCollection c))
 tryGetEntityRelationshipCollection world entity =

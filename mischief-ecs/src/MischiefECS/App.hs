@@ -107,6 +107,7 @@ addScheduleEdge (s1, s2) scheduleType = do
 addResource :: (Component r, Storage r ~ ResourceStorage) => r -> Plugin ()
 addResource r = do
   app <- ask
+  undefined
   liftIO $ runSystem (insertResource r) app.world
 
 addObserver :: (Event e) => (e -> System ()) -> Plugin ()

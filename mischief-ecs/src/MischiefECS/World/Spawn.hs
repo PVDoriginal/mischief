@@ -38,20 +38,20 @@ spawnDefer bundle = do
 spawnEntity :: (Bundle b) => Entity -> b -> System ()
 spawnEntity entity bundle = do
   world <- ask
-  let BundleData {elements, required} = addComponentToBundleData entity $ bundleData bundle
+  -- let BundleData {elements, required} = addComponentToBundleData entity $ bundleData bundle
 
-  currentTick <- liftIO $ readIORef world.tick
-  bundle <- liftIO $ processBundleElements world ComponentTicks {changed = currentTick, added = currentTick} $ Set.union elements required
+  -- currentTick <- liftIO $ readIORef world.tick
+  -- bundle <- liftIO $ processBundleElements world ComponentTicks {changed = currentTick, added = currentTick} $ Set.union elements required
 
-  archetypeId <- liftIO $ archetypeOfProcessedBundle world.archetypes world.components bundle
+  -- archetypeId <- liftIO $ archetypeOfProcessedBundle world.archetypes world.components bundle
 
   entityPointer <- liftIO $ newIORef EntityPointer {archetypeId = ArchetypeId 0, rowIndex = 0}
 
-  liftIO $ insertEntityIntoTables bundle world.tables archetypeId (entity, entityPointer)
+  liftIO $ insertEntityIntoTables (ProcessedBundleData {elements = []}) world.tables (ArchetypeId 0) (entity, entityPointer)
 
   liftIO $ insertPointer entity entityPointer world.entities
 
-  triggerInsertEvent bundle entity
+  insert bundle entity
   insertNew (Name (show entity)) entity
 
 spawnObserver :: forall e. (Event e) => Observer e -> Maybe ObserverOrder -> System ()
