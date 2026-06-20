@@ -69,7 +69,7 @@ addEdge a b component = do
   let Archetypes {graph} = world.archetypes
 
   Vec.modify_ graph.nodes a $ \ArchetypeNode {insert, remove, archetype} -> ArchetypeNode {insert = Map.insert component b insert, remove, archetype}
-  Vec.modify_ graph.nodes b $ \ArchetypeNode {insert, remove, archetype} -> ArchetypeNode {insert, remove = Map.insert component b remove, archetype}
+  Vec.modify_ graph.nodes b $ \ArchetypeNode {insert, remove, archetype} -> ArchetypeNode {insert, remove = Map.insert component a remove, archetype}
 
 getArchetype :: ArchetypeId -> ArchetypeTransition -> System ArchetypeData
 getArchetype (ArchetypeId id) (Removed component) = do
