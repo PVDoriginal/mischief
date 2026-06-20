@@ -3,14 +3,17 @@ module MischiefECS.Archetypes.Graph where
 import Control.Monad
 import Control.Monad.IO.Class
 import Control.Monad.Reader
+import Data.Foldable
 import Data.IORef
 import Data.List
 import Data.Map (Map, mapMaybe)
 import Data.Map qualified as Map
+import Data.Maybe
 import Data.Set (Set)
 import Data.Set qualified as Set
 import MischiefECS.Archetypes
 import MischiefECS.Components
+import MischiefECS.Tables
 import MischiefECS.Vec (IOVec)
 import MischiefECS.Vec qualified as Vec
 import MischiefECS.World
@@ -24,27 +27,55 @@ getNewId ArchetypeGraph {counter} = do
   modifyIORef' counter (+ 1)
   return x
 
-createNode :: Set ComponentId -> ArchetypeGraph -> IO Int
-createNode components graph = do
-  id <- getNewId graph
-  modifyIORef' graph.lookup $ Map.insert components id
+createNode :: Set ComponentId -> System Int
+createNode components = do
+  world <- ask
+  let Archetypes {graph} = world.archetypes
+
+  id <- liftIO $ getNewId graph
+  liftIO $ modifyIORef' graph.lookup $ Map.insert components id
   Vec.pushBack graph.nodes ArchetypeNode {archetype = ArchetypeData {id = ArchetypeId id, components}, insert = Map.empty, remove = Map.empty}
+
+  archetypes <- liftIO $ readIORef world.components.archetypes
+
+  comps <-
+    mapM
+      ( \c -> do
+          t <- get @ComponentType @System c.id
+          return $ fmap (\x -> getRep x.value) t
+      )
+      (Set.toList components)
+
+  liftIO $ putStrLn $ "archetype " ++ show id ++ " = " ++ show (catMaybes comps)
+  for_ components $ \component -> do
+    let set = fromMaybe undefined $ Map.lookup component.id archetypes
+    liftIO $ modifyIORef' set $ Set.insert (ArchetypeId id)
+
   return id
 
-getOrCreateNode :: Set ComponentId -> ArchetypeGraph -> IO Int
-getOrCreateNode components graph = do
-  lookup <- readIORef graph.lookup
+getOrCreateNode :: Set ComponentId -> System Int
+getOrCreateNode components = do
+  world <- ask
+  let Archetypes {graph} = world.archetypes
+
+  lookup <- liftIO $ readIORef graph.lookup
   case Map.lookup components lookup of
     Just x -> return x
-    Nothing -> createNode components graph
+    Nothing -> createNode components
 
-addEdge :: Int -> Int -> ComponentId -> ArchetypeGraph -> IO ()
-addEdge a b component graph = do
+addEdge :: Int -> Int -> ComponentId -> System ()
+addEdge a b component = do
+  world <- ask
+  let Archetypes {graph} = world.archetypes
+
   Vec.modify_ graph.nodes a $ \ArchetypeNode {insert, remove, archetype} -> ArchetypeNode {insert = Map.insert component b insert, remove, archetype}
   Vec.modify_ graph.nodes b $ \ArchetypeNode {insert, remove, archetype} -> ArchetypeNode {insert, remove = Map.insert component b remove, archetype}
 
-getArchetype :: ArchetypeId -> ArchetypeTransition -> ArchetypeGraph -> System ArchetypeData
-getArchetype (ArchetypeId id) (Removed component) graph = do
+getArchetype :: ArchetypeId -> ArchetypeTransition -> System ArchetypeData
+getArchetype (ArchetypeId id) (Removed component) = do
+  world <- ask
+  let Archetypes {graph} = world.archetypes
+
   node <- Vec.read graph.nodes id
 
   case Map.lookup component node.remove of
@@ -56,12 +87,15 @@ getArchetype (ArchetypeId id) (Removed component) graph = do
       -- TODO: check if another component requires this one!
 
       let newComponents = Set.delete component components
-      newId <- liftIO $ getOrCreateNode newComponents graph
-      liftIO $ addEdge newId id component graph
+      newId <- getOrCreateNode newComponents
+      addEdge newId id component
 
       newNode <- Vec.read graph.nodes newId
       return newNode.archetype
-getArchetype (ArchetypeId id) (Inserted component) graph = do
+getArchetype (ArchetypeId id) (Inserted component) = do
+  world <- ask
+  let Archetypes {graph} = world.archetypes
+
   node <- Vec.read graph.nodes id
 
   case Map.lookup component node.insert of
@@ -74,8 +108,8 @@ getArchetype (ArchetypeId id) (Inserted component) graph = do
 
       let newComponents = Set.union requirements $ Set.insert component components
 
-      newId <- liftIO $ getOrCreateNode newComponents graph
-      liftIO $ addEdge id newId component graph
+      newId <- getOrCreateNode newComponents
+      addEdge id newId component
 
       newNode <- Vec.read graph.nodes newId
       return newNode.archetype
@@ -91,7 +125,7 @@ getArchetypeOnInsert archetype components =
   where
     f archetype [] _ = return archetype
     f archetype (component : xs) graph = do
-      x <- getArchetype archetype.id (Inserted component) graph
+      x <- getArchetype archetype.id (Inserted component)
       f x xs graph
 
 getArchetypeOnRemove :: ArchetypeId -> [ComponentId] -> System ArchetypeData
@@ -105,7 +139,7 @@ getArchetypeOnRemove archetype components =
   where
     f archetype [] _ = return archetype
     f archetype (component : xs) graph = do
-      x <- getArchetype archetype.id (Removed component) graph
+      x <- getArchetype archetype.id (Removed component)
       f x xs graph
 
 getRequirements :: ComponentId -> System (Set ComponentId)
@@ -121,8 +155,6 @@ findMatchingArchetypes components Components {archetypes} Archetypes {graph} = d
   archetypes'' <- forM components $ \component -> do
     liftIO $ maybe undefined readIORef (Map.lookup component.id archetypes')
 
-  -- map' <- readIORef map'
-
   case map Set.toList archetypes'' of
     [] -> return []
     h : tail -> do
@@ -130,7 +162,7 @@ findMatchingArchetypes components Components {archetypes} Archetypes {graph} = d
 
       mapM
         ( \(ArchetypeId x) -> do
-            x' <- Vec.read graph.nodes 1
+            x' <- Vec.read graph.nodes x
             return (Set.toList x'.archetype.components, ArchetypeId x)
         )
         archetypes

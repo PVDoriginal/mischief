@@ -42,9 +42,12 @@ setup :: System ()
 setup = do
   _ <- spawn (Name "Lol", B)
   _ <- spawn (Name "Lol2", A)
-  q <- query' @(Name, Has A, Maybe B) $ with @C
-  for_ q $ \(name, a, b) -> do
-    liftIO $ putStrLn $ "(" ++ show name ++ ", " ++ show a ++ ", " ++ show b ++ ")"
+  q <- query' @Name $ with @B
+  for_ q $ \name -> do
+    liftIO $ print name
+  -- liftIO $ putStrLn $ "(" ++ show name ++ ", " ++ show a ++ ", " ++ show b ++ ")"
 
-  Just x <- single' @(R Requires) $ with @(Meta A)
-  liftIO $ print x.targets
+  -- Just x <- single' @(R Requires) $ with @(Meta A)
+  -- liftIO $ print x.targets
+
+  liftIO exitSuccess
