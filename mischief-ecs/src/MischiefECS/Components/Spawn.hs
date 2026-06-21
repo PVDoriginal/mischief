@@ -41,11 +41,17 @@ getOrAddComponentId (ComponentType (_ :: Proxy c)) comp = do
 
       liftIO $ modifyIORef' comp.components $ Map.insert (typeRep $ Proxy @c) result
 
-      l <- liftIO $ newIORef Set.empty
-      liftIO $ modifyIORef' comp.archetypes $ Map.insert result l
+      -- l <- liftIO $ newIORef Set.empty
+      -- liftIO $ modifyIORef' comp.archetypes $ Map.insert result l
 
       addMetaComponent (Proxy @c) comp
-      spawnEntity result ((ComponentType $ Proxy @c, Meta @c), Name $ "Meta entity for " ++ show (typeRep $ Proxy @c))
+      spawnEntity
+        result
+        ( ( ComponentType $ Proxy @c,
+            Meta @c
+          ),
+          Name $ "Meta entity for " ++ show (typeRep $ Proxy @c)
+        )
 
       for_ (requireAll @c) $ \(DefaultComponentType (_ :: (Proxy other))) -> do
         other <- getOrAddComponentId (ComponentType $ Proxy @other) comp
@@ -56,16 +62,20 @@ getOrAddComponentId (ComponentType (_ :: Proxy c)) comp = do
       return $ ComponentId {id = result, entity = Nothing}
 
 addMetaComponent :: forall (c :: Type). (Component c) => Proxy c -> Components -> System ()
-addMetaComponent _ Components {components, archetypes} = do
+addMetaComponent _ Components {components} = do
   world <- ask
   id <- liftIO $ getNewEntity world.entities
 
   liftIO $ modifyIORef' components $ Map.insert (typeRep $ Proxy @(Meta c)) id
 
-  spawnEntity id (ComponentType $ Proxy @(Meta c), Name $ "Meta entity for " ++ show (typeRep $ Proxy @(Meta c)))
+  spawnEntity
+    id
+    ( ComponentType $ Proxy @(Meta c),
+      Name $ "Meta entity for " ++ show (typeRep $ Proxy @(Meta c))
+    )
 
-  l <- liftIO $ newIORef Set.empty
-  liftIO $ modifyIORef' archetypes $ Map.insert id l
+-- l <- liftIO $ newIORef Set.empty
+-- liftIO $ modifyIORef' archetypes $ Map.insert id l
 
 entityOf :: forall c. (Component c) => System Entity
 entityOf = do

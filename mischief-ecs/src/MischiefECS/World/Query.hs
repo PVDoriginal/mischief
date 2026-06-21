@@ -342,6 +342,8 @@ instance Queryable Requires
 
 instance Queryable DefaultValue
 
+instance Queryable ComponentArchetypes
+
 data QueryFilter
   = NoFilter
   | With TypeRep

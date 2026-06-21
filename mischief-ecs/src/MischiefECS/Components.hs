@@ -15,6 +15,7 @@ import Data.Maybe
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Typeable
+import GHC.Generics
 import GHC.Records
 import MischiefECS.Components.Internal
 import MischiefECS.Entities.Internal
@@ -34,7 +35,7 @@ data Components = Components
     components :: IORef (Map TypeRep Entity),
     -- | Maps each component int (the first half of a 'ComponentId') to the set of archetypes containing that component.
     -- In the case of relationships, this will contain all archetypes which contain any relationship containing that component.
-    archetypes :: IORef (Map Entity (IORef (Set ArchetypeId))),
+    -- archetypes :: IORef (Map Entity (IORef (Set ArchetypeId))),
     -- | Maps whole 'ComponentId's to the set of archetypes which contain them.
     -- This is meant to be used to check the archetypes of component - entity relationships.
     pairs :: IORef (Map ComponentId (IORef (Set ArchetypeId))),
@@ -42,6 +43,10 @@ data Components = Components
     -- | Counter of ints that are assigned as component ids.
     counter :: IORef Int
   }
+
+newtype ComponentArchetypes = ComponentArchetypes {inner :: Set ArchetypeId}
+  deriving anyclass (Component)
+  deriving newtype (Default)
 
 -- data ArchetypeRecord = ArchetypeRecord
 --   { normal :: IORef (Set ArchetypeId),
@@ -52,11 +57,11 @@ data Components = Components
 emptyComponents :: IO Components
 emptyComponents = do
   components <- newIORef Map.empty
-  archetypes <- newIORef Map.empty
+  -- archetypes <- newIORef Map.empty
   pairs <- newIORef Map.empty
   resources <- newIORef Map.empty
   counter <- newIORef 1
-  return $ Components components archetypes pairs resources counter
+  return $ Components components pairs resources counter
 
 -- | Get the id of a component.
 getComponentId :: TypeRep -> Components -> IO (Maybe ComponentId)
@@ -110,7 +115,8 @@ data Meta c = Meta
 
 newtype DefaultValue = DefaultValue ErasedComponent deriving anyclass (Component)
 
-instance Component ComponentType
+instance Component ComponentType where
+  required = Set.fromList [DefaultComponentType $ Proxy @ComponentArchetypes]
 
 data RequiredBy = RequiredBy deriving (Component)
 

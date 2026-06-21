@@ -17,6 +17,8 @@ import MischiefECS.Tables
 import MischiefECS.Vec (IOVec)
 import MischiefECS.Vec qualified as Vec
 import MischiefECS.World
+import MischiefECS.World.Internal
+import MischiefECS.World.Modify
 import MischiefECS.World.Query
 
 data ArchetypeTransition = Inserted ComponentId | Removed ComponentId
@@ -36,7 +38,7 @@ createNode components = do
   liftIO $ modifyIORef' graph.lookup $ Map.insert components id
   Vec.pushBack graph.nodes ArchetypeNode {archetype = ArchetypeData {id = ArchetypeId id, components}, insert = Map.empty, remove = Map.empty}
 
-  archetypes <- liftIO $ readIORef world.components.archetypes
+  -- archetypes <- liftIO $ readIORef world.components.archetypes
 
   comps <-
     mapM
@@ -48,8 +50,8 @@ createNode components = do
 
   liftIO $ putStrLn $ "archetype " ++ show id ++ " = " ++ show (catMaybes comps)
   for_ components $ \component -> do
-    let set = fromMaybe undefined $ Map.lookup component.id archetypes
-    liftIO $ modifyIORef' set $ Set.insert (ArchetypeId id)
+    Just set <- get @ComponentArchetypes component.id
+    modify set $ \ComponentArchetypes {inner} -> ComponentArchetypes {inner = Set.insert (ArchetypeId id) inner}
 
   return id
 
@@ -149,11 +151,11 @@ getRequirements component = do
     Nothing -> Set.empty
     Just x -> Set.fromList $ map (\x -> ComponentId {id = x, entity = Nothing}) x.targets
 
-findMatchingArchetypes :: [ComponentId] -> Components -> Archetypes -> IO [([ComponentId], ArchetypeId)]
-findMatchingArchetypes components Components {archetypes} Archetypes {graph} = do
-  archetypes' <- liftIO $ readIORef archetypes
+findMatchingArchetypes :: forall m w. (MonadSystem w m) => [ComponentId] -> Archetypes -> m [([ComponentId], ArchetypeId)]
+findMatchingArchetypes components Archetypes {graph} = do
   archetypes'' <- forM components $ \component -> do
-    liftIO $ maybe undefined readIORef (Map.lookup component.id archetypes')
+    Just x <- get @ComponentArchetypes component.id
+    return x.value.inner
 
   case map Set.toList archetypes'' of
     [] -> return []
