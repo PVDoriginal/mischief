@@ -36,6 +36,7 @@ main = do
 
 plugin :: Plugin ()
 plugin = do
+  register @(A, B)
   addSystems Startup setup
 
 setup :: System ()

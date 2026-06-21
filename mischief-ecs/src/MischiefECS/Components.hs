@@ -30,18 +30,9 @@ data ComponentId = ComponentId
 newtype Pair = Pair (ComponentType, Entity)
 
 -- | Contains data and methods for assigning 'ComponentId's to new components (via their 'TypeRep').
-data Components = Components
+newtype Components = Components
   { -- | Maps 'TypeRep's to Ints, to be used as the first half of a 'ComponentId'.
-    components :: IORef (Map TypeRep Entity),
-    -- | Maps each component int (the first half of a 'ComponentId') to the set of archetypes containing that component.
-    -- In the case of relationships, this will contain all archetypes which contain any relationship containing that component.
-    -- archetypes :: IORef (Map Entity (IORef (Set ArchetypeId))),
-    -- | Maps whole 'ComponentId's to the set of archetypes which contain them.
-    -- This is meant to be used to check the archetypes of component - entity relationships.
-    -- pairs :: IORef (Map ComponentId (IORef (Set ArchetypeId))),
-    resources :: IORef (Map ComponentId Entity),
-    -- | Counter of ints that are assigned as component ids.
-    counter :: IORef Int
+    components :: IORef (Map TypeRep Entity)
   }
 
 newtype ComponentArchetypes = ComponentArchetypes {inner :: Set ArchetypeId}
@@ -53,20 +44,11 @@ data ComponentPairs = ComponentPairs {any :: Set ArchetypeId, pairs :: Map Entit
   deriving anyclass (Component, Default)
   deriving stock (Show, Generic)
 
--- data ArchetypeRecord = ArchetypeRecord
---   { normal :: IORef (Set ArchetypeId),
---     pairs :: IORef (Map Entity (IORef (Set ArchetypeId))),
---   }
-
 -- | Construct an empty 'Components'.
 emptyComponents :: IO Components
 emptyComponents = do
   components <- newIORef Map.empty
-  -- archetypes <- newIORef Map.empty
-  -- pairs <- newIORef Map.empty
-  resources <- newIORef Map.empty
-  counter <- newIORef 1
-  return $ Components components resources counter
+  return $ Components components
 
 -- | Get the id of a component.
 getComponentId :: TypeRep -> Components -> IO (Maybe ComponentId)
