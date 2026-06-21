@@ -200,12 +200,12 @@ query' filter = do
   world <- asks getWorld
   liftIO $ runQuery (Proxy @qd) filter world
 
--- single :: forall qd m w. (Queryable qd, MonadSystem w m) => m (Maybe (QueryOutput qd))
--- single = do
---   res <- query @qd
---   case res of
---     [x] -> return $ Just x
---     _ -> return Nothing
+single :: forall qd m w. (Queryable qd, MonadSystem w m) => m (Maybe (QueryOutput qd))
+single = do
+  res <- query @qd
+  case res of
+    [x] -> return $ Just x
+    _ -> return Nothing
 
 single' :: forall qd m w. (Queryable qd, MonadSystem w m) => QueryFilter -> m (Maybe (QueryOutput qd))
 single' filter = do
