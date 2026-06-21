@@ -55,28 +55,28 @@ handleEvents = do
 
 handleEvent :: SDLEvent -> System ()
 handleEvent (SDLEventDisplay event) = do
-  Just m <- single @(Messages (SDLMessage SDLDisplayEvent))
+  Just m <- res @(Messages (SDLMessage SDLDisplayEvent))
   writeMessage (SDLMessage event) m
 handleEvent (SDLEventWindow event) = do
-  Just m <- single @(Messages (SDLMessage SDLWindowEvent))
+  Just m <- res @(Messages (SDLMessage SDLWindowEvent))
   writeMessage (SDLMessage event) m
 handleEvent (SDLEventKeyboard event) = do
-  Just m <- single @(Messages (SDLMessage SDLKeyboardEvent))
+  Just m <- res @(Messages (SDLMessage SDLKeyboardEvent))
   writeMessage (SDLMessage event) m
 handleEvent (SDLEventMouseButton event) = do
-  Just m <- single @(Messages (SDLMessage SDLMouseButtonEvent))
+  Just m <- res @(Messages (SDLMessage SDLMouseButtonEvent))
   writeMessage (SDLMessage event) m
 handleEvent (SDLEventMouseMotion event) = do
-  Just m <- single @(Messages (SDLMessage SDLMouseMotionEvent))
+  Just m <- res @(Messages (SDLMessage SDLMouseMotionEvent))
   writeMessage (SDLMessage event) m
 handleEvent (SDLEventQuit event) = do
-  Just m <- single @(Messages (SDLMessage SDLQuitEvent))
+  Just m <- res @(Messages (SDLMessage SDLQuitEvent))
   writeMessage (SDLMessage event) m
 handleEvent _ = pure ()
 
 handleQuit :: System ()
 handleQuit = do
-  Just msg <- single @(Messages (SDLMessage SDLQuitEvent))
+  Just msg <- res @(Messages (SDLMessage SDLQuitEvent))
   messages <- readMessages msg
   for_ messages $ \(SDLMessage _) -> do
     liftIO exitSuccess

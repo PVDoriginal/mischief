@@ -17,6 +17,7 @@ import Data.Set qualified as Set
 import MischiefECS.Archetypes
 import {-# SOURCE #-} MischiefECS.Archetypes.Graph
 import MischiefECS.Components
+import {-# SOURCE #-} MischiefECS.Components.Spawn
 import MischiefECS.Entities
 import MischiefECS.Entities.Internal
 import MischiefECS.Tables
@@ -199,12 +200,12 @@ query' filter = do
   world <- asks getWorld
   liftIO $ runQuery (Proxy @qd) filter world
 
-single :: forall qd m w. (Queryable qd, MonadSystem w m) => m (Maybe (QueryOutput qd))
-single = do
-  res <- query @qd
-  case res of
-    [x] -> return $ Just x
-    _ -> return Nothing
+-- single :: forall qd m w. (Queryable qd, MonadSystem w m) => m (Maybe (QueryOutput qd))
+-- single = do
+--   res <- query @qd
+--   case res of
+--     [x] -> return $ Just x
+--     _ -> return Nothing
 
 single' :: forall qd m w. (Queryable qd, MonadSystem w m) => QueryFilter -> m (Maybe (QueryOutput qd))
 single' filter = do
@@ -212,6 +213,11 @@ single' filter = do
   case res of
     [x] -> return $ Just x
     _ -> return Nothing
+
+res :: forall c. (Queryable c, Component c) => System (Maybe (QueryOutput c))
+res = do
+  meta <- entityOf @c
+  get @c meta
 
 iter :: forall qd m w. (Queryable qd, MonadSystem w m) => (QueryOutput qd -> m ()) -> m ()
 iter system = do

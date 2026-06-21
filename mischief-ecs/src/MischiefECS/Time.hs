@@ -27,7 +27,7 @@ timePlugin = do
 
 updateTime :: System ()
 updateTime = do
-  time <- single @Time
+  time <- res @Time
   currentTime <- liftIO $ getTime Monotonic
 
   case time of
