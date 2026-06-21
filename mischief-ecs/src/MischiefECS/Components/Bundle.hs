@@ -39,15 +39,15 @@ class Bundle b where
 -- getComponentIds bundle components =
 --  let BundleData set = bundleData bundle
 --   in mapM ((`getComponentId` components) . (\x -> x.rep)) (Set.toList set)
-instance Bundle () where
+instance {-# OVERLAPPING #-} Bundle () where
   bundleDataInternal :: () -> BundleData
   bundleDataInternal _ = BundleData Set.empty Set.empty
 
-instance Bundle BundleData where
+instance {-# OVERLAPPING #-} Bundle BundleData where
   bundleDataInternal :: BundleData -> BundleData
   bundleDataInternal = id
 
-instance {-# OVERLAPPABLE #-} (Component c) => Bundle (R c) where
+instance {-# OVERLAPPING #-} (Component c) => Bundle (R c) where
   bundleDataInternal :: (Component c) => R c -> BundleData
   bundleDataInternal (R (c, entity)) =
     let req = Set.map toBundleElement $ requireAll @c

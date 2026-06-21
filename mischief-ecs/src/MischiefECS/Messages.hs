@@ -1,12 +1,12 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 
-module MischiefECS.Messages (
-  Message,
-  Messages,
-  writeMessage,
-  readMessages,
-  addMessage,
-)
+module MischiefECS.Messages
+  ( Message,
+    Messages,
+    writeMessage,
+    readMessages,
+    addMessage,
+  )
 where
 
 import Control.Monad.IO.Class
@@ -28,7 +28,7 @@ class (Typeable m) => Message m
 data Messages m = Messages {messages :: [(Frame, Tick, m)], readers :: Map SystemId Reader}
 
 newMessages :: forall m. Messages m
-newMessages = Messages{messages = [], readers = Map.empty}
+newMessages = Messages {messages = [], readers = Map.empty}
 
 newtype Reader = Reader (IORef Tick)
 
@@ -39,11 +39,10 @@ getReader !m = do
     Just r -> return r
     Nothing -> do
       tick <- liftIO $ newIORef $ Tick 0
-      modify m (\Messages{messages, readers} -> Messages{messages, readers = Map.insert world.systemId (Reader tick) readers})
+      modify m (\Messages {messages, readers} -> Messages {messages, readers = Map.insert world.systemId (Reader tick) readers})
       return $ Reader tick
 
-instance (Message m) => Component (Messages m) where
-  type Storage (Messages m) = ResourceStorage
+instance (Message m) => Component (Messages m)
 
 instance (Message m) => Queryable (Messages m)
 
@@ -52,7 +51,7 @@ writeMessage !message !messages = do
   world <- ask
   frame <- liftIO $ readIORef world.frame
   let message' = (frame, world.currentSystemTick, message)
-  modify messages (\Messages{messages, readers} -> Messages{messages = message' : messages, readers})
+  modify messages (\Messages {messages, readers} -> Messages {messages = message' : messages, readers})
   clearOldMessages messages
 
 readMessages :: (Message m) => ComponentResult (Messages m) -> System [m]
@@ -74,4 +73,4 @@ clearOldMessages :: (Message m) => ComponentResult (Messages m) -> System ()
 clearOldMessages !m = do
   world <- ask
   frame <- liftIO $ readIORef world.frame
-  modify m (\Messages{messages, readers} -> Messages{messages = filter (\(Frame x, _, _) -> Frame (x + 2) >= frame) messages, readers})
+  modify m (\Messages {messages, readers} -> Messages {messages = filter (\(Frame x, _, _) -> Frame (x + 2) >= frame) messages, readers})

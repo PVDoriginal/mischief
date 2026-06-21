@@ -15,14 +15,11 @@ data Time = Time
   { delta :: TimeSpec,
     elapsed :: TimeSpec
   }
-  deriving (Show, Queryable)
+  deriving (Show, Component, Queryable)
 
 instance HasField "deltaSecs" Time Float where
   getField :: Time -> Float
   getField Time {delta} = fromIntegral delta.sec + fromIntegral delta.nsec / 1000000000
-
-instance Component Time where
-  type Storage Time = ResourceStorage
 
 timePlugin :: Plugin ()
 timePlugin = do
@@ -35,6 +32,6 @@ updateTime = do
 
   case time of
     Nothing ->
-      insertResource $ Time {delta = TimeSpec {sec = 0, nsec = 0}, elapsed = currentTime}
+      insertRes $ Time {delta = TimeSpec {sec = 0, nsec = 0}, elapsed = currentTime}
     Just time ->
-      insertResource $ Time {delta = currentTime - time.value.elapsed, elapsed = currentTime}
+      insertRes $ Time {delta = currentTime - time.value.elapsed, elapsed = currentTime}

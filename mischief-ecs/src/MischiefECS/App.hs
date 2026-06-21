@@ -16,6 +16,7 @@ import MischiefECS.App.SystemConfig
 import MischiefECS.App.Systems (Systems)
 import MischiefECS.App.Systems qualified as Systems
 import MischiefECS.Components
+import MischiefECS.Components.Bundle
 import MischiefECS.Events
 import MischiefECS.World
 import MischiefECS.World.Defer
@@ -104,10 +105,9 @@ addScheduleEdge (s1, s2) scheduleType = do
   App {scheduler} <- ask
   liftIO $ Scheduler.addScheduleEdge (ScheduleLabel $ typeOf s1, ScheduleLabel $ typeOf s2) scheduleType scheduler
 
-addResource :: (Component r, Storage r ~ ResourceStorage) => r -> Plugin ()
+addResource :: (Component r, Bundle r) => r -> Plugin ()
 addResource r = do
   app <- ask
-  undefined
   liftIO $ runSystem (insertRes r) app.world
 
 addObserver :: (Event e) => (e -> System ()) -> Plugin ()
