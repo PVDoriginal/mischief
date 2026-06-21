@@ -17,6 +17,7 @@ import MischiefECS.Components.Required (requireAll)
 import MischiefECS.Entities
 import MischiefECS.Entities.Internal
 import MischiefECS.World
+import MischiefECS.World.Defer
 import MischiefECS.World.Insert
 import MischiefECS.World.Spawn
 
@@ -45,6 +46,7 @@ getOrAddComponentId (ComponentType (_ :: Proxy c)) comp = do
       -- liftIO $ modifyIORef' comp.archetypes $ Map.insert result l
 
       addMetaComponent (Proxy @c) comp
+
       spawnEntity
         result
         ( ( ComponentType $ Proxy @c,

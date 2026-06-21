@@ -1,5 +1,6 @@
 module MischiefECS.Archetypes.Graph where
 
+import Control.Monad.Primitive
 import MischiefECS.Archetypes
 import MischiefECS.Components
 import MischiefECS.World

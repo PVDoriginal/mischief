@@ -62,6 +62,20 @@ flushAsync = do
 
   sequence_ systems
 
+forkDefer :: System a -> System a
+forkDefer s = do
+  world <- ask
+  deferred <- liftIO $ newIORef []
+
+  let world' = setDeferred deferred world
+  a <- liftIO $ runSystem s world'
+
+  deferred <- liftIO $ readIORef deferred
+  liftIO $ modifyIORef' world.deferred (++ deferred)
+  return a
+
+-- let world' =
+
 forkSystem :: ParSystem () -> System ()
 forkSystem (ParSystem !x) = do
   world <- ask

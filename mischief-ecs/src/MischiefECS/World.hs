@@ -87,6 +87,10 @@ setSystemId :: SystemId -> World -> World
 setSystemId systemId World {archetypes, components, entities, tables, deferred, deferredAsync, tick, lastSystemTick, currentSystemTick, frame, events} =
   World {archetypes, components, entities, tables, deferred, deferredAsync, tick, lastSystemTick, currentSystemTick, systemId, frame, events}
 
+setDeferred :: IORef [System ()] -> World -> World
+setDeferred deferred World {archetypes, components, entities, tables, deferredAsync, tick, lastSystemTick, currentSystemTick, frame, events, systemId} =
+  World {archetypes, components, deferred, entities, tables, deferredAsync, tick, lastSystemTick, currentSystemTick, frame, events, systemId}
+
 -- | Increment the World's tick.
 tick :: System ()
 tick = do

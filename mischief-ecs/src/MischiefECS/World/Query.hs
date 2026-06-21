@@ -169,23 +169,23 @@ instance Queryable Entity where
 
 -- outputEntity _ x = x
 
-runQuery :: forall qd. (Queryable qd) => Proxy qd -> QueryFilter -> World -> IO [QueryOutput qd]
+runQuery :: forall qd m w. (Queryable qd, MonadSystem w m) => Proxy qd -> QueryFilter -> World -> m [QueryOutput qd]
 runQuery query filter world =
   do
-    components <- mapM (\c -> getComponentId c world.components) (Set.toList (types query))
-    archetypes <- findMatchingArchetypes (catMaybes components) world.components world.archetypes
+    components <- liftIO $ mapM (\c -> getComponentId c world.components) (Set.toList (types query))
+    archetypes <- findMatchingArchetypes (catMaybes components) world.archetypes
     let (otherFilter, archetypeFilter) = extractArchetypeFilters filter
 
-    archetypes' <- filterM (\(components, _) -> filterArchetype archetypeFilter components world) archetypes
+    archetypes' <- filterM (\(components, _) -> liftIO $ filterArchetype archetypeFilter components world) archetypes
 
-    outputs <- runQueryInternal query (map snd archetypes') world
-    outputs' <- filterQuery @qd world otherFilter (map snd archetypes') (zip [0 ..] outputs)
+    outputs <- liftIO $ runQueryInternal query (map snd archetypes') world
+    outputs' <- liftIO $ filterQuery @qd world otherFilter (map snd archetypes') (zip [0 ..] outputs)
     return $ map (snd . snd) outputs'
 
 query :: forall qd m w. (Queryable qd, MonadSystem w m) => m [QueryOutput qd]
 query = do
   world <- asks getWorld
-  liftIO $ runQuery (Proxy @qd) NoFilter world
+  runQuery (Proxy @qd) NoFilter world
 
 entityQuery :: forall qd m w. (Queryable qd, MonadSystem w m) => Entity -> m (Maybe (QueryOutput qd))
 entityQuery entity = do
@@ -198,7 +198,7 @@ get = entityQuery @qd
 query' :: forall qd m w. (Queryable qd, MonadSystem w m) => QueryFilter -> m [QueryOutput qd]
 query' filter = do
   world <- asks getWorld
-  liftIO $ runQuery (Proxy @qd) filter world
+  runQuery (Proxy @qd) filter world
 
 single :: forall qd m w. (Queryable qd, MonadSystem w m) => m (Maybe (QueryOutput qd))
 single = do

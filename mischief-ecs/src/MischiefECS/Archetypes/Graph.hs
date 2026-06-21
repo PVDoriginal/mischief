@@ -2,6 +2,7 @@ module MischiefECS.Archetypes.Graph where
 
 import Control.Monad
 import Control.Monad.IO.Class
+import Control.Monad.Primitive
 import Control.Monad.Reader
 import Data.Foldable
 import Data.IORef
@@ -17,6 +18,7 @@ import MischiefECS.Tables
 import MischiefECS.Vec (IOVec)
 import MischiefECS.Vec qualified as Vec
 import MischiefECS.World
+import MischiefECS.World.Defer
 import MischiefECS.World.Internal
 import MischiefECS.World.Modify
 import MischiefECS.World.Query
@@ -49,9 +51,10 @@ createNode components = do
       (Set.toList components)
 
   liftIO $ putStrLn $ "archetype " ++ show id ++ " = " ++ show (catMaybes comps)
-  for_ components $ \component -> do
-    Just set <- get @ComponentArchetypes component.id
-    modify set $ \ComponentArchetypes {inner} -> ComponentArchetypes {inner = Set.insert (ArchetypeId id) inner}
+  for_ components $ \component -> defer $ do
+    set <- get @ComponentArchetypes component.id
+    for_ set $ \set -> do
+      modify set $ \ComponentArchetypes {inner} -> ComponentArchetypes {inner = Set.insert (ArchetypeId id) inner}
 
   return id
 
@@ -121,9 +124,12 @@ getArchetypeOnInsert archetype components =
   do
     world <- ask
     let Archetypes {graph} = world.archetypes
-
     let d = ArchetypeData {id = archetype, components = Set.empty}
-    f d components graph
+
+    forkDefer $ do
+      a <- f d components graph
+      flush
+      return a
   where
     f archetype [] _ = return archetype
     f archetype (component : xs) graph = do
@@ -135,9 +141,12 @@ getArchetypeOnRemove archetype components =
   do
     world <- ask
     let Archetypes {graph} = world.archetypes
-
     let d = ArchetypeData {id = archetype, components = Set.empty}
-    f d components graph
+
+    forkDefer $ do
+      a <- f d components graph
+      flush
+      return a
   where
     f archetype [] _ = return archetype
     f archetype (component : xs) graph = do

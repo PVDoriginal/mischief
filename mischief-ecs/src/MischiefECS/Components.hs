@@ -47,6 +47,7 @@ data Components = Components
 newtype ComponentArchetypes = ComponentArchetypes {inner :: Set ArchetypeId}
   deriving anyclass (Component)
   deriving newtype (Default)
+  deriving stock (Show)
 
 -- data ArchetypeRecord = ArchetypeRecord
 --   { normal :: IORef (Set ArchetypeId),
