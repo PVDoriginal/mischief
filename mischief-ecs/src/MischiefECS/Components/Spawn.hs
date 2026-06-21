@@ -55,12 +55,14 @@ getOrAddComponentId (ComponentType (_ :: Proxy c)) comp = do
 
       return $ ComponentId {id = result, entity = Nothing}
 
-addMetaComponent :: forall (c :: Type). (Typeable c) => Proxy c -> Components -> System ()
+addMetaComponent :: forall (c :: Type). (Component c) => Proxy c -> Components -> System ()
 addMetaComponent _ Components {components, archetypes} = do
   world <- ask
   id <- liftIO $ getNewEntity world.entities
 
   liftIO $ modifyIORef' components $ Map.insert (typeRep $ Proxy @(Meta c)) id
+
+  spawnEntity id (ComponentType $ Proxy @c, Name $ "Meta entity for " ++ show (typeRep $ Proxy @c))
 
   l <- liftIO $ newIORef Set.empty
   liftIO $ modifyIORef' archetypes $ Map.insert id l
