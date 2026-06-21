@@ -180,11 +180,22 @@ getRequirements component = do
     Nothing -> Set.empty
     Just x -> Set.fromList $ map (\x -> ComponentId {id = x, entity = Nothing}) x.targets
 
-findMatchingArchetypes :: forall m w. (MonadSystem w m) => [ComponentId] -> Archetypes -> m [([ComponentId], ArchetypeId)]
+data ComponentQuery = ComponentQuery | RelationshipQueryAny | RelationshipQuery
+
+findMatchingArchetypes :: forall m w. (MonadSystem w m) => [(ComponentId, ComponentQuery)] -> Archetypes -> m [([ComponentId], ArchetypeId)]
 findMatchingArchetypes components Archetypes {graph} = do
-  archetypes'' <- forM components $ \component -> do
-    Just x <- get @ComponentArchetypes component.id
-    return x.value.inner
+  archetypes'' <- forM components $ \(component, q) -> do
+    case q of
+      ComponentQuery -> do
+        Just x <- get @ComponentArchetypes component.id
+        return x.value.inner
+      RelationshipQueryAny -> do
+        Just x <- get @ComponentPairs component.id
+        return x.value.any
+      RelationshipQuery -> do
+        let target = fromMaybe undefined component.entity
+        Just x <- get @ComponentPairs component.id
+        return $ fromMaybe undefined $ Map.lookup target x.value.pairs
 
   case map Set.toList archetypes'' of
     [] -> return []

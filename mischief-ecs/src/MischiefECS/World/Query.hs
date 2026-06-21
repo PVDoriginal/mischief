@@ -27,31 +27,33 @@ import MischiefECS.World.Par
 import MischiefECS.World.Utils
 import Prelude hiding (and)
 
+data TypeQuery = CompQ | RelQ deriving (Eq, Ord)
+
 class QueryData qd where
-  types :: Proxy qd -> Set TypeRep
+  types :: Proxy qd -> Set (TypeRep, TypeQuery)
 
 instance {-# OVERLAPPABLE #-} (Component c) => QueryData c where
-  types :: (Component c) => Proxy c -> Set TypeRep
-  types = Set.singleton . typeRep
+  types :: (Component c) => Proxy c -> Set (TypeRep, TypeQuery)
+  types c = Set.singleton (typeRep c, CompQ)
 
 instance {-# OVERLAPPING #-} (Component c) => QueryData (R c) where
-  types :: Proxy (R c) -> Set TypeRep
-  types _ = Set.singleton $ typeRep $ Proxy @c
+  types :: Proxy (R c) -> Set (TypeRep, TypeQuery)
+  types _ = Set.singleton (typeRep $ Proxy @c, RelQ)
 
 instance {-# OVERLAPPING #-} (Component c) => QueryData (Maybe c) where
-  types :: (Component c) => Proxy (Maybe c) -> Set TypeRep
+  types :: (Component c) => Proxy (Maybe c) -> Set (TypeRep, TypeQuery)
   types _ = Set.empty
 
 instance {-# OVERLAPPING #-} (Component c) => QueryData (Has c) where
-  types :: (Component c) => Proxy (Has c) -> Set TypeRep
+  types :: (Component c) => Proxy (Has c) -> Set (TypeRep, TypeQuery)
   types _ = Set.empty
 
 instance (QueryData a0, QueryData a1) => QueryData (a0, a1) where
-  types :: (QueryData a0, QueryData a1) => Proxy (a0, a1) -> Set TypeRep
+  types :: (QueryData a0, QueryData a1) => Proxy (a0, a1) -> Set (TypeRep, TypeQuery)
   types _ = Set.union (types $ Proxy @a0) (types $ Proxy @a1)
 
 instance (QueryData a0, QueryData a1, QueryData a2) => QueryData (a0, a1, a2) where
-  types :: (QueryData a0, QueryData a1, QueryData a2) => Proxy (a0, a1, a2) -> Set TypeRep
+  types :: (QueryData a0, QueryData a1, QueryData a2) => Proxy (a0, a1, a2) -> Set (TypeRep, TypeQuery)
   types _ = Set.unions [types $ Proxy @a0, types $ Proxy @a1, types $ Proxy @a2]
 
 class (QueryData qd) => Queryable qd where
@@ -172,7 +174,21 @@ instance Queryable Entity where
 runQuery :: forall qd m w. (Queryable qd, MonadSystem w m) => Proxy qd -> QueryFilter -> World -> m [QueryOutput qd]
 runQuery query filter world =
   do
-    components <- liftIO $ mapM (\c -> getComponentId c world.components) (Set.toList (types query))
+    components <-
+      liftIO $
+        mapM
+          ( \(c, t) -> do
+              c <- getComponentId c world.components
+              return $
+                fmap
+                  ( \c ->
+                      case t of
+                        CompQ -> (c, ComponentQuery)
+                        RelQ -> (c, RelationshipQueryAny)
+                  )
+                  c
+          )
+          (Set.toList (types query))
     archetypes <- findMatchingArchetypes (catMaybes components) world.archetypes
     let (otherFilter, archetypeFilter) = extractArchetypeFilters filter
 
@@ -358,19 +374,19 @@ data QueryFilter
   deriving (Show)
 
 with :: forall qd. (QueryData qd) => QueryFilter
-with = and' $ map With (Set.toList $ types (Proxy @qd))
+with = and' $ map (With . fst) (Set.toList $ types (Proxy @qd))
 
 withR :: forall c. (Component c) => Entity -> QueryFilter
 withR = WithR (typeRep $ Proxy @c)
 
 without :: forall qd. (QueryData qd) => QueryFilter
-without = and' $ map Without (Set.toList $ types (Proxy @qd))
+without = and' $ map (Without . fst) (Set.toList $ types (Proxy @qd))
 
 changed :: forall qd. (QueryData qd) => QueryFilter
-changed = and' $ map Changed (Set.toList $ types (Proxy @qd))
+changed = and' $ map (Changed . fst) (Set.toList $ types (Proxy @qd))
 
 added :: forall qd. (QueryData qd) => QueryFilter
-added = and' $ map Added (Set.toList $ types (Proxy @qd))
+added = and' $ map (Added . fst) (Set.toList $ types (Proxy @qd))
 
 and' :: [QueryFilter] -> QueryFilter
 and' = foldr and NoFilter

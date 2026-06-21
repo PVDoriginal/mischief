@@ -103,7 +103,7 @@ data Meta c = Meta
 newtype DefaultValue = DefaultValue ErasedComponent deriving anyclass (Component)
 
 instance Component ComponentType where
-  required = Set.fromList [DefaultComponentType $ Proxy @ComponentArchetypes]
+  required = Set.fromList [DefaultComponentType $ Proxy @ComponentArchetypes, DefaultComponentType $ Proxy @ComponentPairs]
 
 data RequiredBy = RequiredBy deriving (Component)
 
