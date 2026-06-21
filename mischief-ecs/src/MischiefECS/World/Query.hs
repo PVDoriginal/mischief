@@ -344,6 +344,8 @@ instance Queryable DefaultValue
 
 instance Queryable ComponentArchetypes
 
+instance Queryable ComponentPairs
+
 data QueryFilter
   = NoFilter
   | With TypeRep

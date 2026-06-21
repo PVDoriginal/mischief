@@ -51,10 +51,30 @@ createNode components = do
       (Set.toList components)
 
   liftIO $ putStrLn $ "archetype " ++ show id ++ " = " ++ show (catMaybes comps)
+  -- Associate each of the components with the new archetype.
   for_ components $ \component -> defer $ do
-    set <- get @ComponentArchetypes component.id
-    for_ set $ \set -> do
-      modify set $ \ComponentArchetypes {inner} -> ComponentArchetypes {inner = Set.insert (ArchetypeId id) inner}
+    case component.entity of
+      -- Component isn't a pair.
+      Nothing -> do
+        set <- get @ComponentArchetypes component.id
+        for_ set $ \set -> do
+          modify set $ \ComponentArchetypes {inner} -> ComponentArchetypes {inner = Set.insert (ArchetypeId id) inner}
+      -- Component is a pair.
+      Just entity -> do
+        set <- get @ComponentPairs component.id
+        for_ set $ \set -> do
+          modify set $ \ComponentPairs {any, pairs} ->
+            ComponentPairs
+              { any = Set.insert (ArchetypeId id) any,
+                pairs =
+                  Map.alter
+                    ( \case
+                        Nothing -> Just $ Set.singleton $ ArchetypeId id
+                        Just s -> Just $ Set.insert (ArchetypeId id) s
+                    )
+                    entity
+                    pairs
+              }
 
   return id
 

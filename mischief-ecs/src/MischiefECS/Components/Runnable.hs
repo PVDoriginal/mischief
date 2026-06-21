@@ -23,9 +23,3 @@ instance {-# OVERLAPPING #-} (Runnable r0, Runnable r1) => Runnable (r0, r1) whe
 
 runFor :: forall c. (Runnable c) => (forall (d :: Type). (Component d, Bundle d) => Proxy d -> System ()) -> System ()
 runFor = runFor' (Proxy @c)
-
-test :: System ()
-test = runFor @(Name, Name) testS
-
-testS :: forall c. (Component c, Bundle c) => Proxy c -> System ()
-testS = undefined

@@ -38,7 +38,7 @@ data Components = Components
     -- archetypes :: IORef (Map Entity (IORef (Set ArchetypeId))),
     -- | Maps whole 'ComponentId's to the set of archetypes which contain them.
     -- This is meant to be used to check the archetypes of component - entity relationships.
-    pairs :: IORef (Map ComponentId (IORef (Set ArchetypeId))),
+    -- pairs :: IORef (Map ComponentId (IORef (Set ArchetypeId))),
     resources :: IORef (Map ComponentId Entity),
     -- | Counter of ints that are assigned as component ids.
     counter :: IORef Int
@@ -48,6 +48,10 @@ newtype ComponentArchetypes = ComponentArchetypes {inner :: Set ArchetypeId}
   deriving anyclass (Component)
   deriving newtype (Default)
   deriving stock (Show)
+
+data ComponentPairs = ComponentPairs {any :: Set ArchetypeId, pairs :: Map Entity (Set ArchetypeId)}
+  deriving anyclass (Component, Default)
+  deriving stock (Show, Generic)
 
 -- data ArchetypeRecord = ArchetypeRecord
 --   { normal :: IORef (Set ArchetypeId),
@@ -59,10 +63,10 @@ emptyComponents :: IO Components
 emptyComponents = do
   components <- newIORef Map.empty
   -- archetypes <- newIORef Map.empty
-  pairs <- newIORef Map.empty
+  -- pairs <- newIORef Map.empty
   resources <- newIORef Map.empty
   counter <- newIORef 1
-  return $ Components components pairs resources counter
+  return $ Components components resources counter
 
 -- | Get the id of a component.
 getComponentId :: TypeRep -> Components -> IO (Maybe ComponentId)
