@@ -47,14 +47,14 @@ instance Bundle BundleData where
   bundleDataInternal :: BundleData -> BundleData
   bundleDataInternal = id
 
-instance {-# OVERLAPPABLE #-} (Component c, Storage c ~ ComponentStorage) => Bundle (R c) where
-  bundleDataInternal :: (Component c, Storage c ~ ComponentStorage) => R c -> BundleData
+instance {-# OVERLAPPABLE #-} (Component c) => Bundle (R c) where
+  bundleDataInternal :: (Component c) => R c -> BundleData
   bundleDataInternal (R (c, entity)) =
     let req = Set.map toBundleElement $ requireAll @c
      in BundleData (Set.fromList [BundleElement {rep = PairRep (ComponentType $ Proxy @c, entity), component = erase c}]) req
 
-instance {-# OVERLAPPABLE #-} (Component c, Storage c ~ ComponentStorage) => Bundle c where
-  bundleDataInternal :: (Component c, Storage c ~ ComponentStorage) => c -> BundleData
+instance {-# OVERLAPPABLE #-} (Component c) => Bundle c where
+  bundleDataInternal :: (Component c) => c -> BundleData
   bundleDataInternal c =
     let req = Set.map toBundleElement $ requireAll @c
      in BundleData (Set.fromList [BundleElement {rep = ComponentRep $ ComponentType $ Proxy @c, component = erase c}]) req
@@ -72,3 +72,16 @@ bundleDataRes :: forall r. (Component r) => r -> BundleData
 bundleDataRes r =
   let req = Set.map toBundleElement $ requireAll @r
    in BundleData (Set.fromList [BundleElement {rep = ComponentRep $ ComponentType $ Proxy @r, component = erase r}]) req
+
+data BTrue a
+
+data BFalse a
+
+type family Bundleable a where
+  Bundleable (Component a) = BTrue a
+  Bundleable (RelationLike a) = BTrue a
+  Bundleable a = BFalse a
+
+class RelationLike a
+
+instance RelationLike (R a)

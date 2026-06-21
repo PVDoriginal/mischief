@@ -1,6 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 
-module MischiefECS.World.Remove where
+module MischiefECS.World.Remove (remove, delete) where
 
 import Control.Monad
 import Control.Monad.Reader
@@ -8,6 +8,8 @@ import Data.Data
 import Data.Foldable
 import Data.IORef
 import Data.Map qualified as Map
+import Data.Set (Set)
+import Data.Set qualified as Set
 import MischiefECS.Archetypes
 import {-# SOURCE #-} MischiefECS.Archetypes.Graph
 import MischiefECS.Components
@@ -20,22 +22,22 @@ import MischiefECS.World.Change (changeArchetype)
 import MischiefECS.World.Utils
 
 class Removable c where
-  removeInternal :: Proxy c -> Entity -> System ()
+  getTypes :: Proxy c -> System (Set ComponentId)
 
 instance {-# OVERLAPPABLE #-} (Component c) => Removable c where
-  removeInternal :: Proxy c -> Entity -> System ()
-  removeInternal _ entity = do
-    runEvent $ eraseEvent (OnRemove @c entity)
-    removeComponentFromEntity @c entity
+  getTypes c = do
+    world <- ask
+    x <- getOrAddComponentId (ComponentType c) world.components
+    return $ Set.singleton x
 
-instance {-# OVERLAPPING #-} (Removable c0, Removable c1) => Removable (c0, c1) where
-  removeInternal :: Proxy (c0, c1) -> Entity -> System ()
-  removeInternal _ !entity = do
-    removeInternal (Proxy @c0) entity
-    removeInternal (Proxy @c1) entity
+-- instance {-# OVERLAPPING #-} (Removable c0, Removable c1) => Removable (c0, c1) where
+--   getTypes c0 c1 = do
+--     world <- ask
 
 remove :: forall r. (Removable r) => Entity -> System ()
-remove = removeInternal (Proxy @r)
+remove entity = do
+  types <- getTypes (Proxy @r)
+  removeFromEntity (Set.toList types) entity
 
 class Delete r where
   delete :: r -> System ()
@@ -52,34 +54,21 @@ instance (Component c) => Delete (RelationshipCollection c) where
   delete :: RelationshipCollection c -> System ()
   delete collection = for_ collection.collection delete
 
-removeComponentFromEntity :: forall c. (Component c) => Entity -> System ()
-removeComponentFromEntity entity =
-  do
-    world <- ask
-    componentId <- getOrAddComponentId (ComponentType $ Proxy @c) world.components
-    removeFromEntity componentId entity
-
 removeRelationshipFromEntity :: forall c. (Component c) => Entity -> Entity -> System ()
 removeRelationshipFromEntity target entity = do
   world <- ask
   componentId <- getOrAddPairId (Pair (ComponentType $ Proxy @c, target)) world.components
-  removeFromEntity componentId entity
+  removeFromEntity [componentId] entity
 
-removeFromEntity :: ComponentId -> Entity -> System ()
-removeFromEntity componentId entity = do
+removeFromEntity :: [ComponentId] -> Entity -> System ()
+removeFromEntity components entity = do
   world <- ask
   pointer <- liftIO $ getPointer entity world.entities
 
   case pointer of
     Nothing -> undefined
     Just pointer -> do
-      let Tables tables = world.tables
-      tables <- liftIO $ readIORef tables
       currentPointer <- liftIO $ readIORef pointer
 
-      case Map.lookup currentPointer.archetypeId tables of
-        Nothing -> undefined
-        Just currentTable -> do
-          when (componentId `elem` currentTable.components) $ do
-            newArchetype <- getArchetypeOnRemove currentPointer.archetypeId [componentId]
-            changeArchetype entity newArchetype Nothing
+      newArchetype <- getArchetypeOnRemove currentPointer.archetypeId components
+      changeArchetype entity newArchetype Nothing

@@ -100,7 +100,7 @@ insertNew bundle entity =
 
               triggerInsertEvent newComponents entity
 
-findResourceArchetype :: forall r. (Component r, Storage r ~ ResourceStorage) => r -> System (Maybe ArchetypeId)
+findResourceArchetype :: forall r. (Component r) => r -> System (Maybe ArchetypeId)
 findResourceArchetype r =
   do
     world <- ask
@@ -114,8 +114,15 @@ findResourceArchetype r =
 --   _ -> undefined
 
 -- | Insert a resource into this world. If the resource already exists, its value will be overwritten.
-insertResource :: forall r. (Component r, Storage r ~ ResourceStorage) => r -> System ()
-insertResource r = undefined
+insertRes :: forall r. (Component r) => r -> System ()
+insertRes res = do
+  entity <- entityOf @r
+  insert res entity
+
+i :: (Component r) => r -> System ()
+i r = do
+  let l = undefined
+  insert r l
 
 --   do
 --     world <- ask

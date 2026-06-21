@@ -1,3 +1,5 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
+
 module MischiefECS.Components.Spawn where
 
 import Control.Monad.IO.Class
@@ -63,7 +65,8 @@ addMetaComponent _ Components {components, archetypes} = do
   l <- liftIO $ newIORef Set.empty
   liftIO $ modifyIORef' archetypes $ Map.insert id l
 
--- entityOf :: ComponentId -> System Entity
--- entityOf component = do
---   world <- ask
---   components <- liftIO $ readIORef world.components.components
+entityOf :: forall c. (Component c) => System Entity
+entityOf = do
+  world <- ask
+  component <- getOrAddComponentId (ComponentType $ Proxy @c) world.components
+  return component.id

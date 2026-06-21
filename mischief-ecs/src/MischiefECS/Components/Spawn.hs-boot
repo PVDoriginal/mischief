@@ -1,3 +1,5 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
+
 module MischiefECS.Components.Spawn where
 
 import Data.Data
@@ -8,3 +10,4 @@ import MischiefECS.World
 
 getOrAddPairId :: Pair -> Components -> System ComponentId
 getOrAddComponentId :: ComponentType -> Components -> System ComponentId
+entityOf :: forall c. (Component c) => System Entity

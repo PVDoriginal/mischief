@@ -79,12 +79,7 @@ newtype ArchetypeId = ArchetypeId
   }
   deriving (Show, Eq, Ord)
 
-data StorageType = ComponentStorage | ResourceStorage
-
 class (Typeable c) => Component c where
-  type Storage c :: StorageType
-  type Storage c = ComponentStorage
-
   erase :: c -> ErasedComponent
   erase = ErasedComponent
 
@@ -108,7 +103,7 @@ instance Component Entity
 
 newtype R c = R (c, Entity)
 
-instance (Component c) => Component (R c)
+-- instance (Component c) => Component (R c)
 
 data Meta c = Meta
   deriving (Component, Show, Eq)

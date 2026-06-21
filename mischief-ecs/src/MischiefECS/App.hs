@@ -108,7 +108,7 @@ addResource :: (Component r, Storage r ~ ResourceStorage) => r -> Plugin ()
 addResource r = do
   app <- ask
   undefined
-  liftIO $ runSystem (insertResource r) app.world
+  liftIO $ runSystem (insertRes r) app.world
 
 addObserver :: (Event e) => (e -> System ()) -> Plugin ()
 addObserver observer = do
