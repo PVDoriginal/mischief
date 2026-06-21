@@ -62,7 +62,7 @@ addMetaComponent _ Components {components, archetypes} = do
 
   liftIO $ modifyIORef' components $ Map.insert (typeRep $ Proxy @(Meta c)) id
 
-  spawnEntity id (ComponentType $ Proxy @c, Name $ "Meta entity for " ++ show (typeRep $ Proxy @c))
+  spawnEntity id (ComponentType $ Proxy @(Meta c), Name $ "Meta entity for " ++ show (typeRep $ Proxy @(Meta c)))
 
   l <- liftIO $ newIORef Set.empty
   liftIO $ modifyIORef' archetypes $ Map.insert id l
