@@ -1,3 +1,5 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
+
 module MischiefECS.App where
 
 import Control.Monad (forever)
@@ -5,10 +7,12 @@ import Control.Monad.IO.Class (MonadIO (liftIO))
 import Control.Monad.Reader (MonadReader (..))
 import Control.Monad.Trans.Reader (ReaderT (..))
 import Data.Data
-import Data.Foldable
-import Data.IORef
 -- import Data.Map
 -- import Data.Map qualified as Map
+
+import Data.Default
+import Data.Foldable
+import Data.IORef
 import MischiefECS.App.Scheduler (ScheduleType (..), Scheduler)
 import MischiefECS.App.Scheduler qualified as Scheduler
 import MischiefECS.App.Schedules
@@ -105,10 +109,13 @@ addScheduleEdge (s1, s2) scheduleType = do
   App {scheduler} <- ask
   liftIO $ Scheduler.addScheduleEdge (ScheduleLabel $ typeOf s1, ScheduleLabel $ typeOf s2) scheduleType scheduler
 
-addResource :: (Component r, Bundle r) => r -> Plugin ()
-addResource r = do
+addRes :: (Component r, Bundle r) => r -> Plugin ()
+addRes r = do
   app <- ask
   liftIO $ runSystem (insertRes r) app.world
+
+initRes :: forall r. (Component r, Bundle r, Default r) => Plugin ()
+initRes = addRes $ def @r
 
 addObserver :: (Event e) => (e -> System ()) -> Plugin ()
 addObserver observer = do

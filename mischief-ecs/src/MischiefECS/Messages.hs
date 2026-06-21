@@ -67,7 +67,7 @@ readMessages !m = do
 
 addMessage :: forall (m :: Type). (Message m) => Plugin ()
 addMessage = do
-  addResource $ newMessages @m
+  addRes $ newMessages @m
 
 clearOldMessages :: (Message m) => ComponentResult (Messages m) -> System ()
 clearOldMessages !m = do
