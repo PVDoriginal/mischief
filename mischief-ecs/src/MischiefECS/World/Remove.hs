@@ -26,8 +26,7 @@ class Removable c where
 
 instance {-# OVERLAPPABLE #-} (Component c) => Removable c where
   getTypes c = do
-    world <- ask
-    x <- getOrAddComponentId (ComponentType c) world.components
+    x <- getOrAddComponentId (ComponentType c)
     return $ Set.singleton x
 
 -- instance {-# OVERLAPPING #-} (Removable c0, Removable c1) => Removable (c0, c1) where
@@ -56,8 +55,7 @@ instance (Component c) => Delete (RelationshipCollection c) where
 
 removeRelationshipFromEntity :: forall c. (Component c) => Entity -> Entity -> System ()
 removeRelationshipFromEntity target entity = do
-  world <- ask
-  componentId <- getOrAddPairId (Pair (ComponentType $ Proxy @c, target)) world.components
+  componentId <- getOrAddPairId (Pair (ComponentType $ Proxy @c, target))
   removeFromEntity [componentId] entity
 
 removeFromEntity :: [ComponentId] -> Entity -> System ()

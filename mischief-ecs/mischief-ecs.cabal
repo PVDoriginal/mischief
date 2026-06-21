@@ -61,6 +61,7 @@ library
     MischiefECS.Components.Bundle
     MischiefECS.Components.Required
     MischiefECS.Components.Spawn
+    MischiefECS.Components.Runnable 
     MischiefECS.Entities
     MischiefECS.Events
     MischiefECS.Graph

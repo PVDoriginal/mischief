@@ -33,7 +33,7 @@ import {-# SOURCE #-} MischiefECS.World.Spawn (spawnIO)
 processBundleElement :: World -> ComponentTicks -> BundleElement -> IO ProcessedBundleElement
 processBundleElement world ticks BundleElement {rep = (ComponentRep r), component} =
   do
-    id <- runSystem (getOrAddComponentId r world.components) world
+    id <- runSystem (getOrAddComponentId r) world
     return
       ProcessedBundleElement
         { id,
@@ -45,7 +45,7 @@ processBundleElement world ticks BundleElement {rep = (ComponentRep r), componen
         }
 processBundleElement world ticks BundleElement {rep = (PairRep (r, entity)), component} =
   do
-    id <- runSystem (getOrAddPairId (Pair (r, entity)) world.components) world
+    id <- runSystem (getOrAddPairId (Pair (r, entity))) world
     return
       ProcessedBundleElement
         { id,

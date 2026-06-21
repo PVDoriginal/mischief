@@ -22,14 +22,16 @@ import MischiefECS.World.Insert
 import MischiefECS.World.Spawn
 
 -- | Get the id of a component - entity pair. In case the component isn't registered, it will give it a new id.
-getOrAddPairId :: Pair -> Components -> System ComponentId
-getOrAddPairId (Pair (t, entity)) components = do
-  component <- getOrAddComponentId t components
+getOrAddPairId :: Pair -> System ComponentId
+getOrAddPairId (Pair (t, entity)) = do
+  component <- getOrAddComponentId t
   return $ ComponentId {id = component.id, entity = Just entity}
 
 -- | Get the id of a component. In case the component isn't registered, it will give it a new id.
-getOrAddComponentId :: ComponentType -> Components -> System ComponentId
-getOrAddComponentId (ComponentType (_ :: Proxy c)) comp = do
+getOrAddComponentId :: ComponentType -> System ComponentId
+getOrAddComponentId (ComponentType (_ :: Proxy c)) = do
+  world <- ask
+  let comp = world.components
   innerMap <- liftIO $ readIORef comp.components
 
   case Map.lookup (typeRep $ Proxy @c) innerMap of
@@ -56,7 +58,7 @@ getOrAddComponentId (ComponentType (_ :: Proxy c)) comp = do
         )
 
       for_ (requireAll @c) $ \(DefaultComponentType (_ :: (Proxy other))) -> do
-        other <- getOrAddComponentId (ComponentType $ Proxy @other) comp
+        other <- getOrAddComponentId (ComponentType $ Proxy @other)
         insert (R (RequiredBy, result)) other.id
         insert (R (Requires, other.id)) result
         insert (DefaultValue $ ErasedComponent $ def @other) other.id
@@ -81,6 +83,5 @@ addMetaComponent _ Components {components} = do
 
 entityOf :: forall c. (Component c) => System Entity
 entityOf = do
-  world <- ask
-  component <- getOrAddComponentId (ComponentType $ Proxy @c) world.components
+  component <- getOrAddComponentId (ComponentType $ Proxy @c)
   return component.id

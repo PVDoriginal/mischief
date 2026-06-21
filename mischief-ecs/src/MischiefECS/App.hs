@@ -21,10 +21,13 @@ import MischiefECS.App.Systems (Systems)
 import MischiefECS.App.Systems qualified as Systems
 import MischiefECS.Components
 import MischiefECS.Components.Bundle
+import MischiefECS.Components.Runnable (Runnable, runFor)
+import MischiefECS.Components.Spawn (getOrAddComponentId)
 import MischiefECS.Events
 import MischiefECS.World
 import MischiefECS.World.Defer
 import MischiefECS.World.Insert
+import MischiefECS.World.Query
 import MischiefECS.World.Spawn
 
 data App = App
@@ -132,6 +135,11 @@ addPlugin plugin = do
   app <- ask
   liftIO $ runPlugin plugin app
 
+run :: System () -> Plugin ()
+run s = do
+  app <- ask
+  liftIO $ runSystem s app.world
+
 data Schedules = Schedules {startup :: IORef [TypeRep], update :: IORef [TypeRep]}
 
 newSchedules :: IO Schedules
@@ -152,3 +160,11 @@ appInit = do
   addScheduleEdge (First, PreUpdate) UpdateSchedule
   addScheduleEdge (PreUpdate, Update) UpdateSchedule
   addScheduleEdge (Update, PostUpdate) UpdateSchedule
+
+register :: forall c. (Runnable c) => Plugin ()
+register = run $ runFor @c registerComponent
+
+registerComponent :: forall c. (Component c) => Proxy c -> System ()
+registerComponent c = do
+  _ <- getOrAddComponentId (ComponentType c)
+  return ()
