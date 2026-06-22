@@ -282,20 +282,20 @@ res = do
   meta <- entityOf @c
   get @c meta
 
-iter :: forall qd m w. (Queryable qd, MonadSystem w m) => (QueryOutput qd -> m ()) -> m ()
-iter system = do
-  res <- query @qd
-  for_ res system
+-- iter :: forall qd m w. (Queryable qd, MonadSystem w m) => (QueryOutput qd -> m ()) -> m ()
+-- iter system = do
+--   res <- query @qd
+--   for_ res system
 
-iter' :: forall qd m w. (Queryable qd, MonadSystem w m) => QueryFilter -> (QueryOutput qd -> m ()) -> m ()
-iter' filter system = do
-  res <- query' @qd filter
-  for_ res system
+-- iter' :: forall qd m w. (Queryable qd, MonadSystem w m) => QueryFilter -> (QueryOutput qd -> m ()) -> m ()
+-- iter' filter system = do
+--   res <- query' @qd filter
+--   for_ res system
 
-parIter :: forall qd m w. (Queryable qd, MonadSystem w m) => (QueryOutput qd -> ParSystem ()) -> m ()
-parIter system = do
-  res <- query @qd
-  parIterList res $ \chunk -> for_ chunk system
+-- parIter :: forall qd m w. (Queryable qd, MonadSystem w m) => (QueryOutput qd -> ParSystem ()) -> m ()
+-- parIter system = do
+--   res <- query @qd
+--   parIterList res $ \chunk -> for_ chunk system
 
 parIter' :: forall qd m w. (Queryable qd, MonadSystem w m) => QueryFilter -> (QueryOutput qd -> ParSystem ()) -> m ()
 parIter' filter system = do

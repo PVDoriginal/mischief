@@ -45,8 +45,7 @@ setup = do
   _ <- spawn (Name "Lol", B)
   _ <- spawn (Name "Lol2", A)
 
-  q <- query' @Name $ with @B
-  for_ q $ \name -> do
+  iter (query' @Name $ with @B) $ \name -> do
     liftIO $ print name
 
   a <- entityOf @A

@@ -25,14 +25,14 @@ par !parSystems = do
     systems <- liftIO $ readIORef systems
     liftIO $ modifyIORef' world.deferred (++ systems)
 
-parIterList :: (MonadSystem w m) => [a] -> ([a] -> ParSystem ()) -> m ()
+parIterList :: (MonadSystem w m, Foldable t) => t a -> ([a] -> ParSystem ()) -> m ()
 parIterList !list !s = do
   world <- asks getWorld
 
   let n = numCapabilities
   let len = length list
 
-  let chunks = group (len `div` n) list
+  let chunks = group (len `div` n) (toList list)
 
   x <- forM chunks $ \chunk -> do
     systems <- liftIO $ newIORef []

@@ -15,6 +15,7 @@ module MischiefECS
     module MischiefECS.World.Remove,
     module MischiefECS.World.Defer,
     module MischiefECS.App,
+    module MischiefECS.Utils,
     module MischiefECS.App.Schedules,
     module MischiefECS.App.SystemConfig,
     module MischiefECS.Messages,
@@ -42,6 +43,7 @@ import MischiefECS.Relationships.ChildOf
 import MischiefECS.SDL
 import MischiefECS.Tables
 import MischiefECS.Time
+import MischiefECS.Utils
 import MischiefECS.World
 import MischiefECS.World.Defer
 import MischiefECS.World.Insert
