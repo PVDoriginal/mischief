@@ -50,9 +50,12 @@ setup = do
     liftIO $ print name
 
   a <- entityOf @A
-  x <- query' @Name $ withR @RequiredBy a
+  q <- get @(HasRel Requires) a
+  liftIO $ print q
 
-  for_ x $ \x -> do
-    liftIO $ print x
+  -- x <- query' @Name $ withRel @RequiredBy a
+
+  -- for_ x $ \x -> do
+  --   liftIO $ print x
 
   liftIO exitSuccess

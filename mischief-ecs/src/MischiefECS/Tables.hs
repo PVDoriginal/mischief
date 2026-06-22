@@ -205,12 +205,18 @@ tryGetRelationshipCollectionFromTable table entity pointer componentId =
     components' <- forM (Map.toList columns) $ \(componentId', column) -> do
       if componentId'.id == componentId.id
         then do
-          let entity = fromMaybe undefined componentId'.entity
-          component <- tryGetComponentFromColumn @c column pointer
-          return $ fmap (,entity) component
+          case componentId'.entity of
+            Just entity -> do
+              component <- tryGetComponentFromColumn @c column pointer
+              return $ fmap (,entity) component
+            Nothing -> return Nothing
         else return Nothing
 
-    return $ Just $ RelationshipCollection (map (\(value, target) -> RelationshipResult {value, entity, target}) $ catMaybes components') entity
+    if null $ catMaybes components'
+      then
+        return Nothing
+      else
+        return $ Just $ RelationshipCollection (map (\(value, target) -> RelationshipResult {value, entity, target}) $ catMaybes components') entity
 
 tryGetComponentFromTable :: forall c. (Component c) => Table -> EntityPointer -> ComponentId -> IO (Maybe c)
 tryGetComponentFromTable table pointer componentId =
@@ -285,9 +291,11 @@ tryGetRelationshipCollectionsFromTable table componentId =
     components' :: [Maybe [(c, Entity)]] <- forM (Map.toList columns) $ \(componentId', column) -> do
       if componentId.id == componentId'.id
         then do
-          let entity = fromMaybe undefined componentId'.entity
-          components <- tryGetComponentsFromColumn @c column
-          return $ Just $ map (,entity) components
+          case componentId'.entity of
+            Just entity -> do
+              components <- tryGetComponentsFromColumn @c column
+              return $ Just $ map (,entity) components
+            Nothing -> return Nothing
         else return Nothing
 
     entities <- Vec.toList table.entities
@@ -378,6 +386,9 @@ instance (Ord c) => Ord (ComponentResult c) where
 data RelationshipResult c = RelationshipResult {value :: c, target :: Entity, entity :: Entity} deriving (Show)
 
 data RelationshipCollection c = RelationshipCollection {collection :: [RelationshipResult c], entity :: Entity} deriving (Show)
+
+emptyRelationshipCollection :: Entity -> RelationshipCollection c
+emptyRelationshipCollection entity = RelationshipCollection {collection = [], entity}
 
 instance HasField "targets" (RelationshipCollection c) [Entity] where
   getField :: RelationshipCollection c -> [Entity]

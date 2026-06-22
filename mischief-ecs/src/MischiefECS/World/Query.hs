@@ -36,16 +36,24 @@ instance {-# OVERLAPPABLE #-} (Component c) => QueryData c where
   types :: (Component c) => Proxy c -> Set (TypeRep, TypeQuery)
   types c = Set.singleton (typeRep c, CompQ)
 
-instance {-# OVERLAPPING #-} (Component c) => QueryData (R c) where
-  types :: Proxy (R c) -> Set (TypeRep, TypeQuery)
+instance {-# OVERLAPPING #-} (Component c) => QueryData (Rel c) where
+  types :: Proxy (Rel c) -> Set (TypeRep, TypeQuery)
   types _ = Set.singleton (typeRep $ Proxy @c, RelQ)
 
 instance {-# OVERLAPPING #-} (Component c) => QueryData (Maybe c) where
   types :: (Component c) => Proxy (Maybe c) -> Set (TypeRep, TypeQuery)
   types _ = Set.empty
 
+instance {-# OVERLAPPING #-} (Component c) => QueryData (MaybeRel c) where
+  types :: (Component c) => Proxy (MaybeRel c) -> Set (TypeRep, TypeQuery)
+  types _ = Set.empty
+
 instance {-# OVERLAPPING #-} (Component c) => QueryData (Has c) where
   types :: (Component c) => Proxy (Has c) -> Set (TypeRep, TypeQuery)
+  types _ = Set.empty
+
+instance {-# OVERLAPPING #-} (Component c) => QueryData (HasRel c) where
+  types :: (Component c) => Proxy (HasRel c) -> Set (TypeRep, TypeQuery)
   types _ = Set.empty
 
 instance (QueryData a0, QueryData a1) => QueryData (a0, a1) where
@@ -66,8 +74,12 @@ class (QueryData qd) => Queryable qd where
     Proxy qd -> World -> Entity -> IO (Maybe (QueryOutput qd))
   runQueryEntity _ world entity = do
     result <- tryGetEntityComponent @qd world entity
-    pure $
-      fmap (`ComponentResult` entity) result
+    return $ case result of
+      Just (Just res) -> Just $ ComponentResult res entity
+      _ -> Nothing
+
+  -- pure $
+  --   fmap (`ComponentResult` entity) result
 
   runQueryInternal :: Proxy qd -> [ArchetypeId] -> World -> IO [(Entity, QueryOutput qd)]
   default runQueryInternal ::
@@ -124,10 +136,15 @@ instance (Queryable q0, Queryable q1, Queryable q2) => Queryable (q0, q1, q2) wh
 
 -- outputEntity _ (a, _, _) = outputEntity (Proxy @q0) a
 
-instance (Component c) => Queryable (R c) where
-  type QueryOutput (R c) = RelationshipCollection c
-  runQueryEntity _ = tryGetEntityRelationshipCollection
-  runQueryInternal :: (Component c) => Proxy (R c) -> [ArchetypeId] -> World -> IO [(Entity, QueryOutput (R c))]
+instance (Component c) => Queryable (Rel c) where
+  type QueryOutput (Rel c) = RelationshipCollection c
+  runQueryEntity _ world entity = do
+    res <- tryGetEntityRelationshipCollection @c world entity
+    return $ case res of
+      Just (Just x) -> Just x
+      _ -> Nothing
+
+  runQueryInternal :: (Component c) => Proxy (Rel c) -> [ArchetypeId] -> World -> IO [(Entity, QueryOutput (Rel c))]
   runQueryInternal _ archetypes world = tryGetRelationshipCollections @c world archetypes
 
 -- outputEntity _ x = x.entity
@@ -138,11 +155,25 @@ instance (Component c) => Queryable (Maybe c) where
     res <- tryGetEntityComponent @c world entity
     case res of
       Nothing -> return Nothing
-      Just x -> return $ Just $ Just $ ComponentResult x entity
+      Just Nothing -> return $ Just Nothing
+      Just (Just x) -> return $ Just $ Just $ ComponentResult x entity
 
   runQueryInternal _ archetypes world = tryGetComponentsMaybe @c world archetypes
 
--- outputEntity _ q = q.entity
+data MaybeRel a = MaybeRel
+
+instance (Component c) => Queryable (MaybeRel c) where
+  type QueryOutput (MaybeRel c) = RelationshipCollection c
+  runQueryEntity _ world entity = do
+    res <- tryGetEntityRelationshipCollection @c world entity
+    return $ case res of
+      Nothing -> Nothing
+      Just Nothing -> Just $ emptyRelationshipCollection entity
+      Just (Just x) -> Just x
+
+  -- This looks the same as normal 'Rel', but, through QueryData, it will also include archetypes
+  -- which don't have this relationship.
+  runQueryInternal _ archetypes world = tryGetRelationshipCollections @c world archetypes
 
 data Has a = Has
 
@@ -158,6 +189,22 @@ instance (Component c) => Queryable (Has c) where
   runQueryInternal _ archetypes world = do
     list <- runQueryInternal (Proxy @(Maybe c)) archetypes world
     return $ map (\(e, x) -> (e, isNothing x)) list
+
+data HasRel a = HasRel
+
+instance (Component c) => Queryable (HasRel c) where
+  type QueryOutput (HasRel c) = Bool
+
+  runQueryEntity _ world entity = do
+    res <- tryGetEntityRelationshipCollection @c world entity
+    return $ case res of
+      Nothing -> Nothing
+      Just Nothing -> Just False
+      Just (Just _) -> Just True
+
+  runQueryInternal _ archetypes world = do
+    res <- tryGetRelationshipCollections @c world archetypes
+    return $ map (\(e, c) -> (e, null c.collection)) res
 
 -- outputEntity _ q = q.entity
 
@@ -271,7 +318,7 @@ filterQuery world (With x) _ outputs = do
                 return $ component `elem` components
         )
         outputs
-filterQuery world (WithR x e) _ outputs = do
+filterQuery world (WithRel x e) _ outputs = do
   component <- liftIO $ getComponentId x world.components
   case component of
     Nothing -> return []
@@ -365,7 +412,7 @@ instance Queryable ComponentPairs
 data QueryFilter
   = NoFilter
   | With TypeRep
-  | WithR TypeRep Entity
+  | WithRel TypeRep Entity
   | Without TypeRep
   | And QueryFilter QueryFilter
   | Or QueryFilter QueryFilter
@@ -376,8 +423,8 @@ data QueryFilter
 with :: forall qd. (QueryData qd) => QueryFilter
 with = and' $ map (With . fst) (Set.toList $ types (Proxy @qd))
 
-withR :: forall c. (Component c) => Entity -> QueryFilter
-withR = WithR (typeRep $ Proxy @c)
+withRel :: forall c. (Component c) => Entity -> QueryFilter
+withRel = WithRel (typeRep $ Proxy @c)
 
 without :: forall qd. (QueryData qd) => QueryFilter
 without = and' $ map (Without . fst) (Set.toList $ types (Proxy @qd))
@@ -404,7 +451,7 @@ filterArchetype (With x) components world = do
   return $ case component of
     Nothing -> False
     Just component -> component `elem` components
-filterArchetype (WithR x e) components world = do
+filterArchetype (WithRel x e) components world = do
   component <- getComponentId x world.components
   case component of
     Nothing -> pure False
@@ -430,7 +477,7 @@ filterArchetype _ _ _ = pure True
 extractArchetypeFilters :: QueryFilter -> (QueryFilter, QueryFilter)
 extractArchetypeFilters NoFilter = (NoFilter, NoFilter)
 extractArchetypeFilters (With x) = (NoFilter, With x)
-extractArchetypeFilters (WithR x e) = (NoFilter, WithR x e)
+extractArchetypeFilters (WithRel x e) = (NoFilter, WithRel x e)
 extractArchetypeFilters (Changed x) = (Changed x, NoFilter)
 extractArchetypeFilters (Added x) = (Added x, NoFilter)
 extractArchetypeFilters (Without x) = (NoFilter, Without x)
@@ -453,7 +500,7 @@ isArchetypeFilter NoFilter = True
 isArchetypeFilter (Changed _) = False
 isArchetypeFilter (Added _) = False
 isArchetypeFilter (With _) = True
-isArchetypeFilter (WithR _ _) = True
+isArchetypeFilter (WithRel _ _) = True
 isArchetypeFilter (Without _) = True
 isArchetypeFilter (a `And` b) = isArchetypeFilter a || isArchetypeFilter b
 isArchetypeFilter (a `Or` b) = isArchetypeFilter a && isArchetypeFilter b

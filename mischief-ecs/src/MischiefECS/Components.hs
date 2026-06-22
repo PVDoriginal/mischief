@@ -93,7 +93,7 @@ data ComponentData = ComponentData {value :: ErasedComponent, ticks :: Component
 
 instance Component Entity
 
-newtype R c = R (c, Entity)
+newtype Rel c = Rel (c, Entity)
 
 -- instance (Component c) => Component (R c)
 

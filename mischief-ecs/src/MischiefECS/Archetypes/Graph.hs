@@ -186,7 +186,7 @@ getArchetypeOnRemove archetype components =
 
 getRequirements :: ComponentId -> System (Set ComponentId)
 getRequirements component = do
-  x <- get @(R Requires) component.id
+  x <- get @(Rel Requires) component.id
   return $ case x of
     Nothing -> Set.empty
     Just x -> Set.fromList $ map (\x -> ComponentId {id = x, entity = Nothing}) x.targets

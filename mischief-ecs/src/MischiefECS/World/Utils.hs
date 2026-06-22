@@ -133,7 +133,7 @@ despawn entity =
 
             liftIO $ removeEntity entity world.entities
 
-tryGetEntityRelationshipCollection :: forall c. (Component c) => World -> Entity -> IO (Maybe (RelationshipCollection c))
+tryGetEntityRelationshipCollection :: forall c. (Component c) => World -> Entity -> IO (Maybe (Maybe (RelationshipCollection c)))
 tryGetEntityRelationshipCollection world entity =
   do
     componentId <- getComponentId (typeRep $ Proxy @c) world.components
@@ -147,9 +147,10 @@ tryGetEntityRelationshipCollection world entity =
           Just pointer ->
             do
               pointer <- readIORef pointer
-              tryGetRelationshipCollectionFromTables world.tables entity pointer componentId
+              res <- tryGetRelationshipCollectionFromTables world.tables entity pointer componentId
+              return $ Just res
 
-tryGetEntityComponent :: forall c. (Component c) => World -> Entity -> IO (Maybe c)
+tryGetEntityComponent :: forall c. (Component c) => World -> Entity -> IO (Maybe (Maybe c))
 tryGetEntityComponent world entity =
   do
     componentId <- getComponentId (typeRep $ Proxy @c) world.components
@@ -164,7 +165,8 @@ tryGetEntityComponent world entity =
           Just pointer ->
             do
               pointer <- readIORef pointer
-              tryGetComponentFromTables world.tables pointer componentId
+              res <- tryGetComponentFromTables world.tables pointer componentId
+              return $ Just res
 
 tryGetRelationshipCollections :: forall c. (Component c) => World -> [ArchetypeId] -> IO [(Entity, RelationshipCollection c)]
 tryGetRelationshipCollections world archetypes =

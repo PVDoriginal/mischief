@@ -31,7 +31,7 @@ addRelationshipWithSettings settings = do
 
 handleExclusivity :: forall c. (Component c) => OnInsertR c -> System ()
 handleExclusivity event = do
-  Just relationships <- get @(R c) event.entity
+  Just relationships <- get @(Rel c) event.entity
 
   when (event.target `elem` relationships.targets) $
     for_ relationships.collection $ \r ->
