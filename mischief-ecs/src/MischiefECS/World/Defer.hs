@@ -76,14 +76,26 @@ forkDefer s = do
 
 -- let world' =
 
-forkSystem :: ParSystem () -> System ()
-forkSystem (ParSystem !x) = do
-  world <- ask
-  _ <- liftIO $ forkIO $ do
-    deferred <- newIORef []
-    runReaderT x ParWorld {world, deferred}
-    deferred' <- readIORef deferred
+-- forkSystem :: ParSystem () -> System ()
+-- forkSystem (ParSystem !x) = do
+--   world <- ask
+--   _ <- liftIO $ forkIO $ do
+--     deferred <- newIORef []
+--     runReaderT x ParWorld {world, deferred}
+--     deferred' <- readIORef deferred
 
-    atomically $ modifyTVar' world.deferredAsync (++ deferred')
+--     atomically $ modifyTVar' world.deferredAsync (++ deferred')
+
+--   return ()
+
+runAfter :: (MonadSystem w m) => IO a -> (a -> System ()) -> m ()
+runAfter !function !system = do
+  world <- asks getWorld
+  _ <- liftIO $ forkIO $ do
+    a <- function
+    atomically $ modifyTVar' world.deferredAsync (++ [system a])
 
   return ()
+
+delay :: (MonadSystem w m) => Int -> System () -> m ()
+delay !d system = runAfter (threadDelay d) (const system)

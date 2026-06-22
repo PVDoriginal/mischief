@@ -50,6 +50,7 @@ setup = do
 
   a <- entityOf @A
   q <- get @(HasRel Requires) a
+
   liftIO $ print q
 
   -- x <- query' @Name $ withRel @RequiredBy a

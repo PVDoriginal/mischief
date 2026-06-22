@@ -26,11 +26,15 @@ load :: forall a. (Asset a) => FilePath -> System Entity
 load !path = do
   entity <- spawn (AssetEntity, Loading)
 
-  forkSystem $ do
-    asset <- liftIO $ B.readFile path
-    let !asset' = loadAsset @a asset
-    defer $ do
-      remove @Loading entity
-      insert (AssetData asset', Loaded) entity
+  runAfter
+    ( do
+        asset <- liftIO $ B.readFile path
+        let !asset' = loadAsset @a asset
+        return asset'
+    )
+    ( \asset -> do
+        remove @Loading entity
+        insert (AssetData asset, Loaded) entity
+    )
 
   return entity
