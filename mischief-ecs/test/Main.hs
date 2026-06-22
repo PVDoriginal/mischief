@@ -9,6 +9,7 @@ import Data.Maybe
 import Data.Set qualified as Set
 import GHC.Generics (Generic)
 import MischiefECS
+import MischiefECS.Components.Spawn
 import Relationships (testRelationships)
 import System.Exit (exitSuccess)
 import Prelude hiding (and)
@@ -41,15 +42,17 @@ plugin = do
 
 setup :: System ()
 setup = do
-  e <- spawn (Name "Lol", B)
+  _ <- spawn (Name "Lol", B)
   _ <- spawn (Name "Lol2", A)
 
-  remove @Name e
   q <- query' @Name $ with @B
   for_ q $ \name -> do
     liftIO $ print name
 
-  Just x <- single' @(R Requires) $ with @(Meta A)
-  liftIO $ print x.targets
+  a <- entityOf @A
+  x <- query' @Name $ withR @RequiredBy a
+
+  for_ x $ \x -> do
+    liftIO $ print x
 
   liftIO exitSuccess

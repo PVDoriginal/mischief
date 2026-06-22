@@ -27,6 +27,7 @@ module MischiefECS
   )
 where
 
+import Language.Haskell.TH
 import MischiefECS.App
 import MischiefECS.App.Schedules
 import MischiefECS.App.SystemConfig

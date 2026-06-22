@@ -92,8 +92,19 @@ addEdge :: Int -> Int -> ComponentId -> System ()
 addEdge a b component = do
   world <- ask
   let Archetypes {graph} = world.archetypes
-
   Vec.modify_ graph.nodes a $ \ArchetypeNode {insert, remove, archetype} -> ArchetypeNode {insert = Map.insert component b insert, remove, archetype}
+  Vec.modify_ graph.nodes b $ \ArchetypeNode {insert, remove, archetype} -> ArchetypeNode {insert, remove = Map.insert component a remove, archetype}
+
+addEdgeI :: Int -> Int -> ComponentId -> System ()
+addEdgeI a b component = do
+  world <- ask
+  let Archetypes {graph} = world.archetypes
+  Vec.modify_ graph.nodes a $ \ArchetypeNode {insert, remove, archetype} -> ArchetypeNode {insert = Map.insert component b insert, remove, archetype}
+
+addEdgeR :: Int -> Int -> ComponentId -> System ()
+addEdgeR a b component = do
+  world <- ask
+  let Archetypes {graph} = world.archetypes
   Vec.modify_ graph.nodes b $ \ArchetypeNode {insert, remove, archetype} -> ArchetypeNode {insert, remove = Map.insert component a remove, archetype}
 
 getArchetype :: ArchetypeId -> ArchetypeTransition -> System ArchetypeData
@@ -113,7 +124,7 @@ getArchetype (ArchetypeId id) (Removed component) = do
 
       let newComponents = Set.delete component components
       newId <- getOrCreateNode newComponents
-      addEdge newId id component
+      addEdgeR newId id component
 
       newNode <- Vec.read graph.nodes newId
       return newNode.archetype
@@ -134,7 +145,7 @@ getArchetype (ArchetypeId id) (Inserted component) = do
       let newComponents = Set.union requirements $ Set.insert component components
 
       newId <- getOrCreateNode newComponents
-      addEdge id newId component
+      addEdgeI id newId component
 
       newNode <- Vec.read graph.nodes newId
       return newNode.archetype

@@ -60,8 +60,8 @@ library
     MischiefECS.Components
     MischiefECS.Components.Bundle
     MischiefECS.Components.Required
+    MischiefECS.Components.Runnable
     MischiefECS.Components.Spawn
-    MischiefECS.Components.Runnable 
     MischiefECS.Entities
     MischiefECS.Events
     MischiefECS.Graph
@@ -74,8 +74,8 @@ library
     MischiefECS.Time
     MischiefECS.Vec
     MischiefECS.World
+    MischiefECS.World.Change
     MischiefECS.World.Defer
-    MischiefECS.World.Change 
     MischiefECS.World.Insert
     MischiefECS.World.Modify
     MischiefECS.World.Par
@@ -122,6 +122,7 @@ library
     primitive,
     sdl3,
     stm,
+    template-haskell,
     time,
     transformers,
     vector,
