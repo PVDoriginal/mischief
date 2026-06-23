@@ -24,6 +24,7 @@ import MischiefECS.Components.Internal
 import MischiefECS.Entities
 import MischiefECS.Events.Internal
 import MischiefECS.Tables
+import MischiefECS.World.Prefs
 
 -- | The World is the main data structure storing the entities, components, archetypes, and so on.
 data World = World
@@ -44,7 +45,8 @@ data World = World
     -- | ID of the current system.
     systemId :: SystemId,
     -- | The current frame.
-    frame :: IORef Frame
+    frame :: IORef Frame,
+    prefs :: WorldPrefs
   }
 
 newtype Frame = Frame Int deriving (Show, Eq, Ord)
@@ -62,6 +64,7 @@ newWorld = do
   events <- newIORef []
   tick <- newIORef (Tick 0)
   frame <- newIORef (Frame 0)
+  let prefs = newPrefs
 
   return
     World
@@ -76,20 +79,25 @@ newWorld = do
         lastSystemTick = Tick 0,
         currentSystemTick = Tick 0,
         systemId = SystemId 0,
-        frame
+        frame,
+        prefs
       }
 
 setSystemTicks :: Tick -> Tick -> World -> World
-setSystemTicks lastSystemTick currentSystemTick World {archetypes, components, entities, tables, deferred, deferredAsync, tick, systemId, frame, events} =
-  World {archetypes, components, entities, tables, deferred, deferredAsync, tick, lastSystemTick, currentSystemTick, systemId, frame, events}
+setSystemTicks lastSystemTick currentSystemTick World {archetypes, components, entities, tables, deferred, deferredAsync, tick, systemId, frame, events, prefs} =
+  World {archetypes, components, entities, tables, deferred, deferredAsync, tick, lastSystemTick, currentSystemTick, systemId, frame, events, prefs}
 
 setSystemId :: SystemId -> World -> World
-setSystemId systemId World {archetypes, components, entities, tables, deferred, deferredAsync, tick, lastSystemTick, currentSystemTick, frame, events} =
-  World {archetypes, components, entities, tables, deferred, deferredAsync, tick, lastSystemTick, currentSystemTick, systemId, frame, events}
+setSystemId systemId World {archetypes, components, entities, tables, deferred, deferredAsync, tick, lastSystemTick, currentSystemTick, frame, events, prefs} =
+  World {archetypes, components, entities, tables, deferred, deferredAsync, tick, lastSystemTick, currentSystemTick, systemId, frame, events, prefs}
 
 setDeferred :: IORef [System ()] -> World -> World
-setDeferred deferred World {archetypes, components, entities, tables, deferredAsync, tick, lastSystemTick, currentSystemTick, frame, events, systemId} =
-  World {archetypes, components, deferred, entities, tables, deferredAsync, tick, lastSystemTick, currentSystemTick, frame, events, systemId}
+setDeferred deferred World {archetypes, components, entities, tables, deferredAsync, tick, lastSystemTick, currentSystemTick, frame, events, systemId, prefs} =
+  World {archetypes, components, deferred, entities, tables, deferredAsync, tick, lastSystemTick, currentSystemTick, frame, events, systemId, prefs}
+
+setPrefs :: WorldPrefs -> World -> World
+setPrefs prefs World {archetypes, components, entities, tables, deferred, deferredAsync, tick, lastSystemTick, currentSystemTick, frame, events, systemId} =
+  World {archetypes, components, entities, tables, deferred, deferredAsync, tick, lastSystemTick, currentSystemTick, frame, events, systemId, prefs}
 
 -- | Increment the World's tick.
 tick :: System ()
@@ -107,7 +115,7 @@ newtype System a = System (ReaderT World IO a)
   deriving newtype (Functor, Applicative, Monad, MonadIO, MonadReader World, MonadFail)
 
 runSystem :: System a -> World -> IO a
-runSystem (System r) = runReaderT r
+runSystem (System !r) = runReaderT r
 
 instance PrimMonad System where
   type PrimState System = PrimState IO
@@ -121,3 +129,9 @@ newtype Name = Name String
 instance Show Name where
   show :: Name -> String
   show (Name name) = show name
+
+forkPrefs :: (WorldPrefs -> WorldPrefs) -> System () -> System ()
+forkPrefs f s = do
+  world <- ask
+  let world' = setPrefs (f world.prefs) world
+  liftIO $ runSystem s world'

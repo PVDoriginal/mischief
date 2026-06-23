@@ -27,6 +27,7 @@ import MischiefECS.Entities
 import MischiefECS.Events.Internal
 import MischiefECS.Tables
 import MischiefECS.World
+import MischiefECS.World.Prefs
 import {-# SOURCE #-} MischiefECS.World.Spawn (spawnIO)
 
 -- | Process a 'BundleElement', turning its 'TypeRep' into a 'ComponentId'.

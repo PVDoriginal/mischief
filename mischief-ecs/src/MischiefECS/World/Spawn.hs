@@ -2,12 +2,14 @@ module MischiefECS.World.Spawn where
 
 import Control.Monad.IO.Class
 import Control.Monad.Reader (MonadReader (..), ReaderT (runReaderT))
+import Data.Data
 import Data.IORef
 import Data.Map qualified as Map
 import Data.Maybe
 import Data.Set qualified as Set
 import MischiefECS.Components
 import MischiefECS.Components.Bundle
+import {-# SOURCE #-} MischiefECS.Components.Spawn (getOrAddComponentId)
 import MischiefECS.Entities
 import MischiefECS.Events
 import MischiefECS.Tables
@@ -35,6 +37,8 @@ spawnDefer bundle = do
   defer $ spawnEntity entity bundle
   return entity
 
+data SpawnEventsSettings = WithSpawnEvents | WithoutSpawnEvents
+
 spawnEntity :: (Bundle b) => Entity -> b -> System ()
 spawnEntity entity bundle = do
   world <- ask
@@ -57,7 +61,9 @@ spawnEntity entity bundle = do
 spawnObserver :: forall e. (Event e) => Observer e -> Maybe ObserverOrder -> System ()
 spawnObserver observer order' = do
   let order = fromMaybe (ObserverOrder 0) order'
+
   _ <- spawn ((observer, order), EventProxy @e)
+
   return ()
 
 -- | Spawn an entity given a bundle of components.

@@ -78,6 +78,7 @@ library
     MischiefECS.World.Change
     MischiefECS.World.Defer
     MischiefECS.World.Insert
+    MischiefECS.World.Prefs 
     MischiefECS.World.Modify
     MischiefECS.World.Par
     MischiefECS.World.Query

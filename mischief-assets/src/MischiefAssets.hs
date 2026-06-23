@@ -8,6 +8,7 @@ import Control.Monad.Reader
 import Data.ByteString (ByteString)
 import Data.ByteString qualified as B
 import Data.Data
+import Data.Kind
 import GHC.IO.Handle
 import MischiefECS
 
@@ -15,6 +16,7 @@ class (Typeable a) => Asset a where
   loadAsset :: ByteString -> a
 
 newtype AssetData a = AssetData a deriving anyclass (Component, Queryable)
+  deriving stock (Show)
 
 data Loading = Loading deriving (Component, Queryable)
 
@@ -34,7 +36,22 @@ load !path = do
     )
     ( \asset -> do
         remove @Loading entity
-        insert (AssetData asset, Loaded) entity
+        insert (AssetData asset, (AssetType $ Proxy @a, Loaded)) entity
+
+        let event :: OnLoad a = OnLoad entity
+        trigger event
     )
 
   return entity
+
+data AssetType where
+  AssetType :: forall (a :: Type). (Asset a) => (Proxy a) -> AssetType
+  deriving (Component, Queryable)
+
+instance GetRep AssetType where
+  getRep :: AssetType -> TypeRep
+  getRep (AssetType (_ :: Proxy a)) = typeRep $ Proxy @a
+
+newtype OnLoad a = OnLoad {entity :: Entity}
+  deriving anyclass (Event)
+  deriving stock (Show)

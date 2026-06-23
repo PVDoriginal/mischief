@@ -19,6 +19,7 @@ import MischiefECS.Entities.Internal
 import MischiefECS.World
 import MischiefECS.World.Defer
 import MischiefECS.World.Insert
+import MischiefECS.World.Prefs
 import MischiefECS.World.Spawn
 
 -- | Get the id of a component - entity pair. In case the component isn't registered, it will give it a new id.
@@ -49,13 +50,14 @@ getOrAddComponentId (ComponentType (_ :: Proxy c)) = do
 
       addMetaComponent (Proxy @c) comp
 
-      spawnEntity
-        result
-        ( ( ComponentType $ Proxy @c,
-            Meta @c
-          ),
-          Name $ "Meta entity for " ++ show (typeRep $ Proxy @c)
-        )
+      forkPrefs (supressEvents True) $
+        spawnEntity
+          result
+          ( ( ComponentType $ Proxy @c,
+              Meta @c
+            ),
+            Name $ "Meta entity for " ++ show (typeRep $ Proxy @c)
+          )
 
       for_ (requireAll @c) $ \(DefaultComponentType (_ :: (Proxy other))) -> do
         other <- getOrAddComponentId (ComponentType $ Proxy @other)
@@ -72,11 +74,12 @@ addMetaComponent _ Components {components} = do
 
   liftIO $ modifyIORef' components $ Map.insert (typeRep $ Proxy @(Meta c)) id
 
-  spawnEntity
-    id
-    ( ComponentType $ Proxy @(Meta c),
-      Name $ "Meta entity for " ++ show (typeRep $ Proxy @(Meta c))
-    )
+  forkPrefs (supressEvents True) $
+    spawnEntity
+      id
+      ( ComponentType $ Proxy @(Meta c),
+        Name $ "Meta entity for " ++ show (typeRep $ Proxy @(Meta c))
+      )
 
 -- l <- liftIO $ newIORef Set.empty
 -- liftIO $ modifyIORef' archetypes $ Map.insert id l

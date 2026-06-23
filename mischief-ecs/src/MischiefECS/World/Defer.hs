@@ -3,6 +3,7 @@ module MischiefECS.World.Defer where
 import Control.Concurrent
 import Control.Concurrent.Async
 import Control.Concurrent.STM
+import Control.Exception
 import Control.Monad.IO.Class
 import Control.Monad.Reader
 import Data.Functor

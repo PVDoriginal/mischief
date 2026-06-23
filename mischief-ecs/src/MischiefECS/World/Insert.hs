@@ -25,6 +25,7 @@ import MischiefECS.Tables
 import MischiefECS.Vec qualified as Vec
 import MischiefECS.World
 import MischiefECS.World.Change
+import MischiefECS.World.Prefs
 import MischiefECS.World.Query
 import {-# SOURCE #-} MischiefECS.World.Spawn
 import MischiefECS.World.Utils
@@ -65,7 +66,9 @@ insert bundle entity =
                 newArchetype <- getArchetypeOnInsert currentPointerInternal.archetypeId newComponents
                 changeArchetype entity newArchetype (Just bundleData)
 
-    triggerInsertEvent bundleData entity
+    unless world.prefs.supressEvents $
+      triggerInsertEvent bundleData entity
+
     unless (null required) $ insertNew (BundleData {elements = required, required = Set.empty}) entity
 
 -- | Insert a bundle of components on an Entity.
@@ -99,6 +102,7 @@ insertNew bundle entity =
               newArchetype <- getArchetypeOnInsert currentPointerInternal.archetypeId $ map (\x -> x.id) newComponents.elements
               changeArchetype entity newArchetype (Just bundleData)
 
+            unless world.prefs.supressEvents $
               triggerInsertEvent newComponents entity
 
 -- | Insert a resource into this world. If the resource already exists, its value will be overwritten.

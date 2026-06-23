@@ -79,14 +79,15 @@ library
     clock,
     containers,
     data-default,
+    mischief-ecs,
     mtl,
     primitive,
     sdl3,
     stm,
+    store,
     time,
     transformers,
     vector,
-    mischief-ecs
 
   -- Directories containing source files.
   hs-source-dirs:
@@ -130,6 +131,8 @@ test-suite mischief-test
     bytestring,
     containers,
     data-default,
+    mischief-assets,
     mischief-ecs,
     primitive,
+    store,
     transformers,
