@@ -3,6 +3,7 @@ module MischiefECS.Tables where
 import Control.Monad (forM, when)
 import Data.Foldable (for_)
 import Data.IORef
+import Data.Kind
 import Data.List (transpose)
 import Data.Map (Map)
 import Data.Map qualified as Map
@@ -10,6 +11,7 @@ import Data.Maybe (catMaybes, fromMaybe, isNothing)
 import Data.Traversable (for)
 import Data.Vector qualified as Vector
 import GHC.Records
+import GHC.TypeLits
 import MischiefECS.Components
 import MischiefECS.Components.Bundle
 import MischiefECS.Entities

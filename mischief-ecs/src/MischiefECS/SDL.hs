@@ -6,13 +6,19 @@ import Data.Foldable
 import MischiefECS.App
 import MischiefECS.App.Schedules
 import MischiefECS.App.SystemConfig
+import MischiefECS.Components
 import MischiefECS.Messages
 import MischiefECS.World
 import MischiefECS.World.Query
+import MischiefECS.World.Spawn
 import SDL3
 import System.Exit
 
-initSdl :: IO ()
+newtype Window = Window {sdlWindow :: SDLWindow}
+  deriving anyclass (Component, Queryable)
+  deriving newtype (Show)
+
+initSdl :: IO SDLWindow
 initSdl = do
   initSuccess <- liftIO $ sdlInit [SDL_INIT_VIDEO, SDL_INIT_EVENTS]
 
@@ -20,8 +26,8 @@ initSdl = do
     sdlLog "Failed to initialize SDL!"
     exitFailure
 
-  _ <- sdlCreateWindow "SDL3 Haskell Event Loop" 800 600 [SDL_WINDOW_RESIZABLE]
-  return ()
+  Just w <- sdlCreateWindow "SDL3 Haskell Event Loop" 800 600 [SDL_WINDOW_RESIZABLE]
+  return w
 
 newtype SDLMessage e = SDLMessage e
   deriving anyclass (Message)
@@ -31,7 +37,9 @@ data X = X
 
 sdlPlugin :: Plugin ()
 sdlPlugin = do
-  liftIO initSdl
+  window <- liftIO initSdl
+
+  run $ void $ spawn (Window window)
 
   addMessage @(SDLMessage SDLDisplayEvent)
   addMessage @(SDLMessage SDLWindowEvent)

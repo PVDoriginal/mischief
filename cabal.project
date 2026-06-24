@@ -3,6 +3,7 @@ packages:
   ./mischief-input 
   ./mischief-math 
   ./mischief-assets 
+  ./mischief-render 
 
 with-compiler: ghc-9.12
 
@@ -30,6 +31,11 @@ package mischief-assets
                -Wincomplete-uni-patterns -Wpartial-fields -Wredundant-constraints
                -Wno-name-shadowing 
 
+package mischief-render 
+  optimization: 2
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates
+               -Wincomplete-uni-patterns -Wpartial-fields -Wredundant-constraints
+               -Wno-name-shadowing
 
 source-repository-package
   type: git

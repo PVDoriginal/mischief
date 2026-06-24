@@ -15,7 +15,8 @@ import MischiefECS
 class (Typeable a) => Asset a where
   loadAsset :: ByteString -> a
 
-newtype AssetData a = AssetData a deriving anyclass (Component, Queryable)
+newtype AssetData a = AssetData a
+  deriving anyclass (Component, Queryable)
   deriving stock (Show)
 
 data Loading = Loading deriving (Component, Queryable)
