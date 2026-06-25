@@ -50,6 +50,10 @@ library
   -- Modules exported by the library.
   exposed-modules:
     MischiefAssets
+    MischiefAssets.Asset
+    MischiefAssets.Image
+    MischiefAssets.Plugin
+    MischiefAssets.Register
 
   -- Modules included in this library but not exported.
   -- other-modules:
@@ -79,6 +83,8 @@ library
     clock,
     containers,
     data-default,
+    filepath,
+    JuicyPixels,
     mischief-ecs,
     mtl,
     primitive,
@@ -131,6 +137,7 @@ test-suite mischief-test
     bytestring,
     containers,
     data-default,
+    filepath,
     mischief-assets,
     mischief-ecs,
     primitive,
