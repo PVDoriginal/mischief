@@ -87,4 +87,4 @@ getTypeFromPath :: FilePath -> System AssetType
 getTypeFromPath !path = do
   let ext = drop 1 . dropWhile (/= '.') $ path
   Just extensions <- res @Extensions
-  maybe undefined return (Map.lookup ext extensions.value.inner)
+  maybe undefined return (Map.lookup ext extensions.inner)

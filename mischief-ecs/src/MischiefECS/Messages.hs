@@ -35,7 +35,7 @@ newtype Reader = Reader (IORef Tick)
 getReader :: (Message m) => ComponentResult (Messages m) -> System Reader
 getReader !m = do
   world <- ask
-  case Map.lookup world.systemId m.value.readers of
+  case Map.lookup world.systemId m.readers of
     Just r -> return r
     Nothing -> do
       tick <- liftIO $ newIORef $ Tick 0
@@ -60,7 +60,7 @@ readMessages !m = do
   Reader tick <- getReader m
   readerTick <- liftIO $ readIORef tick
 
-  let newMessages = map (\(_, _, x) -> x) $ filter (\(_, tick, _) -> tick < world.currentSystemTick && tick > readerTick) m.value.messages
+  let newMessages = map (\(_, _, x) -> x) $ filter (\(_, tick, _) -> tick < world.currentSystemTick && tick > readerTick) m.messages
   liftIO $ writeIORef tick world.currentSystemTick
 
   return newMessages

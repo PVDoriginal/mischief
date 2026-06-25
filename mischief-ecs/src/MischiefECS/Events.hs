@@ -43,7 +43,7 @@ runEvent (ErasedEvent (event :: e)) = do
   observers' <- query @(Observer e, EventProxy e, ObserverOrder)
   let observers = sortBy (\(_, _, a) (_, _, b) -> compare a b) observers'
   for_ observers $ \(observer, _, _) -> do
-    let Observer f = observer.value
+    let Observer f = value observer
     f event
 
 newtype OnInsert c = OnInsert {entity :: Entity}

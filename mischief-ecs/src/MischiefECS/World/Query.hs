@@ -75,7 +75,7 @@ class (QueryData qd) => Queryable qd where
   runQueryEntity _ world entity = do
     result <- tryGetEntityComponent @qd world entity
     return $ case result of
-      Just (Just res) -> Just $ ComponentResult res entity
+      Just (Just res) -> Just $ ComponentResult (res, entity)
       _ -> Nothing
 
   -- pure $
@@ -156,7 +156,7 @@ instance (Component c) => Queryable (Maybe c) where
     case res of
       Nothing -> return Nothing
       Just Nothing -> return $ Just Nothing
-      Just (Just x) -> return $ Just $ Just $ ComponentResult x entity
+      Just (Just x) -> return $ Just $ Just $ ComponentResult (x, entity)
 
   runQueryInternal _ archetypes world = tryGetComponentsMaybe @c world archetypes
 

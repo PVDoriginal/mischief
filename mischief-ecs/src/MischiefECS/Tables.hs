@@ -317,7 +317,7 @@ tryGetComponentsFromTable table componentId =
         results <- tryGetComponentsFromColumn @c column
         entities <- Vec.toList table.entities
         let zipped = zip (map fst entities) results
-        return $ map (\(e, r) -> (e, ComponentResult r e)) zipped
+        return $ map (\(e, r) -> (e, ComponentResult (r, e))) zipped
 
 tryGetComponentsFromTableMaybe :: forall c. (Component c) => Table -> ComponentId -> IO [(Entity, Maybe (ComponentResult c))]
 tryGetComponentsFromTableMaybe table componentId =
@@ -330,7 +330,7 @@ tryGetComponentsFromTableMaybe table componentId =
       Just column -> do
         results <- tryGetComponentsFromColumn @c column
         entities <- Vec.toList table.entities
-        return $ zipWith (\x e -> (e, Just $ ComponentResult x e)) results (map fst entities)
+        return $ zipWith (\x e -> (e, Just $ ComponentResult (x, e))) results (map fst entities)
 
 tryGetRelationshipCollectionsFromArchetype :: forall c. (Component c) => ArchetypeId -> Map ArchetypeId Table -> ComponentId -> IO [(Entity, RelationshipCollection c)]
 tryGetRelationshipCollectionsFromArchetype archetype tables componentId =
@@ -371,19 +371,25 @@ tryGetComponentsFromTablesMaybe (Tables tables) archetypes componentId =
     results <- mapM (\archetype -> tryGetComponentsFromArchetypeMaybe archetype tables componentId) archetypes
     return $ concat results
 
-data ComponentResult c = ComponentResult {value :: c, entity :: Entity}
+newtype ComponentResult c = ComponentResult (c, Entity)
+
+value :: ComponentResult c -> c
+value (ComponentResult (c, _)) = c
+
+resultEntity :: ComponentResult c -> Entity
+resultEntity (ComponentResult (_, e)) = e
 
 instance (Show c) => Show (ComponentResult c) where
   show :: ComponentResult c -> String
-  show c = show c.value
+  show = show . value
 
 instance (Eq c) => Eq (ComponentResult c) where
   (==) :: ComponentResult c -> ComponentResult c -> Bool
-  (==) a b = a.value == b.value
+  (==) a b = value a == value b
 
 instance (Ord c) => Ord (ComponentResult c) where
   compare :: ComponentResult c -> ComponentResult c -> Ordering
-  compare a b = compare a.value b.value
+  compare a b = compare (value a) (value b)
 
 data RelationshipResult c = RelationshipResult {value :: c, target :: Entity, entity :: Entity} deriving (Show)
 
@@ -395,3 +401,6 @@ emptyRelationshipCollection entity = RelationshipCollection {collection = [], en
 instance HasField "targets" (RelationshipCollection c) [Entity] where
   getField :: RelationshipCollection c -> [Entity]
   getField r = map (\x -> x.target) r.collection
+
+instance (HasField a b c) => HasField a (ComponentResult b) c where
+  getField a = getField @a (value a)

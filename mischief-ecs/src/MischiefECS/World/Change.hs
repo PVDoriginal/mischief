@@ -56,7 +56,8 @@ getDefault component = do
   world <- ask
 
   Just x <- get @DefaultValue component.id
-  let (DefaultValue value) = x.value
+  let dv = value x
+  let (DefaultValue value) = dv
 
   return
     ProcessedBundleElement

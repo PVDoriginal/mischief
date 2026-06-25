@@ -46,7 +46,7 @@ createNode components = do
     mapM
       ( \c -> do
           t <- get @ComponentType @System c.id
-          return $ fmap (\x -> getRep x.value) t
+          return $ fmap (getRep . value) t
       )
       (Set.toList components)
 
@@ -199,14 +199,14 @@ findMatchingArchetypes components Archetypes {graph} = do
     case q of
       ComponentQuery -> do
         Just x <- get @ComponentArchetypes component.id
-        return x.value.inner
+        return x.inner
       RelationshipQueryAny -> do
         Just x <- get @ComponentPairs component.id
-        return x.value.any
+        return x.any
       RelationshipQuery -> do
         let target = fromMaybe undefined component.entity
         Just x <- get @ComponentPairs component.id
-        return $ fromMaybe undefined $ Map.lookup target x.value.pairs
+        return $ fromMaybe undefined $ Map.lookup target x.pairs
 
   case map Set.toList archetypes'' of
     [] -> return []
