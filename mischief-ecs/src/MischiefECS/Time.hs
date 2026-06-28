@@ -34,4 +34,4 @@ updateTime = do
     Nothing ->
       insertRes $ Time {delta = TimeSpec {sec = 0, nsec = 0}, elapsed = currentTime}
     Just time ->
-      insertRes $ Time {delta = currentTime - time.value.elapsed, elapsed = currentTime}
+      insertRes $ Time {delta = currentTime - time.elapsed, elapsed = currentTime}
