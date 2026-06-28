@@ -8,7 +8,9 @@ import Foreign (Ptr, Storable (pokeByteOff), Word8, castPtr, plusPtr, pokeArray)
 import Foreign.C
 import GHC.IO.Handle
 import GPUCommon
+import MischiefAssets (registerAsset)
 import MischiefECS
+import MischiefRender.Shader (FragmentShader (FragmentShader), VertexShader)
 import SDL3
 import System.IO.Temp
 import System.Process
@@ -18,6 +20,8 @@ shadercross = "/home/pvd/SDL_shadercross/build/shadercross"
 
 renderPlugin :: Plugin ()
 renderPlugin = do
+  registerAsset @FragmentShader
+  registerAsset @VertexShader
   addSystems Startup setup
 
 setup :: System ()
@@ -27,8 +31,8 @@ setup = do
   Just device <- liftIO $ sdlCreateGPUDevice SDL_GPU_SHADERFORMAT_SPIRV True Nothing
   b <- liftIO $ sdlClaimWindowForGPUDevice device window.sdlWindow
 
-  vertexBytes <- liftIO $ loadVertex "assets/test_vert.hlsl"
-  fragmentBytes <- liftIO $ loadFragment "assets/test_frag.hlsl"
+  vertexBytes <- liftIO $ loadVertex "assets/test.vert.hlsl"
+  fragmentBytes <- liftIO $ loadFragment "assets/test.frag.hlsl"
 
   liftIO $ unsafeUseAsCStringLen vertexBytes $ \b -> do
     unsafeUseAsCStringLen fragmentBytes $ \b' -> do

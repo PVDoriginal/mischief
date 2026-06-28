@@ -50,6 +50,7 @@ library
   -- Modules exported by the library.
   exposed-modules:
     MischiefRender
+    MischiefRender.Shader
 
   -- Modules included in this library but not exported.
   -- other-modules:
@@ -79,6 +80,7 @@ library
     clock,
     containers,
     data-default,
+    mischief-assets,
     mischief-ecs,
     mtl,
     primitive,

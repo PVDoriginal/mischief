@@ -7,7 +7,7 @@ import MischiefAssets.Asset
 newtype Image = Image {inner :: P.DynamicImage}
 
 instance Asset Image where
-  loadAsset = Image . fromRight undefined . P.decodeImage
+  loadAsset = pure . Image . fromRight undefined . P.decodeImage
   extensions = ["png", "jpg"]
 
 instance Show Image where
