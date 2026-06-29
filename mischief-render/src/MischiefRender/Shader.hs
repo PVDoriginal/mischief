@@ -17,33 +17,30 @@ data Shader = Shader
     spv :: ByteString
   }
 
-loadShader :: ShaderType -> ByteString -> IO Shader
-loadShader shaderType bytes = do
+loadShader :: ShaderType -> FilePath -> IO Shader
+loadShader !shaderType !path = do
   let t = case shaderType of
         ShaderV -> "vertex"
         ShaderF -> "fragment"
 
-  withSystemTempFile "original.hlsl" $ \originalPath originalH -> do
-    hClose originalH
-    B.writeFile originalPath bytes
+  original <- B.readFile path
 
-    spv <- withSystemTempFile "new.spv" $ \newPath newH -> do
-      callProcess
-        shadercross
-        [originalPath, "-e", "main", "-t", t, "-o", newPath]
+  spv <- withSystemTempFile "new.spv" $ \newPath newH -> do
+    callProcess
+      shadercross
+      [path, "-e", "main", "-t", t, "-o", newPath]
 
-      hClose newH
-      B.readFile newPath
+    hClose newH
+    B.readFile newPath
 
-    return $ Shader {original = bytes, spv}
+  return $ Shader {original, spv}
 
 newtype VertexShader = VertexShader {inner :: Shader}
 
 instance Asset VertexShader where
   loadAsset :: FilePath -> IO VertexShader
-  loadAsset b = do
-    bytes <- B.readFile b
-    shader <- loadShader ShaderV bytes
+  loadAsset !path = do
+    shader <- loadShader ShaderV path
     return $ VertexShader shader
 
   extensions :: [String]
@@ -53,9 +50,8 @@ newtype FragmentShader = FragmentShader {inner :: Shader}
 
 instance Asset FragmentShader where
   loadAsset :: FilePath -> IO FragmentShader
-  loadAsset b = do
-    bytes <- B.readFile b
-    shader <- loadShader ShaderF bytes
+  loadAsset !path = do
+    shader <- loadShader ShaderF path
     return $ FragmentShader shader
 
   extensions :: [String]
