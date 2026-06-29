@@ -39,23 +39,22 @@ plugin :: Plugin ()
 plugin = do
   register @(A, B)
   addSystems Startup setup
+  addSystems Update dummy
 
 setup :: System ()
 setup = do
-  _ <- spawn (Name "Lol", B)
-  _ <- spawn (Name "Lol2", A)
+  liftIO $ print "A1"
 
-  iter (query' @Name $ with @B) $ \name -> do
-    liftIO $ print name
+  defer $ do
+    liftIO $ print "B1"
 
-  a <- entityOf @A
-  q <- get @(HasRel Requires) a
+    defer $ do
+      liftIO $ print "C1"
+      liftIO $ print "C2"
 
-  liftIO $ print q
+    liftIO $ print "B2"
 
-  -- x <- query' @Name $ withRel @RequiredBy a
+  liftIO $ print "A2"
 
-  -- for_ x $ \x -> do
-  --   liftIO $ print x
-
-  liftIO exitSuccess
+dummy :: System ()
+dummy = return ()

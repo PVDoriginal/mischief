@@ -6,6 +6,7 @@ import Control.Concurrent.STM
 import Control.Exception
 import Control.Monad.IO.Class
 import Control.Monad.Reader
+import Data.Foldable
 import Data.Functor
 import Data.IORef
 import MischiefECS.World
@@ -49,7 +50,11 @@ flush = do
   world <- ask
   systems <- liftIO $ readIORef world.deferred
 
-  sequence_ systems
+  for_ systems $ \s -> do
+    forkDefer $ do
+      s
+      flush
+
   liftIO $ writeIORef world.deferred []
 
 flushAsync :: System ()
@@ -61,7 +66,10 @@ flushAsync = do
     writeTVar world.deferredAsync []
     return systems
 
-  sequence_ systems
+  for_ systems $ \s -> do
+    forkDefer $ do
+      s
+      flush
 
 forkDefer :: System a -> System a
 forkDefer s = do
