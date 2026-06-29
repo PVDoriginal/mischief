@@ -40,9 +40,10 @@ loadShader shaderType bytes = do
 newtype VertexShader = VertexShader {inner :: Shader}
 
 instance Asset VertexShader where
-  loadAsset :: ByteString -> IO VertexShader
+  loadAsset :: FilePath -> IO VertexShader
   loadAsset b = do
-    shader <- loadShader ShaderV b
+    bytes <- B.readFile b
+    shader <- loadShader ShaderV bytes
     return $ VertexShader shader
 
   extensions :: [String]
@@ -51,9 +52,10 @@ instance Asset VertexShader where
 newtype FragmentShader = FragmentShader {inner :: Shader}
 
 instance Asset FragmentShader where
-  loadAsset :: ByteString -> IO FragmentShader
+  loadAsset :: FilePath -> IO FragmentShader
   loadAsset b = do
-    shader <- loadShader ShaderF b
+    bytes <- B.readFile b
+    shader <- loadShader ShaderF bytes
     return $ FragmentShader shader
 
   extensions :: [String]

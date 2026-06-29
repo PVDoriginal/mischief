@@ -17,7 +17,7 @@ import GHC.IO.Handle
 import MischiefECS
 
 class (Typeable a) => Asset a where
-  loadAsset :: ByteString -> IO a
+  loadAsset :: FilePath -> IO a
   extensions :: [String]
 
 newtype AssetData a = AssetData a
@@ -36,8 +36,7 @@ loadWithType !path = do
 
   runAfter
     ( do
-        !asset <- liftIO $ B.readFile path
-        !asset' <- loadAsset @a asset
+        !asset' <- loadAsset @a path
         return asset'
     )
     ( \asset -> do
