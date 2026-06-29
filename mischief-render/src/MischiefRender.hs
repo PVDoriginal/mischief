@@ -88,12 +88,46 @@ runPass (vertexBytes, vertexLen) (fragmentBytes, fragmentLen) device window = do
           shaderStage = SDL_GPU_SHADERSTAGE_FRAGMENT,
           shaderNumSamplers = 0,
           shaderNumStorageTextures = 0,
-          shaderNumStorageBuffers = 0,
+          shaderNumStorageBuffers = 1,
           shaderNumUniformBuffers = 0,
           shaderProps = 0
         }
 
   Just commands <- sdlAcquireGPUCommandBuffer device
+
+  Just storageTransfer <-
+    sdlCreateGPUTransferBuffer
+      device
+      SDLGPUTransferBufferCreateInfo
+        { transferUsage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD,
+          transferSize = 4 * 4,
+          transferProps = 0
+        }
+
+  Just storageBuffer <-
+    sdlCreateGPUBuffer
+      device
+      SDLGPUBufferCreateInfo
+        { bufferUsage = SDL_GPU_BUFFERUSAGE_GRAPHICS_STORAGE_READ,
+          bufferSize = 4 * 4,
+          bufferProps = 0
+        }
+
+  Just ptr <- sdlMapGPUTransferBuffer device storageTransfer False
+  let color = [0, 0, 1, 1]
+  let ptrF = castPtr ptr :: Ptr Float
+  pokeArray ptrF color
+
+  sdlUnmapGPUTransferBuffer device storageTransfer
+  Just copyCmd <- sdlBeginGPUCopyPass commands
+
+  sdlUploadToGPUBuffer
+    copyCmd
+    (SDLGPUTransferBufferLocation storageTransfer 0)
+    (SDLGPUBufferRegion storageBuffer 0 16)
+    False
+
+  sdlEndGPUCopyPass copyCmd
 
   Just (tex, width, height) <-
     sdlWaitAndAcquireGPUSwapchainTexture
@@ -199,7 +233,9 @@ runPass (vertexBytes, vertexLen) (fragmentBytes, fragmentLen) device window = do
       Nothing
 
   sdlBindGPUGraphicsPipeline pass pipeline
+
   sdlBindGPUVertexBuffers pass 0 [SDLGPUBufferBinding {bindingBuffer = vbo, bindingOffset = 0}]
+  sdlBindGPUFragmentStorageBuffers pass 0 [storageBuffer]
   sdlDrawGPUPrimitives pass 3 1 0 0
 
   sdlEndGPURenderPass pass
