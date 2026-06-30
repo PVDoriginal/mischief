@@ -140,4 +140,4 @@ triggerInsertEventC (ErasedComponent (_ :: c)) entity =
 
 triggerInsertEventR :: ErasedComponent -> Entity -> Entity -> System ()
 triggerInsertEventR (ErasedComponent (_ :: c)) target entity = do
-  runEvent $ eraseEvent $ OnInsertR @c entity target
+  runEvent $ eraseEvent $ OnInsertRel @c entity target

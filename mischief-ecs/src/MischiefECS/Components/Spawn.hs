@@ -2,6 +2,7 @@
 
 module MischiefECS.Components.Spawn where
 
+import Control.Monad
 import Control.Monad.IO.Class
 import Control.Monad.Reader
 import Data.Data
@@ -16,6 +17,7 @@ import MischiefECS.Components.Bundle
 import MischiefECS.Components.Required (requireAll)
 import MischiefECS.Entities
 import MischiefECS.Entities.Internal
+import MischiefECS.Relationships
 import MischiefECS.World
 import MischiefECS.World.Defer
 import MischiefECS.World.Insert
@@ -58,6 +60,9 @@ getOrAddComponentId (ComponentType (_ :: Proxy c)) = do
             ),
             Name $ "Meta entity for " ++ show (typeRep $ Proxy @c)
           )
+
+      when (isExclusiveRel @c) $ do
+        insert IsExclusiveRelationship result
 
       for_ (requireAll @c) $ \(DefaultComponentType (_ :: (Proxy other))) -> do
         other <- getOrAddComponentId (ComponentType $ Proxy @other)

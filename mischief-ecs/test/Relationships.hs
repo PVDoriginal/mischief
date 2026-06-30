@@ -6,6 +6,7 @@ import Control.Monad.IO.Class
 import Data.Foldable hiding (and, or)
 import Data.Maybe
 import MischiefECS
+import MischiefECS.Components.Spawn (entityOf)
 import System.Exit (exitSuccess)
 import Prelude hiding (and)
 
@@ -20,7 +21,6 @@ testRelationships = do
 
 plugin :: Plugin ()
 plugin = do
-  -- addRelationshipWithSettings @ChildOf RelationshipSettings {exclusivity = Exclusive}
   addSystems Startup setup
   addSystems Startup $ exit `after` setup
   addObserver observer
@@ -47,7 +47,7 @@ setup = do
       Just parentName <- get @Name rel.target
       liftIO $ print parentName
 
-observer :: OnInsertR ChildOf -> System ()
+observer :: OnInsertRel ChildOf -> System ()
 observer event = liftIO $ putStrLn $ show event.entity ++ " is now a child of " ++ show event.target
 
 exit :: System ()

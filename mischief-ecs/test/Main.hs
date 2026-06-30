@@ -31,9 +31,10 @@ instance Component C where
 
 main :: IO ()
 main = do
-  -- testRelationships
-  app <- newApp [plugin]
-  runApp app
+  testRelationships
+
+-- app <- newApp [plugin]
+-- runApp app
 
 plugin :: Plugin ()
 plugin = do

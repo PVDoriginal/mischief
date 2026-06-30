@@ -50,7 +50,7 @@ newtype OnInsert c = OnInsert {entity :: Entity}
   deriving anyclass (Event)
   deriving stock (Show)
 
-data OnInsertR c = OnInsertR {entity :: Entity, target :: Entity}
+data OnInsertRel c = OnInsertRel {entity :: Entity, target :: Entity}
   deriving anyclass (Event)
   deriving stock (Show)
 

@@ -14,6 +14,7 @@ import Data.Set (Set)
 import Data.Set qualified as Set
 import MischiefECS.Archetypes
 import MischiefECS.Components
+import MischiefECS.Relationships
 import MischiefECS.Tables
 import MischiefECS.Vec (IOVec)
 import MischiefECS.Vec qualified as Vec
@@ -139,7 +140,17 @@ getArchetype (ArchetypeId id) (Inserted component) = do
       newNode <- Vec.read graph.nodes x
       return newNode.archetype
     Nothing -> do
-      let components = node.archetype.components
+      components <- do
+        let components = node.archetype.components
+
+        isExclusiveRel <- get @(Has IsExclusiveRelationship) component.id
+
+        case isExclusiveRel of
+          Just True ->
+            return $ Set.filter (\c -> c.id /= component.id || isNothing c.entity) components
+          _ ->
+            return components
+
       requirements <- getRequirements component
 
       let newComponents = Set.union requirements $ Set.insert component components

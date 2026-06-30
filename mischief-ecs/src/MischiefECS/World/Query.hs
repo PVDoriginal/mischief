@@ -184,11 +184,11 @@ instance (Component c) => Queryable (Has c) where
     list <- runQueryEntity (Proxy @(Maybe c)) world entity
     case list of
       Nothing -> return Nothing
-      Just x -> return $ Just (isNothing x)
+      Just x -> return $ Just (isJust x)
 
   runQueryInternal _ archetypes world = do
     list <- runQueryInternal (Proxy @(Maybe c)) archetypes world
-    return $ map (\(e, x) -> (e, isNothing x)) list
+    return $ map (\(e, x) -> (e, isJust x)) list
 
 data HasRel a = HasRel
 

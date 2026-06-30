@@ -78,6 +78,9 @@ class (Typeable c) => Component c where
   required :: Set DefaultComponentType
   required = Set.empty
 
+  isExclusiveRel :: Bool
+  isExclusiveRel = False
+
 data BundleData = BundleData {elements :: Set BundleElement, required :: Set BundleElement}
 
 instance Show BundleData where
