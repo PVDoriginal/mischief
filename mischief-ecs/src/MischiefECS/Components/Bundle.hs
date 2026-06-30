@@ -21,7 +21,7 @@ addComponentToBundleData c (BundleData {elements, required}) =
   let rep = ComponentRep $ ComponentType (Proxy @c)
       component = ErasedComponent c
       element = BundleElement {rep, component}
-   in BundleData {elements = Set.insert element elements, required}
+   in BundleData {elements = Set.union elements (Set.singleton element), required}
 
 instance Eq ProcessedBundleElement where
   (==) :: ProcessedBundleElement -> ProcessedBundleElement -> Bool

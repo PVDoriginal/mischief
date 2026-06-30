@@ -69,7 +69,7 @@ insert bundle entity =
     unless world.prefs.supressEvents $
       triggerInsertEvent bundleData entity
 
-    unless (null required) $ insertNew (BundleData {elements = required, required = Set.empty}) entity
+-- unless (null required) $ insertNew (BundleData {elements = required, required = Set.empty}) entity
 
 -- | Insert a bundle of components on an Entity.
 --
@@ -82,7 +82,7 @@ insertNew bundle entity =
 
     currentTick <- liftIO $ readIORef world.tick
 
-    bundleData <- liftIO $ processBundleElements world ComponentTicks {changed = currentTick, added = currentTick} (Set.union elements required)
+    bundleData <- liftIO $ processBundleElements world ComponentTicks {changed = currentTick, added = currentTick} elements
 
     pointer <- liftIO $ getPointer entity world.entities
     case pointer of

@@ -53,7 +53,7 @@ getOrAddComponentId (ComponentType (_ :: Proxy c)) = do
       addMetaComponent (Proxy @c) comp
 
       forkPrefs (supressEvents True) $
-        spawnEntity
+        spawnEntityByInsert
           result
           ( ( ComponentType $ Proxy @c,
               Meta @c
@@ -80,7 +80,7 @@ addMetaComponent _ Components {components} = do
   liftIO $ modifyIORef' components $ Map.insert (typeRep $ Proxy @(Meta c)) id
 
   forkPrefs (supressEvents True) $
-    spawnEntity
+    spawnEntityByInsert
       id
       ( ComponentType $ Proxy @(Meta c),
         Name $ "Meta entity for " ++ show (typeRep $ Proxy @(Meta c))

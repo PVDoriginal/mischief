@@ -7,6 +7,7 @@ import Data.IORef
 import Data.Map qualified as Map
 import Data.Maybe
 import Data.Set qualified as Set
+import {-# SOURCE #-} MischiefECS.Archetypes.Graph (getArchetypeOnSpawn)
 import MischiefECS.Components
 import MischiefECS.Components.Bundle
 import {-# SOURCE #-} MischiefECS.Components.Spawn (getOrAddComponentId)
@@ -14,6 +15,7 @@ import MischiefECS.Entities
 import MischiefECS.Events
 import MischiefECS.Tables
 import MischiefECS.World
+import MischiefECS.World.Change
 import MischiefECS.World.Defer
 import MischiefECS.World.Insert
 import MischiefECS.World.Internal
@@ -42,12 +44,27 @@ data SpawnEventsSettings = WithSpawnEvents | WithoutSpawnEvents
 spawnEntity :: (Bundle b) => Entity -> b -> System ()
 spawnEntity entity bundle = do
   world <- ask
-  -- let BundleData {elements, required} = addComponentToBundleData entity $ bundleData bundle
+  let BundleData {elements, required} = addComponentToBundleData (Name (show entity)) $ addComponentToBundleData entity $ bundleData bundle
 
-  -- currentTick <- liftIO $ readIORef world.tick
-  -- bundle <- liftIO $ processBundleElements world ComponentTicks {changed = currentTick, added = currentTick} $ Set.union elements required
+  currentTick <- liftIO $ readIORef world.tick
+  bundleD <- liftIO $ processBundleElements world ComponentTicks {changed = currentTick, added = currentTick} elements
 
-  -- archetypeId <- liftIO $ archetypeOfProcessedBundle world.archetypes world.components bundle
+  archetype <- getArchetypeOnSpawn $ map (\x -> x.id) bundleD.elements
+
+  entityPointer <- liftIO $ newIORef EntityPointer {archetypeId = ArchetypeId 0, rowIndex = 0}
+
+  liftIO $ insertEntityIntoTables (ProcessedBundleData {elements = []}) world.tables (ArchetypeId 0) (entity, entityPointer)
+
+  liftIO $ insertPointer entity entityPointer world.entities
+
+  -- insert bundle entity
+  changeArchetype entity archetype (Just bundleD)
+
+-- insertNew (Name (show entity)) entity
+
+spawnEntityByInsert :: (Bundle b) => Entity -> b -> System ()
+spawnEntityByInsert entity bundle = do
+  world <- ask
 
   entityPointer <- liftIO $ newIORef EntityPointer {archetypeId = ArchetypeId 0, rowIndex = 0}
 
@@ -56,6 +73,7 @@ spawnEntity entity bundle = do
   liftIO $ insertPointer entity entityPointer world.entities
 
   insert bundle entity
+
   insertNew (Name (show entity)) entity
 
 spawnObserver :: forall e. (Event e) => Observer e -> Maybe ObserverOrder -> System ()

@@ -153,7 +153,7 @@ getArchetype (ArchetypeId id) (Inserted component) = do
 
       requirements <- getRequirements component
 
-      let newComponents = Set.union requirements $ Set.insert component components
+      let newComponents = Set.union (Set.insert component components) requirements
 
       newId <- getOrCreateNode newComponents
       addEdgeI id newId component
@@ -194,6 +194,19 @@ getArchetypeOnRemove archetype components =
     f archetype (component : xs) graph = do
       x <- getArchetype archetype.id (Removed component)
       f x xs graph
+
+getArchetypeOnSpawn :: [ComponentId] -> System ArchetypeData
+getArchetypeOnSpawn components =
+  do
+    world <- ask
+    let Archetypes {graph} = world.archetypes
+
+    regs <- mapM getRequirements components
+    let allComps = foldr' (flip Set.union) (Set.fromList components) regs
+    node <- getOrCreateNode allComps
+
+    nodeData <- Vec.read graph.nodes node
+    return nodeData.archetype
 
 getRequirements :: ComponentId -> System (Set ComponentId)
 getRequirements component = do

@@ -13,3 +13,4 @@ data ComponentQuery = ComponentQuery | RelationshipQueryAny | RelationshipQuery
 getArchetypeOnInsert :: ArchetypeId -> [ComponentId] -> System ArchetypeData
 getArchetypeOnRemove :: ArchetypeId -> [ComponentId] -> System ArchetypeData
 findMatchingArchetypes :: forall m w. (MonadSystem w m) => [(ComponentId, ComponentQuery)] -> Archetypes -> m [([ComponentId], ArchetypeId)]
+getArchetypeOnSpawn :: [ComponentId] -> System ArchetypeData

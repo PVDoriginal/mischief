@@ -31,10 +31,9 @@ instance Component C where
 
 main :: IO ()
 main = do
-  testRelationships
-
--- app <- newApp [plugin]
--- runApp app
+  -- testRelationships
+  app <- newApp [plugin]
+  runApp app
 
 plugin :: Plugin ()
 plugin = do
@@ -44,18 +43,9 @@ plugin = do
 
 setup :: System ()
 setup = do
-  liftIO $ print "A1"
-
-  defer $ do
-    liftIO $ print "B1"
-
-    defer $ do
-      liftIO $ print "C1"
-      liftIO $ print "C2"
-
-    liftIO $ print "B2"
-
-  liftIO $ print "A2"
+  e <- spawn (A, Name "Lol")
+  Just (name, _) <- get @(Name, (A, B)) e
+  liftIO $ print name
 
 dummy :: System ()
 dummy = return ()
