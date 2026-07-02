@@ -52,8 +52,7 @@ createNode components = do
       (Set.toList components)
 
   liftIO $ putStrLn $ "archetype " ++ show id ++ " = " ++ show (catMaybes comps)
-  -- Associate each of the components with the new archetype.
-  for_ components $ \component -> defer $ do
+  for_ components $ \component -> do
     case component.entity of
       -- Component isn't a pair.
       Nothing -> do
@@ -168,10 +167,7 @@ getArchetypeOnInsert archetype components =
     let Archetypes {graph} = world.archetypes
     let d = ArchetypeData {id = archetype, components = Set.empty}
 
-    forkDefer $ do
-      a <- f d components graph
-      flush
-      return a
+    f d components graph
   where
     f archetype [] _ = return archetype
     f archetype (component : xs) graph = do
@@ -185,10 +181,7 @@ getArchetypeOnRemove archetype components =
     let Archetypes {graph} = world.archetypes
     let d = ArchetypeData {id = archetype, components = Set.empty}
 
-    forkDefer $ do
-      a <- f d components graph
-      flush
-      return a
+    f d components graph
   where
     f archetype [] _ = return archetype
     f archetype (component : xs) graph = do
@@ -206,6 +199,7 @@ getArchetypeOnSpawn components =
     node <- getOrCreateNode allComps
 
     nodeData <- Vec.read graph.nodes node
+
     return nodeData.archetype
 
 getRequirements :: ComponentId -> System (Set ComponentId)

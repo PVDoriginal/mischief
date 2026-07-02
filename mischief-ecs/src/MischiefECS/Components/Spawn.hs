@@ -40,8 +40,6 @@ getOrAddComponentId (ComponentType (_ :: Proxy c)) = do
   case Map.lookup (typeRep $ Proxy @c) innerMap of
     Just t -> return $ ComponentId {id = t, entity = Nothing}
     Nothing -> do
-      liftIO $ modifyIORef' comp.components $ Map.insert (typeRep $ Proxy @(Meta c)) (Entity 0 0)
-
       world <- ask
       result <- liftIO $ getNewEntity world.entities
 
@@ -50,15 +48,16 @@ getOrAddComponentId (ComponentType (_ :: Proxy c)) = do
       -- l <- liftIO $ newIORef Set.empty
       -- liftIO $ modifyIORef' comp.archetypes $ Map.insert result l
 
-      addMetaComponent (Proxy @c) comp
-
       forkPrefs (supressEvents True) $
         spawnEntityByInsert
           result
           ( ( ComponentType $ Proxy @c,
-              Meta @c
+              ( def @ComponentArchetypes,
+                def @ComponentPairs
+              )
             ),
-            Name $ "Meta entity for " ++ show (typeRep $ Proxy @c)
+            Name $
+              "Meta entity for " ++ show (typeRep $ Proxy @c)
           )
 
       when (isExclusiveRel @c) $ do
@@ -71,20 +70,6 @@ getOrAddComponentId (ComponentType (_ :: Proxy c)) = do
         insert (DefaultValue $ ErasedComponent $ def @other) other.id
 
       return $ ComponentId {id = result, entity = Nothing}
-
-addMetaComponent :: forall (c :: Type). (Component c) => Proxy c -> Components -> System ()
-addMetaComponent _ Components {components} = do
-  world <- ask
-  id <- liftIO $ getNewEntity world.entities
-
-  liftIO $ modifyIORef' components $ Map.insert (typeRep $ Proxy @(Meta c)) id
-
-  forkPrefs (supressEvents True) $
-    spawnEntityByInsert
-      id
-      ( ComponentType $ Proxy @(Meta c),
-        Name $ "Meta entity for " ++ show (typeRep $ Proxy @(Meta c))
-      )
 
 -- l <- liftIO $ newIORef Set.empty
 -- liftIO $ modifyIORef' archetypes $ Map.insert id l

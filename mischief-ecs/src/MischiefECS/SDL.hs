@@ -7,6 +7,7 @@ import MischiefECS.App
 import MischiefECS.App.Schedules
 import MischiefECS.App.SystemConfig
 import MischiefECS.Components
+import MischiefECS.Components.Spawn
 import MischiefECS.Messages
 import MischiefECS.World
 import MischiefECS.World.Query
@@ -39,7 +40,11 @@ sdlPlugin :: Plugin ()
 sdlPlugin = do
   window <- liftIO initSdl
 
-  run $ void $ spawn (Window window)
+  run $ do
+    void $ spawn (Window window)
+    x <- entityOf @Window
+    a <- get @ComponentArchetypes x
+    liftIO $ print a
 
   addMessage @(SDLMessage SDLDisplayEvent)
   addMessage @(SDLMessage SDLWindowEvent)

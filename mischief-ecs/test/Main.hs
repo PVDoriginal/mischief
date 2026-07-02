@@ -24,7 +24,7 @@ data B = B deriving (Queryable, Show, Generic, Default)
 instance Component B where
   required = require @C
 
-data C = C deriving (Queryable, Generic, Default)
+data C = C deriving (Queryable, Generic, Default, Show)
 
 instance Component C where
   required = require @()
@@ -38,6 +38,11 @@ main = do
 plugin :: Plugin ()
 plugin = do
   register @(A, B)
+  register @ObserverOrder
+  register @ComponentArchetypes
+
+  initRes @C
+
   addSystems Startup setup
   addSystems Update dummy
 
@@ -45,6 +50,7 @@ setup :: System ()
 setup = do
   e <- spawn (A, Name "Lol")
   Just (name, _) <- get @(Name, (A, B)) e
+
   liftIO $ print name
 
 dummy :: System ()

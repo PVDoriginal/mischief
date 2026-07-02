@@ -10,6 +10,7 @@ import GHC.IO.Handle
 import GPUCommon
 import MischiefAssets (registerAsset)
 import MischiefECS
+import MischiefECS.Components.Spawn
 import MischiefRender.Shader (FragmentShader (FragmentShader), VertexShader)
 import SDL3
 import System.IO.Temp
@@ -27,6 +28,11 @@ renderPlugin = do
 setup :: System ()
 setup = do
   liftIO $ sdlSetLogPriorities SDL_LOG_PRIORITY_VERBOSE
+
+  m <- entityOf @Window
+  Just x <- get @ComponentArchetypes m
+  liftIO $ print x
+
   Just window <- single @Window
   Just device <- liftIO $ sdlCreateGPUDevice SDL_GPU_SHADERFORMAT_SPIRV True Nothing
   b <- liftIO $ sdlClaimWindowForGPUDevice device window.sdlWindow

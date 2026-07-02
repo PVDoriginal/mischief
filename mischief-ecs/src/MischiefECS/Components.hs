@@ -100,9 +100,6 @@ newtype Rel c = Rel (c, Entity)
 
 -- instance (Component c) => Component (R c)
 
-data Meta c = Meta
-  deriving (Component, Show, Eq)
-
 newtype DefaultValue = DefaultValue ErasedComponent deriving anyclass (Component)
 
 instance Component ComponentType where

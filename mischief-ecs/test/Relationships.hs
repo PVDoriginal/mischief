@@ -37,9 +37,6 @@ setup = do
   _ <- spawn (Rel (ChildOf, p2), Name "Child 4")
   _ <- spawn ((Rel (ChildOf, p2), Rel (ChildOf, p1)), Name "Child 5")
 
-  Just m1 <- single' @Name $ with @(Meta ChildOf)
-  liftIO $ print m1
-
   q4 <- query @(Name, Rel ChildOf)
   for_ q4 $ \(name, result) ->
     for_ result.collection $ \rel -> do
