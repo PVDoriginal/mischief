@@ -43,7 +43,7 @@ class Delete r where
 
 instance (Component c) => Delete (ComponentResult c) where
   delete :: ComponentResult c -> System ()
-  delete result = remove @c (resultEntity result)
+  delete result = remove @c (entityOf result)
 
 instance (Component c) => Delete (RelationshipResult c) where
   delete :: RelationshipResult c -> System ()

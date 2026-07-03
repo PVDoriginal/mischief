@@ -279,7 +279,7 @@ single' filter = do
 
 res :: forall c. (Queryable c, Component c) => System (Maybe (QueryOutput c))
 res = do
-  meta <- entityOf @c
+  meta <- meta @c
   get @c meta
 
 -- iter :: forall qd m w. (Queryable qd, MonadSystem w m) => (QueryOutput qd -> m ()) -> m ()

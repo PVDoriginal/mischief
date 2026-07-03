@@ -70,6 +70,8 @@ library
     MischiefECS.Prelude
     MischiefECS.Relationships
     MischiefECS.Relationships.ChildOf
+    MischiefECS.Relationships.Tree 
+    MischiefECS.Relationships.Graph
     MischiefECS.SDL
     MischiefECS.Tables
     MischiefECS.Time

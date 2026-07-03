@@ -10,4 +10,4 @@ import MischiefECS.World
 
 getOrAddPairId :: Pair -> System ComponentId
 getOrAddComponentId :: ComponentType -> System ComponentId
-entityOf :: forall c. (Component c) => System Entity
+meta :: forall c. (Component c) => System Entity

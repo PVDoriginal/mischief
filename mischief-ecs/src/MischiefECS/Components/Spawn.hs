@@ -74,7 +74,7 @@ getOrAddComponentId (ComponentType (_ :: Proxy c)) = do
 -- l <- liftIO $ newIORef Set.empty
 -- liftIO $ modifyIORef' archetypes $ Map.insert id l
 
-entityOf :: forall c. (Component c) => System Entity
-entityOf = do
+meta :: forall c. (Component c) => System Entity
+meta = do
   component <- getOrAddComponentId (ComponentType $ Proxy @c)
   return component.id

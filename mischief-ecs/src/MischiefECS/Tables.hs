@@ -376,8 +376,8 @@ newtype ComponentResult c = ComponentResult (c, Entity)
 value :: ComponentResult c -> c
 value (ComponentResult (c, _)) = c
 
-resultEntity :: ComponentResult c -> Entity
-resultEntity (ComponentResult (_, e)) = e
+entityOf :: ComponentResult c -> Entity
+entityOf (ComponentResult (_, e)) = e
 
 instance (Show c) => Show (ComponentResult c) where
   show :: ComponentResult c -> String

@@ -108,7 +108,7 @@ insertNew bundle entity =
 -- | Insert a resource into this world. If the resource already exists, its value will be overwritten.
 insertRes :: forall r. (Component r, Bundle r) => r -> System ()
 insertRes res = do
-  entity <- entityOf @r
+  entity <- meta @r
   insert res entity
 
 -- | Set the value of a component obtained as query result.
@@ -116,14 +116,14 @@ insertRes res = do
 -- Note that the local 'ComponentResult' won't be mutated.
 -- You'll need to query the component again or use 'update' to update the current result.
 set :: (Bundle c) => ComponentResult c -> c -> System ()
-set !result !newValue = MischiefECS.World.Insert.insert newValue (resultEntity result)
+set !result !newValue = MischiefECS.World.Insert.insert newValue (entityOf result)
 
 -- | Update the value of a 'ComponentResult'.
 --
 -- Useful if you've done changed to the component and want to grab the live value
 -- without re-querying.
 update :: forall c. (QueryOutput c ~ ComponentResult c, Queryable c) => ComponentResult c -> System (Maybe (ComponentResult c))
-update c = get @c (resultEntity c)
+update c = get @c (entityOf c)
 
 triggerInsertEvent :: ProcessedBundleData -> Entity -> System ()
 triggerInsertEvent bundle entity =
