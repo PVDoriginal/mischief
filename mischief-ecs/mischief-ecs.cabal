@@ -66,6 +66,7 @@ library
     MischiefECS.Events
     MischiefECS.Graph
     MischiefECS.Utils 
+    MischiefECS.Tutorial.Systems 
     MischiefECS.Messages
     MischiefECS.Prelude
     MischiefECS.Relationships

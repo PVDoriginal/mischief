@@ -12,8 +12,8 @@ import MischiefECS.World.Query
 
 modify :: forall c. (Queryable c, Bundle c, QueryOutput c ~ ComponentResult c) => ComponentResult c -> (c -> c) -> System ()
 modify !result !f = do
-  Just res <- get @c (resultEntity result)
-  insert (f $ value res) (resultEntity res)
+  Just res <- get @c (entityOf result)
+  insert (f $ value res) (entityOf res)
 
 --     Just res <- entityQuery @c result.entity
 --     insertResource (f res.value)

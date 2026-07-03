@@ -1,3 +1,6 @@
+{-# LANGUAGE MagicHash #-}
+{-# LANGUAGE UnboxedTuples #-}
+
 module Relationships where
 
 import Control.Concurrent
@@ -5,14 +8,23 @@ import Control.Monad
 import Control.Monad.IO.Class
 import Data.Foldable hiding (and, or)
 import Data.Maybe
+import GHC.Exts
 import MischiefECS
-import MischiefECS.Components.Spawn (entityOf)
+import MischiefECS.Components.Spawn (meta)
 import System.Exit (exitSuccess)
 import Prelude hiding (and)
 
 data Parent1 = Parent1 deriving (Component, Queryable)
 
 data Parent2 = Parent2 deriving (Component, Queryable)
+
+data A = A {lol :: Int, lol2 :: C}
+
+type A# = (# Int#, C# #)
+
+data C = C Float Int
+
+type C# = (# Float#, Int# #)
 
 testRelationships :: IO ()
 testRelationships = do

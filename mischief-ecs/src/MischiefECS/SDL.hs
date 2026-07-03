@@ -42,7 +42,7 @@ sdlPlugin = do
 
   run $ do
     void $ spawn (Window window)
-    x <- entityOf @Window
+    x <- meta @Window
     a <- get @ComponentArchetypes x
     liftIO $ print a
 
