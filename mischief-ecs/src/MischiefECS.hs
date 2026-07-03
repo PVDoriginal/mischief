@@ -132,7 +132,7 @@ import MischiefECS.World.Utils
 -- @
 --
 -- As shown above, an 'App' expects a list of 'Plugin's when it is created.
--- New 'Plugin's can also be added via @'addPlugin':: 'Plugin' () -> 'Plugin' ()@.
+-- New 'Plugin's can also be added via @'addPlugin' :: 'Plugin' () -> 'Plugin' ()@.
 
 -- $scheduling
 -- Any @'System' ()@ can be added to a 'Schedule', programming it to run at a certain time.
