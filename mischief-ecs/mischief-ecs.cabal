@@ -65,25 +65,26 @@ library
     MischiefECS.Entities
     MischiefECS.Events
     MischiefECS.Graph
-    MischiefECS.Utils 
-    MischiefECS.Tutorial.Systems 
     MischiefECS.Messages
     MischiefECS.Prelude
     MischiefECS.Relationships
     MischiefECS.Relationships.ChildOf
-    MischiefECS.Relationships.Tree 
     MischiefECS.Relationships.Graph
+    MischiefECS.Relationships.Tree
     MischiefECS.SDL
     MischiefECS.Tables
     MischiefECS.Time
+    MischiefECS.Tutorial.Components
+    MischiefECS.Tutorial.Systems
+    MischiefECS.Utils
     MischiefECS.Vec
     MischiefECS.World
     MischiefECS.World.Change
     MischiefECS.World.Defer
     MischiefECS.World.Insert
-    MischiefECS.World.Prefs 
     MischiefECS.World.Modify
     MischiefECS.World.Par
+    MischiefECS.World.Prefs
     MischiefECS.World.Query
     MischiefECS.World.Remove
     MischiefECS.World.Spawn

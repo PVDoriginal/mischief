@@ -50,8 +50,7 @@ module MischiefECS
     -- $special_events
 
     -- * Tutorials
-
-    -- | Now that you have a basic understanding of how It is recommended to read the rest of the @Tutorial@ modules.
+    -- $tutorials
     module MischiefECS.Tutorial.Systems,
     module MischiefECS.Components,
     module MischiefECS.Entities,
@@ -205,6 +204,12 @@ import MischiefECS.World.Utils
 -- x <- 'query' @('Name', Health)
 -- @
 --
+-- Note that the 'Queryable' typeclass needs to be derived on each 'Component' that you wish to query. So, @Health@ would now look like this:
+--
+-- @
+-- data Health = Health 'Int' deriving ('Component', 'Queryable')
+-- @
+--
 -- Notice how we use the '@' type hints to specify what 'Component's we are querying for. The result will be a 'List' of tuples of those 'Component's,
 -- an element corresponding to each 'Entity' that has those specific 'Component's. This type hint is usually referred to as a 'QueryData'.
 --
@@ -282,7 +287,7 @@ import MischiefECS.World.Utils
 --
 -- @'insertRes' :: ('Component' c) => c -> 'System' ()@ can be used to add a new @Resource@ into the 'World', or to update its value if it already exists.
 --
--- @'res :: forall c. ('Component' c) => 'System' c@ can be used to retrieve the value of a resource (it usually required a type hint).
+-- @'res' :: forall c. ('Component' c) => 'System' ('Maybe' c)@ can be used to retrieve the value of a resource (it usually required a type hint).
 
 -- $events
 -- 'Event's are types that can trigger 'Observer's.
@@ -301,7 +306,7 @@ import MischiefECS.World.Utils
 --  'liftIO' $ 'print' foo
 -- @
 --
--- As you can see, an 'Observer' is just a function of the form @E -> 'System' ()@, where @E@ is a type deriving 'Event'.
+-- As you can see, an 'Observer' is any function @E -> 'System' ()@, where @E@ is a type deriving 'Event'.
 --
 -- 'Observer's can be added to an 'App' via the 'addObserver' 'Plugin':
 --
@@ -309,7 +314,7 @@ import MischiefECS.World.Utils
 -- 'addObserver' onFoo
 -- @
 --
--- And you can use the @'trigger' :: ('Event' e) => e -> 'System' ()@ to cause them to run by triggering their specific 'Event's:
+-- And you can use @'trigger' :: ('Event' e) => e -> 'System' ()@ to cause them to run by triggering their specific 'Event's:
 --
 -- @
 -- trigger (Foo 5)
@@ -318,7 +323,7 @@ import MischiefECS.World.Utils
 -- $special_events
 -- There are some special 'Event's already defined by the ECS.
 --
--- @'OnInsert' c@ triggers each time the @c@ 'Component' was inserted on an 'Entity', and carries the actual 'Entity' via @.target@.
+-- @'OnInsert' c@ triggers each time the @c@ 'Component' is inserted on an 'Entity', and carries the actual 'Entity' via @.target@.
 --
 -- @
 -- handleNewPlayer :: 'OnInsert' Player -> 'System' ()
@@ -327,3 +332,9 @@ import MischiefECS.World.Utils
 -- @
 --
 -- @'OnRemove' c@ is another such 'Event', which is triggered before the @c@ 'Component' is removed from an 'Entity'.
+
+-- $tutorials
+-- Now that you have a basic understanding of how It is recommended to read the rest of the @Tutorial@ modules.
+--
+-- (1) "MischiefECS.Tutorial.Components"
+-- (2) "MischiefECS.Tutorial.Systems"
