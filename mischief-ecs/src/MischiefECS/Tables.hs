@@ -307,7 +307,7 @@ tryGetRelationshipCollectionsFromTable table componentId =
         (\(entity, components) -> (entity, RelationshipCollection {collection = map (\(value, target) -> RelationshipResult {value, entity, target}) components, entity}))
         components''
 
-tryGetComponentsFromTable :: forall c. (Component c) => Table -> ComponentId -> IO [(Entity, ComponentResult c)]
+tryGetComponentsFromTable :: forall c. (Component c) => Table -> ComponentId -> IO [(Entity, Result c)]
 tryGetComponentsFromTable table componentId =
   do
     columns <- readIORef table.columns
@@ -317,9 +317,9 @@ tryGetComponentsFromTable table componentId =
         results <- tryGetComponentsFromColumn @c column
         entities <- Vec.toList table.entities
         let zipped = zip (map fst entities) results
-        return $ map (\(e, r) -> (e, ComponentResult (r, e))) zipped
+        return $ map (\(e, r) -> (e, Result (r, e))) zipped
 
-tryGetComponentsFromTableMaybe :: forall c. (Component c) => Table -> ComponentId -> IO [(Entity, Maybe (ComponentResult c))]
+tryGetComponentsFromTableMaybe :: forall c. (Component c) => Table -> ComponentId -> IO [(Entity, Maybe (Result c))]
 tryGetComponentsFromTableMaybe table componentId =
   do
     columns <- readIORef table.columns
@@ -330,7 +330,7 @@ tryGetComponentsFromTableMaybe table componentId =
       Just column -> do
         results <- tryGetComponentsFromColumn @c column
         entities <- Vec.toList table.entities
-        return $ zipWith (\x e -> (e, Just $ ComponentResult (x, e))) results (map fst entities)
+        return $ zipWith (\x e -> (e, Just $ Result (x, e))) results (map fst entities)
 
 tryGetRelationshipCollectionsFromArchetype :: forall c. (Component c) => ArchetypeId -> Map ArchetypeId Table -> ComponentId -> IO [(Entity, RelationshipCollection c)]
 tryGetRelationshipCollectionsFromArchetype archetype tables componentId =
@@ -338,13 +338,13 @@ tryGetRelationshipCollectionsFromArchetype archetype tables componentId =
     Nothing -> return []
     Just table -> tryGetRelationshipCollectionsFromTable table componentId
 
-tryGetComponentsFromArchetype :: forall c. (Component c) => ArchetypeId -> Map ArchetypeId Table -> ComponentId -> IO [(Entity, ComponentResult c)]
+tryGetComponentsFromArchetype :: forall c. (Component c) => ArchetypeId -> Map ArchetypeId Table -> ComponentId -> IO [(Entity, Result c)]
 tryGetComponentsFromArchetype archetype tables componentId =
   case Map.lookup archetype tables of
     Nothing -> return []
     Just table -> tryGetComponentsFromTable table componentId
 
-tryGetComponentsFromArchetypeMaybe :: forall c. (Component c) => ArchetypeId -> Map ArchetypeId Table -> ComponentId -> IO [(Entity, Maybe (ComponentResult c))]
+tryGetComponentsFromArchetypeMaybe :: forall c. (Component c) => ArchetypeId -> Map ArchetypeId Table -> ComponentId -> IO [(Entity, Maybe (Result c))]
 tryGetComponentsFromArchetypeMaybe archetype tables componentId =
   case Map.lookup archetype tables of
     Nothing -> return []
@@ -357,38 +357,38 @@ tryGetRelationshipCollectionsFromTables (Tables tables) archetypes componentId =
     results <- mapM (\archetype -> tryGetRelationshipCollectionsFromArchetype archetype tables componentId) archetypes
     return $ concat results
 
-tryGetComponentsFromTables :: forall c. (Component c) => Tables -> [ArchetypeId] -> ComponentId -> IO [(Entity, ComponentResult c)]
+tryGetComponentsFromTables :: forall c. (Component c) => Tables -> [ArchetypeId] -> ComponentId -> IO [(Entity, Result c)]
 tryGetComponentsFromTables (Tables tables) archetypes componentId =
   do
     tables <- readIORef tables
     results <- mapM (\archetype -> tryGetComponentsFromArchetype archetype tables componentId) archetypes
     return $ concat results
 
-tryGetComponentsFromTablesMaybe :: forall c. (Component c) => Tables -> [ArchetypeId] -> ComponentId -> IO [(Entity, Maybe (ComponentResult c))]
+tryGetComponentsFromTablesMaybe :: forall c. (Component c) => Tables -> [ArchetypeId] -> ComponentId -> IO [(Entity, Maybe (Result c))]
 tryGetComponentsFromTablesMaybe (Tables tables) archetypes componentId =
   do
     tables <- readIORef tables
     results <- mapM (\archetype -> tryGetComponentsFromArchetypeMaybe archetype tables componentId) archetypes
     return $ concat results
 
-newtype ComponentResult c = ComponentResult (c, Entity)
+newtype Result c = Result (c, Entity)
 
-value :: ComponentResult c -> c
-value (ComponentResult (c, _)) = c
+value :: Result c -> c
+value (Result (c, _)) = c
 
-entityOf :: ComponentResult c -> Entity
-entityOf (ComponentResult (_, e)) = e
+entityOf :: Result c -> Entity
+entityOf (Result (_, e)) = e
 
-instance (Show c) => Show (ComponentResult c) where
-  show :: ComponentResult c -> String
+instance (Show c) => Show (Result c) where
+  show :: Result c -> String
   show = show . value
 
-instance (Eq c) => Eq (ComponentResult c) where
-  (==) :: ComponentResult c -> ComponentResult c -> Bool
+instance (Eq c) => Eq (Result c) where
+  (==) :: Result c -> Result c -> Bool
   (==) a b = value a == value b
 
-instance (Ord c) => Ord (ComponentResult c) where
-  compare :: ComponentResult c -> ComponentResult c -> Ordering
+instance (Ord c) => Ord (Result c) where
+  compare :: Result c -> Result c -> Ordering
   compare a b = compare (value a) (value b)
 
 data RelationshipResult c = RelationshipResult {value :: c, target :: Entity, entity :: Entity} deriving (Show)
@@ -402,5 +402,5 @@ instance HasField "targets" (RelationshipCollection c) [Entity] where
   getField :: RelationshipCollection c -> [Entity]
   getField r = map (\x -> x.target) r.collection
 
-instance (HasField a b c) => HasField a (ComponentResult b) c where
+instance (HasField a b c) => HasField a (Result b) c where
   getField a = getField @a (value a)

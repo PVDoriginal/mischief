@@ -23,18 +23,18 @@ newtype HotKeys = HotKeys [((SDLScancode, SDLKeycode), KeyState)] deriving (Gene
 instance Component HotKeys where
   type Storage HotKeys = ResourceStorage
 
-pressed :: SDLScancode -> ComponentResult Keys -> Bool
+pressed :: SDLScancode -> Result Keys -> Bool
 pressed scancode keys = case Map.lookup scancode keys.value.physical of
   Just Pressed -> True
   Just JustPressed -> True
   _ -> False
 
-justPressed :: SDLScancode -> ComponentResult Keys -> Bool
+justPressed :: SDLScancode -> Result Keys -> Bool
 justPressed scancode keys = case Map.lookup scancode keys.value.physical of
   Just JustPressed -> True
   _ -> False
 
-justReleased :: SDLScancode -> ComponentResult Keys -> Bool
+justReleased :: SDLScancode -> Result Keys -> Bool
 justReleased scancode keys = case Map.lookup scancode keys.value.physical of
   Just JustReleased -> True
   _ -> False

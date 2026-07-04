@@ -178,7 +178,7 @@ tryGetRelationshipCollections world archetypes =
       Just componentId ->
         tryGetRelationshipCollectionsFromTables world.tables archetypes componentId
 
-tryGetComponents :: forall c. (Component c) => World -> [ArchetypeId] -> IO [(Entity, ComponentResult c)]
+tryGetComponents :: forall c. (Component c) => World -> [ArchetypeId] -> IO [(Entity, Result c)]
 tryGetComponents world archetypes =
   do
     componentId <- getComponentId (typeRep $ Proxy @c) world.components
@@ -187,7 +187,7 @@ tryGetComponents world archetypes =
       Just componentId ->
         tryGetComponentsFromTables world.tables archetypes componentId
 
-tryGetComponentsMaybe :: forall c. (Component c) => World -> [ArchetypeId] -> IO [(Entity, Maybe (ComponentResult c))]
+tryGetComponentsMaybe :: forall c. (Component c) => World -> [ArchetypeId] -> IO [(Entity, Maybe (Result c))]
 tryGetComponentsMaybe world archetypes =
   do
     componentId <- getComponentId (typeRep $ Proxy @c) world.components

@@ -113,16 +113,16 @@ insertRes res = do
 
 -- | Set the value of a component obtained as query result.
 --
--- Note that the local 'ComponentResult' won't be mutated.
+-- Note that the local 'Result' won't be mutated.
 -- You'll need to query the component again or use 'update' to update the current result.
-set :: (Bundle c) => ComponentResult c -> c -> System ()
+set :: (Bundle c) => Result c -> c -> System ()
 set !result !newValue = MischiefECS.World.Insert.insert newValue (entityOf result)
 
--- | Update the value of a 'ComponentResult'.
+-- | Update the value of a 'Result'.
 --
 -- Useful if you've done changed to the component and want to grab the live value
 -- without re-querying.
-update :: forall c. (QueryOutput c ~ ComponentResult c, Queryable c) => ComponentResult c -> System (Maybe (ComponentResult c))
+update :: forall c. (QueryOutput c ~ Result c, Queryable c) => Result c -> System (Maybe (Result c))
 update c = get @c (entityOf c)
 
 triggerInsertEvent :: ProcessedBundleData -> Entity -> System ()

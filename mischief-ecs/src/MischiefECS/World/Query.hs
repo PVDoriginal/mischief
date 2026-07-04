@@ -66,30 +66,30 @@ instance (QueryData a0, QueryData a1, QueryData a2) => QueryData (a0, a1, a2) wh
 
 class (QueryData qd) => Queryable qd where
   type QueryOutput qd
-  type QueryOutput qd = ComponentResult qd
+  type QueryOutput qd = Result qd
 
   runQueryEntity :: Proxy qd -> World -> Entity -> IO (Maybe (QueryOutput qd))
   default runQueryEntity ::
-    (Component qd, QueryOutput qd ~ ComponentResult qd) =>
+    (Component qd, QueryOutput qd ~ Result qd) =>
     Proxy qd -> World -> Entity -> IO (Maybe (QueryOutput qd))
   runQueryEntity _ world entity = do
     result <- tryGetEntityComponent @qd world entity
     return $ case result of
-      Just (Just res) -> Just $ ComponentResult (res, entity)
+      Just (Just res) -> Just $ Result (res, entity)
       _ -> Nothing
 
   -- pure $
-  --   fmap (`ComponentResult` entity) result
+  --   fmap (`Result` entity) result
 
   runQueryInternal :: Proxy qd -> [ArchetypeId] -> World -> IO [(Entity, QueryOutput qd)]
   default runQueryInternal ::
-    (Component qd, QueryOutput qd ~ ComponentResult qd) =>
+    (Component qd, QueryOutput qd ~ Result qd) =>
     Proxy qd -> [ArchetypeId] -> World -> IO [(Entity, QueryOutput qd)]
   runQueryInternal _ archetypes world = tryGetComponents @qd world archetypes
 
 -- outputEntity :: (Queryable qd) => Proxy qd -> QueryOutput qd -> Entity
 -- default outputEntity ::
---   (Component qd, QueryOutput qd ~ ComponentResult qd) =>
+--   (Component qd, QueryOutput qd ~ Result qd) =>
 --   Proxy qd -> QueryOutput qd -> Entity
 -- outputEntity _ x = x.entity
 
@@ -150,13 +150,13 @@ instance (Component c) => Queryable (Rel c) where
 -- outputEntity _ x = x.entity
 
 instance (Component c) => Queryable (Maybe c) where
-  type QueryOutput (Maybe c) = (Maybe (ComponentResult c))
+  type QueryOutput (Maybe c) = (Maybe (Result c))
   runQueryEntity _ world entity = do
     res <- tryGetEntityComponent @c world entity
     case res of
       Nothing -> return Nothing
       Just Nothing -> return $ Just Nothing
-      Just (Just x) -> return $ Just $ Just $ ComponentResult (x, entity)
+      Just (Just x) -> return $ Just $ Just $ Result (x, entity)
 
   runQueryInternal _ archetypes world = tryGetComponentsMaybe @c world archetypes
 
@@ -434,13 +434,13 @@ added :: forall qd. (QueryData qd) => QueryFilter
 added = and' $ map (Added . fst) (Set.toList $ types (Proxy @qd))
 
 and' :: [QueryFilter] -> QueryFilter
-and' = foldr and NoFilter
+and' = foldr (&.) NoFilter
 
-and :: QueryFilter -> QueryFilter -> QueryFilter
-and = And
+(&.) :: QueryFilter -> QueryFilter -> QueryFilter
+(&.) = And
 
-or :: QueryFilter -> QueryFilter -> QueryFilter
-or = Or
+(|.) :: QueryFilter -> QueryFilter -> QueryFilter
+(|.) = Or
 
 filterArchetype :: QueryFilter -> [ComponentId] -> World -> IO Bool
 filterArchetype NoFilter _ _ = return True

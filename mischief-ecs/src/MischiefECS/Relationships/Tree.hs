@@ -2,7 +2,7 @@
 
 module MischiefECS.Relationships.Tree where
 
-import MischiefECS (ComponentResult)
+import MischiefECS (Result)
 import MischiefECS.Components
 import MischiefECS.Entities
 import MischiefECS.Relationships.Graph

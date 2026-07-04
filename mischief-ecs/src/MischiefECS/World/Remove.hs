@@ -41,8 +41,8 @@ remove entity = do
 class Delete r where
   delete :: r -> System ()
 
-instance (Component c) => Delete (ComponentResult c) where
-  delete :: ComponentResult c -> System ()
+instance (Component c) => Delete (Result c) where
+  delete :: Result c -> System ()
   delete result = remove @c (entityOf result)
 
 instance (Component c) => Delete (RelationshipResult c) where

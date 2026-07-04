@@ -32,7 +32,7 @@ newMessages = Messages {messages = [], readers = Map.empty}
 
 newtype Reader = Reader (IORef Tick)
 
-getReader :: (Message m) => ComponentResult (Messages m) -> System Reader
+getReader :: (Message m) => Result (Messages m) -> System Reader
 getReader !m = do
   world <- ask
   case Map.lookup world.systemId m.readers of
@@ -46,7 +46,7 @@ instance (Message m) => Component (Messages m)
 
 instance (Message m) => Queryable (Messages m)
 
-writeMessage :: (Message m) => m -> ComponentResult (Messages m) -> System ()
+writeMessage :: (Message m) => m -> Result (Messages m) -> System ()
 writeMessage !message !messages = do
   world <- ask
   frame <- liftIO $ readIORef world.frame
@@ -54,7 +54,7 @@ writeMessage !message !messages = do
   modify messages (\Messages {messages, readers} -> Messages {messages = message' : messages, readers})
   clearOldMessages messages
 
-readMessages :: (Message m) => ComponentResult (Messages m) -> System [m]
+readMessages :: (Message m) => Result (Messages m) -> System [m]
 readMessages !m = do
   world <- ask
   Reader tick <- getReader m
@@ -69,7 +69,7 @@ addMessage :: forall (m :: Type). (Message m) => Plugin ()
 addMessage = do
   addRes $ newMessages @m
 
-clearOldMessages :: (Message m) => ComponentResult (Messages m) -> System ()
+clearOldMessages :: (Message m) => Result (Messages m) -> System ()
 clearOldMessages !m = do
   world <- ask
   frame <- liftIO $ readIORef world.frame

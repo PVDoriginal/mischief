@@ -12,7 +12,6 @@ import MischiefECS
 import MischiefECS.Components.Spawn
 import Relationships (testRelationships)
 import System.Exit (exitSuccess)
-import Prelude hiding (and)
 
 data A = A deriving (Queryable, Show)
 
@@ -50,6 +49,8 @@ setup :: System ()
 setup = do
   e <- spawn (A, Name "Lol")
   Just (name, _) <- get @(Name, (A, B)) e
+
+  q <- query' @Name $ with @A &. with @B
 
   liftIO $ print name
 
