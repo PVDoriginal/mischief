@@ -24,6 +24,7 @@ import MischiefECS.Components.Bundle
 import MischiefECS.Components.Runnable (Runnable, runFor)
 import MischiefECS.Components.Spawn (getOrAddComponentId)
 import MischiefECS.Events
+import MischiefECS.Tables
 import MischiefECS.World
 import MischiefECS.World.Defer
 import MischiefECS.World.Insert
@@ -32,8 +33,8 @@ import MischiefECS.World.Spawn
 
 data App = App
   { world :: World,
-    systems :: Systems,
-    scheduler :: Scheduler
+    systems :: Systems
+    -- scheduler :: Scheduler
   }
 
 newtype Plugin a = Plugin (ReaderT App IO a)
@@ -48,7 +49,7 @@ newApp plugins = do
   systems <- Systems.newSystems
   scheduler <- Scheduler.newScheduler
 
-  let app = App {world, systems, scheduler}
+  let app = App {world, systems}
 
   for_ (appInit : plugins) $ \plugin ->
     runPlugin plugin app
@@ -57,8 +58,16 @@ newApp plugins = do
 
 runApp :: App -> IO ()
 runApp app = do
-  startups <- Scheduler.getSchedules StartupSchedule app.scheduler
-  updates <- Scheduler.getSchedules UpdateSchedule app.scheduler
+  scheduler <-
+    runSystem
+      ( do
+          Just sch <- res @Scheduler
+          return $ value sch
+      )
+      app.world
+
+  startups <- Scheduler.getSchedules StartupSchedule scheduler
+  updates <- Scheduler.getSchedules UpdateSchedule scheduler
 
   runSchedules startups
   runSchedulesLoop updates
@@ -70,20 +79,22 @@ runApp app = do
 
     runSchedules schedules =
       for_ schedules $ \schedule -> do
-        runSystem (runSchedule schedule app) app.world
+        runSystem (runSchedule schedule) app.world
 
-runSchedule :: ScheduleLabel -> App -> System ()
-runSchedule schedule app = do
-  systems <- liftIO $ Scheduler.getScheduleSystems schedule app.scheduler
+runSchedule :: ScheduleLabel -> System ()
+runSchedule schedule = do
+  world <- ask
+  Just scheduler <- res @Scheduler
+  systems <- liftIO $ Scheduler.getScheduleSystems schedule (value scheduler)
 
   for_ (concat systems) $ \systemId -> do
     Just (systemFunction, lastSystemTick) <- get @(SystemFunction, SystemTick) systemId.entity
-    currentSystemTick <- liftIO $ readIORef app.world.tick
+    currentSystemTick <- liftIO $ readIORef world.tick
     set lastSystemTick (SystemTick currentSystemTick)
 
-    let world = setSystemId systemId $ setSystemTicks lastSystemTick.inner currentSystemTick app.world
+    let world' = setSystemId systemId $ setSystemTicks lastSystemTick.inner currentSystemTick world
 
-    local (\_ -> world) $ do
+    local (const world') $ do
       systemFunction.inner
       flush
       flushAsync
@@ -96,23 +107,33 @@ addSystems schedule system = do
   let label = ScheduleLabel $ typeOf schedule
   let SystemConfigData {systems, edges} = systemConfigData system
 
+  scheduler <- run $ do
+    Just sch <- res @Scheduler
+    return $ value sch
+
   for_ systems $ \system -> do
     systemId <- run $ Systems.getSystemId label system app.systems
-    liftIO $ Scheduler.addSystem label systemId app.scheduler
+    liftIO $ Scheduler.addSystem label systemId scheduler
 
   for_ edges $ \(s1, s2) -> do
     id1 <- run $ Systems.getSystemId label s1 app.systems
     id2 <- run $ Systems.getSystemId label s2 app.systems
-    liftIO $ Scheduler.addSystemEdge label (id1, id2) app.scheduler
+    liftIO $ Scheduler.addSystemEdge label (id1, id2) scheduler
 
 addSchedule :: (Schedule s) => s -> ScheduleType -> Plugin ()
 addSchedule schedule scheduleType = do
-  App {scheduler} <- ask
+  scheduler <- run $ do
+    Just sch <- res @Scheduler
+    return $ value sch
+
   liftIO $ Scheduler.addSchedule (ScheduleLabel $ typeOf schedule) scheduleType scheduler
 
 addScheduleEdge :: (Schedule s1, Schedule s2) => (s1, s2) -> ScheduleType -> Plugin ()
 addScheduleEdge (s1, s2) scheduleType = do
-  App {scheduler} <- ask
+  scheduler <- run $ do
+    Just sch <- res @Scheduler
+    return $ value sch
+
   liftIO $ Scheduler.addScheduleEdge (ScheduleLabel $ typeOf s1, ScheduleLabel $ typeOf s2) scheduleType scheduler
 
 addRes :: (Component r, Bundle r) => r -> Plugin ()
@@ -153,6 +174,9 @@ newSchedules = do
 
 appInit :: Plugin ()
 appInit = do
+  scheduler <- liftIO Scheduler.newScheduler
+  run $ insertRes scheduler
+
   addSchedule Startup StartupSchedule
 
   addSchedule First UpdateSchedule

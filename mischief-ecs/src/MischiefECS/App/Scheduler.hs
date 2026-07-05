@@ -5,15 +5,18 @@ import Data.IORef
 import Data.Map (Map)
 import Data.Map qualified as Map
 import MischiefECS.App.Schedules
+import MischiefECS.Components
 import MischiefECS.Graph (Graph)
 import MischiefECS.Graph qualified as Graph
 import MischiefECS.World
+import MischiefECS.World.Query
 
 data Scheduler = Scheduler
   { startup :: Graph ScheduleLabel,
     update :: Graph ScheduleLabel,
     systems :: IORef (Map ScheduleLabel (Graph SystemId))
   }
+  deriving (Component, Queryable)
 
 data ScheduleType = StartupSchedule | UpdateSchedule
 
