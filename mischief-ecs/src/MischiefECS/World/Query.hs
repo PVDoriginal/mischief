@@ -14,6 +14,7 @@ import Data.Map qualified as Map
 import Data.Maybe
 import Data.Set (Set)
 import Data.Set qualified as Set
+import {-# SOURCE #-} MischiefECS.App.Systems
 import MischiefECS.Archetypes
 import {-# SOURCE #-} MischiefECS.Archetypes.Graph
 import MischiefECS.Components
@@ -349,20 +350,22 @@ filterQuery world (Without x) _ outputs = do
         outputs
 filterQuery world (Changed x) archetypes outputs = do
   res <- liftIO $ tryGetTicks x world archetypes
+  (lastSystemTick, currentSystemTick) <- getSystemTicks world
   return $
     filter
       ( \(index, _) ->
           let res' = res !! index
-           in res'.changed >= world.lastSystemTick && res'.changed < world.currentSystemTick
+           in res'.changed >= lastSystemTick && res'.changed < currentSystemTick
       )
       outputs
 filterQuery world (Added x) archetypes outputs = do
   res <- liftIO $ tryGetTicks x world archetypes
+  (lastSystemTick, currentSystemTick) <- getSystemTicks world
   return $
     filter
       ( \(index, _) ->
           let res' = res !! index
-           in res'.added >= world.lastSystemTick && res'.added < world.currentSystemTick
+           in res'.added >= lastSystemTick && res'.added < currentSystemTick
       )
       outputs
 filterQuery world (CheckRaw (x, ef)) archetypes outputs = do
@@ -422,6 +425,12 @@ instance Queryable DefaultValue
 instance Queryable ComponentArchetypes
 
 instance Queryable ComponentPairs
+
+instance Queryable SystemFunction
+
+instance Queryable SystemTick
+
+instance Queryable LastSystemTick
 
 data QueryFilter
   = NoFilter

@@ -1,6 +1,9 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
+
 module MischiefECS.App.Systems where
 
 import Control.Monad.IO.Class
+import Control.Monad.Reader
 import Data.Foldable
 import Data.IORef
 import Data.Map (Map)
@@ -8,8 +11,10 @@ import Data.Map qualified as Map
 import GHC.StableName (StableName, eqStableName, hashStableName, makeStableName)
 import MischiefECS.App.Schedules
 import MischiefECS.Components
+import MischiefECS.Entities
 import MischiefECS.Tables
 import MischiefECS.World
+import MischiefECS.World.Internal
 import MischiefECS.World.Query
 import MischiefECS.World.Spawn
 
@@ -19,9 +24,11 @@ data Systems = Systems
     counter :: IORef Int
   }
 
-newtype SystemFunction = SystemFunction {inner :: System ()} deriving anyclass (Component, Queryable)
+newtype SystemFunction = SystemFunction {inner :: System ()} deriving anyclass (Component)
 
-newtype SystemTick = SystemTick {inner :: Tick} deriving anyclass (Component, Queryable)
+newtype SystemTick = SystemTick {inner :: Tick} deriving anyclass (Component)
+
+newtype LastSystemTick = LastSystemTick {inner :: Tick} deriving anyclass (Component)
 
 newSystems :: IO Systems
 newSystems = do
@@ -36,7 +43,7 @@ getSystemId' system stableName list counter systemData = do
   case find (\x -> fst x `eqStableName` stableName) list' of
     Just (_, x) -> return x
     Nothing -> do
-      index <- spawn (SystemFunction system, SystemTick (Tick 0))
+      index <- spawn (SystemFunction system, (SystemTick (Tick 0), LastSystemTick (Tick 0)))
       liftIO $ modifyIORef' list (++ [(stableName, SystemId index)])
       -- tick <- newIORef $ Tick 0
       -- modifyIORef' systemData $ Map.insert (SystemId index) (system, tick)
@@ -62,3 +69,19 @@ getSystemData systemId Systems {systemData} = do
   Just f <- get @SystemFunction systemId.entity
   Just t <- get @SystemTick systemId.entity
   return (f.inner, t.inner)
+
+getSystemTicks :: World -> IO (Tick, Tick)
+getSystemTicks world = do
+  let (SystemId sys) = world.systemId
+  runSystem
+    ( do
+        Just (a, b) <- get @(LastSystemTick, SystemTick) sys
+        return (a.inner, b.inner)
+    )
+    world
+
+localEntity :: forall m w. (MonadSystem w m) => m Entity
+localEntity = do
+  world <- asks getWorld
+  let (SystemId sys) = world.systemId
+  return sys

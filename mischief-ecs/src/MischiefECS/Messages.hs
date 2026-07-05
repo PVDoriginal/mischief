@@ -17,11 +17,12 @@ import Data.Kind
 import Data.Map (Map)
 import Data.Map qualified as Map
 import MischiefECS.App
+import MischiefECS.App.Systems
 import MischiefECS.Components
 import MischiefECS.Tables
 import MischiefECS.World
 import MischiefECS.World.Modify
-import MischiefECS.World.Query (Queryable)
+import MischiefECS.World.Query (Queryable, get)
 
 class (Typeable m) => Message m
 
@@ -50,18 +51,24 @@ writeMessage :: (Message m) => m -> Result (Messages m) -> System ()
 writeMessage !message !messages = do
   world <- ask
   frame <- liftIO $ readIORef world.frame
-  let message' = (frame, world.currentSystemTick, message)
+
+  loc <- localEntity
+  Just currentSystemTick <- get @SystemTick loc
+
+  let message' = (frame, currentSystemTick.inner, message)
   modify messages (\Messages {messages, readers} -> Messages {messages = message' : messages, readers})
   clearOldMessages messages
 
 readMessages :: (Message m) => Result (Messages m) -> System [m]
 readMessages !m = do
-  world <- ask
   Reader tick <- getReader m
   readerTick <- liftIO $ readIORef tick
 
-  let newMessages = map (\(_, _, x) -> x) $ filter (\(_, tick, _) -> tick < world.currentSystemTick && tick > readerTick) m.messages
-  liftIO $ writeIORef tick world.currentSystemTick
+  loc <- localEntity
+  Just currentSystemTick <- get @SystemTick loc
+
+  let newMessages = map (\(_, _, x) -> x) $ filter (\(_, tick, _) -> tick < currentSystemTick.inner && tick > readerTick) m.messages
+  liftIO $ writeIORef tick currentSystemTick.inner
 
   return newMessages
 

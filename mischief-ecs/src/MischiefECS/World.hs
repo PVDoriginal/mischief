@@ -38,10 +38,6 @@ data World = World
     deferredAsync :: TVar [System ()],
     -- | The current Tick, incremented each time a system is ran, used for change detection.
     tick :: IORef Tick,
-    -- | The tick on which the last instance of the current system ran.
-    lastSystemTick :: Tick,
-    -- | The tick on which the current system has started.
-    currentSystemTick :: Tick,
     -- | ID of the current system.
     systemId :: SystemId,
     -- | The current frame.
@@ -76,28 +72,22 @@ newWorld = do
         deferred,
         deferredAsync,
         tick,
-        lastSystemTick = Tick 0,
-        currentSystemTick = Tick 0,
         systemId = SystemId (Entity 0 0),
         frame,
         prefs
       }
 
-setSystemTicks :: Tick -> Tick -> World -> World
-setSystemTicks lastSystemTick currentSystemTick World {archetypes, components, entities, tables, deferred, deferredAsync, tick, systemId, frame, events, prefs} =
-  World {archetypes, components, entities, tables, deferred, deferredAsync, tick, lastSystemTick, currentSystemTick, systemId, frame, events, prefs}
-
 setSystemId :: SystemId -> World -> World
-setSystemId systemId World {archetypes, components, entities, tables, deferred, deferredAsync, tick, lastSystemTick, currentSystemTick, frame, events, prefs} =
-  World {archetypes, components, entities, tables, deferred, deferredAsync, tick, lastSystemTick, currentSystemTick, systemId, frame, events, prefs}
+setSystemId systemId World {archetypes, components, entities, tables, deferred, deferredAsync, tick, frame, events, prefs} =
+  World {archetypes, components, entities, tables, deferred, deferredAsync, tick, systemId, frame, events, prefs}
 
 setDeferred :: IORef [System ()] -> World -> World
-setDeferred deferred World {archetypes, components, entities, tables, deferredAsync, tick, lastSystemTick, currentSystemTick, frame, events, systemId, prefs} =
-  World {archetypes, components, deferred, entities, tables, deferredAsync, tick, lastSystemTick, currentSystemTick, frame, events, systemId, prefs}
+setDeferred deferred World {archetypes, components, entities, tables, deferredAsync, tick, frame, events, systemId, prefs} =
+  World {archetypes, components, deferred, entities, tables, deferredAsync, tick, frame, events, systemId, prefs}
 
 setPrefs :: WorldPrefs -> World -> World
-setPrefs prefs World {archetypes, components, entities, tables, deferred, deferredAsync, tick, lastSystemTick, currentSystemTick, frame, events, systemId} =
-  World {archetypes, components, entities, tables, deferred, deferredAsync, tick, lastSystemTick, currentSystemTick, frame, events, systemId, prefs}
+setPrefs prefs World {archetypes, components, entities, tables, deferred, deferredAsync, tick, frame, events, systemId} =
+  World {archetypes, components, entities, tables, deferred, deferredAsync, tick, frame, events, systemId, prefs}
 
 -- | Increment the World's tick.
 tick :: System ()

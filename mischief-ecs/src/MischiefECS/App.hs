@@ -4,7 +4,7 @@ module MischiefECS.App where
 
 import Control.Monad (forever)
 import Control.Monad.IO.Class (MonadIO (liftIO))
-import Control.Monad.Reader (MonadReader (..))
+import Control.Monad.Reader (MonadReader (..), asks)
 import Control.Monad.Trans.Reader (ReaderT (..))
 import Data.Data
 -- import Data.Map
@@ -17,7 +17,7 @@ import MischiefECS.App.Scheduler (ScheduleType (..), Scheduler)
 import MischiefECS.App.Scheduler qualified as Scheduler
 import MischiefECS.App.Schedules
 import MischiefECS.App.SystemConfig
-import MischiefECS.App.Systems (SystemFunction, SystemTick (SystemTick), Systems)
+import MischiefECS.App.Systems (LastSystemTick (LastSystemTick), SystemFunction, SystemTick (SystemTick), Systems)
 import MischiefECS.App.Systems qualified as Systems
 import MischiefECS.Components
 import MischiefECS.Components.Bundle
@@ -28,6 +28,7 @@ import MischiefECS.Tables
 import MischiefECS.World
 import MischiefECS.World.Defer
 import MischiefECS.World.Insert
+import MischiefECS.World.Internal
 import MischiefECS.World.Query
 import MischiefECS.World.Spawn
 
@@ -90,11 +91,11 @@ runSchedule schedule = do
   for_ (concat systems) $ \systemId -> do
     Just (systemFunction, lastSystemTick) <- get @(SystemFunction, SystemTick) systemId.entity
     currentSystemTick <- liftIO $ readIORef world.tick
+
     set lastSystemTick (SystemTick currentSystemTick)
+    insert (LastSystemTick lastSystemTick.inner) systemId.entity
 
-    let world' = setSystemId systemId $ setSystemTicks lastSystemTick.inner currentSystemTick world
-
-    local (const world') $ do
+    Control.Monad.Reader.local (setSystemId systemId) $ do
       systemFunction.inner
       flush
       flushAsync

@@ -6,6 +6,7 @@ import Data.IORef
 import Data.Map qualified as Map
 import Data.Maybe
 import Data.Set qualified as Set
+import {-# SOURCE #-} MischiefECS.App.Systems
 import MischiefECS.Archetypes
 import MischiefECS.Components
 import MischiefECS.Components.Bundle
@@ -59,12 +60,15 @@ getDefault component = do
   let dv = value x
   let (DefaultValue value) = dv
 
+  let (SystemId sys) = world.systemId
+  Just currentSystemTick <- get @SystemTick sys
+
   return
     ProcessedBundleElement
       { id = component,
         component =
           ComponentData
             { value,
-              ticks = ComponentTicks {changed = world.currentSystemTick, added = world.currentSystemTick}
+              ticks = ComponentTicks {changed = currentSystemTick.inner, added = currentSystemTick.inner}
             }
       }
