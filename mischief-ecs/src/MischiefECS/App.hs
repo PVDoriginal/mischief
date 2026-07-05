@@ -73,7 +73,7 @@ runApp app = do
         systems <- Scheduler.getScheduleSystems schedule app.scheduler
 
         for_ (concat systems) $ \systemId -> do
-          (system, systemTick) <- Systems.getSystemData systemId app.systems
+          (system, systemTick) <- runSystem (Systems.getSystemData systemId app.systems) app.world
 
           lastSystemTick <- readIORef systemTick
           currentSystemTick <- readIORef app.world.tick
