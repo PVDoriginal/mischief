@@ -82,18 +82,8 @@ getSystemTicks world = do
     )
     world
 
-localEntity :: forall m w. (MonadSystem w m) => m Entity
-localEntity = do
+loc :: forall m w. (MonadSystem w m) => m Entity
+loc = do
   world <- asks getWorld
   let (SystemId sys) = world.systemId
   return sys
-
-loc :: forall qd m w. (MonadSystem w m, Queryable qd) => m (Maybe (QueryOutput qd))
-loc = do
-  e <- localEntity
-  get @qd e
-
-insertLoc :: forall b. (Bundle b) => b -> System ()
-insertLoc b = do
-  e <- localEntity
-  insert b e

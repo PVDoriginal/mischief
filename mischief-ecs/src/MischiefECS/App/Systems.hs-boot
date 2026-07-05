@@ -19,4 +19,4 @@ newtype LastSystemTick = LastSystemTick {inner :: Tick}
 
 instance Component LastSystemTick
 
-localEntity :: forall m w. (MonadSystem w m) => m Entity
+loc :: forall m w. (MonadSystem w m) => m Entity
