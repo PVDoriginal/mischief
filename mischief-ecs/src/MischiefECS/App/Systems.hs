@@ -21,7 +21,7 @@ data Systems = Systems
 
 newtype SystemFunction = SystemFunction {inner :: System ()} deriving anyclass (Component, Queryable)
 
-newtype SystemTick = SystemTick {inner :: IORef Tick} deriving anyclass (Component, Queryable)
+newtype SystemTick = SystemTick {inner :: Tick} deriving anyclass (Component, Queryable)
 
 newSystems :: IO Systems
 newSystems = do
@@ -36,8 +36,7 @@ getSystemId' system stableName list counter systemData = do
   case find (\x -> fst x `eqStableName` stableName) list' of
     Just (_, x) -> return x
     Nothing -> do
-      tick <- liftIO $ newIORef $ Tick 0
-      index <- spawn (SystemFunction system, SystemTick tick)
+      index <- spawn (SystemFunction system, SystemTick (Tick 0))
       liftIO $ modifyIORef' list (++ [(stableName, SystemId index)])
       -- tick <- newIORef $ Tick 0
       -- modifyIORef' systemData $ Map.insert (SystemId index) (system, tick)
@@ -56,7 +55,7 @@ getSystemId label system Systems {systemMap, counter, systemData} = do
       liftIO $ modifyIORef' systemMap (Map.insert (label, hashStableName stableName) l)
       getSystemId' system stableName l counter systemData
 
-getSystemData :: SystemId -> Systems -> System (System (), IORef Tick)
+getSystemData :: SystemId -> Systems -> System (System (), Tick)
 getSystemData systemId Systems {systemData} = do
   -- systemData <- liftIO $ readIORef systemData
   -- maybe undefined return (Map.lookup systemId systemData)

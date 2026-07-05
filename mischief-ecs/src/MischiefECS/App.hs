@@ -17,7 +17,7 @@ import MischiefECS.App.Scheduler (ScheduleType (..), Scheduler)
 import MischiefECS.App.Scheduler qualified as Scheduler
 import MischiefECS.App.Schedules
 import MischiefECS.App.SystemConfig
-import MischiefECS.App.Systems (Systems)
+import MischiefECS.App.Systems (SystemFunction, SystemTick (SystemTick), Systems)
 import MischiefECS.App.Systems qualified as Systems
 import MischiefECS.Components
 import MischiefECS.Components.Bundle
@@ -70,22 +70,25 @@ runApp app = do
 
     runSchedules schedules =
       for_ schedules $ \schedule -> do
-        systems <- Scheduler.getScheduleSystems schedule app.scheduler
+        runSystem (runSchedule schedule app) app.world
 
-        for_ (concat systems) $ \systemId -> do
-          (system, systemTick) <- runSystem (Systems.getSystemData systemId app.systems) app.world
+runSchedule :: ScheduleLabel -> App -> System ()
+runSchedule schedule app = do
+  systems <- liftIO $ Scheduler.getScheduleSystems schedule app.scheduler
 
-          lastSystemTick <- readIORef systemTick
-          currentSystemTick <- readIORef app.world.tick
-          writeIORef systemTick currentSystemTick
+  for_ (concat systems) $ \systemId -> do
+    Just (systemFunction, lastSystemTick) <- get @(SystemFunction, SystemTick) systemId.entity
+    currentSystemTick <- liftIO $ readIORef app.world.tick
+    set lastSystemTick (SystemTick currentSystemTick)
 
-          let world = setSystemId systemId $ setSystemTicks lastSystemTick currentSystemTick app.world
+    let world = setSystemId systemId $ setSystemTicks lastSystemTick.inner currentSystemTick app.world
 
-          runSystem system world
-          runSystem flush world
-          runSystem flushAsync world
-          runSystem flushEvents world
-          runSystem tick world
+    local (\_ -> world) $ do
+      systemFunction.inner
+      flush
+      flushAsync
+      flushEvents
+      tick
 
 addSystems :: (Schedule sc, SystemConfig s) => sc -> s -> Plugin ()
 addSystems schedule system = do
