@@ -52,7 +52,7 @@ writeMessage !message !messages = do
   world <- ask
   frame <- liftIO $ readIORef world.frame
 
-  loc <- loc
+  loc <- self
   Just currentSystemTick <- get @SystemTick loc
 
   let message' = (frame, currentSystemTick.inner, message)
@@ -64,7 +64,7 @@ readMessages !m = do
   Reader tick <- getReader m
   readerTick <- liftIO $ readIORef tick
 
-  loc <- loc
+  loc <- self
   Just currentSystemTick <- get @SystemTick loc
 
   let newMessages = map (\(_, _, x) -> x) $ filter (\(_, tick, _) -> tick < currentSystemTick.inner && tick > readerTick) m.messages

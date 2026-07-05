@@ -78,8 +78,3 @@ dummy = return ()
 
 newtype Counter = Counter Int
   deriving anyclass (Component, Queryable)
-
-idk :: System ()
-idk = do
-  loc <- loc
-  alter (\case Nothing -> Just $ Counter 0; (Just (Counter x)) -> Just (Counter $ x + 1)) loc

@@ -4,6 +4,7 @@ module MischiefECS.App.Systems where
 
 import Control.Monad.IO.Class
 import Control.Monad.Reader
+import Data.Default
 import Data.Foldable
 import Data.IORef
 import Data.Map (Map)
@@ -82,8 +83,13 @@ getSystemTicks world = do
     )
     world
 
-loc :: forall m w. (MonadSystem w m) => m Entity
-loc = do
+self :: forall m w. (MonadSystem w m) => m Entity
+self = do
   world <- asks getWorld
   let (SystemId sys) = world.systemId
   return sys
+
+local :: forall c. (Default c, Queryable c, QueryOutput c ~ Result c, Bundle c) => System (Result c)
+local = do
+  loc <- self
+  getOrInsert (def @c) loc
