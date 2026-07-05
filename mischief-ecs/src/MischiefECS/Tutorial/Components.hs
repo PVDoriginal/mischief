@@ -21,6 +21,9 @@ module MischiefECS.Tutorial.Components
 
     -- * Relationships
     -- $relationships
+
+    -- * Next Chapter
+    -- $next
   )
 where
 
@@ -242,7 +245,7 @@ import MischiefECS.World.Spawn
 --
 -- The first field, @id@, is the entity corresponding to the component, while the second field, @entity@, is an optional reference to another entity.
 --
--- This means that each 'ComponentId' can either be a simple component, or a pair between a component or an entity (technically even between
+-- This means that each 'ComponentId' can either be a simple component, or a pair between a component and an entity (technically even between
 -- two components or two entities but that's not directly allowed by the API).
 --
 -- Let's consider the following component:
@@ -316,3 +319,6 @@ import MischiefECS.World.Spawn
 -- @(Likes, charlie)@ will overwrite @(Likes, alice)@.
 --
 -- This is useful for relationships such as 'ChildOf', since an entity can only have one parent at a time.
+
+-- $next
+-- "MischiefECS.Tutorial.Systems"

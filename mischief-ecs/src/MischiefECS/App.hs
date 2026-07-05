@@ -94,12 +94,12 @@ addSystems schedule system = do
   let SystemConfigData {systems, edges} = systemConfigData system
 
   for_ systems $ \system -> do
-    systemId <- liftIO $ Systems.getSystemId label system app.systems
+    systemId <- run $ Systems.getSystemId label system app.systems
     liftIO $ Scheduler.addSystem label systemId app.scheduler
 
   for_ edges $ \(s1, s2) -> do
-    id1 <- liftIO $ Systems.getSystemId label s1 app.systems
-    id2 <- liftIO $ Systems.getSystemId label s2 app.systems
+    id1 <- run $ Systems.getSystemId label s1 app.systems
+    id2 <- run $ Systems.getSystemId label s2 app.systems
     liftIO $ Scheduler.addSystemEdge label (id1, id2) app.scheduler
 
 addSchedule :: (Schedule s) => s -> ScheduleType -> Plugin ()
@@ -135,7 +135,7 @@ addPlugin plugin = do
   app <- ask
   liftIO $ runPlugin plugin app
 
-run :: System () -> Plugin ()
+run :: System a -> Plugin a
 run s = do
   app <- ask
   liftIO $ runSystem s app.world

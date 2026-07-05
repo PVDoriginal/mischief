@@ -51,7 +51,7 @@ data World = World
 
 newtype Frame = Frame Int deriving (Show, Eq, Ord)
 
-newtype SystemId = SystemId Int deriving (Show, Eq, Ord)
+newtype SystemId = SystemId {entity :: Entity} deriving (Show, Eq, Ord)
 
 newWorld :: IO World
 newWorld = do
@@ -78,7 +78,7 @@ newWorld = do
         tick,
         lastSystemTick = Tick 0,
         currentSystemTick = Tick 0,
-        systemId = SystemId 0,
+        systemId = SystemId (Entity 0 0),
         frame,
         prefs
       }

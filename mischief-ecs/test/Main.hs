@@ -13,7 +13,7 @@ import MischiefECS.Components.Spawn
 import Relationships (testRelationships)
 import System.Exit (exitSuccess)
 
-data A = A Int deriving (Queryable, Show, Eq)
+newtype A = A Int deriving (Queryable, Show, Eq)
 
 instance Component A where
   required = require @B
@@ -45,6 +45,9 @@ plugin = do
   addSystems Startup setup
   addSystems Update dummy
 
+  addSystems Update s1
+  addSystems Update $ s2 `after` s1
+
 setup :: System ()
 setup = do
   _ <- spawn (A 5, Name "Lol")
@@ -54,6 +57,20 @@ setup = do
 
   q <- query' @Name $ eq (A 5)
   traverse_ (liftIO . print) q
+
+s1 :: System ()
+s1 = do
+  Just a5 <- single' @A $ check (== A 5)
+  Just a6 <- single' @A $ check (== A 6)
+
+  set a5 $ A 6
+  set a6 $ A 5
+
+s2 :: System ()
+s2 = do
+  q <- query' @(Name, A) $ changed @A
+  for_ q $ \(name, a) -> do
+    liftIO $ putStrLn $ show name ++ " " ++ show a
 
 dummy :: System ()
 dummy = return ()
