@@ -116,13 +116,13 @@ import MischiefECS.World.Utils
 -- data Health = Health 'Int' deriving ('Component')
 -- @
 --
--- Additionally, a tuple of 'Component's is generally referred to as a 'Bundle'.
+-- Additionally, a tuple of components is generally referred to as a 'Bundle'.
 
 -- $entities
--- An 'Entity' is just an index towards a specific group of 'Component's.
+-- An 'Entity' is just an index towards a specific group of components.
 
 -- $systems
--- 'System's are the lifeblood of Mischief. A 'System' is a 'Monad' which operates on the 'World': the global space containing all data of the 'App'.
+-- @Systems@ are the lifeblood of @Mischief@. A 'System' is a 'Monad' which operates on the 'World': the global space containing all data of the 'App'.
 --
 -- For instance, you can use @'spawn' :: ('Bundle' b) => b -> 'System' 'Entity'@ to spawn a new 'Bundle' into the 'World' and get back its 'Entity'.
 --
@@ -135,7 +135,7 @@ import MischiefECS.World.Utils
 --  'return' ()
 -- @
 --
--- Another useful 'System' is @'despawn' :: 'Entity' -> 'System' ()@ which receives an 'Entity' and despawns it from the 'World', deleting all the 'Component's.
+-- Another useful 'System' is @'despawn' :: 'Entity' -> 'System' ()@ which receives an 'Entity' and despawns it from the 'World', deleting all its components.
 --
 -- Every 'System' also has 'IO' access via 'liftIO'.
 
@@ -155,16 +155,16 @@ import MischiefECS.World.Utils
 --  'run' spawnPlayer
 -- @
 --
--- As shown above, an 'App' expects a list of 'Plugin's when it is created.
--- New 'Plugin's can also be added via @'addPlugin' :: 'Plugin' () -> 'Plugin' ()@.
+-- As shown above, an 'App' expects a list of Plugins when it is created.
+-- New Plugins can also be added via @'addPlugin' :: 'Plugin' () -> 'Plugin' ()@.
 
 -- $scheduling
--- Any @'System' ()@ can be added to a 'Schedule', programming it to run at a certain time.
+-- Any @'System' ()@ can be added to a 'Schedule', telling it to run at a certain time.
 --
--- There are many predefined 'Schedule's, such as 'Startup', which runs once at the start of the 'App', and
+-- There are many predefined schedules, such as 'Startup', which runs once at the start of the app, and
 -- 'Update', which runs once per frame.
 --
--- Creating custom 'Schedule's and running them on-demand is also possible (TODO: actually add this).
+-- Creating custom schedules and running them on-demand is also possible (TODO: actually add this).
 --
 -- For instance, the following plugin will spawn a player in the 'Startup' schedule:
 --
@@ -173,7 +173,7 @@ import MischiefECS.World.Utils
 -- @
 
 -- $ordering
--- The scheduler also allows custom ordering between 'System's.
+-- The scheduler also allows custom ordering between systems.
 --
 -- Let's consider the following 'System':
 --
@@ -188,7 +188,7 @@ import MischiefECS.World.Utils
 -- is that this system changes the name of the player.
 --
 -- However, if we just add them both to the 'Startup' schedule, there's no guarantee
--- that this sytem will run after the one spawning the player. So instead, we can do is specify that we want this 'System'
+-- that this sytem will run after the one spawning the player. So instead, we can do is specify that we want /this/ system
 -- to run after the other. This can be done when adding it through a 'Plugin':
 --
 -- @
@@ -197,8 +197,8 @@ import MischiefECS.World.Utils
 -- @
 
 -- $queries
--- @Queries@ are operations that allow reading specific data from the ECS. For instance, we may use the following 'query' to get
--- the 'Name' and 'Health' (defined above) of each 'Entity' in our 'World':
+-- @Queries@ are operations that allow reading specific data from the ECS. For instance, we may use the following query to get
+-- the 'Name' and @Health@ (defined above) of each entity in our 'World':
 --
 -- @
 -- x <- 'query' @('Name', Health)
@@ -210,14 +210,14 @@ import MischiefECS.World.Utils
 -- data Health = Health 'Int' deriving ('Component', 'Queryable')
 -- @
 --
--- Notice how we use the '@' type hints to specify what 'Component's we are querying for. The result will be a 'List' of tuples of those 'Component's,
--- an element corresponding to each 'Entity' that has those specific 'Component's. This type hint is usually referred to as a 'QueryData'.
+-- Notice how we use the '@' type hints to specify what components we are querying for. The result will be a list of tuples of those components,
+-- an element corresponding to each entity that has those specific components. This type hint is usually referred to as a 'QueryData'.
 --
 -- In this case, the type of @x@ will be @x :: [('Result' Name, 'Result' Health)]@.
 --
 -- 'Result' is a wrapper type around the 'Component' that carries additional information, such as the 'Entity' that 'Component' belongs to.
 --
--- This allows for special 'System's such as 'set', 'modify', 'delete' to operate directly on a 'Result'. For instance, we can do this:
+-- This allows for special systems such as 'set', 'modify', 'delete' to operate directly on a 'Result'. For instance, we can do this:
 --
 -- @
 -- 'for_' x $\(name, health) -> do
@@ -226,12 +226,12 @@ import MischiefECS.World.Utils
 --  'modify' health $ (\(Health x) -> Health (x + 1))
 -- @
 --
--- A 'Component' can be obtained at any time from a 'Result' by using @'value' :: 'Result' c -> c@.
+-- A component's value can be obtained at any time from a 'Result' by using @'value' :: 'Result' c -> c@.
 --
--- 'single' is type of query that attempts to return the 'Component's of a single 'Entity', if only one such 'Entity' exists.
--- If a 'query' over the same 'Component's would return @[a]@, 'single' will return @'Maybe' a@
+-- 'single' is type of query that attempts to return the components of a single entity, if only one such entity exists.
+-- If a query over the same components would return @[a]@, 'single' will return @'Maybe' a@
 --
--- 'get' is another special type of query that grabs the specified 'Component's of a provided 'Entity'.
+-- 'get' is another special type of query that grabs the specified components of a provided entity.
 -- If we have a @player :: 'Entity'@, we can use the following to obtain it's 'Name'.
 --
 -- @
@@ -253,9 +253,9 @@ import MischiefECS.World.Utils
 -- There are special types of 'QueryData' that don't return a 'Result'. For instance, querying @/@'Entity'@ will just return an 'Entity' in that place in the tuple.
 
 -- $filters
--- 'QueryFilter's are special modifiers to a @Query@ that can filter out certain @Entities@ based on various properties.
+-- @Filters@ are special modifiers to a query that can filter out certain entities based on various properties.
 --
--- For instance, the 'with' and 'without' 'QueryFilter's can be used to include or exclude one or more 'Component's from a 'QueryData'.
+-- For instance, the 'with' and 'without' 'QueryFilter's can be used to include or exclude one or more components from a 'QueryData'.
 --
 -- Multiple @filters@ can be combined using the '&.' and '|.' operators.
 --

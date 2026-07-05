@@ -45,13 +45,9 @@ instance (Component c) => Delete (Result c) where
   delete :: Result c -> System ()
   delete result = remove @c (entityOf result)
 
-instance (Component c) => Delete (RelationshipResult c) where
-  delete :: RelationshipResult c -> System ()
-  delete result = removeRelationshipFromEntity @c result.target result.entity
-
-instance (Component c) => Delete (RelationshipCollection c) where
-  delete :: RelationshipCollection c -> System ()
-  delete collection = for_ collection.collection delete
+instance (Component c) => Delete (RelResult c) where
+  delete :: RelResult c -> System ()
+  delete result = removeRelationshipFromEntity @c (target result) (entityOf result)
 
 removeRelationshipFromEntity :: forall c. (Component c) => Entity -> Entity -> System ()
 removeRelationshipFromEntity target entity = do

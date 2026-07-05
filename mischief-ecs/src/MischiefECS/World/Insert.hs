@@ -118,6 +118,12 @@ insertRes res = do
 set :: (Bundle c) => Result c -> c -> System ()
 set !result !newValue = MischiefECS.World.Insert.insert newValue (entityOf result)
 
+setIfNeq :: forall c. (Bundle c, Queryable c, QueryOutput c ~ Result c, Eq c) => Result c -> c -> System ()
+setIfNeq !result !newValue = do
+  Just curr <- get @c (entityOf result)
+  when (value curr /= newValue) $
+    set result newValue
+
 -- | Update the value of a 'Result'.
 --
 -- Useful if you've done changed to the component and want to grab the live value

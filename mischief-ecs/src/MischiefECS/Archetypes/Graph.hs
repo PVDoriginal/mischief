@@ -207,7 +207,7 @@ getRequirements component = do
   x <- get @(Rel Requires) component.id
   return $ case x of
     Nothing -> Set.empty
-    Just x -> Set.fromList $ map (\x -> ComponentId {id = x, entity = Nothing}) x.targets
+    Just x -> Set.fromList $ map ((\x -> ComponentId {id = x, entity = Nothing}) . target) x
 
 data ComponentQuery = ComponentQuery | RelationshipQueryAny | RelationshipQuery
 

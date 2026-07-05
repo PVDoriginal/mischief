@@ -18,17 +18,22 @@ module MischiefECS.Tutorial.Components
 
     -- * Required Components
     -- $required
+
+    -- * Relationships
+    -- $relationships
   )
 where
 
 import Data.Default (Default (def))
 import Data.Foldable
 import GHC.Generics (Generic)
+import GHC.Records (HasField)
 import MischiefECS (require)
 import MischiefECS.Components
 import MischiefECS.Components.Bundle
 import MischiefECS.Components.Spawn
 import MischiefECS.Entities
+import MischiefECS.Relationships.ChildOf
 import MischiefECS.Tables
 import MischiefECS.World
 import MischiefECS.World.Insert
@@ -43,6 +48,7 @@ import MischiefECS.World.Spawn
 -- @
 -- -- Component that carries data.
 -- data Health = Health 'Int' deriving ('Component', 'Queryable')
+--
 -- -- Marker components.
 -- data Player = Player deriving ('Component', 'Queryable')
 -- data Enemy = Enemy deriving ('Component', 'Queryable')
@@ -100,10 +106,15 @@ import MischiefECS.World.Spawn
 -- newtype 'Result' c = 'Result' (c, 'Entity')
 -- @
 --
+-- @
+-- 'value' :: 'Result' c -> c
+-- 'entityOf' :: 'Result' c -> Entity
+-- @
+--
 -- The inner component's value can be obtained via the @value@ function.
 --
 -- @
--- 'Just' name <- 'get' @'Name' e
+-- 'Just' name <- 'get' \@'Name' e
 -- let name' = 'value' name
 -- @
 --
@@ -131,6 +142,42 @@ import MischiefECS.World.Spawn
 -- @
 --
 -- Some typeclasses, namely 'Show', 'Eq', 'Ord' are also implemented for a @'Result' c@ if they are for the underlying @c@.
+--
+-- Note that the value of a 'Result' is the value gotten at the time of querying. It could be outdated, in case the live value
+-- was changed after querying.
+--
+-- A 'Result' can be used in various functions such as:
+--
+-- * Set a new value for this component.
+--
+-- @
+-- 'set' :: 'Result' c -> c -> 'System' ()
+-- @
+--
+-- * Change the value of a component only if the value is different from the current one.
+-- Useful if you don't wish to trigger change detection.
+--
+-- @
+-- 'setIfNeq' :: ('Eq' c) => 'Result' c -> c -> 'System' ()
+-- @
+--
+-- * Modify the value of this component (the function will be applied over the live value).
+--
+-- @
+-- 'modify' :: 'Result' c -> (c -> c) -> 'System' ()
+-- @
+--
+-- * Get the live value from the 'World'.
+--
+-- @
+-- 'update' :: 'Result' c -> 'System' ('Maybe' ('Result' c))
+-- @
+--
+-- * Remove the component from the entity.
+--
+-- @
+-- 'delete' :: 'Result' c -> 'System' ()
+-- @
 
 -- $meta
 -- Each component has a corresponding entity in the 'World', called a @Meta Component@.
@@ -145,14 +192,14 @@ import MischiefECS.World.Spawn
 -- @
 -- 'res' :: forall c. ('Queryable' c, 'Component' c) => 'System' ('Maybe' ('Result' c))
 -- 'res' = do
---   meta <- 'meta' @c
---   'get' @c meta
+--   meta <- 'meta' \@c
+--   'get' \@c meta
 -- @
 --
 -- @
 -- 'insertRes' :: forall r. ('Component' r, 'Bundle' r) => r -> 'System' ()
 -- 'insertRes' res = do
---   entity <- 'meta' @r
+--   entity <- 'meta' \@r
 --   'insert' res entity
 -- @
 --
@@ -172,7 +219,7 @@ import MischiefECS.World.Spawn
 --
 -- data A = A
 -- instance 'Component' A where
---   'required' = 'require' @(B, C)
+--   'required' = 'require' \@(B, C)
 -- @
 --
 -- As implied above, in order for a component to be required by another, it needs to implement 'Default'.
@@ -183,3 +230,89 @@ import MischiefECS.World.Spawn
 -- instance 'Default' Health where
 --   'def' = Health 0
 -- @
+
+-- $relationships
+-- Mischief implement @Relationships@ in a similar way to @Flecs@.
+--
+-- A component is actually indexed by 'ComponentId', which is:
+--
+-- @
+-- data 'ComponentId' = 'ComponentId' {id :: 'Entity', entity :: 'Maybe' 'Entity'}
+-- @
+--
+-- The first field, @id@, is the entity corresponding to the component, while the second field, @entity@, is an optional reference to another entity.
+--
+-- This means that each 'ComponentId' can either be a simple component, or a pair between a component or an entity (technically even between
+-- two components or two entities but that's not directly allowed by the API).
+--
+-- Let's consider the following component:
+--
+-- @
+-- data Likes = Likes deriving ('Component')
+-- @
+--
+-- And three spawned entities: @alice@, @bob@, @charlie@.
+--
+-- We can insert relationships between entities using the special 'Rel' type.
+--
+-- @
+-- 'insert' ('Rel' (Likes, alice), 'Rel' ('Likes' charlie)) bob
+-- 'insert' ('Rel' (Likes bob)) alice
+-- @
+--
+-- The 'withRel' 'QueryFilter' lets us easily query for components of entities that have a certain relationship with a certain entity.
+--
+-- @
+-- -- Getting a list of all entities that like bob
+-- x <- 'query'' \@'Entity' $ 'withRel' \@Likes bob
+-- @
+--
+-- We can also modify @Likes@ to have an @Int@ as well, representing how much an entity likes another:
+--
+-- @
+-- data Likes = Likes 'Int' deriving ('Component')
+-- @
+--
+-- @
+-- 'insert' ('Rel' (Likes 5, alice), 'Rel' (Likes 8, charlie)) bob
+-- @
+--
+-- The 'Rel' type can be used in a query to get a @['RelResult']@ for each entity.
+--
+-- @
+-- r <- query \@('Rel' Likes)
+-- @
+--
+-- @
+-- r :: [['ResResult' Likes]]
+-- @
+--
+-- A 'RelResult' is the relationship equivalent of a 'Result', with an extra @target@ function:
+--
+-- @
+-- 'value' :: 'RelResult' c -> c
+-- 'target' :: 'RelResult' c -> Entity
+-- 'entityOf' :: 'RelResult' c -> Entity
+-- @
+--
+-- The 'Show', 'Ord', 'Eq' of 'RelResult' are based on the @('value', 'target')@ pair.
+--
+-- A component can be made @exclusive@ by setting the following 'Bool' in the 'Component' instance:
+--
+-- @
+-- instance 'Component' Likes where
+--   'isExclusiveRel' = 'True'
+-- @
+--
+-- If a component is exclusive, there can only be one relationship containing it on an entity at once.
+--
+-- For instance, if we do:
+--
+-- @
+-- 'insert' ('Rel' (Likes, alice) bob
+-- 'insert' ('Rel' (Likes, charlie)) bob
+-- @
+--
+-- @(Likes, charlie)@ will overwrite @(Likes, alice)@.
+--
+-- This is useful for relationships such as 'ChildOf', since an entity can only have one parent at a time.

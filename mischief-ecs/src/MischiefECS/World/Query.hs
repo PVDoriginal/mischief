@@ -137,15 +137,15 @@ instance (Queryable q0, Queryable q1, Queryable q2) => Queryable (q0, q1, q2) wh
 -- outputEntity _ (a, _, _) = outputEntity (Proxy @q0) a
 
 instance (Component c) => Queryable (Rel c) where
-  type QueryOutput (Rel c) = RelationshipCollection c
+  type QueryOutput (Rel c) = [RelResult c]
   runQueryEntity _ world entity = do
-    res <- tryGetEntityRelationshipCollection @c world entity
+    res <- tryGetEntityRelCollection @c world entity
     return $ case res of
       Just (Just x) -> Just x
       _ -> Nothing
 
   runQueryInternal :: (Component c) => Proxy (Rel c) -> [ArchetypeId] -> World -> IO [(Entity, QueryOutput (Rel c))]
-  runQueryInternal _ archetypes world = tryGetRelationshipCollections @c world archetypes
+  runQueryInternal _ archetypes world = tryGetRelCollections @c world archetypes
 
 -- outputEntity _ x = x.entity
 
@@ -163,17 +163,17 @@ instance (Component c) => Queryable (Maybe c) where
 data MaybeRel a = MaybeRel
 
 instance (Component c) => Queryable (MaybeRel c) where
-  type QueryOutput (MaybeRel c) = RelationshipCollection c
+  type QueryOutput (MaybeRel c) = [RelResult c]
   runQueryEntity _ world entity = do
-    res <- tryGetEntityRelationshipCollection @c world entity
+    res <- tryGetEntityRelCollection @c world entity
     return $ case res of
       Nothing -> Nothing
-      Just Nothing -> Just $ emptyRelationshipCollection entity
+      Just Nothing -> Just []
       Just (Just x) -> Just x
 
   -- This looks the same as normal 'Rel', but, through QueryData, it will also include archetypes
   -- which don't have this relationship.
-  runQueryInternal _ archetypes world = tryGetRelationshipCollections @c world archetypes
+  runQueryInternal _ archetypes world = tryGetRelCollections @c world archetypes
 
 data Has a = Has
 
@@ -196,15 +196,15 @@ instance (Component c) => Queryable (HasRel c) where
   type QueryOutput (HasRel c) = Bool
 
   runQueryEntity _ world entity = do
-    res <- tryGetEntityRelationshipCollection @c world entity
+    res <- tryGetEntityRelCollection @c world entity
     return $ case res of
       Nothing -> Nothing
       Just Nothing -> Just False
       Just (Just _) -> Just True
 
   runQueryInternal _ archetypes world = do
-    res <- tryGetRelationshipCollections @c world archetypes
-    return $ map (\(e, c) -> (e, null c.collection)) res
+    res <- tryGetRelCollections @c world archetypes
+    return $ map (\(e, c) -> (e, null c)) res
 
 -- outputEntity _ q = q.entity
 

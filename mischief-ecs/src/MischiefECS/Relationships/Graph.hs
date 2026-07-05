@@ -14,7 +14,7 @@ outgoing entity = do
   next <- get @(Rel c) entity
   return $ case next of
     Nothing -> []
-    Just next -> next.targets
+    Just next -> map target next
 
 ingoing :: forall c m w. (Component c, MonadSystem w m) => Entity -> m [Entity]
 ingoing entity = query' @Entity $ withRel @c entity

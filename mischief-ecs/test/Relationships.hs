@@ -51,9 +51,9 @@ setup = do
 
   q4 <- query @(Name, Rel ChildOf)
   for_ q4 $ \(name, result) ->
-    for_ result.collection $ \rel -> do
-      liftIO $ putStrLn $ show name ++ " is child of " ++ show rel.target
-      Just parentName <- get @Name rel.target
+    for_ result $ \rel -> do
+      liftIO $ putStrLn $ show name ++ " is child of " ++ show (target rel)
+      Just parentName <- get @Name (target rel)
       liftIO $ print parentName
 
 observer :: OnInsertRel ChildOf -> System ()
