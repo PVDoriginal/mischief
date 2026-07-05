@@ -365,6 +365,12 @@ filterQuery world (Added x) archetypes outputs = do
            in res'.added >= world.lastSystemTick && res'.added < world.currentSystemTick
       )
       outputs
+filterQuery world (CheckRaw (x, ef)) archetypes outputs = do
+  id <- liftIO $ getComponentId x world.components
+  case id of
+    Nothing -> return []
+    Just id ->
+      filterCheck @qd world archetypes id ef outputs
 filterQuery world (a `And` b) archetypes outputs = do
   res <- filterQuery @qd world a archetypes outputs
   filterQuery @qd world b archetypes res
@@ -376,6 +382,16 @@ filterQuery world (a `Or` b) archetypes outputs = do
   let res2' = map fst res2
 
   return $ filter (\(index, _) -> index `elem` res1' || index `elem` res2') outputs
+
+filterCheck :: forall qd. World -> [ArchetypeId] -> ComponentId -> ErasedCheck -> [(Int, (Entity, QueryOutput qd))] -> IO [(Int, (Entity, QueryOutput qd))]
+filterCheck world archetypes id (ErasedCheck (f :: (c -> Bool))) outputs = do
+  components <- tryGetComponentsFromTables @c world.tables archetypes id
+  return $
+    filter
+      ( \(index, _) ->
+          f (value . snd $ components !! index)
+      )
+      outputs
 
 findComponentsOfEntity :: World -> Entity -> IO (Maybe [ComponentId])
 findComponentsOfEntity world entity = do
@@ -416,7 +432,14 @@ data QueryFilter
   | Or QueryFilter QueryFilter
   | Changed TypeRep
   | Added TypeRep
+  | CheckRaw (TypeRep, ErasedCheck)
   deriving (Show)
+
+data ErasedCheck where
+  ErasedCheck :: (Component c) => (c -> Bool) -> ErasedCheck
+
+instance Show ErasedCheck where
+  show _ = "erased check"
 
 with :: forall qd. (QueryData qd) => QueryFilter
 with = and' $ map (With . fst) (Set.toList $ types (Proxy @qd))
@@ -429,6 +452,12 @@ without = and' $ map (Without . fst) (Set.toList $ types (Proxy @qd))
 
 changed :: forall qd. (QueryData qd) => QueryFilter
 changed = and' $ map (Changed . fst) (Set.toList $ types (Proxy @qd))
+
+check :: forall c. (Component c) => (c -> Bool) -> QueryFilter
+check f = With (typeRep $ Proxy @c) &. CheckRaw (typeRep $ Proxy @c, ErasedCheck f)
+
+eq :: forall c. (Component c, Eq c) => c -> QueryFilter
+eq c = check @c (== c)
 
 added :: forall qd. (QueryData qd) => QueryFilter
 added = and' $ map (Added . fst) (Set.toList $ types (Proxy @qd))
@@ -478,6 +507,7 @@ extractArchetypeFilters (With x) = (NoFilter, With x)
 extractArchetypeFilters (WithRel x e) = (NoFilter, WithRel x e)
 extractArchetypeFilters (Changed x) = (Changed x, NoFilter)
 extractArchetypeFilters (Added x) = (Added x, NoFilter)
+extractArchetypeFilters (CheckRaw x) = (CheckRaw x, NoFilter)
 extractArchetypeFilters (Without x) = (NoFilter, Without x)
 extractArchetypeFilters (a `And` b) = (filter1 `And` filter2, res1 `And` res2)
   where
@@ -502,3 +532,4 @@ isArchetypeFilter (WithRel _ _) = True
 isArchetypeFilter (Without _) = True
 isArchetypeFilter (a `And` b) = isArchetypeFilter a || isArchetypeFilter b
 isArchetypeFilter (a `Or` b) = isArchetypeFilter a && isArchetypeFilter b
+isArchetypeFilter (CheckRaw _) = False

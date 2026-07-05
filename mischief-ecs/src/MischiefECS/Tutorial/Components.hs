@@ -57,9 +57,9 @@ import MischiefECS.World.Spawn
 -- Components can be @inserted@ and @removed@ from entities:
 --
 -- @
--- foo <- 'spawn' ('Name' "Foo")
--- bar <- 'spawn' ('Name' "Bar", Enemy)
--- baz <- 'spawn' ('Name' "Baz", Player, Enemy)
+-- foo <- 'spawn' ('Name' \"Foo\")
+-- bar <- 'spawn' ('Name' \"Bar\", Enemy)
+-- baz <- 'spawn' ('Name' \"Baz\", Player, Enemy)
 --
 -- 'insert' (Health 0, Player) foo
 --
