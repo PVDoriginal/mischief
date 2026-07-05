@@ -9,6 +9,7 @@ import Data.Maybe
 import Data.Set qualified as Set
 import GHC.Generics (Generic)
 import MischiefECS
+import MischiefECS.App.Systems
 import MischiefECS.Components.Spawn
 import Relationships (testRelationships)
 import System.Exit (exitSuccess)
@@ -74,3 +75,11 @@ s2 = do
 
 dummy :: System ()
 dummy = return ()
+
+newtype Counter = Counter Int
+  deriving anyclass (Component, Queryable)
+
+idk :: System ()
+idk = do
+  loc <- loc
+  alter (\case Nothing -> Just $ Counter 0; (Just (Counter x)) -> Just (Counter $ x + 1)) loc
