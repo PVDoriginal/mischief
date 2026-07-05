@@ -69,7 +69,14 @@ insert bundle entity =
     unless world.prefs.supressEvents $
       triggerInsertEvent bundleData entity
 
--- unless (null required) $ insertNew (BundleData {elements = required, required = Set.empty}) entity
+getOrInsert :: forall qd. (Queryable qd, QueryOutput qd ~ Result qd, Bundle qd) => qd -> Entity -> System (Result qd)
+getOrInsert val entity = do
+  g <- get @qd entity
+  case g of
+    Just g -> return g
+    Nothing -> do
+      insert val entity
+      return $ Result (val, entity)
 
 -- | Insert a bundle of components on an Entity.
 --

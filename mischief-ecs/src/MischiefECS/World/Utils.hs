@@ -6,7 +6,7 @@ import Control.Concurrent.STM
 import Control.Monad
 import Control.Monad.IO.Class (MonadIO (liftIO))
 import Control.Monad.Primitive (PrimMonad (..))
-import Control.Monad.Reader.Class (MonadReader (..))
+import Control.Monad.Reader.Class (MonadReader (..), asks)
 import Control.Monad.Trans (MonadTrans (..))
 import Control.Monad.Trans.Reader (ReaderT (runReaderT))
 import Data.IORef
@@ -27,6 +27,7 @@ import MischiefECS.Entities
 import MischiefECS.Events.Internal
 import MischiefECS.Tables
 import MischiefECS.World
+import MischiefECS.World.Internal
 import MischiefECS.World.Prefs
 import {-# SOURCE #-} MischiefECS.World.Spawn (spawnIO)
 
@@ -204,3 +205,8 @@ tryGetTicks rep world archetypes =
       Nothing -> return []
       Just componentId ->
         tryGetTicksFromTables world.tables archetypes componentId
+
+isAlive :: forall m w. (MonadSystem w m) => Entity -> m Bool
+isAlive entity = do
+  world <- asks getWorld
+  liftIO $ isAliveIO entity world.entities

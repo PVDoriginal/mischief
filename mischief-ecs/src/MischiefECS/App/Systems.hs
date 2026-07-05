@@ -11,9 +11,11 @@ import Data.Map qualified as Map
 import GHC.StableName (StableName, eqStableName, hashStableName, makeStableName)
 import MischiefECS.App.Schedules
 import MischiefECS.Components
+import MischiefECS.Components.Bundle
 import MischiefECS.Entities
 import MischiefECS.Tables
 import MischiefECS.World
+import MischiefECS.World.Insert
 import MischiefECS.World.Internal
 import MischiefECS.World.Query
 import MischiefECS.World.Spawn
@@ -85,3 +87,13 @@ localEntity = do
   world <- asks getWorld
   let (SystemId sys) = world.systemId
   return sys
+
+loc :: forall qd m w. (MonadSystem w m, Queryable qd) => m (Maybe (QueryOutput qd))
+loc = do
+  e <- localEntity
+  get @qd e
+
+insertLoc :: forall b. (Bundle b) => b -> System ()
+insertLoc b = do
+  e <- localEntity
+  insert b e

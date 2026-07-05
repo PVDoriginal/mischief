@@ -9,6 +9,7 @@ module MischiefECS.Entities
     insertPointer,
     emptyEntities,
     Entity (Entity, id),
+    isAliveIO,
   )
 where
 
@@ -16,7 +17,7 @@ import Control.Concurrent.STM.TVar
 import Data.IORef
 import Data.Map (Map)
 import Data.Map qualified as Map
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, isJust)
 import GHC.Conc
 import MischiefECS.Components
 import MischiefECS.Entities.Internal
@@ -69,3 +70,8 @@ emptyEntities = do
   map <- newIORef Map.empty
   counter <- newTVarIO EntityCounter {counter = 1, free = []}
   return $ Entities map counter
+
+isAliveIO :: Entity -> Entities -> IO Bool
+isAliveIO entity Entities {pointers} = do
+  pointers <- readIORef pointers
+  return $ isJust $ Map.lookup entity pointers
