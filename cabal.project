@@ -1,5 +1,6 @@
 packages: 
   ./mischief-ecs
+  ./mischief-sdl
   ./mischief-input 
   ./mischief-math 
   ./mischief-assets 
@@ -12,6 +13,13 @@ package mischief-ecs
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates
                -Wincomplete-uni-patterns -Wpartial-fields -Wredundant-constraints
                -Wno-name-shadowing 
+
+package mischief-sdl
+  optimization: 2
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates
+               -Wincomplete-uni-patterns -Wpartial-fields -Wredundant-constraints
+               -Wno-name-shadowing 
+
 
 package mischief-input
   optimization: 2

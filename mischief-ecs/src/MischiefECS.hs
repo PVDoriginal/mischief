@@ -74,12 +74,10 @@ module MischiefECS
     module MischiefECS.App.Schedules,
     module MischiefECS.App.SystemConfig,
     module MischiefECS.Messages,
-    module MischiefECS.SDL,
     module MischiefECS.Events,
     module MischiefECS.Time,
     module MischiefECS.Relationships,
     module MischiefECS.Relationships.ChildOf,
-    ParSystem,
   )
 where
 
@@ -97,7 +95,6 @@ import MischiefECS.Events
 import MischiefECS.Messages
 import MischiefECS.Relationships
 import MischiefECS.Relationships.ChildOf
-import MischiefECS.SDL
 import MischiefECS.Tables
 import MischiefECS.Time
 import MischiefECS.Tutorial.Systems

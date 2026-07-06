@@ -1,4 +1,4 @@
-module MischiefECS.SDL where
+module MischiefSDL where
 
 import Control.Monad
 import Control.Monad.IO.Class
@@ -93,3 +93,8 @@ handleQuit = do
   messages <- readMessages msg
   for_ messages $ \(SDLMessage _) -> do
     liftIO exitSuccess
+
+-- $intro
+-- This package provides the 'sdlPlugin' for @Mischief@, along with a few components.
+--
+-- These are necessary to run any SDL-based packages, such as @MischiefInput@, and @MischiefRender@.

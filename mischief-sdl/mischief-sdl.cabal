@@ -10,7 +10,7 @@ cabal-version: 3.0
 --   http://haskell.org/cabal/users-guide/
 --
 -- The name of the package.
-name: mischief-ecs
+name: mischief-sdl
 -- The package version.
 -- See the Haskell package versioning policy (PVP) for standards
 -- guiding when and how versions should be incremented.
@@ -49,53 +49,11 @@ library
   import: warnings
   -- Modules exported by the library.
   exposed-modules:
-    MischiefECS
-    MischiefECS.App
-    MischiefECS.App.Scheduler
-    MischiefECS.App.Schedules
-    MischiefECS.App.SystemConfig
-    MischiefECS.App.Systems
-    MischiefECS.Archetypes
-    MischiefECS.Archetypes.Graph
-    MischiefECS.Components
-    MischiefECS.Components.Bundle
-    MischiefECS.Components.Common
-    MischiefECS.Components.Required
-    MischiefECS.Components.Runnable
-    MischiefECS.Components.Spawn
-    MischiefECS.Entities
-    MischiefECS.Events
-    MischiefECS.Graph
-    MischiefECS.Messages
-    MischiefECS.Prelude
-    MischiefECS.Relationships
-    MischiefECS.Relationships.ChildOf
-    MischiefECS.Relationships.Graph
-    MischiefECS.Relationships.Tree
-    MischiefECS.Tables
-    MischiefECS.Time
-    MischiefECS.Tutorial.Components
-    MischiefECS.Tutorial.Systems
-    MischiefECS.Utils
-    MischiefECS.Vec
-    MischiefECS.World
-    MischiefECS.World.Change
-    MischiefECS.World.Defer
-    MischiefECS.World.Insert
-    MischiefECS.World.Modify
-    MischiefECS.World.Par
-    MischiefECS.World.Prefs
-    MischiefECS.World.Query
-    MischiefECS.World.Remove
-    MischiefECS.World.Spawn
-    MischiefECS.World.Systems
-    MischiefECS.World.Utils
+    MischiefSDL
 
   -- Modules included in this library but not exported.
   -- other-modules:
   other-modules:
-    MischiefECS.Hidden
-
   -- LANGUAGE extensions used by modules in this package.z
   default-extensions:
     DefaultSignatures
@@ -116,15 +74,13 @@ library
   build-depends:
     async,
     base ^>=4.21.0.0,
-    binary,
-    bytestring,
-    clock,
     containers,
     data-default,
+    linear,
+    mischief-ecs,
     mtl,
     primitive,
-    stm,
-    template-haskell,
+    sdl3,
     time,
     transformers,
     vector,
@@ -164,7 +120,6 @@ test-suite mischief-test
   hs-source-dirs: test
   -- The entrypoint to the test suite.
   main-is: Main.hs
-  other-modules: Relationships
   -- Test dependencies.
   build-depends:
     base ^>=4.21.0.0,
