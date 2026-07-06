@@ -1,22 +1,56 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 
-module MischiefECS.Components where
+module MischiefECS.Components
+  ( -- * Component
+    Component (..),
+    ComponentId (..),
 
-import Control.Monad
+    -- * Meta
+    ComponentArchetypes (..),
+    ComponentPairs (..),
+    DefaultValue (..),
+    Requires (..),
+    RequiredBy (..),
+    ComponentType (..),
+
+    -- * Erasure
+    ErasedComponent (..),
+    tryGetComponent,
+    DefaultComponentType (..),
+
+    -- * Archetypes
+    ArchetypeId (..),
+
+    -- * Bundles
+    BundleData (..),
+    BundleElement (..),
+
+    -- * Tables
+    ComponentTicks (..),
+    ComponentData (..),
+
+    -- * Storage
+    Components (..),
+    emptyComponents,
+    getComponentId,
+
+    -- * Utils
+    Pair (..),
+    Rel (..),
+    ComponentRep (..),
+  )
+where
+
 import Data.Default
-import Data.Foldable
 import Data.IORef
 import Data.Kind
-import Data.List
 import Data.List qualified as List
 import Data.Map (Map)
 import Data.Map qualified as Map
-import Data.Maybe
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Typeable
 import GHC.Generics
-import GHC.Records
 import {-# SOURCE #-} MischiefECS.Entities
 import MischiefECS.Utils
 
@@ -66,12 +100,19 @@ newtype Components = Components
     components :: IORef (Map TypeRep Entity)
   }
 
+-- | @Meta@ components with a set of all archetypes that a components is part of.
 newtype ComponentArchetypes = ComponentArchetypes {inner :: Set ArchetypeId}
   deriving anyclass (Component)
   deriving newtype (Default)
   deriving stock (Show)
 
-data ComponentPairs = ComponentPairs {any :: Set ArchetypeId, pairs :: Map Entity (Set ArchetypeId)}
+-- | @Meta@ component with a set of all archetypes containing pairs made with this component.
+data ComponentPairs = ComponentPairs
+  { -- | Archetypes that contain any pair formed with this component.
+    any :: Set ArchetypeId,
+    -- | Specific archetypes between this component and a particular entity.
+    pairs :: Map Entity (Set ArchetypeId)
+  }
   deriving anyclass (Component, Default)
   deriving stock (Show, Generic)
 
@@ -81,7 +122,7 @@ emptyComponents = do
   components <- newIORef Map.empty
   return $ Components components
 
--- | Get the id of a component.
+-- | Get the id of a component through IO.
 getComponentId :: TypeRep -> Components -> IO (Maybe ComponentId)
 getComponentId t Components {components} = do
   innerMap <- readIORef components
@@ -102,37 +143,44 @@ newtype ArchetypeId = ArchetypeId
   }
   deriving (Show, Eq, Ord)
 
-data BundleData = BundleData {elements :: Set BundleElement, required :: Set BundleElement}
+-- | Data extracted from a 'MischiefECS.Components.Bundle.Bundle'.
+newtype BundleData = BundleData {elements :: Set BundleElement}
 
 instance Show BundleData where
-  show BundleData {elements, required} = mconcat ["BundleData [", List.intercalate ", " ts, "]"]
+  show BundleData {elements} = mconcat ["BundleData [", List.intercalate ", " ts, "]"]
     where
-      ts = map (\bundle -> show bundle.rep) (Set.toList (Set.union elements required))
+      ts = map (\bundle -> show bundle.rep) (Set.toList elements)
 
+-- | Change ticks for a specific component.
 data ComponentTicks = ComponentTicks {changed :: Tick, added :: Tick} deriving (Show)
 
+-- | Data for a component that's stored in a table.
 data ComponentData = ComponentData {value :: ErasedComponent, ticks :: ComponentTicks}
 
 instance Component Entity
 
+-- | Type used for querying and inserting relationships.
 newtype Rel c = Rel (c, Entity)
 
--- instance (Component c) => Component (R c)
-
+-- | @Meta@ component with the /erased/ default value of this component. Added to components required by other components.
 newtype DefaultValue = DefaultValue ErasedComponent deriving anyclass (Component)
 
 instance Component ComponentType where
   required = Set.fromList [DefaultComponentType $ Proxy @ComponentArchetypes, DefaultComponentType $ Proxy @ComponentPairs]
 
+-- | @Meta@ relationship.
 data RequiredBy = RequiredBy deriving (Component)
 
+-- | @Meta@ relationship.
 data Requires = Requires deriving (Component)
 
+-- | Type for component erasure.
 data ErasedComponent where
   ErasedComponent :: (Typeable c) => c -> ErasedComponent
 
 data ComponentRep = ComponentRep ComponentType | PairRep (ComponentType, Entity) deriving (Show, Eq, Ord)
 
+-- | Element of a 'BundleData'.
 data BundleElement = BundleElement {rep :: ComponentRep, component :: ErasedComponent}
 
 instance Show BundleElement where
@@ -147,6 +195,7 @@ instance Ord BundleElement where
   compare :: BundleElement -> BundleElement -> Ordering
   compare BundleElement {rep = rep1} BundleElement {rep = rep2} = compare rep1 rep2
 
+-- @Meta@ component containing the erased type of this component.
 data ComponentType where
   ComponentType :: forall (c :: Type). (Component c) => (Proxy c) -> ComponentType
 

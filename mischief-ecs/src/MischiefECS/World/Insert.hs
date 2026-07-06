@@ -36,7 +36,7 @@ insert :: forall b. (Bundle b) => b -> Entity -> System ()
 insert bundle entity =
   do
     world <- ask
-    let BundleData {elements, required} = bundleData bundle
+    let BundleData {elements} = bundleData bundle
 
     currentTick <- liftIO $ readIORef world.tick
 
@@ -83,7 +83,7 @@ insertNew :: forall b. (Bundle b) => b -> Entity -> System ()
 insertNew bundle entity =
   do
     world <- ask
-    let BundleData {elements, required} = bundleData bundle
+    let BundleData {elements} = bundleData bundle
 
     currentTick <- liftIO $ readIORef world.tick
 

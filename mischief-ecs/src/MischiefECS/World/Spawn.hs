@@ -45,7 +45,7 @@ data SpawnEventsSettings = WithSpawnEvents | WithoutSpawnEvents
 spawnEntity :: (Bundle b) => Entity -> b -> System ()
 spawnEntity entity bundle = do
   world <- ask
-  let BundleData {elements, required} = addComponentToBundleData (Name (show entity)) $ bundleData bundle
+  let BundleData {elements} = addComponentToBundleData (Name (show entity)) $ bundleData bundle
 
   currentTick <- liftIO $ readIORef world.tick
   bundleD <- liftIO $ processBundleElements world ComponentTicks {changed = currentTick, added = currentTick} elements

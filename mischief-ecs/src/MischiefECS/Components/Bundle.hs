@@ -16,11 +16,11 @@ data ProcessedBundleElement = ProcessedBundleElement {id :: ComponentId, compone
 -- archetypeOfProcessedBundle archetypes components bundle = getOrAddArchetypeId (map (\x -> x.id) bundle.elements) archetypes components
 
 addComponentToBundleData :: forall c. (Component c) => c -> BundleData -> BundleData
-addComponentToBundleData c (BundleData {elements, required}) =
+addComponentToBundleData c (BundleData {elements}) =
   let rep = ComponentRep $ ComponentType (Proxy @c)
       component = ErasedComponent c
       element = BundleElement {rep, component}
-   in BundleData {elements = Set.union elements (Set.singleton element), required}
+   in BundleData {elements = Set.union elements (Set.singleton element)}
 
 instance Eq ProcessedBundleElement where
   (==) :: ProcessedBundleElement -> ProcessedBundleElement -> Bool
@@ -40,7 +40,7 @@ class Bundle b where
 --   in mapM ((`getComponentId` components) . (\x -> x.rep)) (Set.toList set)
 instance {-# OVERLAPPING #-} Bundle () where
   bundleDataInternal :: () -> BundleData
-  bundleDataInternal _ = BundleData Set.empty Set.empty
+  bundleDataInternal _ = BundleData Set.empty
 
 instance {-# OVERLAPPING #-} Bundle BundleData where
   bundleDataInternal :: BundleData -> BundleData
@@ -50,24 +50,23 @@ instance {-# OVERLAPPING #-} (Component c) => Bundle (Rel c) where
   bundleDataInternal :: (Component c) => Rel c -> BundleData
   bundleDataInternal (Rel (c, entity)) =
     let req = Set.map toBundleElement $ requireAll @c
-     in BundleData (Set.fromList [BundleElement {rep = PairRep (ComponentType $ Proxy @c, entity), component = erase c}]) req
+     in BundleData (Set.fromList [BundleElement {rep = PairRep (ComponentType $ Proxy @c, entity), component = erase c}])
 
 instance {-# OVERLAPPABLE #-} (Component c) => Bundle c where
   bundleDataInternal :: (Component c) => c -> BundleData
   bundleDataInternal c =
     let req = Set.map toBundleElement $ requireAll @c
-     in BundleData (Set.fromList [BundleElement {rep = ComponentRep $ ComponentType $ Proxy @c, component = erase c}]) req
+     in BundleData (Set.fromList [BundleElement {rep = ComponentRep $ ComponentType $ Proxy @c, component = erase c}])
 
 instance {-# OVERLAPPING #-} (Bundle c0, Bundle c1) => Bundle (c0, c1) where
   bundleDataInternal (c0, c1) =
-    let BundleData {elements = set0, required = req0} = bundleDataInternal c0
-        BundleData {elements = set1, required = req1} = bundleDataInternal c1
-     in BundleData (Set.unions [set0, set1]) (Set.unions [req0, req1])
+    let BundleData {elements = set0} = bundleDataInternal c0
+        BundleData {elements = set1} = bundleDataInternal c1
+     in BundleData (Set.unions [set0, set1])
 
 bundleData :: (Bundle b) => b -> BundleData
 bundleData = bundleDataInternal
 
 bundleDataRes :: forall r. (Component r) => r -> BundleData
 bundleDataRes r =
-  let req = Set.map toBundleElement $ requireAll @r
-   in BundleData (Set.fromList [BundleElement {rep = ComponentRep $ ComponentType $ Proxy @r, component = erase r}]) req
+  BundleData (Set.fromList [BundleElement {rep = ComponentRep $ ComponentType $ Proxy @r, component = erase r}])

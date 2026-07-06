@@ -10,6 +10,7 @@ import Data.Foldable hiding (and, or)
 import Data.Maybe
 import GHC.Exts
 import MischiefECS
+import MischiefECS.Components.Common
 import MischiefECS.Components.Spawn (meta)
 import System.Exit (exitSuccess)
 import Prelude hiding (and)

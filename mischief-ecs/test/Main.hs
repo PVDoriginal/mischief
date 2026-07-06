@@ -10,6 +10,7 @@ import Data.Set qualified as Set
 import GHC.Generics (Generic)
 import MischiefECS
 import MischiefECS.App.Systems
+import MischiefECS.Components.Common
 import MischiefECS.Components.Spawn
 import Relationships (testRelationships)
 import System.Exit (exitSuccess)
