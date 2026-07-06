@@ -18,6 +18,7 @@ import Data.Typeable
 import GHC.Generics
 import GHC.Records
 import {-# SOURCE #-} MischiefECS.Entities
+import MischiefECS.Utils
 
 -- | Unique ids for components and component pairs.
 data ComponentId = ComponentId
@@ -87,8 +88,6 @@ instance Show BundleData where
     where
       ts = map (\bundle -> show bundle.rep) (Set.toList (Set.union elements required))
 
-newtype Tick = Tick Int deriving (Show, Eq, Ord)
-
 data ComponentTicks = ComponentTicks {changed :: Tick, added :: Tick} deriving (Show)
 
 data ComponentData = ComponentData {value :: ErasedComponent, ticks :: ComponentTicks}
@@ -156,9 +155,6 @@ instance Eq DefaultComponentType where
 instance Ord DefaultComponentType where
   compare :: DefaultComponentType -> DefaultComponentType -> Ordering
   compare a b = compare (getRep a) (getRep b)
-
-class GetRep t where
-  getRep :: t -> TypeRep
 
 instance GetRep ComponentType where
   getRep :: ComponentType -> TypeRep

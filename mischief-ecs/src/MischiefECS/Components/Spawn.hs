@@ -14,6 +14,7 @@ import Data.Map qualified as Map
 import Data.Set qualified as Set
 import MischiefECS.Components
 import MischiefECS.Components.Bundle
+import MischiefECS.Components.Common
 import MischiefECS.Components.Required (requireAll)
 import MischiefECS.Entities
 import MischiefECS.Relationships

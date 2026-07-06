@@ -1,4 +1,4 @@
-module MischiefECS.Events.Internal where
+module MischiefECS.Events where
 
 import Data.Data
 

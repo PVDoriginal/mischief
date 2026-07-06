@@ -10,6 +10,7 @@ import Data.Set qualified as Set
 import {-# SOURCE #-} MischiefECS.Archetypes.Graph (getArchetypeOnSpawn)
 import MischiefECS.Components
 import MischiefECS.Components.Bundle
+import MischiefECS.Components.Common
 import {-# SOURCE #-} MischiefECS.Components.Spawn (getOrAddComponentId)
 import MischiefECS.Entities
 import MischiefECS.Events
@@ -44,7 +45,7 @@ data SpawnEventsSettings = WithSpawnEvents | WithoutSpawnEvents
 spawnEntity :: (Bundle b) => Entity -> b -> System ()
 spawnEntity entity bundle = do
   world <- ask
-  let BundleData {elements, required} = addComponentToBundleData (Name (show entity)) $ addComponentToBundleData entity $ bundleData bundle
+  let BundleData {elements, required} = addComponentToBundleData (Name (show entity)) $ bundleData bundle
 
   currentTick <- liftIO $ readIORef world.tick
   bundleD <- liftIO $ processBundleElements world ComponentTicks {changed = currentTick, added = currentTick} elements

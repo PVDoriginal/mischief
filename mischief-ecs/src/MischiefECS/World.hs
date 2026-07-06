@@ -14,7 +14,6 @@ module MischiefECS.World
     SystemId (..),
     runSystem,
     MonadSystem,
-    Name (..),
 
     -- * Parallel
     ParSystem (..),
@@ -33,7 +32,6 @@ import MischiefECS.Archetypes (Archetypes, emptyArchetypes)
 import MischiefECS.Components
   ( Component,
     Components,
-    Tick (..),
     emptyComponents,
   )
 import MischiefECS.Entities
@@ -41,9 +39,10 @@ import MischiefECS.Entities
     Entity (Entity),
     emptyEntities,
   )
-import MischiefECS.Events.Internal (ErasedEvent)
+import {-# SOURCE #-} MischiefECS.Events
 import MischiefECS.Hidden
 import MischiefECS.Tables (Tables, emptyTables)
+import MischiefECS.Utils
 import MischiefECS.World.Prefs (WorldPrefs, newPrefs)
 
 -- | @The World@ is the main data structure storing the entities, components, archetypes, and everything else that lives in our app.
@@ -143,17 +142,6 @@ runSystem (System !r) = runReaderT r
 instance PrimMonad System where
   type PrimState System = PrimState IO
   primitive = System . lift . primitive
-
--- | Special component inserted automatically on most entities.
---
--- Can be inserted manually to give each entity a custom name.
-newtype Name = Name String
-  deriving anyclass (Component)
-  deriving newtype (Eq)
-
-instance Show Name where
-  show :: Name -> String
-  show (Name name) = show name
 
 -- | Run a 'System' with changed 'WorldPrefs'.
 forkPrefs :: (WorldPrefs -> WorldPrefs) -> System a -> System a

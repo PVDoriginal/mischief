@@ -20,6 +20,7 @@ import MischiefECS.App
 import MischiefECS.App.Systems
 import MischiefECS.Components
 import MischiefECS.Tables
+import MischiefECS.Utils
 import MischiefECS.World
 import MischiefECS.World.Modify
 import MischiefECS.World.Query (Queryable, get)

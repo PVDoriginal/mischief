@@ -23,9 +23,10 @@ import MischiefECS.Components
 import MischiefECS.Components.Bundle
 import {-# SOURCE #-} MischiefECS.Components.Spawn
 import MischiefECS.Entities
-import MischiefECS.Events.Internal
+import {-# SOURCE #-} MischiefECS.Events
 import MischiefECS.Hidden
 import MischiefECS.Tables
+import MischiefECS.Utils
 import MischiefECS.World
 import MischiefECS.World.Prefs
 import {-# SOURCE #-} MischiefECS.World.Spawn (spawnIO)

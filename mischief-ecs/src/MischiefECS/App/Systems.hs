@@ -16,6 +16,7 @@ import MischiefECS.Components.Bundle
 import MischiefECS.Entities
 import MischiefECS.Hidden (GetHidden (getHidden))
 import MischiefECS.Tables
+import MischiefECS.Utils
 import MischiefECS.World
 import MischiefECS.World.Insert
 import MischiefECS.World.Query

@@ -5,6 +5,7 @@ import MischiefECS.Components
 import MischiefECS.Components.Bundle
 import MischiefECS.Prelude
 import MischiefECS.Tables
+import MischiefECS.World
 import MischiefECS.World.Insert
 import MischiefECS.World.Query
 

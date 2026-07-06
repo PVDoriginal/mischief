@@ -18,6 +18,7 @@ import {-# SOURCE #-} MischiefECS.App.Systems
 import MischiefECS.Archetypes
 import {-# SOURCE #-} MischiefECS.Archetypes.Graph
 import MischiefECS.Components
+import MischiefECS.Components.Common
 import {-# SOURCE #-} MischiefECS.Components.Spawn
 import MischiefECS.Entities
 import MischiefECS.Hidden (GetHidden (getHidden))

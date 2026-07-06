@@ -59,6 +59,7 @@ library
     MischiefECS.Archetypes.Graph
     MischiefECS.Components
     MischiefECS.Components.Bundle
+    MischiefECS.Components.Common
     MischiefECS.Components.Required
     MischiefECS.Components.Runnable
     MischiefECS.Components.Spawn
@@ -94,8 +95,6 @@ library
   -- Modules included in this library but not exported.
   -- other-modules:
   other-modules:
-    MischiefECS.Entities.Internal
-    MischiefECS.Events.Internal
     MischiefECS.Hidden
 
   -- LANGUAGE extensions used by modules in this package.z

@@ -16,6 +16,7 @@ import MischiefECS.Archetypes
 import MischiefECS.Components
 import MischiefECS.Relationships
 import MischiefECS.Tables
+import MischiefECS.Utils
 import MischiefECS.Vec (IOVec)
 import MischiefECS.Vec qualified as Vec
 import MischiefECS.World

@@ -8,7 +8,6 @@ import Data.IORef (modifyIORef', readIORef, writeIORef)
 import Data.List
 import MischiefECS.Components
 import MischiefECS.Entities
-import MischiefECS.Events.Internal
 import MischiefECS.Tables
 import MischiefECS.World
 import MischiefECS.World.Query
@@ -57,3 +56,6 @@ data OnInsertRel c = OnInsertRel {entity :: Entity, target :: Entity}
 newtype OnRemove c = OnRemove {entity :: Entity}
   deriving anyclass (Event)
   deriving stock (Show)
+
+data ErasedEvent where
+  ErasedEvent :: (Typeable e) => e -> ErasedEvent

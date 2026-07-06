@@ -49,3 +49,6 @@ group :: Int -> [a] -> [[a]]
 group _ [] = []
 group 0 l = [l]
 group !n !l = take n l : group n (drop n l)
+
+parIter :: (MonadSystem w m, Foldable t) => t a -> (a -> ParSystem b) -> m ()
+parIter x s = parIterList x $ \chunk -> for_ chunk s
