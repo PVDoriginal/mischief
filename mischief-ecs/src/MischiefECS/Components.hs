@@ -20,9 +20,40 @@ import GHC.Records
 import {-# SOURCE #-} MischiefECS.Entities
 import MischiefECS.Utils
 
--- | Unique ids for components and component pairs.
+-- | The @Component@ typeclass.
+class (Typeable c) => Component c where
+  -- | Automatic type erasure
+  erase :: c -> ErasedComponent
+  erase = ErasedComponent
+
+  -- | List of components required by this one.
+  -- All required components must be 'Default'
+  --
+  -- Example
+  --
+  -- @
+  -- data A = A
+  -- instance 'Component' A where
+  --   'required' = 'MischiefECS.Components.Required.require' @(B, C)
+  --
+  -- data B = B 'Int' deriving ('Component', 'Generic', 'Default')
+  --
+  -- data C = C 'String' deriving ('Component')
+  -- instance 'Default' C where
+  --   'def' = C "Default String"
+  -- @
+  required :: Set DefaultComponentType
+  required = Set.empty
+
+  -- | Set to 'True' in order to make relationships containing this components @exclusive@.
+  isExclusiveRel :: Bool
+  isExclusiveRel = False
+
+-- | Unique id for components and component pairs.
 data ComponentId = ComponentId
-  { id :: Entity,
+  { -- | The component's entity.
+    id :: Entity,
+    -- | Optional target entity in case this is a pair / relationship.
     entity :: Maybe Entity
   }
   deriving (Show, Eq, Ord)
@@ -70,16 +101,6 @@ newtype ArchetypeId = ArchetypeId
   { id :: Int
   }
   deriving (Show, Eq, Ord)
-
-class (Typeable c) => Component c where
-  erase :: c -> ErasedComponent
-  erase = ErasedComponent
-
-  required :: Set DefaultComponentType
-  required = Set.empty
-
-  isExclusiveRel :: Bool
-  isExclusiveRel = False
 
 data BundleData = BundleData {elements :: Set BundleElement, required :: Set BundleElement}
 

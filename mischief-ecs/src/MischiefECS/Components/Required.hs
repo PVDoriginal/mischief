@@ -25,7 +25,6 @@ instance {-# OVERLAPPING #-} (RequiredBundle b0, RequiredBundle b1) => RequiredB
         b1 = defaultBundleData (Proxy @b1)
      in Set.union b0 b1
 
--- TODO: this is inefficient, rework.
 require :: forall b. (RequiredBundle b) => Set DefaultComponentType
 require = defaultBundleData (Proxy @b)
 
