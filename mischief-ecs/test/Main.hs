@@ -78,3 +78,4 @@ dummy = return ()
 
 newtype Counter = Counter Int
   deriving anyclass (Component, Queryable)
+  deriving stock (Show)

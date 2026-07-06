@@ -74,7 +74,7 @@ self = do
   let (SystemId sys) = world.systemId
   return sys
 
-local :: forall c. (Default c, Queryable c, QueryOutput c ~ Result c, Bundle c) => System (Result c)
-local = do
+local :: forall c. (Queryable c, QueryOutput c ~ Result c, Bundle c) => c -> System (Result c)
+local c = do
   loc <- self
-  getOrInsert (def @c) loc
+  getOrInsert c loc
