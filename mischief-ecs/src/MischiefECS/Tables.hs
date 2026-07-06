@@ -15,7 +15,6 @@ import GHC.TypeLits
 import MischiefECS.Components
 import MischiefECS.Components.Bundle
 import MischiefECS.Entities
-import MischiefECS.Entities.Internal
 import MischiefECS.Vec (IOVec)
 import MischiefECS.Vec qualified as Vec
 

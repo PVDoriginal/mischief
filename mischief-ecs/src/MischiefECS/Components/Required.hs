@@ -7,7 +7,6 @@ import Data.Default
 import Data.Set (Set)
 import Data.Set qualified as Set
 import MischiefECS.Components
-import MischiefECS.Components.Internal
 
 class RequiredBundle b where
   defaultBundleData :: Proxy b -> Set DefaultComponentType

@@ -4,7 +4,6 @@ import Control.Monad.Primitive
 import MischiefECS.Archetypes
 import MischiefECS.Components
 import MischiefECS.World
-import MischiefECS.World.Internal
 
 data ArchetypeTransition = Inserted ComponentId | Removed ComponentId
 

@@ -20,7 +20,6 @@ import MischiefECS.Vec (IOVec)
 import MischiefECS.Vec qualified as Vec
 import MischiefECS.World
 import MischiefECS.World.Defer
-import MischiefECS.World.Internal
 import MischiefECS.World.Modify
 import MischiefECS.World.Query
 

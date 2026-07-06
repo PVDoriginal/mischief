@@ -28,7 +28,6 @@ import MischiefECS.Tables
 import MischiefECS.World
 import MischiefECS.World.Defer
 import MischiefECS.World.Insert
-import MischiefECS.World.Internal
 import MischiefECS.World.Query
 import MischiefECS.World.Spawn
 

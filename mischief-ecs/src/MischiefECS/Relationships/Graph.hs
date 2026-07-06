@@ -4,9 +4,8 @@ module MischiefECS.Relationships.Graph where
 
 import MischiefECS.Components
 import MischiefECS.Entities
-import MischiefECS.Entities.Internal
 import MischiefECS.Tables
-import MischiefECS.World.Internal
+import MischiefECS.World
 import MischiefECS.World.Query
 
 outgoing :: forall c m w. (Component c, MonadSystem w m) => Entity -> m [Entity]

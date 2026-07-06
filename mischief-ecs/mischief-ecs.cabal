@@ -94,10 +94,9 @@ library
   -- Modules included in this library but not exported.
   -- other-modules:
   other-modules:
-    MischiefECS.Components.Internal
     MischiefECS.Entities.Internal
     MischiefECS.Events.Internal
-    MischiefECS.World.Internal
+    MischiefECS.Hidden
 
   -- LANGUAGE extensions used by modules in this package.z
   default-extensions:

@@ -3,7 +3,6 @@ module MischiefECS.App.Systems where
 import MischiefECS.Components
 import MischiefECS.Entities
 import MischiefECS.World
-import MischiefECS.World.Internal
 
 getSystemTicks :: World -> IO (Tick, Tick)
 

@@ -6,7 +6,7 @@ import MischiefECS (Result)
 import MischiefECS.Components
 import MischiefECS.Entities
 import MischiefECS.Relationships.Graph
-import MischiefECS.World.Internal
+import MischiefECS.World
 
 descendants :: forall c m w. (Component c, MonadSystem w m) => Entity -> m [Entity]
 descendants entity = do

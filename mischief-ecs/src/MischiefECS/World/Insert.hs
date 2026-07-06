@@ -16,10 +16,8 @@ import MischiefECS.Archetypes
 import {-# SOURCE #-} MischiefECS.Archetypes.Graph
 import MischiefECS.Components
 import MischiefECS.Components.Bundle
-import MischiefECS.Components.Internal
 import {-# SOURCE #-} MischiefECS.Components.Spawn
 import MischiefECS.Entities
-import MischiefECS.Entities.Internal
 import MischiefECS.Events
 import MischiefECS.Tables
 import MischiefECS.Vec qualified as Vec

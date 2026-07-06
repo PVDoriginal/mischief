@@ -1,22 +1,30 @@
 module MischiefECS.World
-  ( World (..),
+  ( -- * World
+    World (..),
     newWorld,
     tick,
     setSystemId,
     setDeferred,
     setPrefs,
     forkPrefs,
-    System (..),
-    runSystem,
-    Name (..),
     Frame (..),
+
+    -- * Systems
+    System (..),
     SystemId (..),
+    runSystem,
+    MonadSystem,
+    Name (..),
+
+    -- * Parallel
+    ParSystem (..),
+    ParWorld (..),
   )
 where
 
 import Control.Concurrent.STM (TVar, newTVarIO)
 import Control.Monad.IO.Class (MonadIO (liftIO))
-import Control.Monad.Primitive (PrimMonad (..))
+import Control.Monad.Primitive (PrimMonad (..), RealWorld)
 import Control.Monad.Reader.Class (MonadReader (..))
 import Control.Monad.Trans (MonadTrans (..))
 import Control.Monad.Trans.Reader (ReaderT (runReaderT))
@@ -34,6 +42,7 @@ import MischiefECS.Entities
     emptyEntities,
   )
 import MischiefECS.Events.Internal (ErasedEvent)
+import MischiefECS.Hidden
 import MischiefECS.Tables (Tables, emptyTables)
 import MischiefECS.World.Prefs (WorldPrefs, newPrefs)
 
@@ -66,6 +75,7 @@ data World = World
 
 newtype Frame = Frame Int deriving (Show, Eq, Ord)
 
+-- | Unique id assigned to each system that's added to a schedule. Just a wrapper around Entity.
 newtype SystemId = SystemId {entity :: Entity} deriving (Show, Eq, Ord)
 
 -- | Create a new World in IO.
@@ -151,3 +161,36 @@ forkPrefs f s = do
   world <- ask
   let world' = setPrefs (f world.prefs) world
   liftIO $ runSystem s world'
+
+-- | Special wrapper around World given to 'ParSystem's.
+data ParWorld = ParWorld
+  { -- | @Hidden@ ensures users cannot access and mutate the World.
+    world :: Hidden World,
+    -- | Deferred systems will be collected in this dedicated list and then
+    -- merged back into the main deferred list once the parallel systems are joined.
+    deferred :: IORef [System ()]
+  }
+
+-- | A variant of 'System' that contains a 'ParWorld' instead of 'World'.
+--
+-- @Parallel systems@ will only be able to run systems that are either specifically intended for them or
+-- are made to work with any @'MonadSystem'@ (such as queries).
+--
+-- To run a normal @System ()@, you need to 'MischiefECS.World.Defer.defer'!
+newtype ParSystem a = ParSystem (ReaderT ParWorld IO a)
+  deriving newtype (Functor, Applicative, Monad, MonadIO, MonadReader ParWorld, MonadFail, PrimMonad)
+
+instance GetHidden World World where
+  getHidden = id
+
+instance GetHidden ParWorld World where
+  getHidden w = w.world.get
+
+-- | Typeclass that can be used to generalize systems to both @'System'@ and @'ParSystem'@.
+--
+-- Used mainly by queries and other operations which don't mutate the World.
+class (GetHidden w World, MonadReader w a, Applicative a, MonadFail a, Functor a, Monad a, MonadIO a, PrimMonad a, PrimState a ~ RealWorld) => MonadSystem w a
+
+instance MonadSystem World System
+
+instance MonadSystem ParWorld ParSystem

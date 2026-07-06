@@ -3,7 +3,7 @@ module MischiefECS.Relationships.ChildOf where
 import MischiefECS.Components
 import MischiefECS.Entities
 import MischiefECS.Relationships.Graph
-import MischiefECS.World.Internal
+import MischiefECS.World
 import MischiefECS.World.Query
 
 data ChildOf = ChildOf deriving (Queryable, Show)

@@ -14,10 +14,10 @@ import MischiefECS.App.Schedules
 import MischiefECS.Components
 import MischiefECS.Components.Bundle
 import MischiefECS.Entities
+import MischiefECS.Hidden (GetHidden (getHidden))
 import MischiefECS.Tables
 import MischiefECS.World
 import MischiefECS.World.Insert
-import MischiefECS.World.Internal
 import MischiefECS.World.Query
 import MischiefECS.World.Spawn
 
@@ -70,7 +70,7 @@ getSystemTicks world = do
 
 self :: forall m w. (MonadSystem w m) => m Entity
 self = do
-  world <- asks getWorld
+  world :: World <- asks getHidden
   let (SystemId sys) = world.systemId
   return sys
 

@@ -17,8 +17,7 @@ import Data.Set qualified as Set
 import Data.Typeable
 import GHC.Generics
 import GHC.Records
-import MischiefECS.Components.Internal
-import MischiefECS.Entities.Internal
+import {-# SOURCE #-} MischiefECS.Entities
 
 -- | Unique ids for components and component pairs.
 data ComponentId = ComponentId

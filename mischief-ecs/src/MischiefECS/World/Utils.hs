@@ -21,13 +21,12 @@ import MischiefECS.Archetypes
 import {-# SOURCE #-} MischiefECS.Archetypes.Graph (getArchetypeOnRemove)
 import MischiefECS.Components
 import MischiefECS.Components.Bundle
-import MischiefECS.Components.Internal
 import {-# SOURCE #-} MischiefECS.Components.Spawn
 import MischiefECS.Entities
 import MischiefECS.Events.Internal
+import MischiefECS.Hidden
 import MischiefECS.Tables
 import MischiefECS.World
-import MischiefECS.World.Internal
 import MischiefECS.World.Prefs
 import {-# SOURCE #-} MischiefECS.World.Spawn (spawnIO)
 
@@ -208,5 +207,5 @@ tryGetTicks rep world archetypes =
 
 isAlive :: forall m w. (MonadSystem w m) => Entity -> m Bool
 isAlive entity = do
-  world <- asks getWorld
+  world :: World <- asks getHidden
   liftIO $ isAliveIO entity world.entities

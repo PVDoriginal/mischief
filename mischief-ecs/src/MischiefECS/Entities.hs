@@ -8,7 +8,7 @@ module MischiefECS.Entities
     getPointer,
     insertPointer,
     emptyEntities,
-    Entity (Entity, id),
+    Entity (..),
     isAliveIO,
   )
 where
@@ -20,7 +20,6 @@ import Data.Map qualified as Map
 import Data.Maybe (fromMaybe, isJust)
 import GHC.Conc
 import MischiefECS.Components
-import MischiefECS.Entities.Internal
 
 data EntityPointer = EntityPointer
   { archetypeId :: ArchetypeId,
@@ -75,3 +74,10 @@ isAliveIO :: Entity -> Entities -> IO Bool
 isAliveIO entity Entities {pointers} = do
   pointers <- readIORef pointers
   return $ isJust $ Map.lookup entity pointers
+
+data Entity = Entity {id :: Int, gen :: Int} deriving (Eq, Ord)
+
+instance Show Entity where
+  show :: Entity -> String
+  show Entity {id, gen = 0} = show id ++ "v" ++ "."
+  show entity = show entity.id ++ "v" ++ show entity.gen

@@ -9,8 +9,8 @@ import Control.Monad.Reader
 import Data.Foldable
 import Data.Functor
 import Data.IORef
+import MischiefECS.Hidden
 import MischiefECS.World
-import MischiefECS.World.Internal
 
 -- class Defer s where
 --   -- | Defer a command to be ran after the current 'System' is finished,
@@ -99,7 +99,7 @@ forkDefer s = do
 
 runAfter :: (MonadSystem w m) => IO a -> (a -> System ()) -> m ()
 runAfter !function !system = do
-  world <- asks getWorld
+  world :: World <- asks getHidden
   _ <- liftIO $ forkIO $ do
     a <- function
     atomically $ modifyTVar' world.deferredAsync (++ [system a])

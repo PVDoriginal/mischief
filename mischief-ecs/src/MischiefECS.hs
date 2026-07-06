@@ -105,7 +105,6 @@ import MischiefECS.Utils
 import MischiefECS.World
 import MischiefECS.World.Defer
 import MischiefECS.World.Insert
-import MischiefECS.World.Internal (ParSystem)
 import MischiefECS.World.Modify
 import MischiefECS.World.Par
 import MischiefECS.World.Query

@@ -16,7 +16,6 @@ import MischiefECS.Components
 import MischiefECS.Components.Bundle
 import MischiefECS.Components.Required (requireAll)
 import MischiefECS.Entities
-import MischiefECS.Entities.Internal
 import MischiefECS.Relationships
 import MischiefECS.World
 import MischiefECS.World.Defer

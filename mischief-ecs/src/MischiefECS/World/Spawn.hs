@@ -13,12 +13,12 @@ import MischiefECS.Components.Bundle
 import {-# SOURCE #-} MischiefECS.Components.Spawn (getOrAddComponentId)
 import MischiefECS.Entities
 import MischiefECS.Events
+import MischiefECS.Hidden
 import MischiefECS.Tables
 import MischiefECS.World
 import MischiefECS.World.Change
 import MischiefECS.World.Defer
 import MischiefECS.World.Insert
-import MischiefECS.World.Internal
 import MischiefECS.World.Utils
 
 -- | Spawn an entity given a bundle of components.
@@ -34,7 +34,7 @@ spawn bundle =
 spawnDefer :: (Bundle b) => b -> ParSystem Entity
 spawnDefer bundle = do
   ParWorld {world} <- ask
-  entity <- liftIO $ getNewEntity world.entities
+  entity <- liftIO $ getNewEntity world.get.entities
 
   defer $ spawnEntity entity bundle
   return entity
