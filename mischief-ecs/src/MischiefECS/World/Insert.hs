@@ -25,6 +25,7 @@ import MischiefECS.World
 import MischiefECS.World.Change
 import MischiefECS.World.Prefs
 import MischiefECS.World.Query
+import MischiefECS.World.Query.Queryable
 import {-# SOURCE #-} MischiefECS.World.Spawn
 import MischiefECS.World.Utils
 

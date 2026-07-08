@@ -10,6 +10,7 @@ import MischiefECS.Graph (Graph)
 import MischiefECS.Graph qualified as Graph
 import MischiefECS.World
 import MischiefECS.World.Query
+import MischiefECS.World.Query.Queryable
 
 data Scheduler = Scheduler
   { startup :: Graph ScheduleLabel,

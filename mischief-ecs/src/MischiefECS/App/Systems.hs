@@ -20,6 +20,7 @@ import MischiefECS.Utils
 import MischiefECS.World
 import MischiefECS.World.Insert
 import MischiefECS.World.Query
+import MischiefECS.World.Query.Queryable
 import MischiefECS.World.Spawn
 
 newtype Systems = Systems

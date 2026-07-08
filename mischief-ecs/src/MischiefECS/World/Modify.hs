@@ -8,6 +8,7 @@ import MischiefECS.Tables
 import MischiefECS.World
 import MischiefECS.World.Insert
 import MischiefECS.World.Query
+import MischiefECS.World.Query.Queryable
 
 --   Just res <- single @r
 --   modify res f

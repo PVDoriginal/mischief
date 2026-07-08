@@ -23,7 +23,8 @@ import MischiefECS.Tables
 import MischiefECS.Utils
 import MischiefECS.World
 import MischiefECS.World.Modify
-import MischiefECS.World.Query (Queryable, get)
+import MischiefECS.World.Query (get)
+import MischiefECS.World.Query.Queryable
 
 -- | Message typeclass.
 class (Typeable m) => Message m

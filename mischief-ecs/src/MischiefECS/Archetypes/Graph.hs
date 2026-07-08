@@ -23,6 +23,7 @@ import MischiefECS.World
 import MischiefECS.World.Defer
 import MischiefECS.World.Modify
 import MischiefECS.World.Query
+import MischiefECS.World.Query.QueryData
 
 data ArchetypeTransition = Inserted ComponentId | Removed ComponentId
 

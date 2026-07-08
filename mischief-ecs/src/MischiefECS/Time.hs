@@ -9,6 +9,7 @@ import MischiefECS.Tables
 import MischiefECS.World
 import MischiefECS.World.Insert
 import MischiefECS.World.Query
+import MischiefECS.World.Query.Queryable
 import System.Clock
 
 data Time = Time

@@ -68,6 +68,8 @@ library
     MischiefECS.Graph
     MischiefECS.Messages
     MischiefECS.Prelude
+    MischiefECS.World.Query.Queryable
+    MischiefECS.World.Query.QueryData
     MischiefECS.Relationships
     MischiefECS.Relationships.ChildOf
     MischiefECS.Relationships.Graph

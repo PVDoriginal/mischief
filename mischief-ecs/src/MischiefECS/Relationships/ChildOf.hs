@@ -5,6 +5,7 @@ import MischiefECS.Entities
 import MischiefECS.Relationships.Graph
 import MischiefECS.World
 import MischiefECS.World.Query
+import MischiefECS.World.Query.Queryable
 
 data ChildOf = ChildOf deriving (Queryable, Show)
 

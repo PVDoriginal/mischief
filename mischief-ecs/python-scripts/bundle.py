@@ -15,19 +15,18 @@ def instance(n):
         if i != n-1:
             res += ", "
 
-    res += ") where \n  bundleData("
+    res += ") where \n  bundleData ("
 
     for i in range(n):
         res += "c" + str(i)
         if i != n-1:
             res += ", "
 
-    res += ") = \n    let\n"
+    res += ") = let\n"
     for i in range(n):
-        res += "      BundleData set" + str(i) + " = bundleData c" + str(i) + "\n"
+        res += "      BundleData {elements = set" + str(i) + "} = bundleData c" + str(i) + "\n"
 
-    res += "    in\n      BundleData $ "
-    res += "Set.unions ["
+    res += "    in BundleData $ Set.unions ["
 
     for i in range(n):
         res += "set" + str(i)

@@ -9,5 +9,6 @@ import Data.Foldable
 import MischiefECS.Components
 import MischiefECS.Relationships.ChildOf
 import MischiefECS.World.Query
+import MischiefECS.World.Query.Queryable
 
 data IsExclusiveRelationship = IsExclusiveRelationship deriving (Show, Component, Queryable)
