@@ -74,6 +74,7 @@ library
     MischiefECS.Relationships.Tree
     MischiefECS.Tables
     MischiefECS.Time
+    MischiefECS.Tutorial.App
     MischiefECS.Tutorial.Components
     MischiefECS.Tutorial.Systems
     MischiefECS.Utils

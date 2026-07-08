@@ -1,4 +1,10 @@
-module MischiefSDL where
+module MischiefSDL
+  ( -- $intro
+    sdlPlugin,
+    SDLMessage (..),
+    Window (..),
+  )
+where
 
 import Control.Monad
 import Control.Monad.IO.Class
@@ -33,8 +39,6 @@ initSdl = do
 newtype SDLMessage e = SDLMessage e
   deriving anyclass (Message)
   deriving newtype (Show)
-
-data X = X
 
 sdlPlugin :: Plugin ()
 sdlPlugin = do
@@ -98,3 +102,24 @@ handleQuit = do
 -- This package provides the 'sdlPlugin' for @Mischief@, along with a few components.
 --
 -- These are necessary to run any SDL-based packages, such as @MischiefInput@, and @MischiefRender@.
+--
+-- In order to properly run this, you'll need to build / install SDL locally. This can be done via:
+--
+-- @
+-- git clone --recurse-submodules https://github.com/PVDoriginal/mischief.git
+-- cd mischief\/external\/SDL3
+-- mkdir -p build && cd build
+-- cmake -DCMAKE_BUILD_TYPE=Release -GNinja ..
+-- cmake --build . --config Release --parallel
+-- sudo cmake --install . --config Release   # omit sudo on Windows
+-- @
+--
+-- On @Windows@, ensure @SDL3.dll@ is available in @PATH@ (or next to your .exe). If @pkg-config@ cannot find SDL3, set:
+--
+-- @
+-- set PKG_CONFIG_PATH=path\to\SDL3\lib\pkgconfig
+-- # or
+-- \$env:PKG_CONFIG_PATH="path\to\SDL3\lib\pkgconfig"
+-- @
+--
+-- Many thanks to [klukaszek](https://github.com/klukaszek) for the SDL3 bindings!

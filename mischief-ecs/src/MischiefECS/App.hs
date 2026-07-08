@@ -43,16 +43,15 @@ newtype Plugin a = Plugin (ReaderT App IO a)
 runPlugin :: Plugin a -> App -> IO a
 runPlugin (Plugin r) = runReaderT r
 
-newApp :: [Plugin ()] -> IO App
-newApp plugins = do
+newApp :: Plugin () -> IO App
+newApp plugin = do
   world <- newWorld
   systems <- Systems.newSystems
-  scheduler <- Scheduler.newScheduler
 
   let app = App {world, systems}
 
-  for_ (appInit : plugins) $ \plugin ->
-    runPlugin plugin app
+  runPlugin appInit app
+  runPlugin plugin app
 
   return app
 
@@ -158,6 +157,9 @@ addPlugin :: Plugin () -> Plugin ()
 addPlugin plugin = do
   app <- ask
   liftIO $ runPlugin plugin app
+
+addPlugins :: (Foldable t) => t (Plugin ()) -> Plugin ()
+addPlugins plugins = for_ plugins addPlugin
 
 run :: System a -> Plugin a
 run s = do

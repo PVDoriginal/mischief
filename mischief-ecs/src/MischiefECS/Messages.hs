@@ -3,9 +3,9 @@
 module MischiefECS.Messages
   ( Message,
     Messages,
+    addMessage,
     writeMessage,
     readMessages,
-    addMessage,
   )
 where
 
@@ -25,8 +25,12 @@ import MischiefECS.World
 import MischiefECS.World.Modify
 import MischiefECS.World.Query (Queryable, get)
 
+-- | Message typeclass.
 class (Typeable m) => Message m
 
+-- | Resource for writing and reading messages.
+--
+-- Internally, this keeps track of which messages each system has already read.
 data Messages m = Messages {messages :: [(Frame, Tick, m)], readers :: Map SystemId Reader}
 
 newMessages :: forall m. Messages m
@@ -48,6 +52,7 @@ instance (Message m) => Component (Messages m)
 
 instance (Message m) => Queryable (Messages m)
 
+-- | Write a message into the resource.
 writeMessage :: (Message m) => m -> Result (Messages m) -> System ()
 writeMessage !message !messages = do
   world <- ask
@@ -60,6 +65,7 @@ writeMessage !message !messages = do
   modify messages (\Messages {messages, readers} -> Messages {messages = message' : messages, readers})
   clearOldMessages messages
 
+-- | Read all the messages from this resource that haven't been read by the current system.
 readMessages :: (Message m) => Result (Messages m) -> System [m]
 readMessages !m = do
   Reader tick <- getReader m
@@ -73,6 +79,7 @@ readMessages !m = do
 
   return newMessages
 
+-- | Register a new message type with the App. This will automatically create a corresponding resource.
 addMessage :: forall (m :: Type). (Message m) => Plugin ()
 addMessage = do
   addRes $ newMessages @m

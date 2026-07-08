@@ -29,7 +29,7 @@ type C# = (# Float#, Int# #)
 
 testRelationships :: IO ()
 testRelationships = do
-  app <- newApp [plugin]
+  app <- newApp plugin
   runApp app
 
 plugin :: Plugin ()

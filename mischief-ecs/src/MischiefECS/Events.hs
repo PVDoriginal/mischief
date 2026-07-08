@@ -21,6 +21,7 @@ newtype ObserverOrder = ObserverOrder Int
   deriving anyclass (Component, Queryable)
   deriving newtype (Eq, Ord)
 
+-- | @Event@ typeclass.
 class (Typeable e) => Event e where
   eraseEvent :: e -> ErasedEvent
   eraseEvent = ErasedEvent

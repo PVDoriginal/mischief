@@ -100,7 +100,7 @@ newtype Components = Components
     components :: IORef (Map TypeRep Entity)
   }
 
--- | @Meta@ components with a set of all archetypes that a components is part of.
+-- | @Meta@ component with a set of all archetypes that a components is part of.
 newtype ComponentArchetypes = ComponentArchetypes {inner :: Set ArchetypeId}
   deriving anyclass (Component)
   deriving newtype (Default)

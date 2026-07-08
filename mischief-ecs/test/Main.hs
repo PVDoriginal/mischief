@@ -33,7 +33,7 @@ instance Component C where
 main :: IO ()
 main = do
   -- testRelationships
-  app <- newApp [plugin]
+  app <- newApp plugin
   runApp app
 
 plugin :: Plugin ()
@@ -46,6 +46,10 @@ plugin = do
 
   addSystems Startup setup
   addSystems Update dummy
+
+  addSystems Update $ do
+    x <- query @A
+    for_ x $ \x -> set x (A 5)
 
   addSystems Update s1
   addSystems Update $ s2 `after` s1

@@ -1,5 +1,3 @@
-{-# LANGUAGE AllowAmbiguousTypes #-}
-
 -- |
 --
 -- Module: ECS
@@ -11,7 +9,7 @@
 -- More information on each subject can be found in the Tutorial modules, as well as spread
 -- throughout the other various modules.
 module MischiefECS
-  ( -- * Mischief :: Entity -> Component c => System ()
+  ( -- * What is Mischief?
     -- $mischief
 
     -- * Learn You an ECS for Great Mischief! - Introduction
@@ -55,7 +53,6 @@ module MischiefECS
 
     -- * In-Depth Tutorials
     -- $tutorials
-    module MischiefECS.Tutorial.Systems,
     module MischiefECS.Components,
     module MischiefECS.Entities,
     module MischiefECS.Tables,
@@ -97,7 +94,6 @@ import MischiefECS.Relationships
 import MischiefECS.Relationships.ChildOf
 import MischiefECS.Tables
 import MischiefECS.Time
-import MischiefECS.Tutorial.Systems
 import MischiefECS.Utils
 import MischiefECS.World
 import MischiefECS.World.Defer
@@ -111,20 +107,25 @@ import MischiefECS.World.Utils
 
 -- $mischief
 --
--- A @Mischief@ is a @group of rats@. It can also refer to being naughty and playful.
+-- Mischief has a few different meanings. It can be a group of rats. Or it can refer to being naughty and playful.
 --
--- This @Mischief@, however, is an @ECS Game Engine@! It takes great inspiration from @Bevy@ (@Rust@) and @Flecs@ (@C/++@), but
--- was created to take advantage of the @great ergonomics and strong type system@ of @Haskell@.
--- It's a refreshing spin on the @functional@ and @data-driven@ paradigms and
--- is probably worth checking out for anyone who enjoyes both @game dev and functional programming@.
+-- This @Mischief@, however, is an @ECS Game Engine@! In other words...
 --
--- This package contains only @MischiefECS@, the ECS engine at the core of @Mischief@. Other packages, such as @MischiefInput@, @MischiefAssets@,
--- @MischiefRender@ are being developed but aren't yet as mature so they haven't been published.
+-- @
+-- Mischief :: Entity -> Component c => System ()
+-- @
 --
--- Performance-wise, @Mischief@ still has a long way to go; there are many easy performance gains that we have just been too busy to implement yet, as we've
+-- It takes great inspiration from [@Bevy@](https://bevy.org/) and [@Flecs@](https://www.flecs.dev/flecs/), and
+-- was written in @100% Haskell@, taking advantage of its @great ergonomics and strong type system@.
+-- It is a refreshing spin on the @functional@ and @data-driven@ paradigms.
+--
+-- This package contains only @mischief-ecs@, the ECS engine at the core of Mischief. Other packages, such as @mischief-input@, @mischief-assets@,
+-- @mischief-render@ are being developed but aren't yet as mature so they haven't been published.
+--
+-- Performance-wise, Mischief still has a long way to go; there are many easy performance gains that we have just been too busy to implement yet, as we've
 -- been mostly focusing on @ergonomics, modularity, and ease-of-use@.
 -- This is a pretty strong @Archetype ECS@ however, and it is possible to bring it to about the same /asymptotic/ performance as @Bevy@ or @Flecs@, although
--- there will probably always be a layer of indirection that makes it a bit slower, due to the high-level, boxed, nature of Haskell.
+-- there will probably always be a layer of indirection (or 20) that makes it a bit slower, due to the high-level, boxed, nature of Haskell.
 
 -- $learn
 -- This module will go over some brief notions to give you an idea of how @Mischief@ works, setting you up for reading the other tutorials that go more in-depth.
@@ -374,5 +375,6 @@ import MischiefECS.World.Utils
 -- $tutorials
 -- Now that you have a basic understanding of how things work, it is recommended to read the rest of the @Tutorial@ modules.
 --
--- (1) "MischiefECS.Tutorial.Components"
--- (2) "MischiefECS.Tutorial.Systems"
+-- (1) [App and Plugins]("MischiefECS.Tutorial.App")
+-- (2) [Components]("MischiefECS.Tutorial.Components")
+-- (3) [Systems]("MischiefECS.Tutorial.Systems")

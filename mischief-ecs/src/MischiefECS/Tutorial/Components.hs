@@ -4,10 +4,15 @@
 -- Module: Components Tutorial
 -- Description: Tutorial on using @Components@
 --
--- This module contains a more in-depth tutorial on @Mischief@ @Components@.
--- It is recommended to read "MischiefECS" first.
+-- This module contains a more in-depth tutorial on @Mischief Components@.
+--
+-- [Previous Chapter: App and Plugins]("MischiefECS.Tutorial.App")
+--
+-- [Main Page]("MischiefECS")
 module MischiefECS.Tutorial.Components
-  ( -- * Introduction
+  ( -- * Learn You an ECS for Great Mischief! - 2. Components
+
+    -- * Introduction
     -- $introduction
 
     -- * Query Results
@@ -22,8 +27,7 @@ module MischiefECS.Tutorial.Components
     -- * Relationships
     -- $relationships
 
-    -- * Next Chapter
-    -- $next
+    -- * [Next Chapter: Systems]("MischiefECS.Tutorial.Systems")
   )
 where
 
