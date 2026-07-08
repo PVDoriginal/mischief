@@ -69,6 +69,7 @@ module MischiefECS
     module MischiefECS.App,
     module MischiefECS.Utils,
     module MischiefECS.App.Schedules,
+    module MischiefECS.Components.Common,
     module MischiefECS.App.SystemConfig,
     module MischiefECS.Messages,
     module MischiefECS.Events,
@@ -86,6 +87,7 @@ import MischiefECS.App.Schedules
 import MischiefECS.App.SystemConfig
 import MischiefECS.Components
 import MischiefECS.Components.Bundle
+import MischiefECS.Components.Common
 import MischiefECS.Components.Required
 import MischiefECS.Entities
 import MischiefECS.Events
