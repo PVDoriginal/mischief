@@ -26,22 +26,11 @@ class (QueryData qd) => Queryable qd where
       Just (Just res) -> Just $ Result (res, entity)
       _ -> Nothing
 
-  -- pure $
-  --   fmap (`Result` entity) result
-
   runQueryInternal :: Proxy qd -> [ArchetypeId] -> World -> IO [(Entity, QueryOutput qd)]
   default runQueryInternal ::
     (Component qd, QueryOutput qd ~ Result qd) =>
     Proxy qd -> [ArchetypeId] -> World -> IO [(Entity, QueryOutput qd)]
   runQueryInternal _ archetypes world = tryGetComponents @qd world archetypes
-
--- outputEntity :: (Queryable qd) => Proxy qd -> QueryOutput qd -> Entity
--- default outputEntity ::
---   (Component qd, QueryOutput qd ~ Result qd) =>
---   Proxy qd -> QueryOutput qd -> Entity
--- outputEntity _ x = x.entity
-
--- outputEntity _ (a, _, _) = outputEntity (Proxy @q0) a
 
 instance (Component c) => Queryable (Rel c) where
   type QueryOutput (Rel c) = [RelResult c]
@@ -53,8 +42,6 @@ instance (Component c) => Queryable (Rel c) where
 
   runQueryInternal :: (Component c) => Proxy (Rel c) -> [ArchetypeId] -> World -> IO [(Entity, QueryOutput (Rel c))]
   runQueryInternal _ archetypes world = tryGetRelCollections @c world archetypes
-
--- outputEntity _ x = x.entity
 
 instance (Component c) => Queryable (Maybe c) where
   type QueryOutput (Maybe c) = (Maybe (Result c))
@@ -76,8 +63,6 @@ instance (Component c) => Queryable (MaybeRel c) where
       Just Nothing -> Just []
       Just (Just x) -> Just x
 
-  -- This looks the same as normal 'Rel', but, through QueryData, it will also include archetypes
-  -- which don't have this relationship.
   runQueryInternal _ archetypes world = tryGetRelCollections @c world archetypes
 
 instance (Component c) => Queryable (Has c) where
