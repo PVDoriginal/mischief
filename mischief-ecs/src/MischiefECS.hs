@@ -157,7 +157,7 @@ import MischiefECS.World.Utils
 -- 'despawn' :: 'Entity' -> 'System' ()
 -- @
 --
--- So let's write out first system; a system that spawns an entity with the Player component and gives it a custom 'Name':
+-- So let's write our first system; a system that spawns an entity with the @Player@ component and gives it a custom @'Name'@:
 --
 -- @
 -- data Player = Player deriving ('Component')
@@ -180,7 +180,7 @@ import MischiefECS.World.Utils
 -- $plugins
 -- A 'Plugin' is a 'Monad' that alters the 'App' itself by changing various configurations.
 --
--- When 'runApp' is called, the app will apply all of its plugins, before running schedules (more on that later).
+-- Plugins are ran before running the app, and before any schedules (more on that later).
 --
 -- @
 -- main :: 'IO' ()
@@ -203,7 +203,7 @@ import MischiefECS.World.Utils
 -- There are many predefined schedules, such as 'Startup', which runs once at the start of the app, and
 -- 'Update', which runs once per frame.
 --
--- Creating custom schedules and running them on-demand is also possible (TODO: actually add this).
+-- Creating custom schedules and running them on-demand is also possible.
 --
 -- For instance, the following plugin will spawn a player in the 'Startup' schedule:
 --
@@ -260,9 +260,9 @@ import MischiefECS.World.Utils
 --
 -- @
 -- 'for_' x $\(name, health) -> do
---  'liftIO' $ 'print' $ 'show' name ++ " has " ++ 'show' health
---  'set' name $ 'Name' "New Name"
---  'modify' health $ (\(Health x) -> Health (x + 1))
+--   'liftIO' $ 'print' $ 'show' name ++ " has " ++ 'show' health
+--   'set' name $ 'Name' "New Name"
+--   'modify' health $ (\(Health x) -> Health (x + 1))
 -- @
 --
 -- A component's value can be obtained at any time from a 'Result' by using @'value' :: 'Result' c -> c@.
@@ -284,8 +284,8 @@ import MischiefECS.World.Utils
 -- name <- 'get' @'Name' player
 --
 -- case name of
---  'Nothing' -> 'return' ()
---  'Just' name -> do
+--   'Nothing' -> 'return' ()
+--   'Just' name -> do
 --     'liftIO' $ 'print' name
 -- @
 --
@@ -298,8 +298,8 @@ import MischiefECS.World.Utils
 --
 -- Multiple filters can be combined using the '&.' and '|.' operators.
 --
--- The following 'query'' will return the @'Name'@ of all players (entities with the @Player@ component) that have @Health@ but aren't
--- @Enemies@ (don't have the @Enemy@ component).
+-- The following query will return the @'Name'@ of all players that have @Health@ but aren't
+-- @Enemies@.
 --
 -- @
 -- players <- 'query'' \@'Name' $ 'with' \@(Player, Health) '&.' 'without' \@Enemy
