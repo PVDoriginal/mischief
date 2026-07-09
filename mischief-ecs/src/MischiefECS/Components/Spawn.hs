@@ -33,14 +33,13 @@ getOrAddPairId (Pair (t, entity)) = do
 -- | Get the id of a component. In case the component isn't registered, it will give it a new id.
 getOrAddComponentId :: ComponentType -> System ComponentId
 getOrAddComponentId (ComponentType (_ :: Proxy c)) = do
-  world <- ask
+  world <- unsafeGetWorld
   let comp = world.components
   innerMap <- liftIO $ readIORef comp.components
 
   case Map.lookup (typeRep $ Proxy @c) innerMap of
     Just t -> return $ ComponentId {id = t, entity = Nothing}
     Nothing -> do
-      world <- ask
       result <- liftIO $ getNewEntity world.entities
 
       liftIO $ modifyIORef' comp.components $ Map.insert (typeRep $ Proxy @c) result

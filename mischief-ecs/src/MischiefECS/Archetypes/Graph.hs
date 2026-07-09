@@ -35,7 +35,7 @@ getNewId ArchetypeGraph {counter} = do
 
 createNode :: Set ComponentId -> System Int
 createNode components = do
-  world <- ask
+  world <- unsafeGetWorld
   let Archetypes {graph} = world.archetypes
 
   id <- liftIO $ getNewId graph
@@ -81,7 +81,7 @@ createNode components = do
 
 getOrCreateNode :: Set ComponentId -> System Int
 getOrCreateNode components = do
-  world <- ask
+  world <- unsafeGetWorld
   let Archetypes {graph} = world.archetypes
 
   lookup <- liftIO $ readIORef graph.lookup
@@ -91,26 +91,26 @@ getOrCreateNode components = do
 
 addEdge :: Int -> Int -> ComponentId -> System ()
 addEdge a b component = do
-  world <- ask
+  world <- unsafeGetWorld
   let Archetypes {graph} = world.archetypes
   Vec.modify_ graph.nodes a $ \ArchetypeNode {insert, remove, archetype} -> ArchetypeNode {insert = Map.insert component b insert, remove, archetype}
   Vec.modify_ graph.nodes b $ \ArchetypeNode {insert, remove, archetype} -> ArchetypeNode {insert, remove = Map.insert component a remove, archetype}
 
 addEdgeI :: Int -> Int -> ComponentId -> System ()
 addEdgeI a b component = do
-  world <- ask
+  world <- unsafeGetWorld
   let Archetypes {graph} = world.archetypes
   Vec.modify_ graph.nodes a $ \ArchetypeNode {insert, remove, archetype} -> ArchetypeNode {insert = Map.insert component b insert, remove, archetype}
 
 addEdgeR :: Int -> Int -> ComponentId -> System ()
 addEdgeR a b component = do
-  world <- ask
+  world <- unsafeGetWorld
   let Archetypes {graph} = world.archetypes
   Vec.modify_ graph.nodes b $ \ArchetypeNode {insert, remove, archetype} -> ArchetypeNode {insert, remove = Map.insert component a remove, archetype}
 
 getArchetype :: ArchetypeId -> ArchetypeTransition -> System ArchetypeData
 getArchetype (ArchetypeId id) (Removed component) = do
-  world <- ask
+  world <- unsafeGetWorld
   let Archetypes {graph} = world.archetypes
 
   node <- Vec.read graph.nodes id
@@ -130,7 +130,7 @@ getArchetype (ArchetypeId id) (Removed component) = do
       newNode <- Vec.read graph.nodes newId
       return newNode.archetype
 getArchetype (ArchetypeId id) (Inserted component) = do
-  world <- ask
+  world <- unsafeGetWorld
   let Archetypes {graph} = world.archetypes
 
   node <- Vec.read graph.nodes id
@@ -164,7 +164,7 @@ getArchetype (ArchetypeId id) (Inserted component) = do
 getArchetypeOnInsert :: ArchetypeId -> [ComponentId] -> System ArchetypeData
 getArchetypeOnInsert archetype components =
   do
-    world <- ask
+    world <- unsafeGetWorld
     let Archetypes {graph} = world.archetypes
     let d = ArchetypeData {id = archetype, components = Set.empty}
 
@@ -178,7 +178,7 @@ getArchetypeOnInsert archetype components =
 getArchetypeOnRemove :: ArchetypeId -> [ComponentId] -> System ArchetypeData
 getArchetypeOnRemove archetype components =
   do
-    world <- ask
+    world <- unsafeGetWorld
     let Archetypes {graph} = world.archetypes
     let d = ArchetypeData {id = archetype, components = Set.empty}
 
@@ -192,7 +192,7 @@ getArchetypeOnRemove archetype components =
 getArchetypeOnSpawn :: [ComponentId] -> System ArchetypeData
 getArchetypeOnSpawn components =
   do
-    world <- ask
+    world <- unsafeGetWorld
     let Archetypes {graph} = world.archetypes
 
     regs <- mapM getRequirements components

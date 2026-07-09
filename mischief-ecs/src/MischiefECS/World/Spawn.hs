@@ -26,7 +26,7 @@ import MischiefECS.World.Utils
 spawn :: (Bundle b) => b -> System Entity
 spawn bundle =
   do
-    world <- ask
+    world <- unsafeGetWorld
     entity <- liftIO $ getNewEntity world.entities
 
     spawnEntity entity bundle
@@ -34,8 +34,8 @@ spawn bundle =
 
 spawnDefer :: (Bundle b) => b -> ParSystem Entity
 spawnDefer bundle = do
-  ParWorld {world} <- ask
-  entity <- liftIO $ getNewEntity world.get.entities
+  world <- unsafeGetWorld
+  entity <- liftIO $ getNewEntity world.entities
 
   defer $ spawnEntity entity bundle
   return entity
@@ -44,7 +44,7 @@ data SpawnEventsSettings = WithSpawnEvents | WithoutSpawnEvents
 
 spawnEntity :: (Bundle b) => Entity -> b -> System ()
 spawnEntity entity bundle = do
-  world <- ask
+  world <- unsafeGetWorld
   let BundleData {elements} = addComponentToBundleData (Name (show entity)) $ bundleData bundle
 
   currentTick <- liftIO $ readIORef world.tick
@@ -65,7 +65,7 @@ spawnEntity entity bundle = do
 
 spawnEntityByInsert :: (Bundle b) => Entity -> b -> System ()
 spawnEntityByInsert entity bundle = do
-  world <- ask
+  world <- unsafeGetWorld
 
   entityPointer <- liftIO $ newIORef EntityPointer {archetypeId = ArchetypeId 0, rowIndex = 0}
 

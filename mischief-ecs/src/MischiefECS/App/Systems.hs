@@ -14,7 +14,6 @@ import MischiefECS.App.Schedules
 import MischiefECS.Components
 import MischiefECS.Components.Bundle
 import MischiefECS.Entities
-import MischiefECS.Hidden (GetHidden (getHidden))
 import MischiefECS.Tables
 import MischiefECS.Utils
 import MischiefECS.World
@@ -72,7 +71,7 @@ getSystemTicks world = do
 
 self :: forall m w. (MonadSystem w m) => m Entity
 self = do
-  world :: World <- asks getHidden
+  world <- unsafeGetWorld
   let (SystemId sys) = world.systemId
   return sys
 

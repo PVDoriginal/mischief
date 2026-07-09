@@ -18,7 +18,7 @@ import MischiefECS.World.Utils
 
 changeArchetype :: Entity -> ArchetypeData -> Maybe ProcessedBundleData -> System ()
 changeArchetype entity newArchetype insertedBundle = do
-  world <- ask
+  world <- unsafeGetWorld
   currentTick <- liftIO $ readIORef world.tick
 
   Just pointer <- liftIO $ getPointer entity world.entities
@@ -54,7 +54,7 @@ changeArchetype entity newArchetype insertedBundle = do
 
 getDefault :: ComponentId -> System ProcessedBundleElement
 getDefault component = do
-  world <- ask
+  world <- unsafeGetWorld
 
   Just x <- get @DefaultValue component.id
   let dv = value x

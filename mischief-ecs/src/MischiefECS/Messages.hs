@@ -41,7 +41,7 @@ newtype Reader = Reader (IORef Tick)
 
 getReader :: (Message m) => Result (Messages m) -> System Reader
 getReader !m = do
-  world <- ask
+  world <- unsafeGetWorld
   case Map.lookup world.systemId m.readers of
     Just r -> return r
     Nothing -> do
@@ -56,7 +56,7 @@ instance (Message m) => Queryable (Messages m)
 -- | Write a message into the resource.
 writeMessage :: (Message m) => m -> Result (Messages m) -> System ()
 writeMessage !message !messages = do
-  world <- ask
+  world <- unsafeGetWorld
   frame <- liftIO $ readIORef world.frame
 
   loc <- self
@@ -87,6 +87,6 @@ addMessage = do
 
 clearOldMessages :: (Message m) => Result (Messages m) -> System ()
 clearOldMessages !m = do
-  world <- ask
+  world <- unsafeGetWorld
   frame <- liftIO $ readIORef world.frame
   modify m (\Messages {messages, readers} -> Messages {messages = filter (\(Frame x, _, _) -> Frame (x + 2) >= frame) messages, readers})

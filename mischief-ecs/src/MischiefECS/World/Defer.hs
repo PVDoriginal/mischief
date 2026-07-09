@@ -35,7 +35,7 @@ class Defer m where
 instance Defer System where
   defer :: System a -> System ()
   defer !s = do
-    world <- ask
+    world <- unsafeGetWorld
     liftIO $ modifyIORef' world.deferred (++ [s $> ()])
 
 instance Defer ParSystem where
@@ -47,7 +47,7 @@ instance Defer ParSystem where
 -- | Flush the current list of deferred commands.
 flush :: System ()
 flush = do
-  world <- ask
+  world <- unsafeGetWorld
   systems <- liftIO $ readIORef world.deferred
 
   for_ systems $ \s -> do
@@ -59,7 +59,7 @@ flush = do
 
 flushAsync :: System ()
 flushAsync = do
-  world <- ask
+  world <- unsafeGetWorld
 
   systems <- liftIO $ atomically $ do
     systems <- readTVar world.deferredAsync
@@ -73,7 +73,7 @@ flushAsync = do
 
 forkDefer :: System a -> System a
 forkDefer s = do
-  world <- ask
+  world <- unsafeGetWorld
   deferred <- liftIO $ newIORef []
 
   let world' = setDeferred deferred world
@@ -99,7 +99,7 @@ forkDefer s = do
 
 runAfter :: (MonadSystem w m) => IO a -> (a -> System ()) -> m ()
 runAfter !function !system = do
-  world :: World <- asks getHidden
+  world <- unsafeGetWorld
   _ <- liftIO $ forkIO $ do
     a <- function
     atomically $ modifyTVar' world.deferredAsync (++ [system a])

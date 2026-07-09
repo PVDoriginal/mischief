@@ -13,7 +13,7 @@ import MischiefECS.World
 
 par :: (MonadSystem w m) => [ParSystem ()] -> m ()
 par !parSystems = do
-  world :: World <- asks getHidden
+  world <- unsafeGetWorld
 
   x <- forM parSystems $ \(ParSystem p) -> do
     systems <- liftIO $ newIORef []
@@ -27,7 +27,7 @@ par !parSystems = do
 
 parIterList :: (MonadSystem w m, Foldable t) => t a -> ([a] -> ParSystem ()) -> m ()
 parIterList !list !s = do
-  world :: World <- asks getHidden
+  world <- unsafeGetWorld
 
   let n = numCapabilities
   let len = length list

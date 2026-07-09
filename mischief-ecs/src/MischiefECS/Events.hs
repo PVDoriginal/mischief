@@ -29,12 +29,12 @@ class (Typeable e) => Event e where
 
 trigger :: (Event e) => e -> System ()
 trigger event = do
-  world <- ask
+  world <- unsafeGetWorld
   liftIO $ modifyIORef' world.events (++ [eraseEvent event])
 
 flushEvents :: System ()
 flushEvents = do
-  world <- ask
+  world <- unsafeGetWorld
   events <- liftIO $ readIORef world.events
   for_ events runEvent
   liftIO $ writeIORef world.events []

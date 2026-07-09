@@ -14,6 +14,7 @@ module MischiefECS.World
     SystemId (..),
     runSystem,
     MonadSystem,
+    unsafeGetWorld,
 
     -- * Parallel
     ParSystem (..),
@@ -24,7 +25,7 @@ where
 import Control.Concurrent.STM (TVar, newTVarIO)
 import Control.Monad.IO.Class (MonadIO (liftIO))
 import Control.Monad.Primitive (PrimMonad (..), RealWorld)
-import Control.Monad.Reader.Class (MonadReader (..))
+import Control.Monad.Reader.Class (MonadReader (..), asks)
 import Control.Monad.Trans (MonadTrans (..))
 import Control.Monad.Trans.Reader (ReaderT (runReaderT))
 import Data.IORef (IORef, modifyIORef', newIORef)
@@ -124,7 +125,7 @@ setPrefs prefs World {archetypes, components, entities, tables, deferred, deferr
 -- | Increment the World's Tick.
 tick :: System ()
 tick = do
-  world <- ask
+  world <- unsafeGetWorld
   liftIO $ modifyIORef' world.tick (\(Tick x) -> Tick $ x + 1)
 
 -- | A System is a set of instructions applied over a World.
@@ -132,12 +133,12 @@ tick = do
 --
 -- A system is actually a wrapper around @'ReaderT' 'World' 'IO'@, meaning you can 'ask' for the World,
 -- or do IO operations by using 'liftIO'.
-newtype System a = System (ReaderT World IO a)
-  deriving newtype (Functor, Applicative, Monad, MonadIO, MonadReader World, MonadFail)
+newtype System a = System (ReaderT (Hidden World) IO a)
+  deriving newtype (Functor, Applicative, Monad, MonadIO, MonadReader (Hidden World), MonadFail)
 
 -- | Run a 'System' with the given 'World' inside 'IO'
 runSystem :: System a -> World -> IO a
-runSystem (System !r) = runReaderT r
+runSystem (System !r) w = runReaderT r (hide w)
 
 instance PrimMonad System where
   type PrimState System = PrimState IO
@@ -146,7 +147,7 @@ instance PrimMonad System where
 -- | Run a 'System' with changed 'WorldPrefs'.
 forkPrefs :: (WorldPrefs -> WorldPrefs) -> System a -> System a
 forkPrefs f s = do
-  world <- ask
+  world <- unsafeGetWorld
   let world' = setPrefs (f world.prefs) world
   liftIO $ runSystem s world'
 
@@ -168,17 +169,24 @@ data ParWorld = ParWorld
 newtype ParSystem a = ParSystem (ReaderT ParWorld IO a)
   deriving newtype (Functor, Applicative, Monad, MonadIO, MonadReader ParWorld, MonadFail, PrimMonad)
 
-instance GetHidden World World where
-  getHidden = id
+class GetWorld a where
+  getWorld :: a -> Hidden World
 
-instance GetHidden ParWorld World where
-  getHidden w = w.world.get
+instance (GetWorld (Hidden World)) where
+  getWorld = id
+
+instance (GetWorld ParWorld) where
+  getWorld x = x.world
 
 -- | Typeclass that can be used to generalize systems to both @'System'@ and @'ParSystem'@.
 --
 -- Used mainly by queries and other operations which don't mutate the World.
-class (GetHidden w World, MonadReader w a, Applicative a, MonadFail a, Functor a, Monad a, MonadIO a, PrimMonad a, PrimState a ~ RealWorld) => MonadSystem w a
+class (GetWorld w, MonadReader w a, Applicative a, MonadFail a, Functor a, Monad a, MonadIO a, PrimMonad a, PrimState a ~ RealWorld) => MonadSystem w a
 
-instance MonadSystem World System
+instance MonadSystem (Hidden World) System
 
 instance MonadSystem ParWorld ParSystem
+
+unsafeGetWorld :: (MonadSystem w m) => m World
+unsafeGetWorld = do
+  asks (unhide . getWorld)

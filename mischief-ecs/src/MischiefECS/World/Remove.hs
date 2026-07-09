@@ -56,7 +56,7 @@ removeRelationshipFromEntity target entity = do
 
 removeFromEntity :: [ComponentId] -> Entity -> System ()
 removeFromEntity components entity = do
-  world <- ask
+  world <- unsafeGetWorld
   pointer <- liftIO $ getPointer entity world.entities
 
   case pointer of

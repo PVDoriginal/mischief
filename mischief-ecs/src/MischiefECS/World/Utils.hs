@@ -114,7 +114,7 @@ removeComponentFromProcessedBundle componentId bundle =
 despawn :: Entity -> System ()
 despawn entity =
   do
-    world <- ask
+    world <- unsafeGetWorld
     pointer <- liftIO $ getPointer entity world.entities
     case pointer of
       Nothing -> undefined
@@ -208,5 +208,5 @@ tryGetTicks rep world archetypes =
 
 isAlive :: forall m w. (MonadSystem w m) => Entity -> m Bool
 isAlive entity = do
-  world :: World <- asks getHidden
+  world <- unsafeGetWorld
   liftIO $ isAliveIO entity world.entities

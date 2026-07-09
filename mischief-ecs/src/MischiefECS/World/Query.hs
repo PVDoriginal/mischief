@@ -21,7 +21,6 @@ import MischiefECS.Components
 import MischiefECS.Components.Common
 import {-# SOURCE #-} MischiefECS.Components.Spawn
 import MischiefECS.Entities
-import MischiefECS.Hidden (GetHidden (getHidden))
 import MischiefECS.Tables
 import MischiefECS.World
 import MischiefECS.World.Par
@@ -59,12 +58,12 @@ runQuery query filter world =
 
 query :: forall qd m w. (Queryable qd, MonadSystem w m) => m [QueryOutput qd]
 query = do
-  world <- asks getHidden
+  world <- unsafeGetWorld
   runQuery (Proxy @qd) NoFilter world
 
 entityQuery :: forall qd m w. (Queryable qd, MonadSystem w m) => Entity -> m (Maybe (QueryOutput qd))
 entityQuery entity = do
-  world <- asks getHidden
+  world <- unsafeGetWorld
   liftIO $ runQueryEntity (Proxy @qd) world entity
 
 get :: forall qd m w. (Queryable qd, MonadSystem w m) => Entity -> m (Maybe (QueryOutput qd))
@@ -72,7 +71,7 @@ get = entityQuery @qd
 
 query' :: forall qd m w. (Queryable qd, MonadSystem w m) => QueryFilter -> m [QueryOutput qd]
 query' filter = do
-  world <- asks getHidden
+  world <- unsafeGetWorld
   runQuery (Proxy @qd) filter world
 
 single :: forall qd m w. (Queryable qd, MonadSystem w m) => m (Maybe (QueryOutput qd))

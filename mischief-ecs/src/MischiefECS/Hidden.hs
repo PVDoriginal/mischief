@@ -6,7 +6,10 @@
 -- it can't be mutated unsafely.
 module MischiefECS.Hidden where
 
-newtype Hidden a = Hidden {get :: a}
+newtype Hidden a = Hidden a
 
-class GetHidden b a where
-  getHidden :: b -> a
+hide :: a -> Hidden a
+hide = Hidden
+
+unhide :: Hidden a -> a
+unhide (Hidden a) = a

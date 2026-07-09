@@ -36,7 +36,7 @@ import MischiefECS.World.Utils
 insert :: forall b. (Bundle b) => b -> Entity -> System ()
 insert bundle entity =
   do
-    world <- ask
+    world <- unsafeGetWorld
     let BundleData {elements} = bundleData bundle
 
     currentTick <- liftIO $ readIORef world.tick
@@ -83,7 +83,7 @@ getOrInsert val entity = do
 insertNew :: forall b. (Bundle b) => b -> Entity -> System ()
 insertNew bundle entity =
   do
-    world <- ask
+    world <- unsafeGetWorld
     let BundleData {elements} = bundleData bundle
 
     currentTick <- liftIO $ readIORef world.tick

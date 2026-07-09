@@ -24,6 +24,7 @@ import MischiefECS.Components.Bundle
 import MischiefECS.Components.Runnable (Runnable, runFor)
 import MischiefECS.Components.Spawn (getOrAddComponentId)
 import MischiefECS.Events
+import MischiefECS.Hidden
 import MischiefECS.Tables
 import MischiefECS.World
 import MischiefECS.World.Defer
@@ -82,7 +83,7 @@ runApp app = do
 
 runSchedule :: ScheduleLabel -> System ()
 runSchedule schedule = do
-  world <- ask
+  world <- unsafeGetWorld
   Just scheduler <- res @Scheduler
   systems <- liftIO $ Scheduler.getScheduleSystems schedule (value scheduler)
 
@@ -93,7 +94,7 @@ runSchedule schedule = do
     set lastSystemTick (SystemTick currentSystemTick)
     insert (LastSystemTick lastSystemTick.inner) systemId.entity
 
-    Control.Monad.Reader.local (setSystemId systemId) $ do
+    Control.Monad.Reader.local (hide . setSystemId systemId . unhide) $ do
       systemFunction.inner
       flush
       flushAsync
