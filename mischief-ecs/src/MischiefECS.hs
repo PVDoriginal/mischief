@@ -78,6 +78,7 @@ module MischiefECS
     module MischiefECS.Time,
     module MischiefECS.Relationships,
     module MischiefECS.Relationships.ChildOf,
+    module MischiefECS.Log,
   )
 where
 
@@ -93,6 +94,7 @@ import MischiefECS.Components.Common
 import MischiefECS.Components.Required
 import MischiefECS.Entities
 import MischiefECS.Events
+import MischiefECS.Log
 import MischiefECS.Messages
 import MischiefECS.Relationships
 import MischiefECS.Relationships.ChildOf

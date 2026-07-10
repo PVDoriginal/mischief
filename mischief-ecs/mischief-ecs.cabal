@@ -68,6 +68,7 @@ library
     MischiefECS.Graph
     MischiefECS.Messages
     MischiefECS.Prelude
+    MischiefECS.Log
     MischiefECS.World.Query.Queryable
     MischiefECS.World.Query.QueryData
     MischiefECS.Relationships
@@ -129,6 +130,7 @@ library
     stm,
     template-haskell,
     time,
+    ansi-terminal,
     transformers,
     vector,
 
