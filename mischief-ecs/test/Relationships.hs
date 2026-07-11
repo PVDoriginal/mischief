@@ -34,8 +34,8 @@ testRelationships = do
 
 plugin :: Plugin ()
 plugin = do
-  addSystems Startup setup
-  addSystems Startup $ exit `after` setup
+  run $ addSystems Startup setup
+  run $ addSystems Startup $ exit `after` setup
   addObserver observer
 
 setup :: System ()

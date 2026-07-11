@@ -25,6 +25,7 @@ import MischiefECS.World.Spawn
 newtype Systems = Systems
   { systemMap :: IORef (Map (ScheduleLabel, Int) (IORef [(StableName (System ()), SystemId)]))
   }
+  deriving anyclass (Component, Queryable)
 
 newtype SystemFunction = SystemFunction {inner :: System ()} deriving anyclass (Component)
 

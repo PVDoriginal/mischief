@@ -35,7 +35,6 @@ import MischiefECS.World.Spawn
 data App = App
   { world :: World,
     systems :: Systems
-    -- scheduler :: Scheduler
   }
 
 newtype Plugin a = Plugin (ReaderT App IO a)
@@ -101,23 +100,23 @@ runSchedule schedule = do
       flushEvents
       tick
 
-addSystems :: (Schedule sc, SystemConfig s) => sc -> s -> Plugin ()
+addSystems :: (Schedule sc, SystemConfig s) => sc -> s -> System ()
 addSystems schedule system = do
-  app <- ask
+  world <- unsafeGetWorld
   let label = ScheduleLabel $ typeOf schedule
   let SystemConfigData {systems, edges} = systemConfigData system
 
-  scheduler <- run $ do
-    Just sch <- res @Scheduler
-    return $ value sch
+  Just (Result (scheduler, _)) <- res @Scheduler
+
+  Just (Result (systemsRes, _)) <- res @Systems
 
   for_ systems $ \system -> do
-    systemId <- run $ Systems.getSystemId label system app.systems
+    systemId <- Systems.getSystemId label system systemsRes
     liftIO $ Scheduler.addSystem label systemId scheduler
 
   for_ edges $ \(s1, s2) -> do
-    id1 <- run $ Systems.getSystemId label s1 app.systems
-    id2 <- run $ Systems.getSystemId label s2 app.systems
+    id1 <- Systems.getSystemId label s1 systemsRes
+    id2 <- Systems.getSystemId label s2 systemsRes
     liftIO $ Scheduler.addSystemEdge label (id1, id2) scheduler
 
 addSchedule :: (Schedule s) => s -> ScheduleType -> Plugin ()
@@ -140,9 +139,6 @@ addRes :: (Component r, Bundle r) => r -> Plugin ()
 addRes r = do
   app <- ask
   liftIO $ runSystem (insertRes r) app.world
-
-initRes :: forall r. (Component r, Bundle r, Default r) => Plugin ()
-initRes = addRes $ def @r
 
 addObserver :: (Event e) => (e -> System ()) -> Plugin ()
 addObserver observer = do
@@ -179,6 +175,9 @@ appInit :: Plugin ()
 appInit = do
   scheduler <- liftIO Scheduler.newScheduler
   run $ insertRes scheduler
+
+  systems <- liftIO Systems.newSystems
+  run $ insertRes systems
 
   addSchedule Startup StartupSchedule
 

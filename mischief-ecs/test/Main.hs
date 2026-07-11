@@ -47,10 +47,8 @@ plugin = do
   register @ObserverOrder
   register @ComponentArchetypes
 
-  initRes @C
-
-  addSystems Startup setup
-  addSystems Update dummy
+  run $ addSystems Startup setup
+  run $ addSystems Update dummy
 
 setup :: System ()
 setup = do

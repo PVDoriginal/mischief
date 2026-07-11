@@ -24,7 +24,7 @@ instance HasField "deltaSecs" Time Float where
 
 timePlugin :: Plugin ()
 timePlugin = do
-  addSystems First updateTime
+  run $ addSystems First updateTime
 
 updateTime :: System ()
 updateTime = do
