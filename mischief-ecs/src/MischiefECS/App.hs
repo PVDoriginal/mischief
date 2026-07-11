@@ -13,6 +13,7 @@ import Data.Data
 import Data.Default
 import Data.Foldable
 import Data.IORef
+import MischiefECS.App.Plugins
 import MischiefECS.App.Scheduler (ScheduleType (..), Scheduler)
 import MischiefECS.App.Scheduler qualified as Scheduler
 import MischiefECS.App.Schedules
@@ -37,21 +38,15 @@ data App = App
     systems :: Systems
   }
 
-newtype Plugin a = Plugin (ReaderT App IO a)
-  deriving newtype (Functor, Applicative, Monad, MonadReader App, MonadIO)
-
-runPlugin :: Plugin a -> App -> IO a
-runPlugin (Plugin r) = runReaderT r
-
-newApp :: Plugin () -> IO App
+newApp :: (Plugin p) => p -> IO App
 newApp plugin = do
   world <- newWorld
   systems <- Systems.newSystems
 
   let app = App {world, systems}
 
-  runPlugin appInit app
-  runPlugin plugin app
+  runSystem appInit app.world
+  runSystem (runPluginRec plugin) app.world
 
   return app
 
@@ -119,49 +114,43 @@ addSystems schedule system = do
     id2 <- Systems.getSystemId label s2 systemsRes
     liftIO $ Scheduler.addSystemEdge label (id1, id2) scheduler
 
-addSchedule :: (Schedule s) => s -> ScheduleType -> Plugin ()
+addSchedule :: (Schedule s) => s -> ScheduleType -> System ()
 addSchedule schedule scheduleType = do
-  scheduler <- run $ do
-    Just sch <- res @Scheduler
-    return $ value sch
-
+  Just (Result (scheduler, _)) <- res @Scheduler
   liftIO $ Scheduler.addSchedule (ScheduleLabel $ typeOf schedule) scheduleType scheduler
 
-addScheduleEdge :: (Schedule s1, Schedule s2) => (s1, s2) -> ScheduleType -> Plugin ()
+addScheduleEdge :: (Schedule s1, Schedule s2) => (s1, s2) -> ScheduleType -> System ()
 addScheduleEdge (s1, s2) scheduleType = do
-  scheduler <- run $ do
-    Just sch <- res @Scheduler
-    return $ value sch
-
+  Just (Result (scheduler, _)) <- res @Scheduler
   liftIO $ Scheduler.addScheduleEdge (ScheduleLabel $ typeOf s1, ScheduleLabel $ typeOf s2) scheduleType scheduler
 
-addRes :: (Component r, Bundle r) => r -> Plugin ()
-addRes r = do
-  app <- ask
-  liftIO $ runSystem (insertRes r) app.world
+-- addRes :: (Component r, Bundle r) => r -> Plugin ()
+-- addRes r = do
+--   app <- ask
+--   liftIO $ runSystem (insertRes r) app.world
 
-addObserver :: (Event e) => (e -> System ()) -> Plugin ()
-addObserver observer = do
-  app <- ask
-  liftIO $ runSystem (spawnObserver (Observer observer) Nothing) app.world
+-- addObserver :: (Event e) => (e -> System ()) -> Plugin ()
+-- addObserver observer = do
+--   app <- ask
+--   liftIO $ runSystem (spawnObserver (Observer observer) Nothing) app.world
 
-addObserverOrdered :: (Event e) => (e -> System ()) -> Int -> Plugin ()
-addObserverOrdered observer order = do
-  app <- ask
-  liftIO $ runSystem (spawnObserver (Observer observer) $ Just (ObserverOrder order)) app.world
+-- addObserverOrdered :: (Event e) => (e -> System ()) -> Int -> Plugin ()
+-- addObserverOrdered observer order = do
+--   app <- ask
+--   liftIO $ runSystem (spawnObserver (Observer observer) $ Just (ObserverOrder order)) app.world
 
-addPlugin :: Plugin () -> Plugin ()
-addPlugin plugin = do
-  app <- ask
-  liftIO $ runPlugin plugin app
+-- addPlugin :: Plugin () -> Plugin ()
+-- addPlugin plugin = do
+--   app <- ask
+--   liftIO $ runPlugin plugin app
 
-addPlugins :: (Foldable t) => t (Plugin ()) -> Plugin ()
-addPlugins plugins = for_ plugins addPlugin
+-- addPlugins :: (Foldable t) => t (Plugin ()) -> Plugin ()
+-- addPlugins plugins = for_ plugins addPlugin
 
-run :: System a -> Plugin a
-run s = do
-  app <- ask
-  liftIO $ runSystem s app.world
+-- run :: System a -> Plugin a
+-- run s = do
+--   app <- ask
+--   liftIO $ runSystem s app.world
 
 data Schedules = Schedules {startup :: IORef [TypeRep], update :: IORef [TypeRep]}
 
@@ -171,13 +160,13 @@ newSchedules = do
   update <- newIORef [typeOf PreUpdate, typeOf Update, typeOf PostUpdate]
   return Schedules {startup, update}
 
-appInit :: Plugin ()
+appInit :: System ()
 appInit = do
   scheduler <- liftIO Scheduler.newScheduler
-  run $ insertRes scheduler
+  insertRes scheduler
 
   systems <- liftIO Systems.newSystems
-  run $ insertRes systems
+  insertRes systems
 
   addSchedule Startup StartupSchedule
 
@@ -190,8 +179,8 @@ appInit = do
   addScheduleEdge (PreUpdate, Update) UpdateSchedule
   addScheduleEdge (Update, PostUpdate) UpdateSchedule
 
-register :: forall c. (Runnable c) => Plugin ()
-register = run $ runFor @c registerComponent
+-- register :: forall c. (Runnable c) => Plugin ()
+-- register = run $ runFor @c registerComponent
 
 registerComponent :: forall c. (Component c) => Proxy c -> System ()
 registerComponent c = do

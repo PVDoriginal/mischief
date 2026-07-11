@@ -10,11 +10,13 @@ import Data.Set qualified as Set
 import GHC.Generics (Generic)
 import GHC.StableName
 import MischiefECS
+-- import Relationships (testRelationships)
+
+import MischiefECS.App.Plugins
 import MischiefECS.App.Systems
 import MischiefECS.Components.Common
 import MischiefECS.Components.Spawn
 import MischiefECS.World.Utils
-import Relationships (testRelationships)
 import System.Exit (exitSuccess)
 
 newtype A = A Int deriving (Queryable, Show, Eq)
@@ -34,21 +36,23 @@ instance Component C where
 
 main :: IO ()
 main = do
-  -- testRelationships
-  app <- newApp plugin
+  app <- newApp MainPlugin
   runApp app
 
-a :: Int -> Int
-a x = x + 1
+data MainPlugin = MainPlugin deriving (Eq)
 
-plugin :: Plugin ()
-plugin = do
-  register @(A, B)
-  register @ObserverOrder
-  register @ComponentArchetypes
+instance Plugin MainPlugin where
+  init _ = do
+    addSystems Startup setup
+    addSystems Update dummy
 
-  run $ addSystems Startup setup
-  run $ addSystems Update dummy
+  plugins _ = plug Foo >. Bar >. Baz
+
+data Foo = Foo deriving (Plugin, Eq)
+
+data Bar = Bar deriving (Plugin, Eq)
+
+data Baz = Baz deriving (Plugin, Eq)
 
 setup :: System ()
 setup = do

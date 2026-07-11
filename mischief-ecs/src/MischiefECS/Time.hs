@@ -22,9 +22,9 @@ instance HasField "deltaSecs" Time Float where
   getField :: Time -> Float
   getField Time {delta} = fromIntegral delta.sec + fromIntegral delta.nsec / 1000000000
 
-timePlugin :: Plugin ()
+timePlugin :: System ()
 timePlugin = do
-  run $ addSystems First updateTime
+  addSystems First updateTime
 
 updateTime :: System ()
 updateTime = do

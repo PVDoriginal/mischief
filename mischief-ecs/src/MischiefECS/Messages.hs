@@ -22,6 +22,7 @@ import MischiefECS.Components
 import MischiefECS.Tables
 import MischiefECS.Utils
 import MischiefECS.World
+import MischiefECS.World.Insert
 import MischiefECS.World.Modify
 import MischiefECS.World.Query (get)
 import MischiefECS.World.Query.Queryable
@@ -81,9 +82,8 @@ readMessages !m = do
   return newMessages
 
 -- | Register a new message type with the App. This will automatically create a corresponding resource.
-addMessage :: forall (m :: Type). (Message m) => Plugin ()
-addMessage = do
-  addRes $ newMessages @m
+addMessage :: forall (m :: Type). (Message m) => System ()
+addMessage = insertRes $ newMessages @m
 
 clearOldMessages :: (Message m) => Result (Messages m) -> System ()
 clearOldMessages !m = do

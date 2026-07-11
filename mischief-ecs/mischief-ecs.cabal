@@ -94,6 +94,7 @@ library
     MischiefECS.World.Spawn
     MischiefECS.World.Systems
     MischiefECS.World.Utils
+    MischiefECS.App.Plugins 
 
   -- Modules included in this library but not exported.
   -- other-modules:
