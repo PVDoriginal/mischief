@@ -14,6 +14,7 @@ import Data.Set (Set)
 import Data.Set qualified as Set
 import MischiefECS.Archetypes
 import MischiefECS.Components
+import MischiefECS.Log
 import MischiefECS.Relationships
 import MischiefECS.Tables
 import MischiefECS.Utils
@@ -52,7 +53,7 @@ createNode components = do
       )
       (Set.toList components)
 
-  liftIO $ putStrLn $ "archetype " ++ show id ++ " = " ++ show (catMaybes comps)
+  debug $ "archetype " <> text id <> " = " <> text (catMaybes comps)
   for_ components $ \component -> do
     case component.entity of
       -- Component isn't a pair.
