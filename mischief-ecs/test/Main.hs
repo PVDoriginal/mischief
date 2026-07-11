@@ -64,6 +64,7 @@ setup = do
   _ <- spawn (A 4, Name "idk")
 
   e <- spawn ()
+  despawn e
   insert (Name "") e
 
   q <- query' @Name $ eq (A 5)

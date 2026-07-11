@@ -2,6 +2,7 @@
 
 module MischiefECS.World.Insert where
 
+import Control.Exception
 import Control.Monad
 import Control.Monad.IO.Class
 import Control.Monad.Reader (MonadReader (..))
@@ -30,6 +31,10 @@ import MischiefECS.World.Query
 import MischiefECS.World.Query.Queryable
 import MischiefECS.World.Utils
 
+data Exception' = Exception' deriving (Show)
+
+instance Exception Exception'
+
 -- | Insert a bundle of components on an Entity.
 --
 -- If the entity already contains these components, their values will be
@@ -38,10 +43,10 @@ insert :: (HasCallStack) => forall b. (Bundle b) => b -> Entity -> System ()
 insert bundle entity =
   do
     world <- unsafeGetWorld
-
     pointer <- liftIO $ getPointer entity world.entities
+
     case pointer of
-      Nothing -> warn $ "Insertion failed: Entity " <> text entity <> " was despawned."
+      Nothing -> warn $ "Insertion failed: Entity " <> text entity <> " is not alive."
       Just currentPointer -> do
         let BundleData {elements} = bundleData bundle
 
@@ -79,6 +84,16 @@ getOrInsert val entity = do
       insert val entity
       return $ Result (val, entity)
 
+resOrInsert :: forall c. (Queryable c, Component c, QueryOutput c ~ Result c, Bundle c) => c -> System (Result c)
+resOrInsert val = do
+  r <- res @c
+  case r of
+    Just r -> return r
+    Nothing -> do
+      insertRes val
+      entity <- meta @c
+      return $ Result (val, entity)
+
 -- | Insert a bundle of components on an Entity.
 --
 -- Only the components that the entity doesn't already have will be inserted, and the rest ignored.
@@ -86,16 +101,17 @@ insertNew :: forall b. (Bundle b) => b -> Entity -> System ()
 insertNew bundle entity =
   do
     world <- unsafeGetWorld
-    let BundleData {elements} = bundleData bundle
-
-    currentTick <- liftIO $ readIORef world.tick
-
-    bundleData <- liftIO $ processBundleElements world ComponentTicks {changed = currentTick, added = currentTick} elements
-
     pointer <- liftIO $ getPointer entity world.entities
+
     case pointer of
-      Nothing -> undefined
+      Nothing -> warn $ "Insertion failed: Entity " <> text entity <> " is not alive."
       Just currentPointer -> do
+        let BundleData {elements} = bundleData bundle
+
+        currentTick <- liftIO $ readIORef world.tick
+
+        bundleData <- liftIO $ processBundleElements world ComponentTicks {changed = currentTick, added = currentTick} elements
+
         currentPointerInternal <- liftIO $ readIORef currentPointer
 
         let Tables tables = world.tables
@@ -128,9 +144,12 @@ set !result !newValue = MischiefECS.World.Insert.insert newValue (entityOf resul
 
 setIfNeq :: forall c. (Bundle c, Queryable c, QueryOutput c ~ Result c, Eq c) => Result c -> c -> System ()
 setIfNeq !result !newValue = do
-  Just curr <- get @c (entityOf result)
-  when (value curr /= newValue) $
-    set result newValue
+  curr <- get @c (entityOf result)
+  case curr of
+    Nothing -> warn $ "SetIfNeq failed: Entity " <> text (entityOf result) <> " is not alive."
+    Just curr ->
+      when (value curr /= newValue) $
+        set result newValue
 
 -- | Update the value of a 'Result'.
 --

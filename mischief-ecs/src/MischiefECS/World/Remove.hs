@@ -16,6 +16,7 @@ import MischiefECS.Components
 import {-# SOURCE #-} MischiefECS.Components.Spawn
 import MischiefECS.Entities
 import MischiefECS.Events
+import MischiefECS.Log
 import MischiefECS.Tables
 import MischiefECS.World
 import MischiefECS.World.Change (changeArchetype)
@@ -60,7 +61,7 @@ removeFromEntity components entity = do
   pointer <- liftIO $ getPointer entity world.entities
 
   case pointer of
-    Nothing -> undefined
+    Nothing -> warn $ "Removal failed: Entity " <> text entity <> " is not alive."
     Just pointer -> do
       currentPointer <- liftIO $ readIORef pointer
 

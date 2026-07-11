@@ -25,6 +25,7 @@ import {-# SOURCE #-} MischiefECS.Components.Spawn
 import MischiefECS.Entities
 import {-# SOURCE #-} MischiefECS.Events
 import MischiefECS.Hidden
+import MischiefECS.Log
 import MischiefECS.Tables
 import MischiefECS.Utils
 import MischiefECS.World
@@ -117,7 +118,7 @@ despawn entity =
     world <- unsafeGetWorld
     pointer <- liftIO $ getPointer entity world.entities
     case pointer of
-      Nothing -> undefined
+      Nothing -> warn $ "Despawn failed: Entity " <> text entity <> " is not alive."
       Just pointer -> do
         let Tables tables = world.tables
         tables <- liftIO $ readIORef tables
