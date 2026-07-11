@@ -47,6 +47,4 @@ plugAll :: (Plugin p) => p -> PluginData
 plugAll p = addErasedRec (ErasedPlugin p) (PluginData Map.empty)
 
 runPluginRec :: (Plugin p) => p -> System ()
-runPluginRec p =
-  let ps = plugAll p
-   in for_ (map snd $ Map.toList ps.inner) $ \x -> getInit x
+runPluginRec p = for_ (map snd $ Map.toList (plugAll p).inner) getInit

@@ -1,5 +1,6 @@
 module MischiefECS.World.Spawn where
 
+import Control.Monad
 import Control.Monad.IO.Class
 import Control.Monad.Reader (MonadReader (..), ReaderT (runReaderT))
 import Data.Data
@@ -77,13 +78,12 @@ spawnEntityByInsert entity bundle = do
 
   insertNew (Name (show entity)) entity
 
-spawnObserver :: forall e. (Event e) => Observer e -> Maybe ObserverOrder -> System ()
-spawnObserver observer order' = do
-  let order = fromMaybe (ObserverOrder 0) order'
+spawnObserverOrdered :: forall e. (Event e) => Observer e -> Int -> System ()
+spawnObserverOrdered observer order = do
+  void $ spawn (observer, ObserverOrder order)
 
-  _ <- spawn ((observer, order), EventProxy @e)
-
-  return ()
+spawnObserver :: forall e. (Event e) => Observer e -> System ()
+spawnObserver e = spawnObserverOrdered e 0
 
 -- | Spawn an entity given a bundle of components.
 spawnIO :: (Bundle b) => World -> b -> IO Entity

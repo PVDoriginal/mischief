@@ -46,6 +46,8 @@ instance Plugin MainPlugin where
     addSystems Startup setup
     addSystems Update dummy
 
+    void . spawn $ Observer onInsert
+
   plugins _ = plug Foo >. Bar >. Baz
 
 data Foo = Foo deriving (Plugin, Eq)
@@ -62,13 +64,10 @@ setup = do
   _ <- spawn (A 4, Name "idk")
 
   e <- spawn ()
-  despawn e
   insert (Name "") e
 
-  info "AAA"
-
   q <- query' @Name $ eq (A 5)
-  traverse_ (liftIO . print) q
+  traverse_ (info . text) q
 
 dummy :: System ()
 dummy = return ()
@@ -76,3 +75,6 @@ dummy = return ()
 newtype Counter = Counter Int
   deriving anyclass (Component, Queryable)
   deriving stock (Show)
+
+onInsert :: OnInsert Name -> System ()
+onInsert _ = info "AAA"

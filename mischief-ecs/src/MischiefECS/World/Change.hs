@@ -11,6 +11,7 @@ import MischiefECS.Archetypes
 import MischiefECS.Components
 import MischiefECS.Components.Bundle
 import MischiefECS.Entities
+import MischiefECS.Log
 import MischiefECS.Tables
 import MischiefECS.World
 import MischiefECS.World.Query

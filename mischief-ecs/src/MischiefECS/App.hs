@@ -46,7 +46,7 @@ newApp plugin = do
   let app = App {world, systems}
 
   runSystem appInit app.world
-  runSystem (runPluginRec plugin) app.world
+  runSystem (addSystems Init $ runPluginRec plugin) app.world
 
   return app
 
@@ -139,19 +139,6 @@ addScheduleEdge (s1, s2) scheduleType = do
 --   app <- ask
 --   liftIO $ runSystem (spawnObserver (Observer observer) $ Just (ObserverOrder order)) app.world
 
--- addPlugin :: Plugin () -> Plugin ()
--- addPlugin plugin = do
---   app <- ask
---   liftIO $ runPlugin plugin app
-
--- addPlugins :: (Foldable t) => t (Plugin ()) -> Plugin ()
--- addPlugins plugins = for_ plugins addPlugin
-
--- run :: System a -> Plugin a
--- run s = do
---   app <- ask
---   liftIO $ runSystem s app.world
-
 data Schedules = Schedules {startup :: IORef [TypeRep], update :: IORef [TypeRep]}
 
 newSchedules :: IO Schedules
@@ -168,7 +155,14 @@ appInit = do
   systems <- liftIO Systems.newSystems
   insertRes systems
 
+  addSchedule Init StartupSchedule
+  addSchedule PreStartup StartupSchedule
   addSchedule Startup StartupSchedule
+  addSchedule PostStartup StartupSchedule
+
+  addScheduleEdge (Init, PreStartup) StartupSchedule
+  addScheduleEdge (PreStartup, Startup) StartupSchedule
+  addScheduleEdge (Startup, PostStartup) StartupSchedule
 
   addSchedule First UpdateSchedule
   addSchedule PreUpdate UpdateSchedule
@@ -179,8 +173,8 @@ appInit = do
   addScheduleEdge (PreUpdate, Update) UpdateSchedule
   addScheduleEdge (Update, PostUpdate) UpdateSchedule
 
--- register :: forall c. (Runnable c) => Plugin ()
--- register = run $ runFor @c registerComponent
+register :: forall c. (Runnable c) => System ()
+register = runFor @c registerComponent
 
 registerComponent :: forall c. (Component c) => Proxy c -> System ()
 registerComponent c = do

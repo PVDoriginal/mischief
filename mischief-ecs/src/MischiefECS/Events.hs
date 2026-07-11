@@ -3,24 +3,31 @@ module MischiefECS.Events where
 import Control.Monad.IO.Class
 import Control.Monad.Reader (MonadReader (..))
 import Data.Data (Typeable)
+import Data.Default (Default)
 import Data.Foldable (for_)
 import Data.IORef (modifyIORef', readIORef, writeIORef)
 import Data.List
+import GHC.Generics (Generic)
 import MischiefECS.Components
+import MischiefECS.Components.Bundle
+import MischiefECS.Components.Required (require)
 import MischiefECS.Entities
 import MischiefECS.Tables
 import MischiefECS.World
 import MischiefECS.World.Query
 import MischiefECS.World.Query.Queryable
 
-data EventProxy e = EventProxy deriving (Component, Queryable)
+data EventProxy e = EventProxy deriving (Component, Queryable, Generic, Default)
 
-newtype Observer e = Observer (e -> System ()) deriving anyclass (Component, Queryable)
+newtype Observer e = Observer (e -> System ()) deriving anyclass (Queryable)
+
+instance (Typeable e) => Component (Observer e) where
+  required = require @(EventProxy e, ObserverOrder)
 
 newtype ObserverOrder = ObserverOrder Int
   deriving (Show)
   deriving anyclass (Component, Queryable)
-  deriving newtype (Eq, Ord)
+  deriving newtype (Eq, Ord, Default)
 
 -- | @Event@ typeclass.
 class (Typeable e) => Event e where
