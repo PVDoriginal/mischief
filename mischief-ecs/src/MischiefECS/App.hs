@@ -2,14 +2,14 @@
 
 module MischiefECS.App where
 
+-- import Data.Map
+-- import Data.Map qualified as Map
+
 import Control.Monad (forever)
 import Control.Monad.IO.Class (MonadIO (liftIO))
 import Control.Monad.Reader (MonadReader (..), asks)
 import Control.Monad.Trans.Reader (ReaderT (..))
 import Data.Data
--- import Data.Map
--- import Data.Map qualified as Map
-
 import Data.Default
 import Data.Foldable
 import Data.IORef

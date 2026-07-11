@@ -1,18 +1,29 @@
 module MischiefECS.Log where
 
+import Colog qualified
+import Control.Monad.IO.Class
+import Data.Foldable
+import Data.Text (Text)
+import Data.Text qualified as Text
+import GHC.Exception (prettyCallStackLines)
+import GHC.Stack
+import MischiefECS.World
 import System.Console.ANSI
 
-logMsg :: Color -> String -> IO ()
-logMsg c msg = do
-  setSGR [SetColor Foreground Vivid c]
-  putStrLn msg
-  setSGR [Reset]
+info :: (HasCallStack) => (MonadSystem w m) => Text -> m ()
+info msg = withFrozenCallStack $ do
+  world <- unsafeGetWorld
+  liftIO $ Colog.usingLoggerT world.logger $ Colog.logInfo msg
 
-info :: String -> IO ()
-info = print
+warn :: (HasCallStack) => (MonadSystem w m) => Text -> m ()
+warn msg = withFrozenCallStack $ do
+  world <- unsafeGetWorld
+  liftIO $ Colog.usingLoggerT world.logger $ Colog.logWarning msg
 
-warn :: String -> IO ()
-warn m = logMsg Yellow $ "Warning: " ++ m
+error :: (HasCallStack) => (MonadSystem w m) => Text -> m ()
+error msg = withFrozenCallStack $ do
+  world <- unsafeGetWorld
+  liftIO $ Colog.usingLoggerT world.logger $ Colog.logError msg
 
-error :: String -> IO ()
-error m = logMsg Red $ "Warning: " ++ m
+text :: (Show a) => a -> Text
+text = Text.pack . show

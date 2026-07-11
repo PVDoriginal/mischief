@@ -66,11 +66,9 @@ library
     MischiefECS.Entities
     MischiefECS.Events
     MischiefECS.Graph
+    MischiefECS.Log
     MischiefECS.Messages
     MischiefECS.Prelude
-    MischiefECS.Log
-    MischiefECS.World.Query.Queryable
-    MischiefECS.World.Query.QueryData
     MischiefECS.Relationships
     MischiefECS.Relationships.ChildOf
     MischiefECS.Relationships.Graph
@@ -90,6 +88,8 @@ library
     MischiefECS.World.Par
     MischiefECS.World.Prefs
     MischiefECS.World.Query
+    MischiefECS.World.Query.Queryable
+    MischiefECS.World.Query.QueryData
     MischiefECS.World.Remove
     MischiefECS.World.Spawn
     MischiefECS.World.Systems
@@ -110,6 +110,7 @@ library
     MagicHash
     NoFieldSelectors
     OverloadedRecordDot
+    OverloadedStrings
     RequiredTypeArguments
     TemplateHaskell
     TypeFamilyDependencies
@@ -118,19 +119,21 @@ library
   -- other-extensions:
   -- Other library packages from which modules are imported.
   build-depends:
+    ansi-terminal,
     async,
     base ^>=4.21.0.0,
     binary,
     bytestring,
     clock,
+    co-log,
     containers,
     data-default,
     mtl,
     primitive,
     stm,
     template-haskell,
+    text,
     time,
-    ansi-terminal,
     transformers,
     vector,
 
@@ -159,6 +162,7 @@ test-suite mischief-test
     NoFieldSelectors
     NoGeneralizedNewtypeDeriving
     OverloadedRecordDot
+    OverloadedStrings
     RequiredTypeArguments
     TypeFamilyDependencies
 

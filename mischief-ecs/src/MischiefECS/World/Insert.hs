@@ -12,6 +12,8 @@ import Data.List hiding (insert)
 import Data.Map qualified as Map
 import Data.Maybe (fromMaybe)
 import Data.Set qualified as Set
+import Data.Text qualified as Text
+import GHC.Stack
 import MischiefECS.Archetypes
 import {-# SOURCE #-} MischiefECS.Archetypes.Graph
 import MischiefECS.Components
@@ -19,35 +21,35 @@ import MischiefECS.Components.Bundle
 import {-# SOURCE #-} MischiefECS.Components.Spawn
 import MischiefECS.Entities
 import MischiefECS.Events
+import MischiefECS.Log
 import MischiefECS.Tables
-import MischiefECS.Vec qualified as Vec
 import MischiefECS.World
 import MischiefECS.World.Change
 import MischiefECS.World.Prefs
 import MischiefECS.World.Query
 import MischiefECS.World.Query.Queryable
-import {-# SOURCE #-} MischiefECS.World.Spawn
 import MischiefECS.World.Utils
 
 -- | Insert a bundle of components on an Entity.
 --
 -- If the entity already contains these components, their values will be
 -- updated in-place instead of causing an archetype change.
-insert :: forall b. (Bundle b) => b -> Entity -> System ()
+insert :: (HasCallStack) => forall b. (Bundle b) => b -> Entity -> System ()
 insert bundle entity =
   do
     world <- unsafeGetWorld
-    let BundleData {elements} = bundleData bundle
-
-    currentTick <- liftIO $ readIORef world.tick
-
-    bundleData <- liftIO $ processBundleElements world ComponentTicks {changed = currentTick, added = currentTick} elements
-    let newComponents = sort $ map (\x -> x.id) bundleData.elements
 
     pointer <- liftIO $ getPointer entity world.entities
     case pointer of
-      Nothing -> undefined
+      Nothing -> warn $ "Insertion failed: Entity " <> text entity <> " was despawned."
       Just currentPointer -> do
+        let BundleData {elements} = bundleData bundle
+
+        currentTick <- liftIO $ readIORef world.tick
+
+        bundleData <- liftIO $ processBundleElements world ComponentTicks {changed = currentTick, added = currentTick} elements
+        let newComponents = sort $ map (\x -> x.id) bundleData.elements
+
         currentPointerInternal <- liftIO $ readIORef currentPointer
 
         let Tables tables = world.tables
@@ -65,8 +67,8 @@ insert bundle entity =
                 newArchetype <- getArchetypeOnInsert currentPointerInternal.archetypeId newComponents
                 changeArchetype entity newArchetype (Just bundleData)
 
-    unless world.prefs.supressEvents $
-      triggerInsertEvent bundleData entity
+        unless world.prefs.supressEvents $
+          triggerInsertEvent bundleData entity
 
 getOrInsert :: forall qd. (Queryable qd, QueryOutput qd ~ Result qd, Bundle qd) => qd -> Entity -> System (Result qd)
 getOrInsert val entity = do

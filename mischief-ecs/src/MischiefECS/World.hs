@@ -22,6 +22,7 @@ module MischiefECS.World
   )
 where
 
+import Colog qualified
 import Control.Concurrent.STM (TVar, newTVarIO)
 import Control.Monad.IO.Class (MonadIO (liftIO))
 import Control.Monad.Primitive (PrimMonad (..), RealWorld)
@@ -29,6 +30,7 @@ import Control.Monad.Reader.Class (MonadReader (..), asks)
 import Control.Monad.Trans (MonadTrans (..))
 import Control.Monad.Trans.Reader (ReaderT (runReaderT))
 import Data.IORef (IORef, modifyIORef', newIORef)
+import GHC.Stack (HasCallStack)
 import MischiefECS.Archetypes (Archetypes, emptyArchetypes)
 import MischiefECS.Components
   ( Component,
@@ -70,7 +72,8 @@ data World = World
     -- | The current frame.
     frame :: IORef Frame,
     -- | Certain toggleable settings.
-    prefs :: WorldPrefs
+    prefs :: WorldPrefs,
+    logger :: Colog.LogAction IO Colog.Message
   }
 
 newtype Frame = Frame Int deriving (Show, Eq, Ord)
@@ -92,6 +95,8 @@ newWorld = do
   frame <- newIORef (Frame 0)
   let prefs = newPrefs
 
+  let logger = Colog.cmap Colog.fmtMessage $ Colog.logTextStdout
+
   return
     World
       { archetypes,
@@ -104,23 +109,21 @@ newWorld = do
         tick,
         systemId = SystemId (Entity 0 0),
         frame,
-        prefs
+        prefs,
+        logger
       }
 
 -- | Change the current SystemId of the World.
 setSystemId :: SystemId -> World -> World
-setSystemId systemId World {archetypes, components, entities, tables, deferred, deferredAsync, tick, frame, events, prefs} =
-  World {archetypes, components, entities, tables, deferred, deferredAsync, tick, systemId, frame, events, prefs}
+setSystemId systemId world = world {systemId}
 
 -- | Set the list of deferred systems of the World.
 setDeferred :: IORef [System ()] -> World -> World
-setDeferred deferred World {archetypes, components, entities, tables, deferredAsync, tick, frame, events, systemId, prefs} =
-  World {archetypes, components, deferred, entities, tables, deferredAsync, tick, frame, events, systemId, prefs}
+setDeferred deferred world = world {deferred}
 
 -- | Set new WorldPrefs for the World.
 setPrefs :: WorldPrefs -> World -> World
-setPrefs prefs World {archetypes, components, entities, tables, deferred, deferredAsync, tick, frame, events, systemId} =
-  World {archetypes, components, entities, tables, deferred, deferredAsync, tick, frame, events, systemId, prefs}
+setPrefs prefs world = world {prefs}
 
 -- | Increment the World's Tick.
 tick :: System ()

@@ -8,10 +8,12 @@ import Data.Foldable hiding (and, or)
 import Data.Maybe
 import Data.Set qualified as Set
 import GHC.Generics (Generic)
+import GHC.StableName
 import MischiefECS
 import MischiefECS.App.Systems
 import MischiefECS.Components.Common
 import MischiefECS.Components.Spawn
+import MischiefECS.World.Utils
 import Relationships (testRelationships)
 import System.Exit (exitSuccess)
 
@@ -36,6 +38,9 @@ main = do
   app <- newApp plugin
   runApp app
 
+a :: Int -> Int
+a x = x + 1
+
 plugin :: Plugin ()
 plugin = do
   register @(A, B)
@@ -53,6 +58,12 @@ setup = do
   _ <- spawn (A 6, Name "Lmao")
   _ <- spawn (A 7, Name "wow")
   _ <- spawn (A 4, Name "idk")
+
+  e <- spawn ()
+  despawn e
+  insert (Name "") e
+
+  info "AAA"
 
   q <- query' @Name $ eq (A 5)
   traverse_ (liftIO . print) q
