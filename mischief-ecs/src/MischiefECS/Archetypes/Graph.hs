@@ -43,8 +43,6 @@ createNode components = do
   liftIO $ modifyIORef' graph.lookup $ Map.insert components id
   Vec.pushBack graph.nodes ArchetypeNode {archetype = ArchetypeData {id = ArchetypeId id, components}, insert = Map.empty, remove = Map.empty}
 
-  -- archetypes <- liftIO $ readIORef world.components.archetypes
-
   comps <-
     mapM
       ( \c -> do
@@ -54,6 +52,7 @@ createNode components = do
       (Set.toList components)
 
   debug $ "archetype " <> text id <> " = " <> text (catMaybes comps)
+
   for_ components $ \component -> do
     case component.entity of
       -- Component isn't a pair.
