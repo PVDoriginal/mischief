@@ -70,7 +70,10 @@ insert bundle entity =
               -- Complex case, archetype change.
               else do
                 newArchetype <- getArchetypeOnInsert currentPointerInternal.archetypeId newComponents
-                changeArchetype entity newArchetype (Just bundleData)
+                ChangeResult {requiredComponentsAdded} <- changeArchetype entity newArchetype (Just bundleData)
+
+                unless world.prefs.supressEvents $
+                  triggerInsertEvent (ProcessedBundleData requiredComponentsAdded) entity
 
         unless world.prefs.supressEvents $
           triggerInsertEvent bundleData entity
@@ -124,7 +127,10 @@ insertNew bundle entity =
 
             unless (null newComponents.elements) $ do
               newArchetype <- getArchetypeOnInsert currentPointerInternal.archetypeId $ map (\x -> x.id) newComponents.elements
-              changeArchetype entity newArchetype (Just bundleData)
+              ChangeResult {requiredComponentsAdded} <- changeArchetype entity newArchetype (Just bundleData)
+
+              unless world.prefs.supressEvents $
+                triggerInsertEvent (ProcessedBundleData requiredComponentsAdded) entity
 
             unless world.prefs.supressEvents $
               triggerInsertEvent newComponents entity

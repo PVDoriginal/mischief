@@ -66,4 +66,4 @@ removeFromEntity components entity = do
       currentPointer <- liftIO $ readIORef pointer
 
       newArchetype <- getArchetypeOnRemove currentPointer.archetypeId components
-      changeArchetype entity newArchetype Nothing
+      void $ changeArchetype entity newArchetype Nothing

@@ -21,6 +21,7 @@ import MischiefECS.World
 import MischiefECS.World.Change
 import MischiefECS.World.Defer
 import MischiefECS.World.Insert
+import MischiefECS.World.Prefs
 import MischiefECS.World.Utils
 
 -- | Spawn an entity given a bundle of components.
@@ -59,8 +60,10 @@ spawnEntity entity bundle = do
 
   liftIO $ insertPointer entity entityPointer world.entities
 
-  -- insert bundle entity
-  changeArchetype entity archetype (Just bundleD)
+  ChangeResult {requiredComponentsAdded} <- changeArchetype entity archetype (Just bundleD)
+
+  unless world.prefs.supressEvents $ do
+    triggerInsertEvent (ProcessedBundleData $ requiredComponentsAdded ++ bundleD.elements) entity
 
 -- insertNew (Name (show entity)) entity
 

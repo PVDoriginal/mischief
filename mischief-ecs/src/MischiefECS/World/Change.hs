@@ -11,16 +11,23 @@ import MischiefECS.Archetypes
 import MischiefECS.Components
 import MischiefECS.Components.Bundle
 import MischiefECS.Entities
+import MischiefECS.Events
 import MischiefECS.Log
 import MischiefECS.Tables
 import MischiefECS.World
 import MischiefECS.World.Query
 import MischiefECS.World.Utils
 
-changeArchetype :: Entity -> ArchetypeData -> Maybe ProcessedBundleData -> System ()
+newtype ChangeResult = ChangeResult
+  { requiredComponentsAdded :: [ProcessedBundleElement]
+  }
+
+changeArchetype :: Entity -> ArchetypeData -> Maybe ProcessedBundleData -> System ChangeResult
 changeArchetype entity newArchetype insertedBundle = do
   world <- unsafeGetWorld
   currentTick <- liftIO $ readIORef world.tick
+
+  reqAdded <- liftIO $ newIORef []
 
   Just pointer <- liftIO $ getPointer entity world.entities
   pointer' <- liftIO $ readIORef pointer
@@ -41,7 +48,10 @@ changeArchetype entity newArchetype insertedBundle = do
                 Nothing ->
                   case find (\x -> x.id == component) collected.elements of
                     Just x -> return x
-                    Nothing -> getDefault component
+                    Nothing -> do
+                      r <- getDefault component
+                      liftIO $ modifyIORef' reqAdded (++ [r])
+                      return r
       )
       $ Set.toList newArchetype.components
 
@@ -52,6 +62,9 @@ changeArchetype entity newArchetype insertedBundle = do
            in setAddedTickOfComponents newElements' (\id -> isInProcessedBundle bundle id && not (isInProcessedBundle collected id)) currentTick
 
   liftIO $ insertEntityIntoTables newElements world.tables newArchetype.id (entity, pointer)
+
+  requiredComponentsAdded <- liftIO $ readIORef reqAdded
+  return ChangeResult {requiredComponentsAdded}
 
 getDefault :: ComponentId -> System ProcessedBundleElement
 getDefault component = do

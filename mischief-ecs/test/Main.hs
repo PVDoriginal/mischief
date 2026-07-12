@@ -58,10 +58,12 @@ data Baz = Baz deriving (Plugin, Eq)
 
 setup :: System ()
 setup = do
-  _ <- spawn (A 5, Name "Lol")
+  c <- spawn (A 5, Name "Lol")
   _ <- spawn (A 6, Name "Lmao")
   _ <- spawn (A 7, Name "wow")
   _ <- spawn (A 4, Name "idk")
+
+  remove @B c
 
   e <- spawn ()
   despawn e
@@ -77,5 +79,5 @@ newtype Counter = Counter Int
   deriving anyclass (Component, Queryable)
   deriving stock (Show)
 
-onInsert :: OnInsert Name -> System ()
+onInsert :: OnRemove B -> System ()
 onInsert _ = info "AAA"
