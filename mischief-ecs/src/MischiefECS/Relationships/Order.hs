@@ -32,4 +32,4 @@ orderEntitiesStep entities = do
 isAvailable :: Entity -> System Bool
 isAvailable entity = do
   Just before <- get @(Rel Before) entity
-  isNothing <$> findM ((unwrap <$>) . (get @(Has Visited))) (map target before)
+  isNothing <$> findM ((not . unwrap <$>) . (get @(Has Visited))) (map target before)
