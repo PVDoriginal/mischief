@@ -5,7 +5,7 @@ def instance(n):
     res += "instance {-# OVERLAPPING #-} ("
 
     for i in range(n):
-        res += "Queryable q" + str(i)
+        res += "Queryable q" + str(i) + " o" + str(i)
         if i != n-1:
             res += ", "
 
@@ -15,7 +15,14 @@ def instance(n):
         if i != n-1:
             res += ", "
 
-    res += ") where \n"
+    res += ") ("
+
+    for i in range(n): 
+        res += "o" + str(i)
+        if i != n-1: 
+            res += ","
+    
+    res += "where \n"
 
     res += "  type QueryOutput ("
     for i in range(n):

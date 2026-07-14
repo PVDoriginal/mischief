@@ -66,22 +66,22 @@ entityQuery entity = do
   world <- unsafeGetWorld
   liftIO $ runQueryEntity (Proxy @qd) world entity
 
-get :: forall qd out m w. (Queryable qd out, MonadSystem w m) => Entity -> m (Maybe out)
+get :: forall qd m w out. (Queryable qd out, MonadSystem w m) => Entity -> m (Maybe out)
 get = entityQuery @qd
 
-query' :: forall qd out m w. (Queryable qd out, MonadSystem w m) => QueryFilter -> m [out]
+query' :: forall qd m w out. (Queryable qd out, MonadSystem w m) => QueryFilter -> m [out]
 query' filter = do
   world <- unsafeGetWorld
   runQuery (Proxy @qd) filter world
 
-single :: forall qd out m w. (Queryable qd out, MonadSystem w m) => m (Maybe out)
+single :: forall qd m w out. (Queryable qd out, MonadSystem w m) => m (Maybe out)
 single = do
   res <- query @qd
   case res of
     [x] -> return $ Just x
     _ -> return Nothing
 
-single' :: forall qd out m w. (Queryable qd out, MonadSystem w m) => QueryFilter -> m (Maybe out)
+single' :: forall qd m w out. (Queryable qd out, MonadSystem w m) => QueryFilter -> m (Maybe out)
 single' filter = do
   res <- query' @qd filter
   case res of

@@ -18,7 +18,7 @@ data Time = Time
   { delta :: TimeSpec,
     elapsed :: TimeSpec
   }
-  deriving (Show, Component, Queryable)
+  deriving (Show, Component)
 
 instance HasField "deltaSecs" Time Float where
   getField :: Time -> Float

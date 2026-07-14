@@ -7,7 +7,7 @@ import MischiefECS.World
 import MischiefECS.World.Query
 import MischiefECS.World.Query.Queryable
 
-data ChildOf = ChildOf deriving (Queryable, Show)
+data ChildOf = ChildOf deriving (Show)
 
 instance Component ChildOf where
   isExclusiveRel = True

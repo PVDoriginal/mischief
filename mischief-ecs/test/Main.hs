@@ -19,17 +19,17 @@ import MischiefECS.Components.Spawn
 import MischiefECS.World.Utils
 import System.Exit (exitSuccess)
 
-newtype A = A Int deriving (Queryable, Show, Eq)
+newtype A = A Int deriving (Show, Eq)
 
 instance Component A where
   required = require @B
 
-data B = B deriving (Queryable, Show, Generic, Default)
+data B = B deriving (Show, Generic, Default)
 
 instance Component B where
   required = require @C
 
-data C = C deriving (Queryable, Generic, Default, Show)
+data C = C deriving (Generic, Default, Show)
 
 instance Component C where
   required = require @()
@@ -76,7 +76,7 @@ dummy :: System ()
 dummy = return ()
 
 newtype Counter = Counter Int
-  deriving anyclass (Component, Queryable)
+  deriving anyclass (Component)
   deriving stock (Show)
 
 onInsert :: OnRemove B -> System ()

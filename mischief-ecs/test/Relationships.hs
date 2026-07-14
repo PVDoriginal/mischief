@@ -15,9 +15,9 @@ import MischiefECS.Components.Spawn (meta)
 import System.Exit (exitSuccess)
 import Prelude hiding (and)
 
-data Parent1 = Parent1 deriving (Component, Queryable)
+data Parent1 = Parent1 deriving (Component)
 
-data Parent2 = Parent2 deriving (Component, Queryable)
+data Parent2 = Parent2 deriving (Component)
 
 data A = A {lol :: Int, lol2 :: C}
 

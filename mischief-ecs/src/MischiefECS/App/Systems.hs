@@ -25,7 +25,7 @@ import MischiefECS.World.Spawn
 newtype Systems = Systems
   { systemMap :: IORef (Map (ScheduleLabel, Int) (IORef [(StableName (System ()), SystemId)]))
   }
-  deriving anyclass (Component, Queryable)
+  deriving anyclass (Component)
 
 newtype SystemFunction = SystemFunction {inner :: System ()} deriving anyclass (Component)
 
@@ -76,7 +76,7 @@ self = do
   let (SystemId sys) = world.systemId
   return sys
 
-local :: forall c. (Queryable c, QueryOutput c ~ Result c, Bundle c) => c -> System (Result c)
+local :: forall c. (Queryable c (Result c), Bundle c) => c -> System (Result c)
 local c = do
   loc <- self
   getOrInsert c loc

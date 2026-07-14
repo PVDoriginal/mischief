@@ -17,7 +17,7 @@ data Scheduler = Scheduler
     update :: Graph ScheduleLabel,
     systems :: IORef (Map ScheduleLabel (Graph SystemId))
   }
-  deriving (Component, Queryable)
+  deriving (Component)
 
 data ScheduleType = StartupSchedule | UpdateSchedule
 

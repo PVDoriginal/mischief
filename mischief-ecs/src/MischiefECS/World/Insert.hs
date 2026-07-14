@@ -78,7 +78,7 @@ insert bundle entity =
         unless world.prefs.supressEvents $
           triggerInsertEvent bundleData entity
 
-getOrInsert :: forall qd. (Queryable qd, QueryOutput qd ~ Result qd, Bundle qd) => qd -> Entity -> System (Result qd)
+getOrInsert :: forall qd. (Queryable qd (Result qd), Bundle qd) => qd -> Entity -> System (Result qd)
 getOrInsert val entity = do
   g <- get @qd entity
   case g of
@@ -87,7 +87,7 @@ getOrInsert val entity = do
       insert val entity
       return $ Result (val, entity)
 
-resOrInsert :: forall c. (Queryable c, Component c, QueryOutput c ~ Result c, Bundle c) => c -> System (Result c)
+resOrInsert :: forall c. (Queryable c (Result c), Component c, Bundle c) => c -> System (Result c)
 resOrInsert val = do
   r <- res @c
   case r of
@@ -148,7 +148,7 @@ insertRes res = do
 set :: (Bundle c) => Result c -> c -> System ()
 set !result !newValue = MischiefECS.World.Insert.insert newValue (entityOf result)
 
-setIfNeq :: forall c. (Bundle c, Queryable c, QueryOutput c ~ Result c, Eq c) => Result c -> c -> System ()
+setIfNeq :: forall c. (Bundle c, Queryable c (Result c), Eq c) => Result c -> c -> System ()
 setIfNeq !result !newValue = do
   curr <- get @c (entityOf result)
   case curr of
@@ -161,7 +161,7 @@ setIfNeq !result !newValue = do
 --
 -- Useful if you've done changed to the component and want to grab the live value
 -- without re-querying.
-update :: forall c. (QueryOutput c ~ Result c, Queryable c) => Result c -> System (Maybe (Result c))
+update :: forall c output. (Queryable c output) => Result c -> System (Maybe output)
 update c = get @c (entityOf c)
 
 triggerInsertEvent :: ProcessedBundleData -> Entity -> System ()

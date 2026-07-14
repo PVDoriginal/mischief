@@ -51,6 +51,7 @@ library
   exposed-modules:
     MischiefECS
     MischiefECS.App
+    MischiefECS.App.Plugins
     MischiefECS.App.Scheduler
     MischiefECS.App.Schedules
     MischiefECS.App.SystemConfig
@@ -59,6 +60,7 @@ library
     MischiefECS.Archetypes.Graph
     MischiefECS.Components
     MischiefECS.Components.Bundle
+    MischiefECS.Components.BundleTypes
     MischiefECS.Components.Common
     MischiefECS.Components.Required
     MischiefECS.Components.Runnable
@@ -94,7 +96,6 @@ library
     MischiefECS.World.Spawn
     MischiefECS.World.Systems
     MischiefECS.World.Utils
-    MischiefECS.App.Plugins 
 
   -- Modules included in this library but not exported.
   -- other-modules:

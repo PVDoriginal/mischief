@@ -52,8 +52,6 @@ getReader !m = do
 
 instance (Message m) => Component (Messages m)
 
-instance (Message m) => Queryable (Messages m)
-
 -- | Write a message into the resource.
 writeMessage :: (Message m) => m -> Result (Messages m) -> System ()
 writeMessage !message !messages = do

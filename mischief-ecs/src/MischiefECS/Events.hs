@@ -18,16 +18,16 @@ import MischiefECS.World
 import MischiefECS.World.Query
 import MischiefECS.World.Query.Queryable
 
-data EventProxy e = EventProxy deriving (Component, Queryable, Generic, Default)
+data EventProxy e = EventProxy deriving (Component, Generic, Default)
 
-newtype Observer e = Observer (e -> System ()) deriving anyclass (Queryable)
+newtype Observer e = Observer (e -> System ())
 
 instance (Typeable e) => Component (Observer e) where
   required = require @(EventProxy e, ObserverOrder)
 
 newtype ObserverOrder = ObserverOrder Int
   deriving (Show)
-  deriving anyclass (Component, Queryable)
+  deriving anyclass (Component)
   deriving newtype (Eq, Ord, Default)
 
 -- | @Event@ typeclass.
