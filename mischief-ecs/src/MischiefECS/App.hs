@@ -55,8 +55,9 @@ newApp plugin = do
 
 runApp :: App -> IO ()
 runApp app = flip runSystem app.world $ do
-  startups <- query' @Entity $ with @StartupSchedule
-  updates <- query' @Entity $ with @UpdateSchedule
+  startups <- orderEntities =<< (query' @Entity $ with @StartupSchedule)
+  err $ text startups
+  updates <- orderEntities =<< (query' @Entity $ with @UpdateSchedule)
 
   liftIO $ runSchedules startups
   liftIO $ runSchedulesLoop updates
@@ -109,6 +110,7 @@ addSystems schedule system = do
 appInit :: System ()
 appInit = do
   register @Entity
+  register @Visited
   insertRes $ def @Schedules
 
   systems <- liftIO Systems.newSystems
