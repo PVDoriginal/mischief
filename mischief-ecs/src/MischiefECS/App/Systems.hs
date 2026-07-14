@@ -44,7 +44,7 @@ getSystemId' system stableName list = do
   case find (\x -> fst x `eqStableName` stableName) list' of
     Just (_, x) -> return x
     Nothing -> do
-      index <- spawn (SystemFunction system, (SystemTick (Tick 0), LastSystemTick (Tick 0)))
+      index <- spawn (SystemFunction system, SystemTick (Tick 0), LastSystemTick (Tick 0))
       liftIO $ modifyIORef' list (++ [(stableName, SystemId index)])
       return $ SystemId index
 
@@ -80,3 +80,5 @@ local :: forall c. (Queryable c (Result c), Bundle c) => c -> System (Result c)
 local c = do
   loc <- self
   getOrInsert c loc
+
+data ScheduledIn = ScheduledIn deriving (Component)

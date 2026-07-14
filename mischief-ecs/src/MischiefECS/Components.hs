@@ -38,6 +38,7 @@ module MischiefECS.Components
     Pair (..),
     Rel (..),
     ComponentRep (..),
+    Tick (..),
   )
 where
 
@@ -237,3 +238,5 @@ instance GetRep ErasedComponent where
 instance GetRep DefaultComponentType where
   getRep :: DefaultComponentType -> TypeRep
   getRep (DefaultComponentType (_ :: (Proxy t))) = typeRep $ Proxy @t
+
+newtype Tick = Tick Int deriving (Show, Eq, Ord)

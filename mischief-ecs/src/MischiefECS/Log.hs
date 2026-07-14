@@ -2,13 +2,10 @@ module MischiefECS.Log where
 
 import Colog qualified
 import Control.Monad.IO.Class
-import Data.Foldable
 import Data.Text (Text)
 import Data.Text qualified as Text
-import GHC.Exception (Exception, prettyCallStackLines)
 import GHC.Stack
 import MischiefECS.World
-import System.Console.ANSI
 
 debug :: (HasCallStack) => (MonadSystem w m) => Text -> m ()
 debug msg = withFrozenCallStack $ do

@@ -35,6 +35,7 @@ import MischiefECS.Archetypes (Archetypes, emptyArchetypes)
 import MischiefECS.Components
   ( Component,
     Components,
+    Tick (Tick),
     emptyComponents,
   )
 import MischiefECS.Entities
@@ -45,7 +46,6 @@ import MischiefECS.Entities
 import {-# SOURCE #-} MischiefECS.Events
 import MischiefECS.Hidden
 import MischiefECS.Tables (Tables, emptyTables)
-import MischiefECS.Utils
 import MischiefECS.World.Prefs (WorldPrefs, newPrefs)
 
 -- | @The World@ is the main data structure storing the entities, components, archetypes, and everything else that lives in our app.

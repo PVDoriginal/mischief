@@ -16,7 +16,9 @@ import Data.Maybe (fromMaybe, isNothing)
 import Data.Proxy
 import Data.Set (Set)
 import Data.Set qualified as Set
+import Data.Text (Text)
 import Data.Typeable
+import GHC.Stack
 import MischiefECS.Archetypes
 import {-# SOURCE #-} MischiefECS.Archetypes.Graph (getArchetypeOnRemove)
 import MischiefECS.Components
@@ -211,3 +213,9 @@ isAlive :: forall m w. (MonadSystem w m) => Entity -> m Bool
 isAlive entity = do
   world <- unsafeGetWorld
   liftIO $ isAliveIO entity world.entities
+
+expect :: (HasCallStack) => forall m w a. (MonadSystem w m) => Text -> Maybe a -> m a
+expect t a = do
+  case a of
+    Nothing -> panic t >>= const undefined
+    Just x -> return x

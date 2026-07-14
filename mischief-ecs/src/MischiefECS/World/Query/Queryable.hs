@@ -98,7 +98,7 @@ instance (Component c) => Queryable' HFalse (MaybeRel c) [RelResult c] where
   runQueryInternal' _ archetypes world = tryGetRelCollections @c world archetypes
   queryTypes' _ = Set.empty
 
-instance (Component c, ComponentPred c ~ HTrue) => Queryable' HFalse (Has c) Bool where
+instance (Component c) => Queryable' HFalse (Has c) Bool where
   runQueryEntity' _ world entity = do
     list <- runQueryEntity (Proxy @(Maybe c)) world entity
     case list of

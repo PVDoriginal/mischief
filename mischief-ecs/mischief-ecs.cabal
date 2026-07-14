@@ -73,6 +73,7 @@ library
     MischiefECS.Prelude
     MischiefECS.Relationships
     MischiefECS.Relationships.ChildOf
+    MischiefECS.Relationships.Order 
     MischiefECS.Relationships.Graph
     MischiefECS.Relationships.Tree
     MischiefECS.Tables
