@@ -70,7 +70,7 @@ setup = do
   despawn e
   insert (Name "") e
 
-  q <- query' @Name $ with @A &. (Not (with @B) &. NoFilter)
+  q <- query' @Name $ with @A &. neg (without @B)
   traverse_ (info . text) q
 
 dummy :: System ()
