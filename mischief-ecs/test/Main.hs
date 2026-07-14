@@ -58,8 +58,8 @@ data Baz = Baz deriving (Plugin, Eq)
 
 setup :: System ()
 setup = do
-  c <- spawn (A 5, Name "Lol")
-  _ <- spawn (A 6, Name "Lmao")
+  _ <- spawn (A 5, Name "Lol")
+  c <- spawn (A 6, Name "Lmao")
   _ <- spawn (A 7, Name "wow")
   _ <- spawn (A 4, Name "idk")
 
@@ -69,7 +69,7 @@ setup = do
   despawn e
   insert (Name "") e
 
-  q <- query' @Name $ eq (A 5)
+  q <- query' @Name $ with @A &. without @B
   traverse_ (info . text) q
 
 dummy :: System ()

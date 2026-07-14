@@ -60,7 +60,6 @@ module MischiefECS
     module MischiefECS.Components.Bundle,
     module MischiefECS.Components.Required,
     module MischiefECS.World.Query,
-    module MischiefECS.World.Query.QueryData,
     module MischiefECS.World.Query.Queryable,
     module MischiefECS.World.Insert,
     module MischiefECS.World.Par,
@@ -107,7 +106,6 @@ import MischiefECS.World.Insert
 import MischiefECS.World.Modify
 import MischiefECS.World.Par
 import MischiefECS.World.Query
-import MischiefECS.World.Query.QueryData
 import MischiefECS.World.Query.Queryable
 import MischiefECS.World.Remove
 import MischiefECS.World.Spawn

@@ -12,8 +12,15 @@ import MischiefECS.Components
 import MischiefECS.Entities
 import MischiefECS.Tables
 import MischiefECS.World
-import MischiefECS.World.Query.QueryData
 import MischiefECS.World.Utils
+
+data TypeQuery = CompQ | RelQ deriving (Eq, Ord)
+
+data MaybeRel a = MaybeRel
+
+data Has a = Has
+
+data HasRel a = HasRel
 
 class Queryable qd output | qd -> output where
   runQueryEntity :: Proxy qd -> World -> Entity -> IO (Maybe output)

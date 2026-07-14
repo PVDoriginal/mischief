@@ -91,7 +91,6 @@ library
     MischiefECS.World.Prefs
     MischiefECS.World.Query
     MischiefECS.World.Query.Queryable
-    MischiefECS.World.Query.QueryData
     MischiefECS.World.Remove
     MischiefECS.World.Spawn
     MischiefECS.World.Systems
