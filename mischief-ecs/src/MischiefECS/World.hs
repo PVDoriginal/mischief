@@ -79,7 +79,7 @@ data World = World
 newtype Frame = Frame Int deriving (Show, Eq, Ord)
 
 -- | Unique id assigned to each system that's added to a schedule. Just a wrapper around Entity.
-newtype SystemId = SystemId {entity :: Entity} deriving (Show, Eq, Ord)
+newtype SystemId = SystemId {id :: Entity} deriving (Show, Eq, Ord)
 
 -- | Create a new World in IO.
 newWorld :: IO World

@@ -22,3 +22,6 @@ findM f l = f' f (toList l)
 
 unwrap :: Maybe a -> a
 unwrap = fromMaybe undefined
+
+(>>+) :: forall (m :: Type -> Type) a b. (Monad m) => m a -> (a -> m b) -> m a
+(>>+) a f = a >>= f >>= const a

@@ -14,6 +14,7 @@ import MischiefECS.App.Schedules
 import MischiefECS.Components
 import MischiefECS.Components.Bundle
 import MischiefECS.Entities
+import MischiefECS.Relationships.Order
 import MischiefECS.Tables
 import MischiefECS.Utils
 import MischiefECS.World
@@ -23,7 +24,7 @@ import MischiefECS.World.Query.Queryable
 import MischiefECS.World.Spawn
 
 newtype Systems = Systems
-  { systemMap :: IORef (Map (ScheduleLabel, Int) (IORef [(StableName (System ()), SystemId)]))
+  { systemMap :: IORef (Map Int (IORef [(StableName (System ()), SystemId)]))
   }
   deriving anyclass (Component)
 
@@ -48,16 +49,18 @@ getSystemId' system stableName list = do
       liftIO $ modifyIORef' list (++ [(stableName, SystemId index)])
       return $ SystemId index
 
-getSystemId :: ScheduleLabel -> System () -> Systems -> System SystemId
-getSystemId label system Systems {systemMap} = do
+getSystemId :: System () -> System SystemId
+getSystemId system = do
+  Systems {systemMap} <- value . unwrap <$> (res @Systems)
+
   stableName <- liftIO $ makeStableName system
   systemMap' <- liftIO $ readIORef systemMap
 
-  case Map.lookup (label, hashStableName stableName) systemMap' of
+  case Map.lookup (hashStableName stableName) systemMap' of
     Just x -> getSystemId' system stableName x
     Nothing -> do
       l <- liftIO $ newIORef []
-      liftIO $ modifyIORef' systemMap (Map.insert (label, hashStableName stableName) l)
+      liftIO $ modifyIORef' systemMap (Map.insert (hashStableName stableName) l)
       getSystemId' system stableName l
 
 getSystemTicks :: World -> IO (Tick, Tick)

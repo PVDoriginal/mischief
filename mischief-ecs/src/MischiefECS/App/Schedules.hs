@@ -1,8 +1,10 @@
 module MischiefECS.App.Schedules where
 
 import Data.Data
+import Data.Default
 import Data.Map (Map)
 import Data.Map qualified as Map
+import GHC.Generics
 import MischiefECS.Components
 import MischiefECS.Entities
 import MischiefECS.World
@@ -31,15 +33,28 @@ data PreUpdate = PreUpdate deriving (Schedule)
 
 data PostUpdate = PostUpdate deriving (Schedule)
 
+data StartupSchedule = StartupSchedule deriving (Component)
+
+data UpdateSchedule = UpdateSchedule deriving (Component)
+
 newtype ScheduleId = ScheduleId {id :: Entity}
 
-newtype Schedules = Schedules {inner :: Map TypeRep ScheduleId} deriving anyclass (Component)
+newtype Schedules = Schedules {inner :: Map TypeRep ScheduleId}
+  deriving stock (Generic)
+  deriving anyclass (Component, Default)
 
-getScheduleId :: (Schedule sch) => sch -> System ScheduleId
+getScheduleId :: ScheduleLabel -> System ScheduleId
 getScheduleId sch = do
   Just schedules <- res @Schedules
-  case Map.lookup (typeOf sch) schedules.inner of
+  case Map.lookup sch.rep schedules.inner of
     Just x -> return x
     Nothing -> do
-      e <- spawn (ScheduleLabel (typeOf sch))
+      e <- spawn sch
       return $ ScheduleId e
+
+scheduleEntity :: (Schedule sch) => sch -> System Entity
+scheduleEntity sch = do
+  ScheduleId id <- getScheduleId $ ScheduleLabel $ typeOf sch
+  return id
+
+-- runSystemsIn :: (Schedule sch) => sch -> System ()

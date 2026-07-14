@@ -14,19 +14,20 @@ import Data.Default
 import Data.Foldable
 import Data.IORef
 import MischiefECS.App.Plugins
-import MischiefECS.App.Scheduler (ScheduleType (..), Scheduler)
-import MischiefECS.App.Scheduler qualified as Scheduler
 import MischiefECS.App.Schedules
-import MischiefECS.App.SystemConfig
-import MischiefECS.App.Systems (LastSystemTick (LastSystemTick), SystemFunction, SystemTick (SystemTick), Systems)
+import MischiefECS.App.SystemConfig hiding (Before)
+import MischiefECS.App.Systems (LastSystemTick (LastSystemTick), ScheduledIn, SystemFunction (SystemFunction), SystemTick (SystemTick), Systems)
 import MischiefECS.App.Systems qualified as Systems
 import MischiefECS.Components
 import MischiefECS.Components.Bundle
 import MischiefECS.Components.Runnable (Runnable, runFor)
 import MischiefECS.Components.Spawn (getOrAddComponentId)
+import MischiefECS.Entities
 import MischiefECS.Events
 import MischiefECS.Hidden
+import MischiefECS.Relationships.Order
 import MischiefECS.Tables
+import MischiefECS.Utils
 import MischiefECS.World
 import MischiefECS.World.Defer
 import MischiefECS.World.Insert
@@ -46,25 +47,17 @@ newApp plugin = do
   let app = App {world, systems}
 
   runSystem appInit app.world
-  runSystem (addSystems Init $ runPluginRec plugin) app.world
+  -- runSystem (addSystems Init $ runPluginRec plugin) app.world
 
   return app
 
 runApp :: App -> IO ()
-runApp app = do
-  scheduler <-
-    runSystem
-      ( do
-          Just sch <- res @Scheduler
-          return $ value sch
-      )
-      app.world
+runApp app = flip runSystem app.world $ do
+  startups <- query' @Entity $ with @StartupSchedule
+  updates <- query' @Entity $ with @UpdateSchedule
 
-  startups <- Scheduler.getSchedules StartupSchedule scheduler
-  updates <- Scheduler.getSchedules UpdateSchedule scheduler
-
-  runSchedules startups
-  runSchedulesLoop updates
+  liftIO $ runSchedules startups
+  liftIO $ runSchedulesLoop updates
   where
     runSchedulesLoop schedules = do
       forever $ do
@@ -73,105 +66,75 @@ runApp app = do
 
     runSchedules schedules =
       for_ schedules $ \schedule -> do
-        runSystem (runSchedule schedule) app.world
+        runSystem (runSchedule' schedule) app.world
 
-runSchedule :: ScheduleLabel -> System ()
-runSchedule schedule = do
+runSchedule :: (Schedule sch) => sch -> System ()
+runSchedule sch = scheduleEntity sch >>= runSchedule'
+
+runSchedule' :: Entity -> System ()
+runSchedule' schedule = do
   world <- unsafeGetWorld
-  Just scheduler <- res @Scheduler
-  systems <- liftIO $ Scheduler.getScheduleSystems schedule (value scheduler)
+  systems <- orderEntities =<< (query' @Entity $ withRel @ScheduledIn schedule)
 
-  for_ (concat systems) $ \systemId -> do
-    Just (systemFunction, lastSystemTick) <- get @(SystemFunction, SystemTick) systemId.entity
+  for_ systems $ \systemId -> do
+    Just (systemFunction, lastSystemTick) <- get @(SystemFunction, SystemTick) systemId
     currentSystemTick <- liftIO $ readIORef world.tick
 
     set lastSystemTick (SystemTick currentSystemTick)
-    insert (LastSystemTick lastSystemTick.inner) systemId.entity
+    insert (LastSystemTick lastSystemTick.inner) systemId
 
-    Control.Monad.Reader.local (hide . setSystemId systemId . unhide) $ do
+    Control.Monad.Reader.local (hide . setSystemId (SystemId systemId) . unhide) $ do
       systemFunction.inner
       flush
       flushAsync
       flushEvents
       tick
 
-addSystems :: (Schedule sc, SystemConfig s) => sc -> s -> System ()
-addSystems schedule system = do
-  world <- unsafeGetWorld
-  let label = ScheduleLabel $ typeOf schedule
-  let SystemConfigData {systems, edges} = systemConfigData system
+-- addSystems :: (Schedule sc, SystemConfig s) => sc -> s -> System ()
+-- addSystems schedule system = do
+--   world <- unsafeGetWorld
+--   let label = ScheduleLabel $ typeOf schedule
+--   let SystemConfigData {systems, edges} = systemConfigData system
 
-  Just (Result (scheduler, _)) <- res @Scheduler
+--   -- Just (Result (scheduler, _)) <- res @Scheduler
 
-  Just (Result (systemsRes, _)) <- res @Systems
+--   Just (Result (systemsRes, _)) <- res @Systems
 
-  for_ systems $ \system -> do
-    systemId <- Systems.getSystemId label system systemsRes
-    liftIO $ Scheduler.addSystem label systemId scheduler
+--   for_ systems $ \system -> do
+--     systemId <- Systems.getSystemId label system systemsRes
+--     liftIO $ Scheduler.addSystem label systemId scheduler
 
-  for_ edges $ \(s1, s2) -> do
-    id1 <- Systems.getSystemId label s1 systemsRes
-    id2 <- Systems.getSystemId label s2 systemsRes
-    liftIO $ Scheduler.addSystemEdge label (id1, id2) scheduler
-
-addSchedule :: (Schedule s) => s -> ScheduleType -> System ()
-addSchedule schedule scheduleType = do
-  Just (Result (scheduler, _)) <- res @Scheduler
-  liftIO $ Scheduler.addSchedule (ScheduleLabel $ typeOf schedule) scheduleType scheduler
-
-addScheduleEdge :: (Schedule s1, Schedule s2) => (s1, s2) -> ScheduleType -> System ()
-addScheduleEdge (s1, s2) scheduleType = do
-  Just (Result (scheduler, _)) <- res @Scheduler
-  liftIO $ Scheduler.addScheduleEdge (ScheduleLabel $ typeOf s1, ScheduleLabel $ typeOf s2) scheduleType scheduler
-
--- addRes :: (Component r, Bundle r) => r -> Plugin ()
--- addRes r = do
---   app <- ask
---   liftIO $ runSystem (insertRes r) app.world
-
--- addObserver :: (Event e) => (e -> System ()) -> Plugin ()
--- addObserver observer = do
---   app <- ask
---   liftIO $ runSystem (spawnObserver (Observer observer) Nothing) app.world
-
--- addObserverOrdered :: (Event e) => (e -> System ()) -> Int -> Plugin ()
--- addObserverOrdered observer order = do
---   app <- ask
---   liftIO $ runSystem (spawnObserver (Observer observer) $ Just (ObserverOrder order)) app.world
-
-data Schedules = Schedules {startup :: IORef [TypeRep], update :: IORef [TypeRep]}
-
-newSchedules :: IO Schedules
-newSchedules = do
-  startup <- newIORef [typeOf Startup]
-  update <- newIORef [typeOf PreUpdate, typeOf Update, typeOf PostUpdate]
-  return Schedules {startup, update}
+--   for_ edges $ \(s1, s2) -> do
+--     id1 <- Systems.getSystemId label s1 systemsRes
+--     id2 <- Systems.getSystemId label s2 systemsRes
+--     liftIO $ Scheduler.addSystemEdge label (id1, id2) scheduler
 
 appInit :: System ()
 appInit = do
-  scheduler <- liftIO Scheduler.newScheduler
-  insertRes scheduler
+  insertRes $ def @Schedules
 
   systems <- liftIO Systems.newSystems
   insertRes systems
 
-  addSchedule Init StartupSchedule
-  addSchedule PreStartup StartupSchedule
-  addSchedule Startup StartupSchedule
-  addSchedule PostStartup StartupSchedule
+  init <- scheduleEntity Init
+  pre <- scheduleEntity PreStartup
+  startup <- scheduleEntity Startup
+  post <- scheduleEntity PostStartup
 
-  addScheduleEdge (Init, PreStartup) StartupSchedule
-  addScheduleEdge (PreStartup, Startup) StartupSchedule
-  addScheduleEdge (Startup, PostStartup) StartupSchedule
+  for_ [init, pre, startup, post] $ insert StartupSchedule
 
-  addSchedule First UpdateSchedule
-  addSchedule PreUpdate UpdateSchedule
-  addSchedule Update UpdateSchedule
-  addSchedule PostUpdate UpdateSchedule
+  insert (Rel (Before, pre)) init
+  insert (Rel (Before, startup)) pre
+  insert (Rel (Before, post)) startup
 
-  addScheduleEdge (First, PreUpdate) UpdateSchedule
-  addScheduleEdge (PreUpdate, Update) UpdateSchedule
-  addScheduleEdge (Update, PostUpdate) UpdateSchedule
+  pre <- scheduleEntity PreUpdate
+  update <- scheduleEntity Update
+  post <- scheduleEntity PostUpdate
+
+  for_ [pre, update, post] $ insert UpdateSchedule
+
+  insert (Rel (Before, update)) pre
+  insert (Rel (Before, post)) update
 
 register :: forall c. (Runnable c) => System ()
 register = runFor @c registerComponent
