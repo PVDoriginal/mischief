@@ -26,7 +26,7 @@ orderEntities entities = do
   return res
 
 orderEntitiesStep :: Set Entity -> System [Entity]
-orderEntitiesStep entities = do
+orderEntitiesStep entities =
   if null entities
     then
       return []
