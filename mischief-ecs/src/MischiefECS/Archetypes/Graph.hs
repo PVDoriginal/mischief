@@ -213,6 +213,7 @@ getRequirements component = do
 data ComponentQuery = ComponentQuery | RelationshipQueryAny | RelationshipQuery
 
 findMatchingArchetypes :: forall m w. (MonadSystem w m) => [(ComponentId, ComponentQuery)] -> Archetypes -> m [([ComponentId], ArchetypeId)]
+findMatchingArchetypes [] _ = allArchetypes
 findMatchingArchetypes components Archetypes {graph} = do
   archetypes'' <- forM components $ \(component, q) -> do
     case q of
@@ -238,3 +239,8 @@ findMatchingArchetypes components Archetypes {graph} = do
             return (Set.toList x'.archetype.components, ArchetypeId x)
         )
         archetypes
+
+allArchetypes :: forall m w. (MonadSystem w m) => m [([ComponentId], ArchetypeId)]
+allArchetypes = do
+  world <- unsafeGetWorld
+  map (\x -> (Set.toList x.archetype.components, x.archetype.id)) <$> Vec.toList world.archetypes.graph.nodes

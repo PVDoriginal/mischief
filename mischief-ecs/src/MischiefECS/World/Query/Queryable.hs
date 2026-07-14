@@ -14,7 +14,7 @@ import MischiefECS.Tables
 import MischiefECS.World
 import MischiefECS.World.Utils
 
-data TypeQuery = CompQ | RelQ deriving (Eq, Ord)
+data TypeQuery = CompQ | RelQ deriving (Eq, Ord, Show)
 
 data MaybeRel a = MaybeRel
 

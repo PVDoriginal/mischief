@@ -17,6 +17,7 @@ import MischiefECS.Components
 import MischiefECS.Components.BundleTypes
 import {-# SOURCE #-} MischiefECS.Components.Spawn
 import MischiefECS.Entities
+import MischiefECS.Log
 import MischiefECS.Tables
 import MischiefECS.World
 import MischiefECS.World.Query.Queryable

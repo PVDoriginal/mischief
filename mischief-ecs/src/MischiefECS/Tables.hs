@@ -9,6 +9,7 @@ import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Maybe (catMaybes, fromMaybe, isNothing)
 import Data.Traversable (for)
+import Data.Typeable (Proxy (Proxy), eqT, typeRep, type (:~:) (Refl))
 import Data.Vector qualified as Vector
 import GHC.Records
 import GHC.TypeLits
@@ -311,13 +312,18 @@ tryGetComponentsFromTable :: forall c. (Component c) => Table -> ComponentId -> 
 tryGetComponentsFromTable table componentId =
   do
     columns <- readIORef table.columns
-    case Map.lookup componentId columns of
-      Nothing -> return []
-      Just column -> do
-        results <- tryGetComponentsFromColumn @c column
+    case eqT @c @Entity of
+      Just Refl -> do
         entities <- Vec.toList table.entities
-        let zipped = zip (map fst entities) results
-        return $ map (\(e, r) -> (e, Result (r, e))) zipped
+        return $ map (\(a, _) -> (a, Result (a, a))) entities
+      Nothing ->
+        case Map.lookup componentId columns of
+          Nothing -> undefined
+          Just column -> do
+            results <- tryGetComponentsFromColumn @c column
+            entities <- Vec.toList table.entities
+            let zipped = zip (map fst entities) results
+            return $ map (\(e, r) -> (e, Result (r, e))) zipped
 
 tryGetComponentsFromTableMaybe :: forall c. (Component c) => Table -> ComponentId -> IO [(Entity, Maybe (Result c))]
 tryGetComponentsFromTableMaybe table componentId =
@@ -339,7 +345,7 @@ tryGetRelCollectionsFromArchetype archetype tables componentId =
     Just table -> tryGetRelCollectionsFromTable table componentId
 
 tryGetComponentsFromArchetype :: forall c. (Component c) => ArchetypeId -> Map ArchetypeId Table -> ComponentId -> IO [(Entity, Result c)]
-tryGetComponentsFromArchetype archetype tables componentId =
+tryGetComponentsFromArchetype archetype tables componentId = do
   case Map.lookup archetype tables of
     Nothing -> return []
     Just table -> tryGetComponentsFromTable table componentId

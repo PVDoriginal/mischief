@@ -63,6 +63,11 @@ getSystemId system = do
       liftIO $ modifyIORef' systemMap (Map.insert (hashStableName stableName) l)
       getSystemId' system stableName l
 
+systemEntity :: System () -> System Entity
+systemEntity s = do
+  x <- getSystemId s
+  return x.id
+
 getSystemTicks :: World -> IO (Tick, Tick)
 getSystemTicks world = do
   let (SystemId sys) = world.systemId

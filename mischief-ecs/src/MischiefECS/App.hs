@@ -16,15 +16,17 @@ import Data.IORef
 import MischiefECS.App.Plugins
 import MischiefECS.App.Schedules
 import MischiefECS.App.SystemConfig hiding (Before)
-import MischiefECS.App.Systems (LastSystemTick (LastSystemTick), ScheduledIn, SystemFunction (SystemFunction), SystemTick (SystemTick), Systems)
+import MischiefECS.App.Systems (LastSystemTick (LastSystemTick), ScheduledIn (ScheduledIn), SystemFunction (SystemFunction), SystemTick (SystemTick), Systems, systemEntity)
 import MischiefECS.App.Systems qualified as Systems
 import MischiefECS.Components
 import MischiefECS.Components.Bundle
+import MischiefECS.Components.Common
 import MischiefECS.Components.Runnable (Runnable, runFor)
 import MischiefECS.Components.Spawn (getOrAddComponentId)
 import MischiefECS.Entities
 import MischiefECS.Events
 import MischiefECS.Hidden
+import MischiefECS.Log
 import MischiefECS.Relationships.Order
 import MischiefECS.Tables
 import MischiefECS.Utils
@@ -47,7 +49,7 @@ newApp plugin = do
   let app = App {world, systems}
 
   runSystem appInit app.world
-  -- runSystem (addSystems Init $ runPluginRec plugin) app.world
+  runSystem (addSystems Init $ runPluginRec plugin) app.world
 
   return app
 
@@ -90,27 +92,23 @@ runSchedule' schedule = do
       flushEvents
       tick
 
--- addSystems :: (Schedule sc, SystemConfig s) => sc -> s -> System ()
--- addSystems schedule system = do
---   world <- unsafeGetWorld
---   let label = ScheduleLabel $ typeOf schedule
---   let SystemConfigData {systems, edges} = systemConfigData system
+addSystems :: (Schedule sc, SystemConfig s) => sc -> s -> System ()
+addSystems schedule system = do
+  let SystemConfigData {systems, edges} = systemConfigData system
 
---   -- Just (Result (scheduler, _)) <- res @Scheduler
+  for_ systems $ \system -> do
+    s <- systemEntity system
+    sch <- scheduleEntity schedule
+    insert (Rel (ScheduledIn, sch)) s
 
---   Just (Result (systemsRes, _)) <- res @Systems
-
---   for_ systems $ \system -> do
---     systemId <- Systems.getSystemId label system systemsRes
---     liftIO $ Scheduler.addSystem label systemId scheduler
-
---   for_ edges $ \(s1, s2) -> do
---     id1 <- Systems.getSystemId label s1 systemsRes
---     id2 <- Systems.getSystemId label s2 systemsRes
---     liftIO $ Scheduler.addSystemEdge label (id1, id2) scheduler
+  for_ edges $ \(s1, s2) -> do
+    id1 <- systemEntity s1
+    id2 <- systemEntity s2
+    insert (Rel (Before, id2)) id1
 
 appInit :: System ()
 appInit = do
+  register @Entity
   insertRes $ def @Schedules
 
   systems <- liftIO Systems.newSystems
