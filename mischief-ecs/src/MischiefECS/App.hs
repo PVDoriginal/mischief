@@ -110,7 +110,6 @@ addSystems schedule system = do
 appInit :: System ()
 appInit = do
   register @Entity
-  register @Visited
   insertRes $ def @Schedules
 
   systems <- liftIO Systems.newSystems

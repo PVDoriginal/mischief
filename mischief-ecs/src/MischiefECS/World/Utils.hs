@@ -158,17 +158,16 @@ tryGetEntityRelCollection world entity =
 tryGetEntityComponent :: forall c. (Component c) => World -> Entity -> IO (Maybe (Maybe c))
 tryGetEntityComponent world entity =
   do
-    componentId <- getComponentId (typeRep $ Proxy @c) world.components
+    pointer <- getPointer entity world.entities
 
-    case componentId of
+    case pointer of
       Nothing -> return Nothing
-      Just componentId -> do
-        pointer <- getPointer entity world.entities
-
-        case pointer of
-          Nothing -> return Nothing
-          Just pointer ->
-            do
+      Just pointer ->
+        do
+          componentId <- getComponentId (typeRep $ Proxy @c) world.components
+          case componentId of
+            Nothing -> return Nothing
+            Just componentId -> do
               pointer <- readIORef pointer
               res <- tryGetComponentFromTables world.tables pointer componentId
               return $ Just res
