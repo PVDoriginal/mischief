@@ -27,9 +27,13 @@ orderEntities entities = do
 
 orderEntitiesStep :: Set Entity -> System [Entity]
 orderEntitiesStep entities = do
-  next <- expect "Attempted to Order Cyclic Graph!" =<< findM isAvailable entities
-  insert Visited next
-  (next :) <$> orderEntitiesStep (Set.delete next entities)
+  if null entities
+    then
+      return []
+    else do
+      next <- expect "Attempted to Order Cyclic Graph!" =<< findM isAvailable entities
+      insert Visited next
+      (next :) <$> orderEntitiesStep (Set.delete next entities)
 
 isAvailable :: Entity -> System Bool
 isAvailable entity = do
