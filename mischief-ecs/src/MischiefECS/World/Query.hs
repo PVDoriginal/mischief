@@ -29,7 +29,7 @@ import MischiefECS.World.Query.Queryable
 import MischiefECS.World.Utils
 import Prelude hiding (and)
 
-runQuery :: forall qd m w. (Queryable qd, MonadSystem w m) => Proxy qd -> QueryFilter -> World -> m [QueryOutput qd]
+runQuery :: forall qd m w output. (Queryable qd output, MonadSystem w m) => Proxy qd -> QueryFilter -> World -> m output
 runQuery query filter world =
   do
     components <-
@@ -56,12 +56,12 @@ runQuery query filter world =
     outputs' <- liftIO $ filterQuery @qd world otherFilter (map snd archetypes') (zip [0 ..] outputs)
     return $ map (snd . snd) outputs'
 
-query :: forall qd m w. (Queryable qd, MonadSystem w m) => m [QueryOutput qd]
+query :: forall qd output m w. (Queryable qd output, MonadSystem w m) => m output
 query = do
   world <- unsafeGetWorld
   runQuery (Proxy @qd) NoFilter world
 
-entityQuery :: forall qd m w. (Queryable qd, MonadSystem w m) => Entity -> m (Maybe (QueryOutput qd))
+entityQuery :: forall qd output m w. (Queryable qd output, MonadSystem w m) => Entity -> m (Maybe output)
 entityQuery entity = do
   world <- unsafeGetWorld
   liftIO $ runQueryEntity (Proxy @qd) world entity

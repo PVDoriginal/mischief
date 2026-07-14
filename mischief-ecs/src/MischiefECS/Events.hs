@@ -8,6 +8,7 @@ import Data.Foldable (for_)
 import Data.IORef (modifyIORef', readIORef, writeIORef)
 import Data.List
 import GHC.Generics (Generic)
+import GHC.Records
 import MischiefECS.Components
 import MischiefECS.Components.Bundle
 import MischiefECS.Components.Required (require)

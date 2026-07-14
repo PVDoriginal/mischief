@@ -117,29 +117,29 @@ import MischiefECS.World.Utils
 --
 -- Mischief has a few different meanings. It can be a group of rats. Or it can refer to being naughty and playful.
 --
--- This @Mischief@, however, is an @ECS Game Engine@! In other words...
+-- This Mischief, however, is an @ECS Game Engine@! In other words...
 --
 -- @
 -- Mischief :: Entity -> Component c => System ()
 -- @
 --
--- It takes great inspiration from [@Bevy@](https://bevy.org/) and [@Flecs@](https://www.flecs.dev/flecs/), and
+-- Mischief takes great inspiration from [@Bevy@](https://bevy.org/) and [@Flecs@](https://www.flecs.dev/flecs/), and
 -- was written in @100% Haskell@, taking advantage of its @great ergonomics and strong type system@.
 -- It is a refreshing spin on the @functional@ and @data-driven@ paradigms.
 --
--- This package contains only @mischief-ecs@, the ECS engine at the core of Mischief. Other packages, such as @mischief-input@, @mischief-assets@,
--- @mischief-render@ are being developed but aren't yet as mature so they haven't been published.
+-- This package contains only @mischief-ecs@, the ECS at the core of Mischief. Other packages, such as @mischief-input@, @mischief-assets@,
+-- @mischief-render@ are planned, but haven't yet been developed to the same level as the ECS itself.
 --
--- Performance-wise, Mischief still has a long way to go; there are many easy performance gains that we have just been too busy to implement yet, as we've
+-- Performance-wise, Mischief still has a long way to go; there are many easy performance gains that we have just been too busy to implement, as we've
 -- been mostly focusing on @ergonomics, modularity, and ease-of-use@.
 -- This is a pretty strong @Archetype ECS@ however, and it is possible to bring it to about the same /asymptotic/ performance as @Bevy@ or @Flecs@, although
 -- there will probably always be a layer of indirection (or 20) that makes it a bit slower, due to the high-level, boxed, nature of Haskell.
 
 -- $learn
--- This module will go over some brief notions to give you an idea of how @Mischief@ works, setting you up for reading the other tutorials that go more in-depth.
+-- This module will go over some brief notions to give you an idea of how Mischief works, setting you up for reading the other tutorials that go more in-depth.
 
 -- $components
--- A @component@ is a piece of data attached to an @entity@. This can be any type that derives the 'Component' typeclass, for instance:
+-- A @Component@ is a piece of data attached to an entity. This can be any type that derives the 'Component' typeclass, for instance:
 --
 -- @
 -- data Health = Health 'Int' deriving ('Component')
@@ -151,21 +151,23 @@ import MischiefECS.World.Utils
 -- An 'Entity' is just an index towards a specific group of components.
 
 -- $systems
--- @Systems@ are the lifeblood of @Mischief@. A 'System' is a 'Monad' which operates on the 'World': the global space containing all data of the 'App'.
+-- @Systems@ are the lifeblood of Mischief. A system is a function that mutates the 'World', the global space containing all data stored by the ECS.
 --
--- There are many, predefined, /primitive/ systems that do operations on the world, such as spawning a new bundle into the world and get its 'Entity' you can use:
+-- Mischief's systems are quite different from other ECS's; each system is a 'Monad', making them fully composable.
+--
+-- There are many predefined systems, such as 'spawn', used for creating a new entity given a bundle of components:
 --
 -- @
 -- 'spawn' :: ('Bundle' b) => b -> 'System' 'Entity'
 -- @
 --
--- Or, if you want to despawn an entity, erasing all its components:
+-- Or 'despawn', which deletes an entity, along with all its components, from the world.
 --
 -- @
 -- 'despawn' :: 'Entity' -> 'System' ()
 -- @
 --
--- So let's write our first system; a system that spawns an entity with the @Player@ component and gives it a custom @'Name'@:
+-- So let's write our first custom system. A system that spawns an entity with the @Player@ component and gives it a custom @'Name'@:
 --
 -- @
 -- data Player = Player deriving ('Component')
@@ -176,17 +178,17 @@ import MischiefECS.World.Utils
 --  'return' ()
 -- @
 --
--- Every 'System' also has 'IO' access via 'liftIO'.
+-- Keep in mind that every 'System' also has 'IO' access via 'liftIO'.
 --
 -- @
 -- helloWorld :: 'System' ()
 -- helloWorld = 'liftIO' $ 'print' "Hello World!"
 -- @
 --
--- Other useful systems are 'insert' and 'remove', for inserting and removing components from an already existing entity.
+-- Some other systems to keep in mind are 'insert' and 'remove', used for inserting and removing components from the provided entity.
 
 -- $plugins
--- A 'Plugin' is a 'Monad' that alters the 'App' itself by changing various configurations.
+-- A 'Plugin' is a configuration added to the 'App'. It can spawn a component or set some pre-defined setting.
 --
 -- Plugins are ran before running the app, and before any schedules (more on that later).
 --
@@ -208,16 +210,18 @@ import MischiefECS.World.Utils
 -- $scheduling
 -- Any @'System' ()@ can be added to a 'Schedule', telling it to run at a certain time.
 --
--- There are many predefined schedules, such as 'Startup', which runs once at the start of the app, and
+-- There are a few predefined schedules, such as 'Startup', which runs once at the start of the app, and
 -- 'Update', which runs once per frame.
 --
--- Creating custom schedules and running them on-demand is also possible.
---
--- For instance, the following plugin will spawn a player in the 'Startup' schedule:
+-- For instance, the following code will schedule a player to be spawned in the 'Startup' schedule:
 --
 -- @
 -- 'addSystems' Startup spawnPlayer
 -- @
+--
+-- 'addSystems' itself is a system, meaning systems can be scheduled at any time during the app's execution.
+--
+-- Creating custom schedules and running them on-demand is also possible.
 
 -- $ordering
 -- The scheduler also allows custom ordering between systems.

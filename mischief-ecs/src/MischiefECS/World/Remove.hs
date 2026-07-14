@@ -67,3 +67,5 @@ removeFromEntity components entity = do
 
       newArchetype <- getArchetypeOnRemove currentPointer.archetypeId components
       void $ changeArchetype entity newArchetype Nothing
+
+-- triggerRemoveEvent :: ErasedComponent

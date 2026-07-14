@@ -372,16 +372,14 @@ tryGetComponentsFromTablesMaybe (Tables tables) archetypes componentId =
     return $ concat results
 
 class Value c where
-  type ValueOutput c
-  value :: c -> ValueOutput c
+  value :: c a -> a
 
 class EntityOf c where
   entityOf :: c -> Entity
 
 newtype Result c = Result (c, Entity)
 
-instance Value (Result c) where
-  type ValueOutput (Result c) = c
+instance Value Result where
   value :: Result c -> c
   value (Result (c, _)) = c
 
@@ -406,8 +404,7 @@ instance (HasField a b c) => HasField a (Result b) c where
 
 newtype RelResult c = RelResult (c, Entity, Entity)
 
-instance Value (RelResult c) where
-  type ValueOutput (RelResult c) = c
+instance Value RelResult where
   value (RelResult (c, _, _)) = c
 
 instance EntityOf (RelResult c) where
