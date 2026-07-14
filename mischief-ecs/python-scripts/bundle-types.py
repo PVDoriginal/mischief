@@ -3,20 +3,20 @@ def instance(n):
     res += "instance {-# OVERLAPPING #-} ("
 
     for i in range(n):
-        res += "QueryData a" + str(i)
+        res += "BundleTypes t" + str(i)
         if i != n-1:
             res += ", "
 
-    res += ") => QueryData ("
+    res += ") => BundleTypes ("
     for i in range(n):
-        res += "a" + str(i)
+        res += "t" + str(i)
         if i != n-1:
             res += ", "
 
     res += ") where \n  types _ = Set.unions ["
 
     for i in range(n):
-        res += "types $ Proxy @a" + str(i)
+        res += "types $ Proxy @t" + str(i)
         if i != n-1:
             res += ", "
 
