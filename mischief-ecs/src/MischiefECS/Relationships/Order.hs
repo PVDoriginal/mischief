@@ -2,6 +2,8 @@ module MischiefECS.Relationships.Order where
 
 import Data.Foldable
 import Data.Maybe
+import Data.Set (Set)
+import Data.Set qualified as Set
 import MischiefECS.Components
 import MischiefECS.Entities
 import MischiefECS.Tables
@@ -19,15 +21,15 @@ data Visited = Visited deriving (Component)
 
 orderEntities :: [Entity] -> System [Entity]
 orderEntities entities = do
-  res <- orderEntitiesStep entities
+  res <- orderEntitiesStep (Set.fromList entities)
   for_ entities $ remove @Visited
   return res
 
-orderEntitiesStep :: [Entity] -> System [Entity]
+orderEntitiesStep :: Set Entity -> System [Entity]
 orderEntitiesStep entities = do
   next <- expect "Attempted to Order Cyclic Graph!" =<< findM isAvailable entities
   insert Visited next
-  (next :) <$> orderEntitiesStep entities
+  (next :) <$> orderEntitiesStep (Set.delete next entities)
 
 isAvailable :: Entity -> System Bool
 isAvailable entity = do
