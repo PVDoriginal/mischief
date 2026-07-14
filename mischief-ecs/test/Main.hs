@@ -3,6 +3,9 @@ module Main where
 import Control.Concurrent
 import Control.Monad
 import Control.Monad.IO.Class
+-- import Relationships (testRelationships)
+
+import Data.Data
 import Data.Default
 import Data.Foldable hiding (and, or)
 import Data.Maybe
@@ -10,8 +13,6 @@ import Data.Set qualified as Set
 import GHC.Generics (Generic)
 import GHC.StableName
 import MischiefECS
--- import Relationships (testRelationships)
-
 import MischiefECS.App.Plugins
 import MischiefECS.App.Systems
 import MischiefECS.Components.Common
@@ -69,7 +70,7 @@ setup = do
   despawn e
   insert (Name "") e
 
-  q <- query' @Name $ with @A &. without @B
+  q <- query' @Name $ with @A &. (Not (with @B) &. NoFilter)
   traverse_ (info . text) q
 
 dummy :: System ()

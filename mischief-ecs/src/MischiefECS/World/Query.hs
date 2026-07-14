@@ -42,12 +42,12 @@ runQuery query filter world =
           )
           (Set.toList (queryTypes query))
     archetypes <- findMatchingArchetypes (catMaybes components) world.archetypes
-    let (otherFilter, archetypeFilter) = extractArchetypeFilters filter
+    let (otherFilter, archetypeFilter) = extractArchetypeFilters $ preprocessFilter filter
 
-    archetypes' <- filterM (\(components, _) -> liftIO $ filterArchetype archetypeFilter components world) archetypes
+    archetypes' <- filterM (\(components, _) -> liftIO $ (filterArchetype . preprocessFilter) archetypeFilter components world) archetypes
 
     outputs <- liftIO $ runQueryInternal query (map snd archetypes') world
-    f <- liftIO $ filterQuery @qd world otherFilter (map snd archetypes')
+    f <- liftIO $ filterQuery @qd world (preprocessFilter otherFilter) (map snd archetypes')
     outputs' <- liftIO $ filterM f (zip [0 ..] outputs)
 
     return $ map (snd . snd) outputs'
@@ -131,18 +131,6 @@ filterQuery world (WithRel x e) _ = do
             Nothing -> return True
             Just components ->
               return $ component `elem` components
-filterQuery world (Without x) _ = do
-  component <- liftIO $ getComponentId x world.components
-  case component of
-    Nothing -> return (const $ return True)
-    Just component ->
-      return $
-        \(_, (entity, _)) -> do
-          components <- findComponentsOfEntity world entity
-          case components of
-            Nothing -> return True
-            Just components ->
-              return $ component `notElem` components
 filterQuery world (Changed x) archetypes = do
   res <- liftIO $ tryGetTicks x world archetypes
   (lastSystemTick, currentSystemTick) <- getSystemTicks world
@@ -179,6 +167,11 @@ filterQuery world (a `Or` b) archetypes = do
       b1 <- res x
       b2 <- res2 x
       return $ b1 || b2
+filterQuery world (Not a) archetypes = do
+  f <- filterQuery @qd world a archetypes
+  return $ \x -> do
+    r <- f x
+    return $ not r
 
 filterCheck :: forall qd out. (Queryable qd out) => World -> [ArchetypeId] -> ComponentId -> ErasedCheck -> IO ((Int, (Entity, out)) -> IO Bool)
 filterCheck world archetypes id (ErasedCheck (f :: (c -> Bool))) = do
@@ -207,12 +200,12 @@ data QueryFilter
   = NoFilter
   | With TypeRep
   | WithRel TypeRep Entity
-  | Without TypeRep
-  | And QueryFilter QueryFilter
-  | Or QueryFilter QueryFilter
   | Changed TypeRep
   | Added TypeRep
   | CheckRaw (TypeRep, ErasedCheck)
+  | Not QueryFilter
+  | And QueryFilter QueryFilter
+  | Or QueryFilter QueryFilter
   deriving (Show)
 
 data ErasedCheck where
@@ -228,7 +221,7 @@ withRel :: forall c. (Component c) => Entity -> QueryFilter
 withRel = WithRel (typeRep $ Proxy @c)
 
 without :: forall qd. (BundleTypes qd) => QueryFilter
-without = and' $ map Without (Set.toList $ types (Proxy @qd))
+without = and' $ map (Not . With) (Set.toList $ types (Proxy @qd))
 
 changed :: forall qd. (BundleTypes qd) => QueryFilter
 changed = and' $ map Changed (Set.toList $ types (Proxy @qd))
@@ -243,13 +236,17 @@ added :: forall qd. (BundleTypes qd) => QueryFilter
 added = and' $ map Added (Set.toList $ types (Proxy @qd))
 
 and' :: [QueryFilter] -> QueryFilter
-and' = foldr (&.) NoFilter
+and' [x] = x
+and' x = foldr (&.) NoFilter x
 
 (&.) :: QueryFilter -> QueryFilter -> QueryFilter
 (&.) = And
 
 (|.) :: QueryFilter -> QueryFilter -> QueryFilter
 (|.) = Or
+
+neg :: QueryFilter -> QueryFilter
+neg = Not
 
 filterArchetype :: QueryFilter -> [ComponentId] -> World -> IO Bool
 filterArchetype NoFilter _ _ = return True
@@ -265,11 +262,6 @@ filterArchetype (WithRel x e) components world = do
     Just (ComponentId {id}) -> do
       let component = ComponentId {id, entity = Just e}
       return $ component `elem` components
-filterArchetype (Without x) components world = do
-  component <- getComponentId x world.components
-  return $ case component of
-    Nothing -> True
-    Just component -> component `notElem` components
 filterArchetype (a `And` b) c w = do
   x <- filterArchetype a c w
   y <- filterArchetype b c w
@@ -278,6 +270,7 @@ filterArchetype (a `Or` b) c w = do
   x <- filterArchetype a c w
   y <- filterArchetype b c w
   return $ x || y
+filterArchetype (Not a) c w = not <$> filterArchetype a c w
 filterArchetype _ _ _ = pure True
 
 -- | Extracts archetype-level filters from the bigger filter where possible, to be applied at the start of querying for better performance.
@@ -288,7 +281,6 @@ extractArchetypeFilters (WithRel x e) = (NoFilter, WithRel x e)
 extractArchetypeFilters (Changed x) = (Changed x, NoFilter)
 extractArchetypeFilters (Added x) = (Added x, NoFilter)
 extractArchetypeFilters (CheckRaw x) = (CheckRaw x, NoFilter)
-extractArchetypeFilters (Without x) = (NoFilter, Without x)
 extractArchetypeFilters (a `And` b) = (filter1 `And` filter2, res1 `And` res2)
   where
     (filter1, res1) = extractArchetypeFilters a
@@ -302,6 +294,9 @@ extractArchetypeFilters (a `Or` b) =
   where
     (filter1, res1) = extractArchetypeFilters a
     (filter2, res2) = extractArchetypeFilters b
+extractArchetypeFilters (Not a) = (Not x, Not y)
+  where
+    (x, y) = extractArchetypeFilters a
 
 isArchetypeFilter :: QueryFilter -> Bool
 isArchetypeFilter NoFilter = True
@@ -309,7 +304,19 @@ isArchetypeFilter (Changed _) = False
 isArchetypeFilter (Added _) = False
 isArchetypeFilter (With _) = True
 isArchetypeFilter (WithRel _ _) = True
-isArchetypeFilter (Without _) = True
 isArchetypeFilter (a `And` b) = isArchetypeFilter a || isArchetypeFilter b
 isArchetypeFilter (a `Or` b) = isArchetypeFilter a && isArchetypeFilter b
 isArchetypeFilter (CheckRaw _) = False
+isArchetypeFilter (Not a) = isArchetypeFilter a
+
+preprocessFilter :: QueryFilter -> QueryFilter
+preprocessFilter = propagateNot
+
+propagateNot :: QueryFilter -> QueryFilter
+propagateNot (Not NoFilter) = NoFilter
+propagateNot (Not (Not a)) = propagateNot a
+propagateNot (Not (a `And` b)) = propagateNot (Not a) `Or` propagateNot (Not b)
+propagateNot (Not (a `Or` b)) = propagateNot (Not a) `And` propagateNot (Not b)
+propagateNot (a `And` b) = propagateNot a `And` propagateNot b
+propagateNot (a `Or` b) = propagateNot a `Or` propagateNot b
+propagateNot x = x
