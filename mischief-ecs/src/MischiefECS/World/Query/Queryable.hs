@@ -1,6 +1,9 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
+
 module MischiefECS.World.Query.Queryable where
 
 import Control.Applicative
+import Data.Bifunctor qualified
 import Data.Data
 import Data.Maybe
 import Data.Set (Set)
@@ -15,126 +18,139 @@ import MischiefECS.World.Utils
 class Queryable qd output | qd -> output where
   runQueryEntity :: Proxy qd -> World -> Entity -> IO (Maybe output)
   runQueryInternal :: Proxy qd -> [ArchetypeId] -> World -> IO [(Entity, output)]
+  queryTypes :: Proxy qd -> Set (TypeRep, TypeQuery)
 
 class Queryable' flag qd output | flag qd -> output where
-  runQueryEntity' :: flag -> Proxy qd -> World -> Entity -> IO (Maybe output)
-  runQueryInternal' :: flag -> Proxy qd -> [ArchetypeId] -> World -> IO [(Entity, output)]
+  runQueryEntity' :: Proxy qd -> World -> Entity -> IO (Maybe output)
+  runQueryInternal' :: Proxy qd -> [ArchetypeId] -> World -> IO [(Entity, output)]
+  queryTypes' :: Proxy qd -> Set (TypeRep, TypeQuery)
 
 data HTrue
 
 data HFalse
 
 type family ComponentPred a where
+  ComponentPred Entity = HFalse
   ComponentPred (Rel a) = HFalse
+  ComponentPred (Has a) = HFalse
+  ComponentPred (HasRel a) = HFalse
+  ComponentPred (Maybe a) = HFalse
+  ComponentPred (MaybeRel a) = HFalse
   ComponentPred a = HTrue
 
 instance (Queryable' (ComponentPred a) a output) => Queryable a output where
-  runQueryEntity = runQueryEntity' (undefined :: (ComponentPred a))
-  runQueryInternal = runQueryInternal' (undefined :: (ComponentPred a))
+  runQueryEntity = runQueryEntity' @(ComponentPred a)
+  runQueryInternal = runQueryInternal' @(ComponentPred a)
+  queryTypes = queryTypes' @(ComponentPred a)
 
 instance (Component qd) => Queryable' HTrue qd (Result qd) where
-  runQueryEntity' :: HTrue -> Proxy qd -> World -> Entity -> IO (Maybe (Result qd))
-  runQueryEntity' _ _ world entity = do
+  runQueryEntity' :: Proxy qd -> World -> Entity -> IO (Maybe (Result qd))
+  runQueryEntity' _ world entity = do
     result <- tryGetEntityComponent @qd world entity
     return $ case result of
       Just (Just res) -> Just $ Result (res, entity)
       _ -> Nothing
 
-  runQueryInternal' :: HTrue -> Proxy qd -> [ArchetypeId] -> World -> IO [(Entity, Result qd)]
-  runQueryInternal' _ _ archetypes world = tryGetComponents @qd world archetypes
+  runQueryInternal' :: Proxy qd -> [ArchetypeId] -> World -> IO [(Entity, Result qd)]
+  runQueryInternal' _ archetypes world = tryGetComponents @qd world archetypes
+
+  queryTypes' c = Set.singleton (typeRep c, CompQ)
 
 instance (Component c) => Queryable' HFalse (Rel c) [RelResult c] where
-  runQueryEntity' _ _ world entity = do
+  runQueryEntity' _ world entity = do
     res <- tryGetEntityRelCollection @c world entity
     return $ case res of
       Just (Just x) -> Just x
       _ -> Nothing
 
-  runQueryInternal' :: HFalse -> Proxy (Rel c) -> [ArchetypeId] -> World -> IO [(Entity, [RelResult c])]
-  runQueryInternal' _ _ archetypes world = tryGetRelCollections @c world archetypes
+  runQueryInternal' :: Proxy (Rel c) -> [ArchetypeId] -> World -> IO [(Entity, [RelResult c])]
+  runQueryInternal' _ archetypes world = tryGetRelCollections @c world archetypes
+
+  queryTypes' _ = Set.singleton (typeRep $ Proxy @c, RelQ)
 
 test :: forall q output. (Queryable q output) => Proxy q -> output
 test = undefined
 
 data C = C deriving (Component)
 
-f = test (Proxy @C)
+f = test (Proxy @(MaybeRel C))
 
-f' = test (Proxy @(Rel C))
+f' = test (Proxy @(HasRel C))
 
--- instance (Component c) => Queryable (Maybe c) where
---   type QueryOutput (Maybe c) = (Maybe (Result c))
---   runQueryEntity _ world entity = do
---     res <- tryGetEntityComponent @c world entity
---     case res of
---       Nothing -> return Nothing
---       Just Nothing -> return $ Just Nothing
---       Just (Just x) -> return $ Just $ Just $ Result (x, entity)
+f'' = test (Proxy @(C, Rel C))
 
---   runQueryInternal _ archetypes world = tryGetComponentsMaybe @c world archetypes
+instance (Component c) => Queryable' HFalse (Maybe c) (Maybe (Result c)) where
+  runQueryEntity' _ world entity = do
+    res <- tryGetEntityComponent @c world entity
+    case res of
+      Nothing -> return Nothing
+      Just Nothing -> return $ Just Nothing
+      Just (Just x) -> return $ Just $ Just $ Result (x, entity)
 
--- instance (Component c) => Queryable (MaybeRel c) where
---   type QueryOutput (MaybeRel c) = [RelResult c]
---   runQueryEntity _ world entity = do
---     res <- tryGetEntityRelCollection @c world entity
---     return $ case res of
---       Nothing -> Nothing
---       Just Nothing -> Just []
---       Just (Just x) -> Just x
+  runQueryInternal' _ archetypes world = tryGetComponentsMaybe @c world archetypes
 
---   runQueryInternal _ archetypes world = tryGetRelCollections @c world archetypes
+  queryTypes' _ = Set.empty
 
--- instance (Component c) => Queryable (Has c) where
---   type QueryOutput (Has c) = Bool
+instance (Component c) => Queryable' HFalse (MaybeRel c) [RelResult c] where
+  runQueryEntity' _ world entity = do
+    res <- tryGetEntityRelCollection @c world entity
+    return $ case res of
+      Nothing -> Nothing
+      Just Nothing -> Just []
+      Just (Just x) -> Just x
 
---   runQueryEntity _ world entity = do
---     list <- runQueryEntity (Proxy @(Maybe c)) world entity
---     case list of
---       Nothing -> return Nothing
---       Just x -> return $ Just (isJust x)
+  runQueryInternal' _ archetypes world = tryGetRelCollections @c world archetypes
+  queryTypes' _ = Set.empty
 
---   runQueryInternal _ archetypes world = do
---     list <- runQueryInternal (Proxy @(Maybe c)) archetypes world
---     return $ map (\(e, x) -> (e, isJust x)) list
+instance (Component c, ComponentPred c ~ HTrue) => Queryable' HFalse (Has c) Bool where
+  runQueryEntity' _ world entity = do
+    list <- runQueryEntity (Proxy @(Maybe c)) world entity
+    case list of
+      Nothing -> return Nothing
+      Just x -> return $ Just (isJust x)
 
--- instance (Component c) => Queryable (HasRel c) where
---   type QueryOutput (HasRel c) = Bool
+  runQueryInternal' _ archetypes world = do
+    list <- runQueryInternal (Proxy @(Maybe c)) archetypes world
+    return $ map (Data.Bifunctor.second isJust) list
 
---   runQueryEntity _ world entity = do
---     res <- tryGetEntityRelCollection @c world entity
---     return $ case res of
---       Nothing -> Nothing
---       Just Nothing -> Just False
---       Just (Just _) -> Just True
+  queryTypes' _ = Set.empty
 
---   runQueryInternal _ archetypes world = do
---     res <- tryGetRelCollections @c world archetypes
---     return $ map (\(e, c) -> (e, null c)) res
+instance (Component c) => Queryable' HFalse (HasRel c) Bool where
+  runQueryEntity' _ world entity = do
+    res <- tryGetEntityRelCollection @c world entity
+    return $ case res of
+      Nothing -> Nothing
+      Just Nothing -> Just False
+      Just (Just _) -> Just True
 
--- -- outputEntity _ q = q.entity
+  runQueryInternal' _ archetypes world = do
+    res <- tryGetRelCollections @c world archetypes
+    return $ map (Data.Bifunctor.second null) res
 
--- instance Queryable Entity where
---   type QueryOutput Entity = Entity
+  queryTypes' _ = Set.empty
 
---   runQueryEntity _ _ entity = pure (Just entity)
---   runQueryInternal _ archetypes world = do
---     results <- tryGetComponents @Entity world archetypes
---     pure $ fmap (\cr -> (fst cr, fst cr)) results
+instance Queryable' HFalse Entity Entity where
+  runQueryEntity' _ _ entity = pure (Just entity)
+  runQueryInternal' _ archetypes world = do
+    results <- tryGetComponents @Entity world archetypes
+    pure $ fmap (\cr -> (fst cr, fst cr)) results
 
--- instance {-# OVERLAPPING #-} (Queryable q0, Queryable q1) => Queryable (q0, q1) where
---   type QueryOutput (q0, q1) = (QueryOutput q0, QueryOutput q1)
+  queryTypes' _ = Set.empty
 
---   runQueryEntity _ world entity = do
---     r0 <- runQueryEntity (Proxy @q0) world entity
---     r1 <- runQueryEntity (Proxy @q1) world entity
+instance {-# OVERLAPPING #-} (Queryable q0 o0, Queryable q1 o1) => Queryable (q0, q1) (o0, o1) where
+  runQueryEntity _ world entity = do
+    r0 <- runQueryEntity (Proxy @q0) world entity
+    r1 <- runQueryEntity (Proxy @q1) world entity
 
---     return $ (,) <$> r0 <*> r1
+    return $ (,) <$> r0 <*> r1
 
---   runQueryInternal _ archetypes world = do
---     r0 <- runQueryInternal (Proxy @q0) archetypes world
---     r1 <- runQueryInternal (Proxy @q1) archetypes world
+  runQueryInternal _ archetypes world = do
+    r0 <- runQueryInternal (Proxy @q0) archetypes world
+    r1 <- runQueryInternal (Proxy @q1) archetypes world
 
---     return $ map (\((e0, r0), (_, r1)) -> (e0, (r0, r1))) $ getZipList $ (,) <$> ZipList r0 <*> ZipList r1
+    return $ map (\((e0, r0), (_, r1)) -> (e0, (r0, r1))) $ getZipList $ (,) <$> ZipList r0 <*> ZipList r1
+
+  queryTypes _ = Set.unions [queryTypes $ Proxy @q0, queryTypes $ Proxy @q1]
 
 -- instance {-# OVERLAPPING #-} (Queryable q0, Queryable q1, Queryable q2) => Queryable (q0, q1, q2) where
 --   type QueryOutput (q0, q1, q2) = (QueryOutput q0, QueryOutput q1, QueryOutput q2)

@@ -29,7 +29,7 @@ import MischiefECS.World.Query.Queryable
 import MischiefECS.World.Utils
 import Prelude hiding (and)
 
-runQuery :: forall qd m w output. (Queryable qd output, MonadSystem w m) => Proxy qd -> QueryFilter -> World -> m output
+runQuery :: forall qd m w output. (Queryable qd output, MonadSystem w m) => Proxy qd -> QueryFilter -> World -> m [output]
 runQuery query filter world =
   do
     components <-
@@ -46,7 +46,7 @@ runQuery query filter world =
                   )
                   c
           )
-          (Set.toList (types query))
+          (Set.toList (queryTypes query))
     archetypes <- findMatchingArchetypes (catMaybes components) world.archetypes
     let (otherFilter, archetypeFilter) = extractArchetypeFilters filter
 
@@ -56,7 +56,7 @@ runQuery query filter world =
     outputs' <- liftIO $ filterQuery @qd world otherFilter (map snd archetypes') (zip [0 ..] outputs)
     return $ map (snd . snd) outputs'
 
-query :: forall qd output m w. (Queryable qd output, MonadSystem w m) => m output
+query :: forall qd output m w. (Queryable qd output, MonadSystem w m) => m [output]
 query = do
   world <- unsafeGetWorld
   runQuery (Proxy @qd) NoFilter world
@@ -66,29 +66,29 @@ entityQuery entity = do
   world <- unsafeGetWorld
   liftIO $ runQueryEntity (Proxy @qd) world entity
 
-get :: forall qd m w. (Queryable qd, MonadSystem w m) => Entity -> m (Maybe (QueryOutput qd))
+get :: forall qd out m w. (Queryable qd out, MonadSystem w m) => Entity -> m (Maybe out)
 get = entityQuery @qd
 
-query' :: forall qd m w. (Queryable qd, MonadSystem w m) => QueryFilter -> m [QueryOutput qd]
+query' :: forall qd out m w. (Queryable qd out, MonadSystem w m) => QueryFilter -> m [out]
 query' filter = do
   world <- unsafeGetWorld
   runQuery (Proxy @qd) filter world
 
-single :: forall qd m w. (Queryable qd, MonadSystem w m) => m (Maybe (QueryOutput qd))
+single :: forall qd out m w. (Queryable qd out, MonadSystem w m) => m (Maybe out)
 single = do
   res <- query @qd
   case res of
     [x] -> return $ Just x
     _ -> return Nothing
 
-single' :: forall qd m w. (Queryable qd, MonadSystem w m) => QueryFilter -> m (Maybe (QueryOutput qd))
+single' :: forall qd out m w. (Queryable qd out, MonadSystem w m) => QueryFilter -> m (Maybe out)
 single' filter = do
   res <- query' @qd filter
   case res of
     [x] -> return $ Just x
     _ -> return Nothing
 
-res :: forall c. (Queryable c, Component c) => System (Maybe (QueryOutput c))
+res :: forall c out. (Queryable c out, Component c) => System (Maybe out)
 res = do
   meta <- meta @c
   get @c meta
@@ -108,12 +108,7 @@ res = do
 --   res <- query @qd
 --   parIterList res $ \chunk -> for_ chunk system
 
-parIter' :: forall qd m w. (Queryable qd, MonadSystem w m) => QueryFilter -> (QueryOutput qd -> ParSystem ()) -> m ()
-parIter' filter system = do
-  res <- query' @qd filter
-  parIterList res $ \chunk -> for_ chunk system
-
-filterQuery :: forall qd. (Queryable qd) => World -> QueryFilter -> [ArchetypeId] -> [(Int, (Entity, QueryOutput qd))] -> IO [(Int, (Entity, QueryOutput qd))]
+filterQuery :: forall qd out. (Queryable qd out) => World -> QueryFilter -> [ArchetypeId] -> [(Int, (Entity, out))] -> IO [(Int, (Entity, out))]
 filterQuery _ NoFilter _ x = return x
 filterQuery world (With x) _ outputs = do
   component <- liftIO $ getComponentId x world.components
@@ -196,7 +191,7 @@ filterQuery world (a `Or` b) archetypes outputs = do
 
   return $ filter (\(index, _) -> index `elem` res1' || index `elem` res2') outputs
 
-filterCheck :: forall qd. World -> [ArchetypeId] -> ComponentId -> ErasedCheck -> [(Int, (Entity, QueryOutput qd))] -> IO [(Int, (Entity, QueryOutput qd))]
+filterCheck :: forall qd out. (Queryable qd out) => World -> [ArchetypeId] -> ComponentId -> ErasedCheck -> [(Int, (Entity, out))] -> IO [(Int, (Entity, out))]
 filterCheck world archetypes id (ErasedCheck (f :: (c -> Bool))) outputs = do
   components <- tryGetComponentsFromTables @c world.tables archetypes id
   return $
@@ -221,26 +216,6 @@ findComponentsOfEntity world entity = do
       return $ case Map.lookup pointer.archetypeId tables of
         Nothing -> Nothing
         Just x -> Just x.components
-
-instance Queryable Name
-
-instance Queryable ComponentType
-
-instance Queryable RequiredBy
-
-instance Queryable Requires
-
-instance Queryable DefaultValue
-
-instance Queryable ComponentArchetypes
-
-instance Queryable ComponentPairs
-
-instance Queryable SystemFunction
-
-instance Queryable SystemTick
-
-instance Queryable LastSystemTick
 
 data QueryFilter
   = NoFilter
