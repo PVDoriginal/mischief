@@ -39,7 +39,7 @@ data StartupSchedule = StartupSchedule deriving (Component)
 
 data UpdateSchedule = UpdateSchedule deriving (Component)
 
-newtype ScheduleId = ScheduleId {id :: Entity}
+newtype ScheduleId = ScheduleId {id :: Entity} deriving (Ord, Eq, Show)
 
 newtype Schedules = Schedules {inner :: Map TypeRep ScheduleId}
   deriving stock (Generic)

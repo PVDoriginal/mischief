@@ -98,13 +98,13 @@ addSystems schedule system = do
   let SystemConfigData {systems, edges} = systemConfigData system
 
   for_ systems $ \system -> do
-    s <- systemEntity system
+    s <- systemEntity schedule system
     sch <- scheduleEntity schedule
     insert (Rel (ScheduledIn, sch)) s
 
   for_ edges $ \(s1, s2) -> do
-    id1 <- systemEntity s1
-    id2 <- systemEntity s2
+    id1 <- systemEntity schedule s1
+    id2 <- systemEntity schedule s2
     insert (Rel (Before, id2)) id1
 
 appInit :: System ()
