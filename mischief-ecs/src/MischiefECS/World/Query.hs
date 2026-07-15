@@ -21,6 +21,7 @@ import MischiefECS.Log
 import MischiefECS.Tables
 import MischiefECS.World
 import MischiefECS.World.Query.Queryable
+import MischiefECS.World.Query.Val
 import MischiefECS.World.Utils
 import Prelude hiding (and)
 
@@ -321,3 +322,14 @@ propagateNot (Not (a `Or` b)) = propagateNot (Not a) `And` propagateNot (Not b)
 propagateNot (a `And` b) = propagateNot a `And` propagateNot b
 propagateNot (a `Or` b) = propagateNot a `Or` propagateNot b
 propagateNot x = x
+
+data A = A deriving (Component)
+
+data B = B deriving (Component)
+
+data C = C deriving (Component)
+
+test :: System ()
+test = do
+  x <- query @(Val (A, Has B))
+  return ()

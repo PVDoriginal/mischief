@@ -58,8 +58,8 @@ library
     MischiefECS.App.Systems
     MischiefECS.Archetypes
     MischiefECS.Archetypes.Graph
-    MischiefECS.Components
     MischiefECS.Collectable
+    MischiefECS.Components
     MischiefECS.Components.Bundle
     MischiefECS.Components.BundleTypes
     MischiefECS.Components.Common
@@ -70,12 +70,13 @@ library
     MischiefECS.Events
     MischiefECS.Graph
     MischiefECS.Log
+    MischiefECS.Mappable
     MischiefECS.Messages
     MischiefECS.Prelude
     MischiefECS.Relationships
     MischiefECS.Relationships.ChildOf
-    MischiefECS.Relationships.Order 
     MischiefECS.Relationships.Graph
+    MischiefECS.Relationships.Order
     MischiefECS.Relationships.Tree
     MischiefECS.Tables
     MischiefECS.Time
@@ -93,6 +94,7 @@ library
     MischiefECS.World.Prefs
     MischiefECS.World.Query
     MischiefECS.World.Query.Queryable
+    MischiefECS.World.Query.Val
     MischiefECS.World.Remove
     MischiefECS.World.Spawn
     MischiefECS.World.Systems

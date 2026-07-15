@@ -10,17 +10,23 @@ import Data.Set (Set)
 import Data.Set qualified as Set
 import MischiefECS.Components
 import MischiefECS.Entities
+import MischiefECS.Mappable (Mappable)
+import MischiefECS.Mappable qualified as Mappable
 import MischiefECS.Tables
 import MischiefECS.World
 import MischiefECS.World.Utils
 
 data TypeQuery = CompQ | RelQ deriving (Eq, Ord, Show)
 
-data MaybeRel a = MaybeRel
+data MaybeRel a
 
-data Has a = Has
+data Has a
 
-data HasRel a = HasRel
+data HasRel a
+
+data Val a
+
+data MapQueryVal
 
 class Queryable qd output | qd -> output where
   runQueryEntity :: Proxy qd -> World -> Entity -> IO (Maybe output)
@@ -43,6 +49,7 @@ type family ComponentPred a where
   ComponentPred (HasRel a) = HFalse
   ComponentPred (Maybe a) = HFalse
   ComponentPred (MaybeRel a) = HFalse
+  ComponentPred (Val a) = HFalse
   ComponentPred a = HTrue
 
 instance (Queryable' (ComponentPred a) a output) => Queryable a output where
@@ -132,6 +139,16 @@ instance Queryable' HFalse Entity Entity where
     pure $ fmap (\cr -> (fst cr, fst cr)) results
 
   queryTypes' _ = Set.empty
+
+instance (Queryable qd out, Mappable MapQueryVal out out') => Queryable' HFalse (Val qd) out' where
+  runQueryEntity' _ b c = do
+    x <- runQueryEntity (Proxy @qd) b c
+    return $ fmap (Mappable.map @MapQueryVal) x
+  runQueryInternal' _ b c = do
+    x <- runQueryInternal (Proxy @qd) b c
+    return $ map (\(a, b) -> (a, Mappable.map @MapQueryVal b)) x
+
+  queryTypes' _ = queryTypes (Proxy @qd)
 
 instance {-# OVERLAPPING #-} (Queryable q0 o0, Queryable q1 o1) => Queryable (q0, q1) (o0, o1) where
   runQueryEntity _ world entity = do
