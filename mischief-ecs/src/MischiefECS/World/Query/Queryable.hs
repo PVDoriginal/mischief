@@ -10,8 +10,7 @@ import Data.Set (Set)
 import Data.Set qualified as Set
 import MischiefECS.Components
 import MischiefECS.Entities
-import MischiefECS.Mappable (Mappable)
-import MischiefECS.Mappable qualified as Mappable
+import MischiefECS.Mappable
 import MischiefECS.Tables
 import MischiefECS.World
 import MischiefECS.World.Utils
@@ -25,8 +24,6 @@ data Has a
 data HasRel a
 
 data Val a
-
-data MapQueryVal
 
 class Queryable qd output | qd -> output where
   runQueryEntity :: Proxy qd -> World -> Entity -> IO (Maybe output)
@@ -143,10 +140,10 @@ instance Queryable' HFalse Entity Entity where
 instance (Queryable qd out, Mappable MapQueryVal out out') => Queryable' HFalse (Val qd) out' where
   runQueryEntity' _ b c = do
     x <- runQueryEntity (Proxy @qd) b c
-    return $ fmap (Mappable.map @MapQueryVal) x
+    return $ fmap (mapTuple @MapQueryVal) x
   runQueryInternal' _ b c = do
     x <- runQueryInternal (Proxy @qd) b c
-    return $ map (\(a, b) -> (a, Mappable.map @MapQueryVal b)) x
+    return $ map (\(a, b) -> (a, mapTuple @MapQueryVal b)) x
 
   queryTypes' _ = queryTypes (Proxy @qd)
 
