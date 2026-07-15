@@ -59,6 +59,7 @@ library
     MischiefECS.Archetypes
     MischiefECS.Archetypes.Graph
     MischiefECS.Components
+    MischiefECS.Collectable
     MischiefECS.Components.Bundle
     MischiefECS.Components.BundleTypes
     MischiefECS.Components.Common

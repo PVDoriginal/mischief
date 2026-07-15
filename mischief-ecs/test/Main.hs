@@ -15,6 +15,7 @@ import GHC.StableName
 import MischiefECS
 import MischiefECS.App.Plugins
 import MischiefECS.App.Systems
+import MischiefECS.Collectable
 import MischiefECS.Components.Common
 import MischiefECS.Components.Spawn
 import MischiefECS.World.Utils
@@ -49,7 +50,7 @@ instance Plugin MainPlugin where
 
     void . spawn $ Observer onInsert
 
-  plugins _ = plug Foo >. Bar >. Baz
+  plugins _ = collect (Foo, Bar, Baz)
 
 data Foo = Foo deriving (Plugin, Eq)
 

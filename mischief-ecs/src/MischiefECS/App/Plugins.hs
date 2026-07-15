@@ -5,12 +5,15 @@ import Data.Foldable
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Typeable
+import MischiefECS.Collectable
+import MischiefECS.Components.Bundle
+import MischiefECS.Components.Common
 import MischiefECS.World
 import Unsafe.Coerce
 
 class (Typeable p, Eq p) => Plugin p where
   plugins :: p -> Plugins
-  plugins _ = Plugins []
+  plugins _ = collect ()
 
   init :: p -> System ()
   init _ = pure ()
@@ -21,13 +24,13 @@ data ErasedPlugin where
 getInit :: ErasedPlugin -> System ()
 getInit (ErasedPlugin p) = MischiefECS.App.Plugins.init p
 
-newtype Plugins = Plugins {inner :: [ErasedPlugin]}
+newtype Plugins = Plugins {inner :: [ErasedPlugin]} deriving newtype (Semigroup, Monoid)
 
-plug :: (Plugin p) => p -> Plugins
-plug p = Plugins [ErasedPlugin p]
+instance (Plugin p) => EraseIntoStorage p Plugins where
+  erase p = Plugins [ErasedPlugin p]
 
-(>.) :: (Plugin p) => Plugins -> p -> Plugins
-(>.) (Plugins l) p = Plugins $ ErasedPlugin p : l
+instance {-# OVERLAPPING #-} EraseIntoStorage () Plugins where
+  erase _ = Plugins []
 
 newtype PluginData = PluginData {inner :: Map TypeRep ErasedPlugin}
 
