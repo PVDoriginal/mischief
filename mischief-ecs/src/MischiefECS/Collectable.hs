@@ -1,5 +1,7 @@
 module MischiefECS.Collectable where
 
+class Idk x y
+
 class (Semigroup s) => EraseIntoStorage v s where
   erase :: v -> s
 

@@ -52,6 +52,7 @@ import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Typeable
 import GHC.Generics
+import MischiefECS.Collectable
 import {-# SOURCE #-} MischiefECS.Entities
 import MischiefECS.Utils
 
@@ -138,6 +139,17 @@ tryGetComponent (ErasedComponent (s :: c')) =
     Just Refl -> Just s
     Nothing -> Nothing
 
+instance {-# OVERLAPPING #-} EraseIntoStorage () BundleData where
+  erase _ = BundleData $ Set.empty
+
+instance (Component c) => EraseIntoStorage c BundleData where
+  erase c =
+    BundleData $ Set.singleton BundleElement {rep = ComponentRep $ ComponentType $ Proxy @c, component = MischiefECS.Components.erase c}
+
+instance {-# OVERLAPPING #-} (Component c) => EraseIntoStorage (Rel c) BundleData where
+  erase (Rel (c, entity)) =
+    BundleData $ Set.singleton BundleElement {rep = PairRep (ComponentType $ Proxy @c, entity), component = MischiefECS.Components.erase c}
+
 -- | Unique id corresponding to an archetype.
 newtype ArchetypeId = ArchetypeId
   { id :: Int
@@ -145,7 +157,7 @@ newtype ArchetypeId = ArchetypeId
   deriving (Show, Eq, Ord)
 
 -- | Data extracted from a 'MischiefECS.Components.Bundle.Bundle'.
-newtype BundleData = BundleData {elements :: Set BundleElement}
+newtype BundleData = BundleData {elements :: Set BundleElement} deriving newtype (Semigroup)
 
 instance Show BundleData where
   show BundleData {elements} = mconcat ["BundleData [", List.intercalate ", " ts, "]"]
