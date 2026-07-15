@@ -39,13 +39,13 @@ newSystems = do
   systemMap <- newIORef Map.empty
   return Systems {systemMap}
 
-getSystemId' :: System () -> StableName (System ()) -> IORef [(StableName (System ()), SystemId)] -> System SystemId
-getSystemId' system stableName list = do
+getSystemId' :: ScheduleId -> System () -> StableName (System ()) -> IORef [(StableName (System ()), SystemId)] -> System SystemId
+getSystemId' schedule system stableName list = do
   list' <- liftIO $ readIORef list
   case find (\x -> fst x `eqStableName` stableName) list' of
     Just (_, x) -> return x
     Nothing -> do
-      index <- spawn (SystemFunction system, SystemTick (Tick 0), LastSystemTick (Tick 0))
+      index <- spawn (SystemFunction system, SystemTick (Tick 0), LastSystemTick (Tick 0), Rel (ScheduledIn, schedule.id))
       liftIO $ modifyIORef' list (++ [(stableName, SystemId index)])
       return $ SystemId index
 
@@ -57,11 +57,11 @@ getSystemId sch system = do
   systemMap' <- liftIO $ readIORef systemMap
 
   case Map.lookup (sch, hashStableName stableName) systemMap' of
-    Just x -> getSystemId' system stableName x
+    Just x -> getSystemId' sch system stableName x
     Nothing -> do
       l <- liftIO $ newIORef []
       liftIO $ modifyIORef' systemMap (Map.insert (sch, hashStableName stableName) l)
-      getSystemId' system stableName l
+      getSystemId' sch system stableName l
 
 systemEntity :: (Schedule sch) => sch -> System () -> System Entity
 systemEntity sch s = do

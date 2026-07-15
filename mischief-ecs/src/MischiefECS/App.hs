@@ -5,7 +5,7 @@ module MischiefECS.App where
 -- import Data.Map
 -- import Data.Map qualified as Map
 
-import Control.Monad (forever)
+import Control.Monad (forever, void)
 import Control.Monad.IO.Class (MonadIO (liftIO))
 import Control.Monad.Reader (MonadReader (..), asks)
 import Control.Monad.Trans.Reader (ReaderT (..))
@@ -97,10 +97,7 @@ addSystems :: (Schedule sc, SystemConfig s) => sc -> s -> System ()
 addSystems schedule system = do
   let SystemConfigData {systems, edges} = systemConfigData system
 
-  for_ systems $ \system -> do
-    s <- systemEntity schedule system
-    sch <- scheduleEntity schedule
-    insert (Rel (ScheduledIn, sch)) s
+  for_ systems $ \system -> systemEntity schedule system
 
   for_ edges $ \(s1, s2) -> do
     id1 <- systemEntity schedule s1
