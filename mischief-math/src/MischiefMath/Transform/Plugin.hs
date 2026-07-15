@@ -3,7 +3,7 @@
 module MischiefMath.Transform.Plugin where
 
 import Control.Monad.IO.Class
-import MischiefECS
+import Mischief.ECS
 import MischiefMath.Transform (GlobalTransform (GlobalTransform), Transform)
 
 transformPlugin :: Plugin ()

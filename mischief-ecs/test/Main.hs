@@ -12,13 +12,13 @@ import Data.Maybe
 import Data.Set qualified as Set
 import GHC.Generics (Generic)
 import GHC.StableName
-import MischiefECS
-import MischiefECS.App.Plugins
-import MischiefECS.App.Systems
-import MischiefECS.Collectable
-import MischiefECS.Components.Common
-import MischiefECS.Components.Spawn
-import MischiefECS.World.Utils
+import Mischief.ECS
+import Mischief.ECS.App.Plugins
+import Mischief.ECS.App.Systems
+import Mischief.ECS.Collectable
+import Mischief.ECS.Components.Common
+import Mischief.ECS.Components.Spawn
+import Mischief.ECS.World.Utils
 import System.Exit (exitSuccess)
 
 newtype A = A Int deriving (Show, Eq)

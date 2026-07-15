@@ -9,15 +9,15 @@ where
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.Foldable
-import MischiefECS.App
-import MischiefECS.App.Schedules
-import MischiefECS.App.SystemConfig
-import MischiefECS.Components
-import MischiefECS.Components.Spawn
-import MischiefECS.Messages
-import MischiefECS.World
-import MischiefECS.World.Query
-import MischiefECS.World.Spawn
+import Mischief.ECS.App
+import Mischief.ECS.App.Schedules
+import Mischief.ECS.App.SystemConfig
+import Mischief.ECS.Components
+import Mischief.ECS.Components.Spawn
+import Mischief.ECS.Messages
+import Mischief.ECS.World
+import Mischief.ECS.World.Query
+import Mischief.ECS.World.Spawn
 import SDL3
 import System.Exit
 

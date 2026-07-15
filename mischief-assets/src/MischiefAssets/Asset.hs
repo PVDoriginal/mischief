@@ -14,7 +14,7 @@ import Data.Map (Map)
 import Data.Map qualified as Map
 import GHC.Generics
 import GHC.IO.Handle
-import MischiefECS
+import Mischief.ECS
 
 class (Typeable a) => Asset a where
   loadAsset :: FilePath -> IO a

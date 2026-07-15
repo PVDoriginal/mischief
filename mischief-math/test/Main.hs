@@ -2,7 +2,7 @@ module Main where
 
 import Control.Monad.IO.Class
 import Data.Default
-import MischiefECS
+import Mischief.ECS
 import MischiefMath
 import MischiefMath.Mat qualified as Mat
 import MischiefMath.Quat qualified as Quat

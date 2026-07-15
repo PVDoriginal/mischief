@@ -8,8 +8,8 @@ import Data.IORef
 import Data.Map (Map)
 import Data.Map qualified as Map
 import GHC.Generics
-import MischiefECS
-import MischiefECS.App.Scheduler
+import Mischief.ECS
+import Mischief.ECS.App.Scheduler
 import SDL3
 
 data Keys = Keys

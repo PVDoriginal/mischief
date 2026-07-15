@@ -4,12 +4,12 @@ import Data.Default
 import Data.Map (Map)
 import Data.Map qualified as Map
 import GHC.Generics
+import Mischief.ECS.App
+import Mischief.ECS.Components
+import Mischief.ECS.World.Query
 import MischiefAssets.Asset
 import MischiefAssets.Image
 import MischiefAssets.Register
-import MischiefECS.App
-import MischiefECS.Components
-import MischiefECS.World.Query
 
 assetPlugin :: Plugin ()
 assetPlugin = do

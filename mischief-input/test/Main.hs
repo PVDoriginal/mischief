@@ -5,8 +5,8 @@ import Control.Monad.IO.Class
 import Data.Default
 import Data.Foldable hiding (and)
 import GHC.Generics hiding (C, C1)
-import MischiefECS
-import MischiefECS.App.Scheduler
+import Mischief.ECS
+import Mischief.ECS.App.Scheduler
 import MischiefInput
 import MischiefInput.Keyboard
 import MischiefMath

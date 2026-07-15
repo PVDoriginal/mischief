@@ -1,8 +1,8 @@
+import Mischief.ECS
+import Mischief.ECS.App
+import Mischief.ECS.SDL
 import MischiefAssets
 import MischiefAssets.Asset
-import MischiefECS
-import MischiefECS.App
-import MischiefECS.SDL
 import MischiefRender
 
 main :: IO ()

@@ -8,9 +8,9 @@ import Foreign (Ptr, Storable (pokeByteOff), Word8, castPtr, plusPtr, pokeArray)
 import Foreign.C
 import GHC.IO.Handle
 import GPUCommon
+import Mischief.ECS
+import Mischief.ECS.Components.Spawn
 import MischiefAssets (registerAsset)
-import MischiefECS
-import MischiefECS.Components.Spawn
 import MischiefRender.Shader (FragmentShader (FragmentShader), VertexShader)
 import SDL3
 import System.IO.Temp

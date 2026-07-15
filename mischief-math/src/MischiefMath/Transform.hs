@@ -4,8 +4,8 @@ module MischiefMath.Transform where
 
 import Data.Default (Default)
 import GHC.Generics (Generic)
-import MischiefECS (Component, Queryable, require)
-import MischiefECS.Components (Component (required))
+import Mischief.ECS (Component, Queryable, require)
+import Mischief.ECS.Components (Component (required))
 import MischiefMath.Quat (Quat)
 import MischiefMath.Quat qualified as Quat
 import MischiefMath.Vec

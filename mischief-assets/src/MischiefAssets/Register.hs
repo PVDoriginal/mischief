@@ -4,8 +4,8 @@ module MischiefAssets.Register where
 
 import Data.Data
 import Data.Foldable
+import Mischief.ECS
 import MischiefAssets.Asset
-import MischiefECS
 
 registerAsset :: forall a. (Asset a) => Plugin ()
 registerAsset = run $ do
