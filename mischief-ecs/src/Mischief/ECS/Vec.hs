@@ -209,7 +209,7 @@ ensureAppend vec i = do
 
 -- | Read element from vector at given index.
 read ::
-  (PrimMonad m) =>
+  (HasCallStack, PrimMonad m) =>
   Vec (PrimState m) a ->
   -- | Index of element. Must be in [0 .. length) range
   Int ->

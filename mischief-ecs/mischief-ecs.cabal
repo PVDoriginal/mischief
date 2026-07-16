@@ -61,15 +61,16 @@ library
     Mischief.ECS.Collectable
     Mischief.ECS.Components
     Mischief.ECS.Components.Bundle
-    Mischief.ECS.Components.Hooks
     Mischief.ECS.Components.BundleTypes
     Mischief.ECS.Components.Common
+    Mischief.ECS.Components.Hooks
     Mischief.ECS.Components.Required
     Mischief.ECS.Components.Runnable
     Mischief.ECS.Components.Spawn
     Mischief.ECS.Entities
     Mischief.ECS.Events
     Mischief.ECS.Graph
+    Mischief.ECS.Hooks
     Mischief.ECS.Log
     Mischief.ECS.Mappable
     Mischief.ECS.Messages

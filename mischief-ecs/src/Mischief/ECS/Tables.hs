@@ -1,7 +1,7 @@
 module Mischief.ECS.Tables where
 
 import Control.Monad (forM, when)
-import Data.Foldable (for_)
+import Data.Foldable (find, for_)
 import Data.IORef
 import Data.Kind
 import Data.List (transpose)
@@ -126,6 +126,11 @@ takeComponentsFromTable pointer table = do
   removeEntityFromTable pointer.rowIndex table
   let elements = map (uncurry ProcessedBundleElement) $ Map.toList newColumns
   pure ProcessedBundleData {elements}
+
+collectComponentIdsFromTable :: Table -> IO [ComponentId]
+collectComponentIdsFromTable table = do
+  cols <- readIORef table.columns
+  return $ map fst $ Map.toList cols
 
 -- let elements = map getComponent newColumns
 -- return ProcessedBundleData{elements}
@@ -434,3 +439,6 @@ instance (HasField a b c) => HasField a (RelResult b) c where
 
 target :: RelResult c -> Entity
 target (RelResult (_, _, t)) = t
+
+pickRel :: Entity -> [RelResult c] -> Maybe (RelResult c)
+pickRel e = find (\x -> target x == e)

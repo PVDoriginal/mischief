@@ -19,6 +19,8 @@ import Mischief.ECS.Collectable
 import Mischief.ECS.Components.Common
 import Mischief.ECS.Components.Hooks
 import Mischief.ECS.Components.Spawn
+import Mischief.ECS.Hooks
+import Mischief.ECS.Hooks qualified as Hooks
 import Mischief.ECS.Systems qualified as Systems
 import Mischief.ECS.World.Utils
 import System.Exit (exitSuccess)
@@ -27,9 +29,6 @@ newtype A = A Int deriving (Show, Eq)
 
 instance Component A where
   required = require @B
-
-  hooks :: Hooks A
-  hooks = collect (onInsert, onRemove)
 
 data B = B deriving (Show, Generic, Default)
 
@@ -40,6 +39,14 @@ data C = C deriving (Generic, Default, Show)
 
 instance Component C where
   required = require @()
+
+data TestRel = TestRel
+
+instance Component TestRel where
+  hooks :: Hooks TestRel
+  hooks = Hooks.relCleanupDespawn
+
+data OtherRel = OtherRel deriving (Component, Show)
 
 main :: IO ()
 main = do
@@ -71,11 +78,19 @@ setup = do
   remove @B c
 
   e <- spawn (A 5)
-  despawn e
+  -- despawn e
   insert (Name "") e
 
   q <- query' @Name $ with @A &. neg (without @B)
   traverse_ (info . text) q
+
+  info $ text e
+
+  x <- spawn (Rel (TestRel, e))
+  despawn e
+  -- removeRel @(CleanupWatcher TestRel) x e
+
+  (err . text) =<< isAlive x
 
 dummy :: System ()
 dummy = return ()

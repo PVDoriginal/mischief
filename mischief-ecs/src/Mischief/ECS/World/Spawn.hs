@@ -116,6 +116,6 @@ despawn entity =
         case Map.lookup currentPointer.archetypeId tables of
           Nothing -> undefined
           Just table -> do
-            ProcessedBundleData {elements} <- liftIO $ takeComponentsFromTable currentPointer table
-            triggerRemoveEvent (map (\x -> x.id) elements) entity
+            c <- liftIO $ collectComponentIdsFromTable table
+            triggerRemoveEvent c entity
             liftIO $ removeEntity entity world.entities
