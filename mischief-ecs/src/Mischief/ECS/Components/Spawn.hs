@@ -15,6 +15,7 @@ import Data.Set qualified as Set
 import Mischief.ECS.Components
 import Mischief.ECS.Components.Bundle
 import Mischief.ECS.Components.Common
+import Mischief.ECS.Components.Hooks
 import Mischief.ECS.Components.Required (requireAll)
 import Mischief.ECS.Entities
 import Mischief.ECS.Relationships
@@ -67,6 +68,8 @@ getOrAddComponentId (ComponentType (_ :: Proxy c)) = do
         insert (Rel (RequiredBy, result)) other.id
         insert (Rel (Requires, other.id)) result
         insert (DefaultValue $ ErasedComponent $ def @other) other.id
+
+      registerHooks $ hooks @c
 
       return $ ComponentId {id = result, entity = Nothing}
 

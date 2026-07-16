@@ -34,8 +34,7 @@ import GHC.Stack (HasCallStack)
 import Mischief.ECS.Archetypes (Archetypes, emptyArchetypes)
 import Mischief.ECS.Collectable
 import Mischief.ECS.Components
-  ( Component,
-    Components,
+  ( Components,
     Tick (Tick),
     emptyComponents,
   )
@@ -96,7 +95,7 @@ newWorld = do
   frame <- newIORef (Frame 0)
   let prefs = newPrefs
 
-  let logger = Colog.cmap Colog.fmtMessage $ Colog.logTextStdout
+  let logger = Colog.cmap Colog.fmtMessage Colog.logTextStdout
 
   return
     World

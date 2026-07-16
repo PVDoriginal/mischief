@@ -61,6 +61,7 @@ library
     Mischief.ECS.Collectable
     Mischief.ECS.Components
     Mischief.ECS.Components.Bundle
+    Mischief.ECS.Components.Hooks
     Mischief.ECS.Components.BundleTypes
     Mischief.ECS.Components.Common
     Mischief.ECS.Components.Required

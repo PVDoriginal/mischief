@@ -53,6 +53,7 @@ import Data.Set qualified as Set
 import Data.Typeable
 import GHC.Generics
 import Mischief.ECS.Collectable
+import {-# SOURCE #-} Mischief.ECS.Components.Hooks
 import {-# SOURCE #-} Mischief.ECS.Entities
 import Mischief.ECS.Utils
 
@@ -84,6 +85,9 @@ class (Typeable c) => Component c where
   -- | Set to 'True' in order to make relationships containing this components @exclusive@.
   isExclusiveRel :: Bool
   isExclusiveRel = False
+
+  hooks :: Hooks c
+  hooks = Hooks []
 
 -- | Unique id for components and component pairs.
 data ComponentId = ComponentId
