@@ -8,6 +8,7 @@ import Data.IORef
 import Data.Map qualified as Map
 import Data.Maybe
 import Data.Set qualified as Set
+import GHC.Stack
 import {-# SOURCE #-} Mischief.ECS.Archetypes.Graph (getArchetypeOnSpawn)
 import Mischief.ECS.Components
 import Mischief.ECS.Components.Bundle
@@ -16,16 +17,18 @@ import {-# SOURCE #-} Mischief.ECS.Components.Spawn (getOrAddComponentId)
 import Mischief.ECS.Entities
 import Mischief.ECS.Events
 import Mischief.ECS.Hidden
+import Mischief.ECS.Log
 import Mischief.ECS.Tables
 import Mischief.ECS.World
 import Mischief.ECS.World.Change
 import Mischief.ECS.World.Defer
 import Mischief.ECS.World.Insert
 import Mischief.ECS.World.Prefs
+import Mischief.ECS.World.Remove
 import Mischief.ECS.World.Utils
 
 -- | Spawn an entity given a bundle of components.
-spawn :: (Bundle b) => b -> System Entity
+spawn :: (HasCallStack, Bundle b) => b -> System Entity
 spawn bundle =
   do
     world <- unsafeGetWorld
@@ -44,7 +47,7 @@ spawnDefer bundle = do
 
 data SpawnEventsSettings = WithSpawnEvents | WithoutSpawnEvents
 
-spawnEntity :: (Bundle b) => Entity -> b -> System ()
+spawnEntity :: (HasCallStack, Bundle b) => Entity -> b -> System ()
 spawnEntity entity bundle = do
   world <- unsafeGetWorld
   let BundleData {elements} = addComponentToBundleData (Name (show entity)) $ bundleData bundle
@@ -96,3 +99,23 @@ spawnIO world bundle =
 
     runSystem (spawnEntity entity bundle) world
     return entity
+
+-- | Despawn an entity.
+despawn :: Entity -> System ()
+despawn entity =
+  do
+    world <- unsafeGetWorld
+    pointer <- liftIO $ getPointer entity world.entities
+    case pointer of
+      Nothing -> warn $ "Despawn failed: Entity " <> text entity <> " is not alive."
+      Just pointer -> do
+        let Tables tables = world.tables
+        tables <- liftIO $ readIORef tables
+        currentPointer <- liftIO $ readIORef pointer
+
+        case Map.lookup currentPointer.archetypeId tables of
+          Nothing -> undefined
+          Just table -> do
+            ProcessedBundleData {elements} <- liftIO $ takeComponentsFromTable currentPointer table
+            triggerRemoveEvent (map (\x -> x.id) elements) entity
+            liftIO $ removeEntity entity world.entities

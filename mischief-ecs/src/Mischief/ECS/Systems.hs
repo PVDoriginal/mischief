@@ -5,6 +5,7 @@ module Mischief.ECS.Systems where
 
 import Data.Foldable
 import Data.Kind
+import GHC.Stack.Types
 import Mischief.ECS.App.Schedules
 import Mischief.ECS.App.SystemConfig
 import Mischief.ECS.App.Systems (ScheduledIn (ScheduledIn), SystemFunction (SystemFunction), removeSystemFromMap, systemEntity)
@@ -18,10 +19,11 @@ import Mischief.ECS.World.Insert
 import Mischief.ECS.World.Query
 import Mischief.ECS.World.Query.Queryable
 import Mischief.ECS.World.Remove
+import Mischief.ECS.World.Spawn
 import Mischief.ECS.World.Spawn qualified as Spawn
 import Mischief.ECS.World.Utils
 
-add :: (Schedule sc, SystemConfig s) => sc -> s -> System ()
+add :: (HasCallStack, Schedule sc, SystemConfig s) => sc -> s -> System ()
 add schedule system = do
   let SystemConfigData {systems, edges} = systemConfigData system
 

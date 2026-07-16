@@ -11,6 +11,7 @@ import Data.Map (Map)
 import Data.Map qualified as Map
 import GHC.Generics
 import GHC.StableName (StableName, eqStableName, hashStableName, makeStableName)
+import GHC.Stack.Types
 import Mischief.ECS.App.Schedules
 import Mischief.ECS.Components
 import Mischief.ECS.Components.Bundle
@@ -49,7 +50,7 @@ newSystems = do
   systemMap <- newIORef Map.empty
   return Systems {systemMap}
 
-getSystemId' :: ScheduleId -> System () -> StableName (System ()) -> IORef [(StableName (System ()), SystemId)] -> System SystemId
+getSystemId' :: (HasCallStack) => ScheduleId -> System () -> StableName (System ()) -> IORef [(StableName (System ()), SystemId)] -> System SystemId
 getSystemId' schedule system stableName list = do
   list' <- liftIO $ readIORef list
   case find (\x -> fst x `eqStableName` stableName) list' of
@@ -59,7 +60,7 @@ getSystemId' schedule system stableName list = do
       liftIO $ modifyIORef' list (++ [(stableName, SystemId index)])
       return $ SystemId index
 
-getSystemId :: ScheduleId -> System () -> System SystemId
+getSystemId :: (HasCallStack) => ScheduleId -> System () -> System SystemId
 getSystemId sch system = do
   Systems {systemMap} <- value . unwrap <$> (res @Systems)
 
@@ -88,7 +89,7 @@ removeSystemFromMap sch system = do
     (Map.lookup (sch, hashStableName stableName) systemMap')
     (removeSystemFromMap' stableName)
 
-systemEntity :: (Schedule sch) => sch -> System () -> System Entity
+systemEntity :: (HasCallStack, Schedule sch) => sch -> System () -> System Entity
 systemEntity sch s = do
   schId <- scheduleEntity sch
   x <- getSystemId (ScheduleId schId) s

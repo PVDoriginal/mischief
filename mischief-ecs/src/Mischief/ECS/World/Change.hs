@@ -6,6 +6,7 @@ import Data.IORef
 import Data.Map qualified as Map
 import Data.Maybe
 import Data.Set qualified as Set
+import GHC.Stack (HasCallStack)
 import {-# SOURCE #-} Mischief.ECS.App.Systems
 import Mischief.ECS.Archetypes
 import Mischief.ECS.Components
@@ -16,13 +17,14 @@ import Mischief.ECS.Log
 import Mischief.ECS.Tables
 import Mischief.ECS.World
 import Mischief.ECS.World.Query
+import Mischief.ECS.World.Query.Queryable
 import Mischief.ECS.World.Utils
 
 newtype ChangeResult = ChangeResult
   { requiredComponentsAdded :: [ProcessedBundleElement]
   }
 
-changeArchetype :: Entity -> ArchetypeData -> Maybe ProcessedBundleData -> System ChangeResult
+changeArchetype :: (HasCallStack) => Entity -> ArchetypeData -> Maybe ProcessedBundleData -> System ChangeResult
 changeArchetype entity newArchetype insertedBundle = do
   world <- unsafeGetWorld
   currentTick <- liftIO $ readIORef world.tick
@@ -75,7 +77,7 @@ getDefault component = do
   let (DefaultValue value) = dv
 
   let (SystemId sys) = world.systemId
-  Just currentSystemTick <- get @SystemTick sys
+  currentSystemTick <- fromMaybe (SystemTick $ Tick 0) <$> get @(Val SystemTick) sys
 
   return
     ProcessedBundleElement

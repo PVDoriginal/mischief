@@ -1,6 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 
-module Mischief.ECS.World.Remove (remove, delete, removeRel) where
+module Mischief.ECS.World.Remove (remove, delete, removeRel, triggerRemoveEvent) where
 
 import Control.Monad
 import Control.Monad.Reader
@@ -20,6 +20,7 @@ import Mischief.ECS.Log
 import Mischief.ECS.Tables
 import Mischief.ECS.World
 import Mischief.ECS.World.Change (changeArchetype)
+import Mischief.ECS.World.Query
 import Mischief.ECS.World.Utils
 
 class Removable c where
@@ -68,7 +69,23 @@ removeFromEntity components entity = do
     Just pointer -> do
       currentPointer <- liftIO $ readIORef pointer
 
-      newArchetype <- getArchetypeOnRemove currentPointer.archetypeId components
+      (newArchetype, removedComponents) <- getArchetypeOnRemove currentPointer.archetypeId components
+      triggerRemoveEvent removedComponents entity
+
       void $ changeArchetype entity newArchetype Nothing
 
--- triggerRemoveEvent :: ErasedComponent
+triggerRemoveEvent :: [ComponentId] -> Entity -> System ()
+triggerRemoveEvent components entity = do
+  for_ components $ \component -> do
+    Just t <- get @ComponentType component.id
+    case component.entity of
+      Nothing -> triggerRemoveEventC (value t) entity
+      Just target -> triggerRemoveEventR (value t) target entity
+
+triggerRemoveEventC :: ComponentType -> Entity -> System ()
+triggerRemoveEventC (ComponentType (_ :: Proxy t)) entity =
+  runEvent $ eraseEvent $ OnRemove @t entity
+
+triggerRemoveEventR :: ComponentType -> Entity -> Entity -> System ()
+triggerRemoveEventR (ComponentType (_ :: Proxy t)) target entity =
+  runEvent $ eraseEvent $ OnRemoveRel @t entity target

@@ -113,31 +113,6 @@ removeComponentFromProcessedBundle componentId bundle =
     let elements = filter (\x -> x.id /= componentId) bundle.elements
      in ProcessedBundleData {elements}
 
--- | Despawn an entity.
-despawn :: Entity -> System ()
-despawn entity =
-  do
-    world <- unsafeGetWorld
-    pointer <- liftIO $ getPointer entity world.entities
-    case pointer of
-      Nothing -> warn $ "Despawn failed: Entity " <> text entity <> " is not alive."
-      Just pointer -> do
-        let Tables tables = world.tables
-        tables <- liftIO $ readIORef tables
-        currentPointer <- liftIO $ readIORef pointer
-
-        case Map.lookup currentPointer.archetypeId tables of
-          Nothing -> undefined
-          Just table -> do
-            liftIO $ removeComponentsFromTable currentPointer table
-
-            -- empty <- liftIO $ tableIsEmpty table
-
-            -- when empty $ do
-            --   liftIO $ removeTableAndArchetype world currentPointer.archetypeId
-
-            liftIO $ removeEntity entity world.entities
-
 tryGetEntityRelCollection :: forall c. (Component c) => World -> Entity -> IO (Maybe (Maybe [RelResult c]))
 tryGetEntityRelCollection world entity =
   do
@@ -214,7 +189,7 @@ isAlive entity = do
   liftIO $ isAliveIO entity world.entities
 
 expect :: (HasCallStack) => forall m w a. (MonadSystem w m) => Text -> Maybe a -> m a
-expect t a = do
+expect t a = withFrozenCallStack $ do
   case a of
     Nothing -> panic t >>= const undefined
     Just x -> return x

@@ -18,6 +18,7 @@ import Mischief.ECS.App.Systems
 import Mischief.ECS.Collectable
 import Mischief.ECS.Components.Common
 import Mischief.ECS.Components.Spawn
+import Mischief.ECS.Systems qualified as Systems
 import Mischief.ECS.World.Utils
 import System.Exit (exitSuccess)
 
@@ -45,10 +46,11 @@ data MainPlugin = MainPlugin deriving (Eq)
 
 instance Plugin MainPlugin where
   init _ = do
-    addSystems Startup setup
-    addSystems Update dummy
+    Systems.add Startup setup
+    Systems.add Update dummy
 
     void . spawn $ Observer onInsert
+    void . spawn $ Observer onRemove
 
   plugins _ = collect (Foo, Bar, Baz)
 
@@ -81,5 +83,8 @@ newtype Counter = Counter Int
   deriving anyclass (Component)
   deriving stock (Show)
 
-onInsert :: OnRemove B -> System ()
-onInsert _ = info "AAA"
+onInsert :: OnInsert B -> System ()
+onInsert _ = err "AAA"
+
+onRemove :: OnRemove B -> System ()
+onRemove _ = err "BBBB"

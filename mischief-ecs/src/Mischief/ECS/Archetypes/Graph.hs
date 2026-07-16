@@ -108,8 +108,8 @@ addEdgeR a b component = do
   let Archetypes {graph} = world.archetypes
   Vec.modify_ graph.nodes b $ \ArchetypeNode {insert, remove, archetype} -> ArchetypeNode {insert, remove = Map.insert component a remove, archetype}
 
-getArchetype :: ArchetypeId -> ArchetypeTransition -> System ArchetypeData
-getArchetype (ArchetypeId id) (Removed component) = do
+getArchetypeOnRemoveSingle :: ArchetypeId -> ComponentId -> System ArchetypeData
+getArchetypeOnRemoveSingle (ArchetypeId id) component = do
   world <- unsafeGetWorld
   let Archetypes {graph} = world.archetypes
 
@@ -129,7 +129,9 @@ getArchetype (ArchetypeId id) (Removed component) = do
 
       newNode <- Vec.read graph.nodes newId
       return newNode.archetype
-getArchetype (ArchetypeId id) (Inserted component) = do
+
+getArchetypeOnInsertSingle :: ArchetypeId -> ComponentId -> System ArchetypeData
+getArchetypeOnInsertSingle (ArchetypeId id) component = do
   world <- unsafeGetWorld
   let Archetypes {graph} = world.archetypes
 
@@ -172,10 +174,12 @@ getArchetypeOnInsert archetype components =
   where
     f archetype [] _ = return archetype
     f archetype (component : xs) graph = do
-      x <- getArchetype archetype.id (Inserted component)
+      x <- getArchetypeOnInsertSingle archetype.id component
       f x xs graph
 
-getArchetypeOnRemove :: ArchetypeId -> [ComponentId] -> System ArchetypeData
+newtype ArchetypeRemovalResult = ArchetypeRemovalResult {removed :: [ComponentId]}
+
+getArchetypeOnRemove :: ArchetypeId -> [ComponentId] -> System (ArchetypeData, [ComponentId])
 getArchetypeOnRemove archetype components =
   do
     world <- unsafeGetWorld
@@ -184,10 +188,14 @@ getArchetypeOnRemove archetype components =
 
     f d components graph
   where
-    f archetype [] _ = return archetype
+    f archetype [] _ = return (archetype, [])
     f archetype (component : xs) graph = do
-      x <- getArchetype archetype.id (Removed component)
-      f x xs graph
+      x <- getArchetypeOnRemoveSingle archetype.id component
+
+      (a, b) <- f x xs graph
+      if x.id /= archetype.id
+        then return (a, b ++ [component])
+        else return (a, b)
 
 getArchetypeOnSpawn :: [ComponentId] -> System ArchetypeData
 getArchetypeOnSpawn components =

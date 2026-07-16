@@ -67,5 +67,9 @@ newtype OnRemove c = OnRemove {entity :: Entity}
   deriving anyclass (Event)
   deriving stock (Show)
 
+data OnRemoveRel c = OnRemoveRel {entity :: Entity, target :: Entity}
+  deriving anyclass (Event)
+  deriving stock (Show)
+
 data ErasedEvent where
   ErasedEvent :: (Typeable e) => e -> ErasedEvent
