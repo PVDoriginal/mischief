@@ -11,8 +11,11 @@ module Mischief.ECS.Hooks
   )
 where
 
+import Control.Monad
 import Data.Data
+import Data.Foldable
 import Data.Kind
+import Data.Maybe
 import Mischief.ECS.Collectable
 import Mischief.ECS.Components
 import Mischief.ECS.Components.Bundle
@@ -47,7 +50,7 @@ removeComplementary :: forall b a. (Component b) => OnRemoveRel a -> System ()
 removeComplementary event = removeRel @b event.entity event.target
 
 relCleanup :: forall (a :: Type). (Component a) => (CleanupRequest -> System ()) -> Hooks a
-relCleanup f = collect (insertCleanupWatcher @a f)
+relCleanup f = collect (insertCleanupWatcher @a f, removeCleanupWatcher @a)
 
 relCleanupRemove :: forall (a :: Type). (Component a) => Hooks a
 relCleanupRemove = relCleanup (\r -> removeRel @a r.target r.entity)
@@ -57,6 +60,11 @@ relCleanupDespawn = relCleanup (\r -> despawn r.entity)
 
 insertCleanupWatcher :: forall c. (Component c) => (CleanupRequest -> System ()) -> OnInsertRel c -> System ()
 insertCleanupWatcher f e = insert (Rel (CleanupWatcher @c f, e.entity)) e.target
+
+removeCleanupWatcher :: forall c. (Component c) => OnRemoveRel c -> System ()
+removeCleanupWatcher e = do
+  insert (Rel (CleanupWatcher @c (pure . pure ()), e.entity)) e.target
+  removeRel @(CleanupWatcher c) e.entity e.target
 
 newtype CleanupWatcher c = CleanupWatcher {function :: CleanupRequest -> System ()}
 
