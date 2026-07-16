@@ -7,7 +7,6 @@ module Mischief.ECS.Hooks
     relCleanup,
     relCleanupRemove,
     relCleanupDespawn,
-    CleanupWatcher (..),
   )
 where
 

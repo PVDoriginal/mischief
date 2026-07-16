@@ -78,18 +78,16 @@ setup = do
   remove @B c
 
   e <- spawn (A 5)
-  -- despawn e
   insert (Name "") e
 
   q <- query' @Name $ with @A &. neg (without @B)
+
   traverse_ (info . text) q
 
   info $ text e
 
   x <- spawn (Rel (TestRel, e))
   despawn e
-  -- removeRel @(CleanupWatcher TestRel) x e
-
   (err . text) =<< isAlive x
 
 dummy :: System ()
