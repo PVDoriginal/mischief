@@ -12,6 +12,8 @@ import Mischief.ECS.Entities
 import Mischief.ECS.World
 import Mischief.ECS.World.Query.Queryable
 
+-- newtype QueryFilters = QueryFilters [QueryFilter] deriving newtype (Semigroup)
+
 data QueryFilter
   = NoFilter
   | QFWith TypeRep
@@ -41,39 +43,39 @@ data ErasedCheck where
 instance Show ErasedCheck where
   show _ = "erased check"
 
-with :: forall qd. (BundleTypes qd) => QueryFilter
-with = and' $ map QFWith (Set.toList $ types (Proxy @qd))
+-- with :: forall qd. (BundleTypes qd) => QueryFilter
+-- with = and' $ map QFWith (Set.toList $ types (Proxy @qd))
 
-withRel :: forall c. (Component c) => Entity -> QueryFilter
-withRel = QFWithRel (typeRep $ Proxy @c)
+-- withRel :: forall c. (Component c) => Entity -> QueryFilter
+-- withRel = QFWithRel (typeRep $ Proxy @c)
 
-without :: forall qd. (BundleTypes qd) => QueryFilter
-without = and' $ map (QFNot . QFWith) (Set.toList $ types (Proxy @qd))
+-- without :: forall qd. (BundleTypes qd) => QueryFilter
+-- without = and' $ map (QFNot . QFWith) (Set.toList $ types (Proxy @qd))
 
-changed :: forall qd. (BundleTypes qd) => QueryFilter
-changed = and' $ map QFChanged (Set.toList $ types (Proxy @qd))
+-- changed :: forall qd. (BundleTypes qd) => QueryFilter
+-- changed = and' $ map QFChanged (Set.toList $ types (Proxy @qd))
 
-check :: forall c. (Component c) => (c -> Bool) -> QueryFilter
-check f = QFWith (typeRep $ Proxy @c) &. QFCheckRaw (typeRep $ Proxy @c, ErasedCheck f)
+-- check :: forall c. (Component c) => (c -> Bool) -> QueryFilter
+-- check f = QFWith (typeRep $ Proxy @c) &. QFCheckRaw (typeRep $ Proxy @c, ErasedCheck f)
 
-eq :: forall c. (Component c, Eq c) => c -> QueryFilter
-eq c = check @c (== c)
+-- eq :: forall c. (Component c, Eq c) => c -> QueryFilter
+-- eq c = check @c (== c)
 
-added :: forall qd. (BundleTypes qd) => QueryFilter
-added = and' $ map QFAdded (Set.toList $ types (Proxy @qd))
+-- added :: forall qd. (BundleTypes qd) => QueryFilter
+-- added = and' $ map QFAdded (Set.toList $ types (Proxy @qd))
 
 and' :: [QueryFilter] -> QueryFilter
 and' [x] = x
-and' x = foldr (&.) NoFilter x
+and' x = foldr QFAnd NoFilter x
 
-(&.) :: QueryFilter -> QueryFilter -> QueryFilter
-(&.) = QFAnd
+-- (&.) :: QueryFilter -> QueryFilter -> QueryFilter
+-- (&.) = QFAnd
 
-(|.) :: QueryFilter -> QueryFilter -> QueryFilter
-(|.) = QFOr
+-- (|.) :: (IntoQueryFilter a, IntoQueryFilter b, IntoQueryFilter c) => a -> b -> c
+-- (|.) a b = QFOr (intoQueryFilter a) (intoQueryFilter b)
 
-neg :: QueryFilter -> QueryFilter
-neg = QFNot
+-- neg :: QueryFilter -> QueryFilter
+-- neg = QFNot
 
 filterArchetype :: QueryFilter -> [ComponentId] -> World -> IO Bool
 filterArchetype NoFilter _ _ = return True
@@ -177,6 +179,19 @@ instance (BundleTypes c) => IntoQueryFilter (WithR c Entity) where
 instance (BundleTypes c) => IntoQueryFilter (WithR c Any) where
   intoQueryFilter _ = and' $ map QFWithRelAny (Set.toList $ types (Proxy @c))
 
+newtype Not c = Not c
+
+instance (IntoQueryFilter q) => IntoQueryFilter (Not q) where
+  intoQueryFilter (Not a) = QFNot $ intoQueryFilter a
+
+data Or a b = Or a b
+
+(|.) :: a -> b -> Or a b
+(|.) = Or
+
+instance (IntoQueryFilter a, IntoQueryFilter b) => IntoQueryFilter (a `Or` b) where
+  intoQueryFilter (Or a b) = QFOr (intoQueryFilter a) (intoQueryFilter b)
+
 data Changed c = Changed
 
 instance (BundleTypes c) => IntoQueryFilter (Changed c) where
@@ -190,4 +205,4 @@ instance (BundleTypes c) => IntoQueryFilter (Added c) where
 newtype Check c = Check (c -> Bool)
 
 instance (Component c) => IntoQueryFilter (Check c) where
-  intoQueryFilter (Check f) = QFWith (typeRep $ Proxy @c) &. QFCheckRaw (typeRep $ Proxy @c, ErasedCheck f)
+  intoQueryFilter (Check f) = QFWith (typeRep $ Proxy @c) `QFAnd` QFCheckRaw (typeRep $ Proxy @c, ErasedCheck f)

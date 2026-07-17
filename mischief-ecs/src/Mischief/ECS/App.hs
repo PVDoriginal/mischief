@@ -55,7 +55,7 @@ runApp :: App -> IO ()
 runApp app = flip runSystem app.world $ do
   startups <- orderEntities =<< query' (C @Entity) (With @StartupSchedule)
   err $ text startups
-  updates <- orderEntities =<< query' (C @Entity) (with @UpdateSchedule)
+  updates <- orderEntities =<< query' (C @Entity) (With @UpdateSchedule)
 
   liftIO $ runSchedules startups
   liftIO $ runSchedulesLoop updates
@@ -75,7 +75,7 @@ runSchedule sch = scheduleEntity sch >>= runSchedule'
 runSchedule' :: Entity -> System ()
 runSchedule' schedule = do
   world <- unsafeGetWorld
-  systems <- orderEntities =<< query' (C @Entity) (withRel @ScheduledIn schedule)
+  systems <- orderEntities =<< query' (C @Entity) (WithR @ScheduledIn schedule)
 
   for_ systems $ \systemId -> do
     Just (systemFunction, lastSystemTick) <- get (C @SystemFunction, C @SystemTick) systemId
