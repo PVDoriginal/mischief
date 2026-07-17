@@ -3,6 +3,7 @@ module Mischief.ECS.World.Modify where
 import Data.Maybe
 import Mischief.ECS.Components
 import Mischief.ECS.Components.Bundle
+import Mischief.ECS.Components.Common
 import Mischief.ECS.Log
 import Mischief.ECS.Prelude
 import Mischief.ECS.Tables
@@ -11,7 +12,7 @@ import Mischief.ECS.World.Insert
 import Mischief.ECS.World.Query
 import Mischief.ECS.World.Query.Queryable
 
--- | Modifies the value of the component with the gievn function.
+-- | Modifies the value of the component with the given function.
 --
 -- The function will be applied over the @live value@ of the component, adding some overhead.
 --
@@ -19,12 +20,14 @@ import Mischief.ECS.World.Query.Queryable
 -- you are encouraged to use 'modify'' instead.
 --
 -- Note that this will trigger change detection even if the provided function is 'id'.
-modify :: forall c. (Queryable (C c) (Result c), Bundle c) => Result c -> (c -> c) -> System ()
+modify :: forall c i. (Updateable (Result c), Settable (Result c) i, DeepValue (Result c) i) => Result c -> (i -> i) -> System ()
 modify !result !f = do
-  res <- get (C @c) (entityOf result)
+  res <- update result
   case res of
     Nothing -> warn $ "Modify failed: Entity " <> text (entityOf result) <> " is not alive."
-    Just res -> insert (f $ value res) (entityOf res)
+    Just res -> do
+      let v = deepValue res
+      set result (f v)
 
 -- | Modifies the value of the component with the given function.
 --
@@ -34,8 +37,10 @@ modify !result !f = do
 -- If you wish to apply the function over the live value, use 'modify' instead.
 --
 -- Note that this will trigger change detection even if the provided function is 'id'.
-modify' :: forall c. (Bundle c) => Result c -> (c -> c) -> System ()
-modify' !result !f = insert (f . value $ result) (entityOf result)
+modify' :: forall c i. (Settable (Result c) i, DeepValue (Result c) i) => Result c -> (i -> i) -> System ()
+modify' !result !f = do
+  let v = deepValue result
+  set result (f v)
 
 -- | The most generic function for modifying a component on a given entity.
 --

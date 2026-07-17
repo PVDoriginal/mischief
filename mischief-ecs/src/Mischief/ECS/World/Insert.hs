@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
 module Mischief.ECS.World.Insert where
@@ -19,6 +20,7 @@ import Mischief.ECS.Archetypes
 import {-# SOURCE #-} Mischief.ECS.Archetypes.Graph
 import Mischief.ECS.Components
 import Mischief.ECS.Components.Bundle
+import Mischief.ECS.Components.Common
 import {-# SOURCE #-} Mischief.ECS.Components.Spawn
 import Mischief.ECS.Entities
 import Mischief.ECS.Events
@@ -131,28 +133,76 @@ insertRes res = do
   entity <- meta @r
   insert res entity
 
+class Settable c i | c -> i where
+  setInner :: c -> i -> System ()
+
+  setIfNeqInner :: (Eq i) => c -> i -> System ()
+
+class Settable' isRel c i | isRel c -> i where
+  setInner' :: c -> i -> System ()
+  setIfNeqInner' :: (Eq i) => c -> i -> System ()
+
+instance (Component c) => Settable' False (Result (Rel c)) c where
+  setInner' :: Result (Rel c) -> c -> System ()
+  setInner' !result !newValue = Mischief.ECS.World.Insert.insert (Rel newValue result.target) (entityOf result)
+
+  setIfNeqInner' :: (Component c, Eq c) => Result (Rel c) -> c -> System ()
+  setIfNeqInner' !result !newValue = do
+    curr <- get (R @c result.target) (entityOf result)
+    case curr of
+      Nothing -> warn $ "SetIfNeq failed: Entity " <> text (entityOf result) <> " is not alive."
+      Just curr ->
+        when (curr.comp /= newValue) $
+          setInner' @False result newValue
+
+instance (Component c, IsComponentC c ~ HTrue) => Settable' True (Result c) c where
+  setInner' :: Result c -> c -> System ()
+  setInner' !result !newValue = Mischief.ECS.World.Insert.insert newValue (entityOf result)
+
+  setIfNeqInner' :: (Component c, Eq c) => Result c -> c -> System ()
+  setIfNeqInner' !result !newValue = do
+    curr <- get (C @c) (entityOf result)
+    case curr of
+      Nothing -> warn $ "SetIfNeq failed: Entity " <> text (entityOf result) <> " is not alive."
+      Just curr ->
+        when (value curr /= newValue) $
+          setInner' @True result newValue
+
+instance (Settable' (IsComp c) (Result c) i) => Settable (Result c) i where
+  setInner = setInner' @(IsComp c)
+  setIfNeqInner = setIfNeqInner' @(IsComp c)
+
 -- | Set the value of a component obtained as query result.
 --
 -- Note that the local 'Result' won't be mutated.
 -- You'll need to query the component again or use 'update' to update the current result.
-set :: (Bundle c) => Result c -> c -> System ()
-set !result !newValue = Mischief.ECS.World.Insert.insert newValue (entityOf result)
+set :: (Settable c i) => c -> i -> System ()
+set = setInner
 
-setIfNeq :: forall c. (Bundle c, Queryable (C c) (Result c), Eq c) => Result c -> c -> System ()
-setIfNeq !result !newValue = do
-  curr <- get (C @c) (entityOf result)
-  case curr of
-    Nothing -> warn $ "SetIfNeq failed: Entity " <> text (entityOf result) <> " is not alive."
-    Just curr ->
-      when (value curr /= newValue) $
-        set result newValue
+setIfNeq :: (Eq i, Settable c i) => c -> i -> System ()
+setIfNeq = setIfNeqInner
+
+class Updateable' flag r where
+  updateInner' :: r -> System (Maybe r)
+
+instance (Component c, IsComponentC c ~ HTrue) => Updateable' True (Result c) where
+  updateInner' r = get (C @c) (entityOf r)
+
+instance (Component c) => Updateable' False (Result (Rel c)) where
+  updateInner' r = get (R @c r.target) (entityOf r)
+
+class Updateable r where
+  updateInner :: r -> System (Maybe r)
+
+instance (Updateable' (IsComp c) (Result c)) => Updateable (Result c) where
+  updateInner = updateInner' @(IsComp c)
 
 -- | Update the value of a 'Result'.
 --
 -- Useful if you've done changed to the component and want to grab the live value
 -- without re-querying.
-update :: forall c. (Queryable (C c) (Result c)) => Result c -> System (Maybe (Result c))
-update c = get (C @c) (entityOf c)
+update :: forall c. (Updateable (Result c)) => Result c -> System (Maybe (Result c))
+update = updateInner
 
 triggerInsertEvent :: ProcessedBundleData -> Entity -> System ()
 triggerInsertEvent bundle entity =

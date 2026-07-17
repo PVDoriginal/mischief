@@ -1,3 +1,5 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
+
 module Mischief.ECS.Tables where
 
 import Control.Monad (forM, when)
@@ -390,9 +392,9 @@ data ErasedResult where
 value :: Result c -> c
 value (Result (c, _)) = c
 
-type family IsRel a where
-  IsRel (Rel a) = True
-  IsRel a = False
+type family IsComp a where
+  IsComp (Rel a) = False
+  IsComp a = True
 
 entityOf :: Result c -> Entity
 entityOf (Result (_, e)) = e
@@ -412,5 +414,17 @@ instance (Ord c) => Ord (Result c) where
 instance (HasField a b c) => HasField a (Result b) c where
   getField a = getField @a (value a)
 
-pickRel :: Entity -> [Result (Rel c)] -> Maybe (Result (Rel c))
-pickRel e = find (\x -> (value x).target == e)
+class DeepValue' flag c i | flag c -> i where
+  deepValue' :: c -> i
+
+instance DeepValue' True (Result c) c where
+  deepValue' = value
+
+instance DeepValue' False (Result (Rel c)) c where
+  deepValue' x = x.comp
+
+class DeepValue c i | c -> i where
+  deepValue :: c -> i
+
+instance (DeepValue' (IsComp c) (Result c) i) => DeepValue (Result c) i where
+  deepValue = deepValue' @(IsComp c)

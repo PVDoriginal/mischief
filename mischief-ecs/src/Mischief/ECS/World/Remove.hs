@@ -57,14 +57,14 @@ class Delete r where
 class Delete' r isRel where
   delete' :: r -> System ()
 
-instance (Delete' (Result r) (IsRel r)) => Delete (Result r) where
-  delete = delete' @(Result r) @(IsRel r)
+instance (Delete' (Result r) (IsComp r)) => Delete (Result r) where
+  delete = delete' @(Result r) @(IsComp r)
 
-instance (Component c) => Delete' (Result c) False where
+instance (Component c) => Delete' (Result c) True where
   delete' :: Result c -> System ()
   delete' result = remove (C @c) (entityOf result)
 
-instance (Component c) => Delete' (Result (Rel c)) True where
+instance (Component c) => Delete' (Result (Rel c)) False where
   delete' :: Result (Rel c) -> System ()
   delete' result = remove (R @c result.target) (entityOf result)
 

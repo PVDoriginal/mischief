@@ -73,29 +73,16 @@ data Baz = Baz deriving (Plugin, Eq)
 
 setup :: System ()
 setup = do
-  _ <- spawn (A 5, Name "Lol")
-  c <- spawn (A 6, Name "Lmao")
-  b <- spawn (A 7, Name "wow")
-  _ <- spawn (A 4, Name "idk")
+  a <- spawn (A 5, Name "Lol")
+  b <- spawn (A 6, Name "Lmao")
+  c <- spawn (A 7, Name "wow")
+  d <- spawn (A 4, Name "idk")
 
-  remove (C @B) c
+  insert (Rel (TestRel2 5) a) b
+  Just q <- get (R @TestRel2 a) b
+  set q $ TestRel2 6
 
-  e <- spawn (A 5)
-  insert (Name "") e
-
-  q <- query' (C @Name) (With @A, Without @B)
-
-  traverse_ (info . text) q
-
-  info $ text e
-
-  x <- spawn (Rel TestRel e)
-  despawn e
-  (err . text) =<< isAlive x
-
-  y <- spawn (Rel (TestRel2 5) e, Rel (TestRel2 7) b)
-  remove (R @TestRel2 b) y
-  (err . text) =<< get (R @TestRel2 Any) y
+  (err . text) =<< get (R @TestRel2 Any) b
 
 dummy :: System ()
 dummy = return ()
