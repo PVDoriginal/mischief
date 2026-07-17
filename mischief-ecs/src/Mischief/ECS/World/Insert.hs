@@ -80,21 +80,11 @@ insert bundle entity =
 
 getOrInsert :: forall qd. (Queryable qd (Result qd), Bundle qd) => qd -> Entity -> System (Result qd)
 getOrInsert val entity = do
-  g <- get @qd entity
+  g <- get val entity
   case g of
     Just g -> return g
     Nothing -> do
       insert val entity
-      return $ Result (val, entity)
-
-resOrInsert :: forall c. (Queryable c (Result c), Component c, Bundle c) => c -> System (Result c)
-resOrInsert val = do
-  r <- res @c
-  case r of
-    Just r -> return r
-    Nothing -> do
-      insertRes val
-      entity <- meta @c
       return $ Result (val, entity)
 
 -- | Insert a bundle of components on an Entity.
@@ -148,9 +138,9 @@ insertRes res = do
 set :: (Bundle c) => Result c -> c -> System ()
 set !result !newValue = Mischief.ECS.World.Insert.insert newValue (entityOf result)
 
-setIfNeq :: forall c. (Bundle c, Queryable c (Result c), Eq c) => Result c -> c -> System ()
+setIfNeq :: forall c. (Bundle c, Queryable (C c) (Result c), Eq c) => Result c -> c -> System ()
 setIfNeq !result !newValue = do
-  curr <- get @c (entityOf result)
+  curr <- get (C @c) (entityOf result)
   case curr of
     Nothing -> warn $ "SetIfNeq failed: Entity " <> text (entityOf result) <> " is not alive."
     Just curr ->
@@ -161,8 +151,8 @@ setIfNeq !result !newValue = do
 --
 -- Useful if you've done changed to the component and want to grab the live value
 -- without re-querying.
-update :: forall c output. (Queryable c output) => Result c -> System (Maybe output)
-update c = get @c (entityOf c)
+update :: forall c. (Queryable (C c) (Result c)) => Result c -> System (Maybe (Result c))
+update c = get (C @c) (entityOf c)
 
 triggerInsertEvent :: ProcessedBundleData -> Entity -> System ()
 triggerInsertEvent bundle entity =

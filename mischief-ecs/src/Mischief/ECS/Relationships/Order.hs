@@ -12,6 +12,7 @@ import Mischief.ECS.Utils
 import Mischief.ECS.World
 import Mischief.ECS.World.Insert
 import Mischief.ECS.World.Query
+import Mischief.ECS.World.Query.QueryFilter
 import Mischief.ECS.World.Query.Queryable
 import Mischief.ECS.World.Remove
 import Mischief.ECS.World.Spawn
@@ -40,5 +41,5 @@ orderEntitiesStep entities =
 
 isAvailable :: Entity -> System Bool
 isAvailable entity = do
-  before <- query' @Entity $ withRel @Before entity
-  isNothing <$> findM ((not . unwrap <$>) . (get @(Has Visited))) before
+  before <- query' (C @Entity) (WithR @Before entity)
+  isNothing <$> findM ((not . unwrap <$>) . get (Has @Visited)) before

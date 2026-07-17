@@ -18,6 +18,7 @@ import Data.Maybe
 import Mischief.ECS.Collectable
 import Mischief.ECS.Components
 import Mischief.ECS.Components.Bundle
+import Mischief.ECS.Components.Common
 import Mischief.ECS.Components.Hooks
 import Mischief.ECS.Entities
 import Mischief.ECS.Events
@@ -27,6 +28,7 @@ import Mischief.ECS.Utils
 import Mischief.ECS.World
 import Mischief.ECS.World.Insert
 import Mischief.ECS.World.Query
+import Mischief.ECS.World.Query.Queryable
 import Mischief.ECS.World.Remove
 import Mischief.ECS.World.Spawn
 import Mischief.ECS.World.Utils
@@ -42,7 +44,7 @@ relComplementary f = collect (insertComplementary f, removeComplementary @b @a)
 insertComplementary :: forall (a :: Type) b. (Component b, Component a) => (a -> b) -> OnInsertRel a -> System ()
 insertComplementary f event = do
   warn $ text event.target
-  Just val <- pickRel event.target . unwrap <$> get @(Rel a) event.entity
+  Just val <- pickRel event.target . unwrap <$> get (R @a Any) event.entity
   insert (Rel (f $ value val, event.entity)) event.target
 
 removeComplementary :: forall b a. (Component b) => OnRemoveRel a -> System ()
@@ -77,5 +79,5 @@ instance (Component c) => Component (CleanupWatcher c) where
 
 triggerCleanup :: forall c. (Component c) => OnRemoveRel (CleanupWatcher c) -> System ()
 triggerCleanup e = do
-  Just watcher <- pickRel e.target . unwrap <$> get @(Rel (CleanupWatcher c)) e.entity
+  Just watcher <- pickRel e.target . unwrap <$> get (R @(CleanupWatcher c) Any) e.entity
   (value watcher).function CleanupRequest {entity = e.target, target = e.entity}

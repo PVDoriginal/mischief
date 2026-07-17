@@ -22,6 +22,7 @@ import Mischief.ECS.Components.Spawn
 import Mischief.ECS.Hooks
 import Mischief.ECS.Hooks qualified as Hooks
 import Mischief.ECS.Systems qualified as Systems
+import Mischief.ECS.World.Query.QueryFilter
 import Mischief.ECS.World.Utils
 import System.Exit (exitSuccess)
 
@@ -33,11 +34,11 @@ instance Component A where
 data B = B deriving (Show, Generic, Default)
 
 instance Component B where
-  required = require @C
+  required = require @E
 
-data C = C deriving (Generic, Default, Show)
+data E = E deriving (Generic, Default, Show)
 
-instance Component C where
+instance Component E where
   required = require @()
 
 data TestRel = TestRel
@@ -80,7 +81,7 @@ setup = do
   e <- spawn (A 5)
   insert (Name "") e
 
-  q <- query' @Name $ with @A &. neg (without @B)
+  q <- query' (C @Name) (With @A, Without @B)
 
   traverse_ (info . text) q
 

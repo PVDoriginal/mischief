@@ -8,7 +8,6 @@ import Data.Data
 import Data.Maybe
 import Data.Set (Set)
 import Data.Set qualified as Set
-import Data.Traversable
 import Mischief.ECS.Components
 import Mischief.ECS.Entities
 import Mischief.ECS.Mappable
@@ -28,6 +27,30 @@ data Val a = Val a
 
 data C a = C
 
+class CQuery flag c output | flag c -> output where
+  runQueryEntityC :: qd -> World -> Entity -> IO (Maybe output)
+  runQueryInternalC :: qd -> [ArchetypeId] -> World -> IO [(Entity, output)]
+  queryTypesC :: qd -> Set (TypeRep, TypeQuery)
+
+instance (Component c) => CQuery HTrue c (Result c) where
+  runQueryEntityC _ world entity = do
+    result <- tryGetEntityComponent @c world entity
+    return $ case result of
+      Just (Just res) -> Just $ Result (res, entity)
+      _ -> Nothing
+
+  runQueryInternalC _ archetypes world = tryGetComponents @c world archetypes
+
+  queryTypesC _ = Set.singleton (typeRep (Proxy @c), CompQ)
+
+instance CQuery HFalse Entity Entity where
+  runQueryEntityC _ _ entity = pure (Just entity)
+  runQueryInternalC _ archetypes world = do
+    results <- tryGetComponents @Entity world archetypes
+    pure $ fmap (\cr -> (fst cr, fst cr)) results
+
+  queryTypesC _ = Set.empty
+
 newtype R a b = R b
 
 data Any = Any
@@ -41,18 +64,26 @@ class Queryable qd output | qd -> output where
   runQueryInternal :: qd -> [ArchetypeId] -> World -> IO [(Entity, output)]
   queryTypes :: qd -> Set (TypeRep, TypeQuery)
 
-instance (Component c) => Queryable (C c) (Result c) where
-  runQueryEntity :: C c -> World -> Entity -> IO (Maybe (Result c))
-  runQueryEntity _ world entity = do
-    result <- tryGetEntityComponent @c world entity
-    return $ case result of
-      Just (Just res) -> Just $ Result (res, entity)
-      _ -> Nothing
+data HTrue
 
-  runQueryInternal :: C c -> [ArchetypeId] -> World -> IO [(Entity, Result c)]
-  runQueryInternal _ archetypes world = tryGetComponents @c world archetypes
+data HFalse
 
-  queryTypes c = Set.singleton (typeRep c, CompQ)
+type family IsComponentC c where
+  IsComponentC Entity = HFalse
+  IsComponentC a = HTrue
+
+instance {-# OVERLAPPABLE #-} (CQuery (IsComponentC c) c o) => Queryable (C c) o where
+  runQueryEntity = runQueryEntityC @(IsComponentC c) @c
+  runQueryInternal = runQueryInternalC @(IsComponentC c) @c
+  queryTypes = queryTypesC @(IsComponentC c) @c
+
+-- instance {-# OVERLAPPING #-} Queryable (C Entity) Entity where
+--   runQueryEntity _ _ entity = pure (Just entity)
+--   runQueryInternal _ archetypes world = do
+--     results <- tryGetComponents @Entity world archetypes
+--     pure $ fmap (\cr -> (fst cr, fst cr)) results
+
+--   queryTypes _ = Set.empty
 
 instance (Component c) => Queryable (R c Any) [RelResult c] where
   runQueryEntity _ world entity = do
@@ -151,14 +182,6 @@ instance (Component c) => Queryable (HasR c Entity) Bool where
 
   queryTypes _ = Set.empty
 
-instance Queryable Entity Entity where
-  runQueryEntity _ _ entity = pure (Just entity)
-  runQueryInternal _ archetypes world = do
-    results <- tryGetComponents @Entity world archetypes
-    pure $ fmap (\cr -> (fst cr, fst cr)) results
-
-  queryTypes _ = Set.empty
-
 instance (Queryable qd out, Mappable MapQueryVal out out') => Queryable (Val qd) out' where
   runQueryEntity (Val qd) b c = do
     x <- runQueryEntity qd b c
@@ -183,3 +206,380 @@ instance {-# OVERLAPPING #-} (Queryable q0 o0, Queryable q1 o1) => Queryable (q0
     return $ map (\((e0, r0), (_, r1)) -> (e0, (r0, r1))) $ getZipList $ (,) <$> ZipList r0 <*> ZipList r1
 
   queryTypes (q0, q1) = Set.unions [queryTypes q0, queryTypes q1]
+
+instance {-# OVERLAPPING #-} (Queryable q0 o0, Queryable q1 o1, Queryable q2 o2) => Queryable (q0, q1, q2) (o0, o1, o2) where
+  runQueryEntity (q0, q1, q2) world entity = do
+    r0 <- runQueryEntity q0 world entity
+    r1 <- runQueryEntity q1 world entity
+    r2 <- runQueryEntity q2 world entity
+
+    return $ (,,) <$> r0 <*> r1 <*> r2
+
+  runQueryInternal (q0, q1, q2) archetypes world = do
+    r0 <- runQueryInternal q0 archetypes world
+    r1 <- runQueryInternal q1 archetypes world
+    r2 <- runQueryInternal q2 archetypes world
+
+    return $ map (\((e0, r0), (_, r1), (_, r2)) -> (e0, (r0, r1, r2))) $ getZipList $ (,,) <$> ZipList r0 <*> ZipList r1 <*> ZipList r2
+
+  queryTypes (q0, q1, q2) = Set.unions [queryTypes q0, queryTypes q1, queryTypes q2]
+
+instance {-# OVERLAPPING #-} (Queryable q0 o0, Queryable q1 o1, Queryable q2 o2, Queryable q3 o3) => Queryable (q0, q1, q2, q3) (o0, o1, o2, o3) where
+  runQueryEntity (q0, q1, q2, q3) world entity = do
+    r0 <- runQueryEntity q0 world entity
+    r1 <- runQueryEntity q1 world entity
+    r2 <- runQueryEntity q2 world entity
+    r3 <- runQueryEntity q3 world entity
+
+    return $ (,,,) <$> r0 <*> r1 <*> r2 <*> r3
+
+  runQueryInternal (q0, q1, q2, q3) archetypes world = do
+    r0 <- runQueryInternal q0 archetypes world
+    r1 <- runQueryInternal q1 archetypes world
+    r2 <- runQueryInternal q2 archetypes world
+    r3 <- runQueryInternal q3 archetypes world
+
+    return $ map (\((e0, r0), (_, r1), (_, r2), (_, r3)) -> (e0, (r0, r1, r2, r3))) $ getZipList $ (,,,) <$> ZipList r0 <*> ZipList r1 <*> ZipList r2 <*> ZipList r3
+
+  queryTypes (q0, q1, q2, q3) = Set.unions [queryTypes q0, queryTypes q1, queryTypes q2, queryTypes q3]
+
+instance {-# OVERLAPPING #-} (Queryable q0 o0, Queryable q1 o1, Queryable q2 o2, Queryable q3 o3, Queryable q4 o4) => Queryable (q0, q1, q2, q3, q4) (o0, o1, o2, o3, o4) where
+  runQueryEntity (q0, q1, q2, q3, q4) world entity = do
+    r0 <- runQueryEntity q0 world entity
+    r1 <- runQueryEntity q1 world entity
+    r2 <- runQueryEntity q2 world entity
+    r3 <- runQueryEntity q3 world entity
+    r4 <- runQueryEntity q4 world entity
+
+    return $ (,,,,) <$> r0 <*> r1 <*> r2 <*> r3 <*> r4
+
+  runQueryInternal (q0, q1, q2, q3, q4) archetypes world = do
+    r0 <- runQueryInternal q0 archetypes world
+    r1 <- runQueryInternal q1 archetypes world
+    r2 <- runQueryInternal q2 archetypes world
+    r3 <- runQueryInternal q3 archetypes world
+    r4 <- runQueryInternal q4 archetypes world
+
+    return $ map (\((e0, r0), (_, r1), (_, r2), (_, r3), (_, r4)) -> (e0, (r0, r1, r2, r3, r4))) $ getZipList $ (,,,,) <$> ZipList r0 <*> ZipList r1 <*> ZipList r2 <*> ZipList r3 <*> ZipList r4
+
+  queryTypes (q0, q1, q2, q3, q4) = Set.unions [queryTypes q0, queryTypes q1, queryTypes q2, queryTypes q3, queryTypes q4]
+
+instance {-# OVERLAPPING #-} (Queryable q0 o0, Queryable q1 o1, Queryable q2 o2, Queryable q3 o3, Queryable q4 o4, Queryable q5 o5) => Queryable (q0, q1, q2, q3, q4, q5) (o0, o1, o2, o3, o4, o5) where
+  runQueryEntity (q0, q1, q2, q3, q4, q5) world entity = do
+    r0 <- runQueryEntity q0 world entity
+    r1 <- runQueryEntity q1 world entity
+    r2 <- runQueryEntity q2 world entity
+    r3 <- runQueryEntity q3 world entity
+    r4 <- runQueryEntity q4 world entity
+    r5 <- runQueryEntity q5 world entity
+
+    return $ (,,,,,) <$> r0 <*> r1 <*> r2 <*> r3 <*> r4 <*> r5
+
+  runQueryInternal (q0, q1, q2, q3, q4, q5) archetypes world = do
+    r0 <- runQueryInternal q0 archetypes world
+    r1 <- runQueryInternal q1 archetypes world
+    r2 <- runQueryInternal q2 archetypes world
+    r3 <- runQueryInternal q3 archetypes world
+    r4 <- runQueryInternal q4 archetypes world
+    r5 <- runQueryInternal q5 archetypes world
+
+    return $ map (\((e0, r0), (_, r1), (_, r2), (_, r3), (_, r4), (_, r5)) -> (e0, (r0, r1, r2, r3, r4, r5))) $ getZipList $ (,,,,,) <$> ZipList r0 <*> ZipList r1 <*> ZipList r2 <*> ZipList r3 <*> ZipList r4 <*> ZipList r5
+
+  queryTypes (q0, q1, q2, q3, q4, q5) = Set.unions [queryTypes q0, queryTypes q1, queryTypes q2, queryTypes q3, queryTypes q4, queryTypes q5]
+
+instance {-# OVERLAPPING #-} (Queryable q0 o0, Queryable q1 o1, Queryable q2 o2, Queryable q3 o3, Queryable q4 o4, Queryable q5 o5, Queryable q6 o6) => Queryable (q0, q1, q2, q3, q4, q5, q6) (o0, o1, o2, o3, o4, o5, o6) where
+  runQueryEntity (q0, q1, q2, q3, q4, q5, q6) world entity = do
+    r0 <- runQueryEntity q0 world entity
+    r1 <- runQueryEntity q1 world entity
+    r2 <- runQueryEntity q2 world entity
+    r3 <- runQueryEntity q3 world entity
+    r4 <- runQueryEntity q4 world entity
+    r5 <- runQueryEntity q5 world entity
+    r6 <- runQueryEntity q6 world entity
+
+    return $ (,,,,,,) <$> r0 <*> r1 <*> r2 <*> r3 <*> r4 <*> r5 <*> r6
+
+  runQueryInternal (q0, q1, q2, q3, q4, q5, q6) archetypes world = do
+    r0 <- runQueryInternal q0 archetypes world
+    r1 <- runQueryInternal q1 archetypes world
+    r2 <- runQueryInternal q2 archetypes world
+    r3 <- runQueryInternal q3 archetypes world
+    r4 <- runQueryInternal q4 archetypes world
+    r5 <- runQueryInternal q5 archetypes world
+    r6 <- runQueryInternal q6 archetypes world
+
+    return $ map (\((e0, r0), (_, r1), (_, r2), (_, r3), (_, r4), (_, r5), (_, r6)) -> (e0, (r0, r1, r2, r3, r4, r5, r6))) $ getZipList $ (,,,,,,) <$> ZipList r0 <*> ZipList r1 <*> ZipList r2 <*> ZipList r3 <*> ZipList r4 <*> ZipList r5 <*> ZipList r6
+
+  queryTypes (q0, q1, q2, q3, q4, q5, q6) = Set.unions [queryTypes q0, queryTypes q1, queryTypes q2, queryTypes q3, queryTypes q4, queryTypes q5, queryTypes q6]
+
+instance {-# OVERLAPPING #-} (Queryable q0 o0, Queryable q1 o1, Queryable q2 o2, Queryable q3 o3, Queryable q4 o4, Queryable q5 o5, Queryable q6 o6, Queryable q7 o7) => Queryable (q0, q1, q2, q3, q4, q5, q6, q7) (o0, o1, o2, o3, o4, o5, o6, o7) where
+  runQueryEntity (q0, q1, q2, q3, q4, q5, q6, q7) world entity = do
+    r0 <- runQueryEntity q0 world entity
+    r1 <- runQueryEntity q1 world entity
+    r2 <- runQueryEntity q2 world entity
+    r3 <- runQueryEntity q3 world entity
+    r4 <- runQueryEntity q4 world entity
+    r5 <- runQueryEntity q5 world entity
+    r6 <- runQueryEntity q6 world entity
+    r7 <- runQueryEntity q7 world entity
+
+    return $ (,,,,,,,) <$> r0 <*> r1 <*> r2 <*> r3 <*> r4 <*> r5 <*> r6 <*> r7
+
+  runQueryInternal (q0, q1, q2, q3, q4, q5, q6, q7) archetypes world = do
+    r0 <- runQueryInternal q0 archetypes world
+    r1 <- runQueryInternal q1 archetypes world
+    r2 <- runQueryInternal q2 archetypes world
+    r3 <- runQueryInternal q3 archetypes world
+    r4 <- runQueryInternal q4 archetypes world
+    r5 <- runQueryInternal q5 archetypes world
+    r6 <- runQueryInternal q6 archetypes world
+    r7 <- runQueryInternal q7 archetypes world
+
+    return $ map (\((e0, r0), (_, r1), (_, r2), (_, r3), (_, r4), (_, r5), (_, r6), (_, r7)) -> (e0, (r0, r1, r2, r3, r4, r5, r6, r7))) $ getZipList $ (,,,,,,,) <$> ZipList r0 <*> ZipList r1 <*> ZipList r2 <*> ZipList r3 <*> ZipList r4 <*> ZipList r5 <*> ZipList r6 <*> ZipList r7
+
+  queryTypes (q0, q1, q2, q3, q4, q5, q6, q7) = Set.unions [queryTypes q0, queryTypes q1, queryTypes q2, queryTypes q3, queryTypes q4, queryTypes q5, queryTypes q6, queryTypes q7]
+
+instance {-# OVERLAPPING #-} (Queryable q0 o0, Queryable q1 o1, Queryable q2 o2, Queryable q3 o3, Queryable q4 o4, Queryable q5 o5, Queryable q6 o6, Queryable q7 o7, Queryable q8 o8) => Queryable (q0, q1, q2, q3, q4, q5, q6, q7, q8) (o0, o1, o2, o3, o4, o5, o6, o7, o8) where
+  runQueryEntity (q0, q1, q2, q3, q4, q5, q6, q7, q8) world entity = do
+    r0 <- runQueryEntity q0 world entity
+    r1 <- runQueryEntity q1 world entity
+    r2 <- runQueryEntity q2 world entity
+    r3 <- runQueryEntity q3 world entity
+    r4 <- runQueryEntity q4 world entity
+    r5 <- runQueryEntity q5 world entity
+    r6 <- runQueryEntity q6 world entity
+    r7 <- runQueryEntity q7 world entity
+    r8 <- runQueryEntity q8 world entity
+
+    return $ (,,,,,,,,) <$> r0 <*> r1 <*> r2 <*> r3 <*> r4 <*> r5 <*> r6 <*> r7 <*> r8
+
+  runQueryInternal (q0, q1, q2, q3, q4, q5, q6, q7, q8) archetypes world = do
+    r0 <- runQueryInternal q0 archetypes world
+    r1 <- runQueryInternal q1 archetypes world
+    r2 <- runQueryInternal q2 archetypes world
+    r3 <- runQueryInternal q3 archetypes world
+    r4 <- runQueryInternal q4 archetypes world
+    r5 <- runQueryInternal q5 archetypes world
+    r6 <- runQueryInternal q6 archetypes world
+    r7 <- runQueryInternal q7 archetypes world
+    r8 <- runQueryInternal q8 archetypes world
+
+    return $ map (\((e0, r0), (_, r1), (_, r2), (_, r3), (_, r4), (_, r5), (_, r6), (_, r7), (_, r8)) -> (e0, (r0, r1, r2, r3, r4, r5, r6, r7, r8))) $ getZipList $ (,,,,,,,,) <$> ZipList r0 <*> ZipList r1 <*> ZipList r2 <*> ZipList r3 <*> ZipList r4 <*> ZipList r5 <*> ZipList r6 <*> ZipList r7 <*> ZipList r8
+
+  queryTypes (q0, q1, q2, q3, q4, q5, q6, q7, q8) = Set.unions [queryTypes q0, queryTypes q1, queryTypes q2, queryTypes q3, queryTypes q4, queryTypes q5, queryTypes q6, queryTypes q7, queryTypes q8]
+
+instance {-# OVERLAPPING #-} (Queryable q0 o0, Queryable q1 o1, Queryable q2 o2, Queryable q3 o3, Queryable q4 o4, Queryable q5 o5, Queryable q6 o6, Queryable q7 o7, Queryable q8 o8, Queryable q9 o9) => Queryable (q0, q1, q2, q3, q4, q5, q6, q7, q8, q9) (o0, o1, o2, o3, o4, o5, o6, o7, o8, o9) where
+  runQueryEntity (q0, q1, q2, q3, q4, q5, q6, q7, q8, q9) world entity = do
+    r0 <- runQueryEntity q0 world entity
+    r1 <- runQueryEntity q1 world entity
+    r2 <- runQueryEntity q2 world entity
+    r3 <- runQueryEntity q3 world entity
+    r4 <- runQueryEntity q4 world entity
+    r5 <- runQueryEntity q5 world entity
+    r6 <- runQueryEntity q6 world entity
+    r7 <- runQueryEntity q7 world entity
+    r8 <- runQueryEntity q8 world entity
+    r9 <- runQueryEntity q9 world entity
+
+    return $ (,,,,,,,,,) <$> r0 <*> r1 <*> r2 <*> r3 <*> r4 <*> r5 <*> r6 <*> r7 <*> r8 <*> r9
+
+  runQueryInternal (q0, q1, q2, q3, q4, q5, q6, q7, q8, q9) archetypes world = do
+    r0 <- runQueryInternal q0 archetypes world
+    r1 <- runQueryInternal q1 archetypes world
+    r2 <- runQueryInternal q2 archetypes world
+    r3 <- runQueryInternal q3 archetypes world
+    r4 <- runQueryInternal q4 archetypes world
+    r5 <- runQueryInternal q5 archetypes world
+    r6 <- runQueryInternal q6 archetypes world
+    r7 <- runQueryInternal q7 archetypes world
+    r8 <- runQueryInternal q8 archetypes world
+    r9 <- runQueryInternal q9 archetypes world
+
+    return $ map (\((e0, r0), (_, r1), (_, r2), (_, r3), (_, r4), (_, r5), (_, r6), (_, r7), (_, r8), (_, r9)) -> (e0, (r0, r1, r2, r3, r4, r5, r6, r7, r8, r9))) $ getZipList $ (,,,,,,,,,) <$> ZipList r0 <*> ZipList r1 <*> ZipList r2 <*> ZipList r3 <*> ZipList r4 <*> ZipList r5 <*> ZipList r6 <*> ZipList r7 <*> ZipList r8 <*> ZipList r9
+
+  queryTypes (q0, q1, q2, q3, q4, q5, q6, q7, q8, q9) = Set.unions [queryTypes q0, queryTypes q1, queryTypes q2, queryTypes q3, queryTypes q4, queryTypes q5, queryTypes q6, queryTypes q7, queryTypes q8, queryTypes q9]
+
+instance {-# OVERLAPPING #-} (Queryable q0 o0, Queryable q1 o1, Queryable q2 o2, Queryable q3 o3, Queryable q4 o4, Queryable q5 o5, Queryable q6 o6, Queryable q7 o7, Queryable q8 o8, Queryable q9 o9, Queryable q10 o10) => Queryable (q0, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10) (o0, o1, o2, o3, o4, o5, o6, o7, o8, o9, o10) where
+  runQueryEntity (q0, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10) world entity = do
+    r0 <- runQueryEntity q0 world entity
+    r1 <- runQueryEntity q1 world entity
+    r2 <- runQueryEntity q2 world entity
+    r3 <- runQueryEntity q3 world entity
+    r4 <- runQueryEntity q4 world entity
+    r5 <- runQueryEntity q5 world entity
+    r6 <- runQueryEntity q6 world entity
+    r7 <- runQueryEntity q7 world entity
+    r8 <- runQueryEntity q8 world entity
+    r9 <- runQueryEntity q9 world entity
+    r10 <- runQueryEntity q10 world entity
+
+    return $ (,,,,,,,,,,) <$> r0 <*> r1 <*> r2 <*> r3 <*> r4 <*> r5 <*> r6 <*> r7 <*> r8 <*> r9 <*> r10
+
+  runQueryInternal (q0, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10) archetypes world = do
+    r0 <- runQueryInternal q0 archetypes world
+    r1 <- runQueryInternal q1 archetypes world
+    r2 <- runQueryInternal q2 archetypes world
+    r3 <- runQueryInternal q3 archetypes world
+    r4 <- runQueryInternal q4 archetypes world
+    r5 <- runQueryInternal q5 archetypes world
+    r6 <- runQueryInternal q6 archetypes world
+    r7 <- runQueryInternal q7 archetypes world
+    r8 <- runQueryInternal q8 archetypes world
+    r9 <- runQueryInternal q9 archetypes world
+    r10 <- runQueryInternal q10 archetypes world
+
+    return $ map (\((e0, r0), (_, r1), (_, r2), (_, r3), (_, r4), (_, r5), (_, r6), (_, r7), (_, r8), (_, r9), (_, r10)) -> (e0, (r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10))) $ getZipList $ (,,,,,,,,,,) <$> ZipList r0 <*> ZipList r1 <*> ZipList r2 <*> ZipList r3 <*> ZipList r4 <*> ZipList r5 <*> ZipList r6 <*> ZipList r7 <*> ZipList r8 <*> ZipList r9 <*> ZipList r10
+
+  queryTypes (q0, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10) = Set.unions [queryTypes q0, queryTypes q1, queryTypes q2, queryTypes q3, queryTypes q4, queryTypes q5, queryTypes q6, queryTypes q7, queryTypes q8, queryTypes q9, queryTypes q10]
+
+instance {-# OVERLAPPING #-} (Queryable q0 o0, Queryable q1 o1, Queryable q2 o2, Queryable q3 o3, Queryable q4 o4, Queryable q5 o5, Queryable q6 o6, Queryable q7 o7, Queryable q8 o8, Queryable q9 o9, Queryable q10 o10, Queryable q11 o11) => Queryable (q0, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11) (o0, o1, o2, o3, o4, o5, o6, o7, o8, o9, o10, o11) where
+  runQueryEntity (q0, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11) world entity = do
+    r0 <- runQueryEntity q0 world entity
+    r1 <- runQueryEntity q1 world entity
+    r2 <- runQueryEntity q2 world entity
+    r3 <- runQueryEntity q3 world entity
+    r4 <- runQueryEntity q4 world entity
+    r5 <- runQueryEntity q5 world entity
+    r6 <- runQueryEntity q6 world entity
+    r7 <- runQueryEntity q7 world entity
+    r8 <- runQueryEntity q8 world entity
+    r9 <- runQueryEntity q9 world entity
+    r10 <- runQueryEntity q10 world entity
+    r11 <- runQueryEntity q11 world entity
+
+    return $ (,,,,,,,,,,,) <$> r0 <*> r1 <*> r2 <*> r3 <*> r4 <*> r5 <*> r6 <*> r7 <*> r8 <*> r9 <*> r10 <*> r11
+
+  runQueryInternal (q0, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11) archetypes world = do
+    r0 <- runQueryInternal q0 archetypes world
+    r1 <- runQueryInternal q1 archetypes world
+    r2 <- runQueryInternal q2 archetypes world
+    r3 <- runQueryInternal q3 archetypes world
+    r4 <- runQueryInternal q4 archetypes world
+    r5 <- runQueryInternal q5 archetypes world
+    r6 <- runQueryInternal q6 archetypes world
+    r7 <- runQueryInternal q7 archetypes world
+    r8 <- runQueryInternal q8 archetypes world
+    r9 <- runQueryInternal q9 archetypes world
+    r10 <- runQueryInternal q10 archetypes world
+    r11 <- runQueryInternal q11 archetypes world
+
+    return $ map (\((e0, r0), (_, r1), (_, r2), (_, r3), (_, r4), (_, r5), (_, r6), (_, r7), (_, r8), (_, r9), (_, r10), (_, r11)) -> (e0, (r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11))) $ getZipList $ (,,,,,,,,,,,) <$> ZipList r0 <*> ZipList r1 <*> ZipList r2 <*> ZipList r3 <*> ZipList r4 <*> ZipList r5 <*> ZipList r6 <*> ZipList r7 <*> ZipList r8 <*> ZipList r9 <*> ZipList r10 <*> ZipList r11
+
+  queryTypes (q0, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11) = Set.unions [queryTypes q0, queryTypes q1, queryTypes q2, queryTypes q3, queryTypes q4, queryTypes q5, queryTypes q6, queryTypes q7, queryTypes q8, queryTypes q9, queryTypes q10, queryTypes q11]
+
+instance {-# OVERLAPPING #-} (Queryable q0 o0, Queryable q1 o1, Queryable q2 o2, Queryable q3 o3, Queryable q4 o4, Queryable q5 o5, Queryable q6 o6, Queryable q7 o7, Queryable q8 o8, Queryable q9 o9, Queryable q10 o10, Queryable q11 o11, Queryable q12 o12) => Queryable (q0, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11, q12) (o0, o1, o2, o3, o4, o5, o6, o7, o8, o9, o10, o11, o12) where
+  runQueryEntity (q0, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11, q12) world entity = do
+    r0 <- runQueryEntity q0 world entity
+    r1 <- runQueryEntity q1 world entity
+    r2 <- runQueryEntity q2 world entity
+    r3 <- runQueryEntity q3 world entity
+    r4 <- runQueryEntity q4 world entity
+    r5 <- runQueryEntity q5 world entity
+    r6 <- runQueryEntity q6 world entity
+    r7 <- runQueryEntity q7 world entity
+    r8 <- runQueryEntity q8 world entity
+    r9 <- runQueryEntity q9 world entity
+    r10 <- runQueryEntity q10 world entity
+    r11 <- runQueryEntity q11 world entity
+    r12 <- runQueryEntity q12 world entity
+
+    return $ (,,,,,,,,,,,,) <$> r0 <*> r1 <*> r2 <*> r3 <*> r4 <*> r5 <*> r6 <*> r7 <*> r8 <*> r9 <*> r10 <*> r11 <*> r12
+
+  runQueryInternal (q0, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11, q12) archetypes world = do
+    r0 <- runQueryInternal q0 archetypes world
+    r1 <- runQueryInternal q1 archetypes world
+    r2 <- runQueryInternal q2 archetypes world
+    r3 <- runQueryInternal q3 archetypes world
+    r4 <- runQueryInternal q4 archetypes world
+    r5 <- runQueryInternal q5 archetypes world
+    r6 <- runQueryInternal q6 archetypes world
+    r7 <- runQueryInternal q7 archetypes world
+    r8 <- runQueryInternal q8 archetypes world
+    r9 <- runQueryInternal q9 archetypes world
+    r10 <- runQueryInternal q10 archetypes world
+    r11 <- runQueryInternal q11 archetypes world
+    r12 <- runQueryInternal q12 archetypes world
+
+    return $ map (\((e0, r0), (_, r1), (_, r2), (_, r3), (_, r4), (_, r5), (_, r6), (_, r7), (_, r8), (_, r9), (_, r10), (_, r11), (_, r12)) -> (e0, (r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12))) $ getZipList $ (,,,,,,,,,,,,) <$> ZipList r0 <*> ZipList r1 <*> ZipList r2 <*> ZipList r3 <*> ZipList r4 <*> ZipList r5 <*> ZipList r6 <*> ZipList r7 <*> ZipList r8 <*> ZipList r9 <*> ZipList r10 <*> ZipList r11 <*> ZipList r12
+
+  queryTypes (q0, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11, q12) = Set.unions [queryTypes q0, queryTypes q1, queryTypes q2, queryTypes q3, queryTypes q4, queryTypes q5, queryTypes q6, queryTypes q7, queryTypes q8, queryTypes q9, queryTypes q10, queryTypes q11, queryTypes q12]
+
+instance {-# OVERLAPPING #-} (Queryable q0 o0, Queryable q1 o1, Queryable q2 o2, Queryable q3 o3, Queryable q4 o4, Queryable q5 o5, Queryable q6 o6, Queryable q7 o7, Queryable q8 o8, Queryable q9 o9, Queryable q10 o10, Queryable q11 o11, Queryable q12 o12, Queryable q13 o13) => Queryable (q0, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11, q12, q13) (o0, o1, o2, o3, o4, o5, o6, o7, o8, o9, o10, o11, o12, o13) where
+  runQueryEntity (q0, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11, q12, q13) world entity = do
+    r0 <- runQueryEntity q0 world entity
+    r1 <- runQueryEntity q1 world entity
+    r2 <- runQueryEntity q2 world entity
+    r3 <- runQueryEntity q3 world entity
+    r4 <- runQueryEntity q4 world entity
+    r5 <- runQueryEntity q5 world entity
+    r6 <- runQueryEntity q6 world entity
+    r7 <- runQueryEntity q7 world entity
+    r8 <- runQueryEntity q8 world entity
+    r9 <- runQueryEntity q9 world entity
+    r10 <- runQueryEntity q10 world entity
+    r11 <- runQueryEntity q11 world entity
+    r12 <- runQueryEntity q12 world entity
+    r13 <- runQueryEntity q13 world entity
+
+    return $ (,,,,,,,,,,,,,) <$> r0 <*> r1 <*> r2 <*> r3 <*> r4 <*> r5 <*> r6 <*> r7 <*> r8 <*> r9 <*> r10 <*> r11 <*> r12 <*> r13
+
+  runQueryInternal (q0, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11, q12, q13) archetypes world = do
+    r0 <- runQueryInternal q0 archetypes world
+    r1 <- runQueryInternal q1 archetypes world
+    r2 <- runQueryInternal q2 archetypes world
+    r3 <- runQueryInternal q3 archetypes world
+    r4 <- runQueryInternal q4 archetypes world
+    r5 <- runQueryInternal q5 archetypes world
+    r6 <- runQueryInternal q6 archetypes world
+    r7 <- runQueryInternal q7 archetypes world
+    r8 <- runQueryInternal q8 archetypes world
+    r9 <- runQueryInternal q9 archetypes world
+    r10 <- runQueryInternal q10 archetypes world
+    r11 <- runQueryInternal q11 archetypes world
+    r12 <- runQueryInternal q12 archetypes world
+    r13 <- runQueryInternal q13 archetypes world
+
+    return $ map (\((e0, r0), (_, r1), (_, r2), (_, r3), (_, r4), (_, r5), (_, r6), (_, r7), (_, r8), (_, r9), (_, r10), (_, r11), (_, r12), (_, r13)) -> (e0, (r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13))) $ getZipList $ (,,,,,,,,,,,,,) <$> ZipList r0 <*> ZipList r1 <*> ZipList r2 <*> ZipList r3 <*> ZipList r4 <*> ZipList r5 <*> ZipList r6 <*> ZipList r7 <*> ZipList r8 <*> ZipList r9 <*> ZipList r10 <*> ZipList r11 <*> ZipList r12 <*> ZipList r13
+
+  queryTypes (q0, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11, q12, q13) = Set.unions [queryTypes q0, queryTypes q1, queryTypes q2, queryTypes q3, queryTypes q4, queryTypes q5, queryTypes q6, queryTypes q7, queryTypes q8, queryTypes q9, queryTypes q10, queryTypes q11, queryTypes q12, queryTypes q13]
+
+instance {-# OVERLAPPING #-} (Queryable q0 o0, Queryable q1 o1, Queryable q2 o2, Queryable q3 o3, Queryable q4 o4, Queryable q5 o5, Queryable q6 o6, Queryable q7 o7, Queryable q8 o8, Queryable q9 o9, Queryable q10 o10, Queryable q11 o11, Queryable q12 o12, Queryable q13 o13, Queryable q14 o14) => Queryable (q0, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11, q12, q13, q14) (o0, o1, o2, o3, o4, o5, o6, o7, o8, o9, o10, o11, o12, o13, o14) where
+  runQueryEntity (q0, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11, q12, q13, q14) world entity = do
+    r0 <- runQueryEntity q0 world entity
+    r1 <- runQueryEntity q1 world entity
+    r2 <- runQueryEntity q2 world entity
+    r3 <- runQueryEntity q3 world entity
+    r4 <- runQueryEntity q4 world entity
+    r5 <- runQueryEntity q5 world entity
+    r6 <- runQueryEntity q6 world entity
+    r7 <- runQueryEntity q7 world entity
+    r8 <- runQueryEntity q8 world entity
+    r9 <- runQueryEntity q9 world entity
+    r10 <- runQueryEntity q10 world entity
+    r11 <- runQueryEntity q11 world entity
+    r12 <- runQueryEntity q12 world entity
+    r13 <- runQueryEntity q13 world entity
+    r14 <- runQueryEntity q14 world entity
+
+    return $ (,,,,,,,,,,,,,,) <$> r0 <*> r1 <*> r2 <*> r3 <*> r4 <*> r5 <*> r6 <*> r7 <*> r8 <*> r9 <*> r10 <*> r11 <*> r12 <*> r13 <*> r14
+
+  runQueryInternal (q0, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11, q12, q13, q14) archetypes world = do
+    r0 <- runQueryInternal q0 archetypes world
+    r1 <- runQueryInternal q1 archetypes world
+    r2 <- runQueryInternal q2 archetypes world
+    r3 <- runQueryInternal q3 archetypes world
+    r4 <- runQueryInternal q4 archetypes world
+    r5 <- runQueryInternal q5 archetypes world
+    r6 <- runQueryInternal q6 archetypes world
+    r7 <- runQueryInternal q7 archetypes world
+    r8 <- runQueryInternal q8 archetypes world
+    r9 <- runQueryInternal q9 archetypes world
+    r10 <- runQueryInternal q10 archetypes world
+    r11 <- runQueryInternal q11 archetypes world
+    r12 <- runQueryInternal q12 archetypes world
+    r13 <- runQueryInternal q13 archetypes world
+    r14 <- runQueryInternal q14 archetypes world
+
+    return $ map (\((e0, r0), (_, r1), (_, r2), (_, r3), (_, r4), (_, r5), (_, r6), (_, r7), (_, r8), (_, r9), (_, r10), (_, r11), (_, r12), (_, r13), (_, r14)) -> (e0, (r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14))) $ getZipList $ (,,,,,,,,,,,,,,) <$> ZipList r0 <*> ZipList r1 <*> ZipList r2 <*> ZipList r3 <*> ZipList r4 <*> ZipList r5 <*> ZipList r6 <*> ZipList r7 <*> ZipList r8 <*> ZipList r9 <*> ZipList r10 <*> ZipList r11 <*> ZipList r12 <*> ZipList r13 <*> ZipList r14
+
+  queryTypes (q0, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11, q12, q13, q14) = Set.unions [queryTypes q0, queryTypes q1, queryTypes q2, queryTypes q3, queryTypes q4, queryTypes q5, queryTypes q6, queryTypes q7, queryTypes q8, queryTypes q9, queryTypes q10, queryTypes q11, queryTypes q12, queryTypes q13, queryTypes q14]

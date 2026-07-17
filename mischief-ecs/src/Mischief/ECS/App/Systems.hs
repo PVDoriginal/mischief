@@ -100,7 +100,7 @@ getSystemTicks world = do
   let (SystemId sys) = world.systemId
   runSystem
     ( do
-        Just (a, b) <- get @(LastSystemTick, SystemTick) sys
+        Just (a, b) <- get (C @LastSystemTick, C @SystemTick) sys
         return (a.inner, b.inner)
     )
     world

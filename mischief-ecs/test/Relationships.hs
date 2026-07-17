@@ -19,14 +19,6 @@ data Parent1 = Parent1 deriving (Component)
 
 data Parent2 = Parent2 deriving (Component)
 
-data A = A {lol :: Int, lol2 :: C}
-
-type A# = (# Int#, C# #)
-
-data C = C Float Int
-
-type C# = (# Float#, Int# #)
-
 -- testRelationships :: IO ()
 -- testRelationships = do
 --   app <- newApp plugin

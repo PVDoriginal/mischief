@@ -31,6 +31,8 @@ import Mischief.ECS.World
 import Mischief.ECS.World.Defer
 import Mischief.ECS.World.Insert
 import Mischief.ECS.World.Query
+import Mischief.ECS.World.Query.QueryFilter
+import Mischief.ECS.World.Query.Queryable
 
 data App = App
   { world :: World,
@@ -51,9 +53,9 @@ newApp plugin = do
 
 runApp :: App -> IO ()
 runApp app = flip runSystem app.world $ do
-  startups <- orderEntities =<< (query' @Entity $ with @StartupSchedule)
+  startups <- orderEntities =<< query' (C @Entity) (With @StartupSchedule)
   err $ text startups
-  updates <- orderEntities =<< (query' @Entity $ with @UpdateSchedule)
+  updates <- orderEntities =<< query' (C @Entity) (with @UpdateSchedule)
 
   liftIO $ runSchedules startups
   liftIO $ runSchedulesLoop updates
@@ -73,10 +75,10 @@ runSchedule sch = scheduleEntity sch >>= runSchedule'
 runSchedule' :: Entity -> System ()
 runSchedule' schedule = do
   world <- unsafeGetWorld
-  systems <- orderEntities =<< (query' @Entity $ withRel @ScheduledIn schedule)
+  systems <- orderEntities =<< query' (C @Entity) (withRel @ScheduledIn schedule)
 
   for_ systems $ \systemId -> do
-    Just (systemFunction, lastSystemTick) <- get @(SystemFunction, SystemTick) systemId
+    Just (systemFunction, lastSystemTick) <- get (C @SystemFunction, C @SystemTick) systemId
     currentSystemTick <- liftIO $ readIORef world.tick
 
     set lastSystemTick (SystemTick currentSystemTick)

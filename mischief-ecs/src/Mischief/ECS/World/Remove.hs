@@ -21,6 +21,7 @@ import Mischief.ECS.Tables
 import Mischief.ECS.World
 import Mischief.ECS.World.Change (changeArchetype)
 import Mischief.ECS.World.Query
+import Mischief.ECS.World.Query.Queryable
 import Mischief.ECS.World.Utils
 
 class Removable c where
@@ -77,7 +78,7 @@ removeFromEntity components entity = do
 triggerRemoveEvent :: [ComponentId] -> Entity -> System ()
 triggerRemoveEvent components entity = do
   for_ components $ \component -> do
-    Just t <- get @ComponentType component.id
+    Just t <- get (C @ComponentType) component.id
     case component.entity of
       Nothing -> triggerRemoveEventC (value t) entity
       Just target -> triggerRemoveEventR (value t) target entity

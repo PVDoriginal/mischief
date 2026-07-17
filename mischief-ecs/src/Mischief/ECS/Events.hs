@@ -49,7 +49,7 @@ flushEvents = do
 
 runEvent :: ErasedEvent -> System ()
 runEvent (ErasedEvent (event :: e)) = do
-  observers' <- query @(Observer e, EventProxy e, ObserverOrder)
+  observers' <- query (C @(Observer e), C @(EventProxy e), C @ObserverOrder)
   let observers = sortBy (\(_, _, a) (_, _, b) -> compare a b) observers'
   for_ observers $ \(observer, _, _) -> do
     let Observer f = value observer

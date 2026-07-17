@@ -19,9 +19,9 @@ import Mischief.ECS.World.Query.Queryable
 -- you are encouraged to use 'modify'' instead.
 --
 -- Note that this will trigger change detection even if the provided function is 'id'.
-modify :: forall c. (Queryable c (Result c), Bundle c) => Result c -> (c -> c) -> System ()
+modify :: forall c. (Queryable (C c) (Result c), Bundle c) => Result c -> (c -> c) -> System ()
 modify !result !f = do
-  res <- get @c (entityOf result)
+  res <- get (C @c) (entityOf result)
   case res of
     Nothing -> warn $ "Modify failed: Entity " <> text (entityOf result) <> " is not alive."
     Just res -> insert (f $ value res) (entityOf res)
@@ -49,9 +49,9 @@ modify' !result !f = insert (f . value $ result) (entityOf result)
 -- incrementCounter :: 'Entity' -> 'System' ()
 -- incrementCounter = 'alter' (\case 'Nothing' -> 'Just' $ Counter 0; 'Just' (Counter x) -> 'Just' $ Counter (x + 1))
 -- @
-alter :: forall c. (Queryable c (Result c), Bundle c, Component c) => (Maybe c -> Maybe c) -> Entity -> System ()
+alter :: forall c. (Queryable (C c) (Result c), Bundle c, Component c) => (Maybe c -> Maybe c) -> Entity -> System ()
 alter !f !entity = do
-  val <- get @c entity
+  val <- get (C @c) entity
   let r = f (fmap value val)
 
   if isNothing r && isJust val

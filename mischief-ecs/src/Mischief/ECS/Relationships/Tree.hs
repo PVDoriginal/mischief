@@ -4,11 +4,12 @@ module Mischief.ECS.Relationships.Tree where
 
 import Mischief.ECS (Result)
 import Mischief.ECS.Components
+import Mischief.ECS.Components.BundleTypes
 import Mischief.ECS.Entities
 import Mischief.ECS.Relationships.Graph
 import Mischief.ECS.World
 
-descendants :: forall c m w. (Component c, MonadSystem w m) => Entity -> m [Entity]
+descendants :: forall c m w. (Component c, BundleTypes c, MonadSystem w m) => Entity -> m [Entity]
 descendants entity = do
   next <- ingoing @c entity
   next' <- mapM (descendants @c) next
@@ -28,7 +29,7 @@ root entity = do
     [p] -> root @c p
     _ -> undefined
 
-leaves :: forall c m w. (Component c, MonadSystem w m) => Entity -> m [Entity]
+leaves :: forall c m w. (Component c, BundleTypes c, MonadSystem w m) => Entity -> m [Entity]
 leaves entity = do
   ing <- ingoing @c entity
   case ing of

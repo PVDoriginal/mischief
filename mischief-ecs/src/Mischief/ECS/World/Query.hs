@@ -13,6 +13,7 @@ import Data.Maybe
 import Data.Set qualified as Set
 import {-# SOURCE #-} Mischief.ECS.App.Systems
 import {-# SOURCE #-} Mischief.ECS.Archetypes.Graph
+import Mischief.ECS.Collectable
 import Mischief.ECS.Components
 import Mischief.ECS.Components.BundleTypes
 import {-# SOURCE #-} Mischief.ECS.Components.Spawn
@@ -20,6 +21,7 @@ import Mischief.ECS.Entities
 import Mischief.ECS.Log
 import Mischief.ECS.Tables
 import Mischief.ECS.World
+import Mischief.ECS.World.Query.QueryFilter
 import Mischief.ECS.World.Query.Queryable
 import Mischief.ECS.World.Query.Val
 import Mischief.ECS.World.Utils
@@ -39,6 +41,7 @@ runQuery query filter world =
                       case t of
                         CompQ -> (c, ComponentQuery)
                         RelQ -> (c, RelationshipQueryAny)
+                        RelQ' entity -> (c {entity = Just entity}, RelationshipQuery)
                   )
                   c
           )
@@ -67,10 +70,10 @@ entityQuery qd entity = do
 get :: forall qd m w out. (Queryable qd out, MonadSystem w m) => qd -> Entity -> m (Maybe out)
 get = entityQuery
 
-query' :: forall qd m w out. (Queryable qd out, MonadSystem w m) => qd -> QueryFilter -> m [out]
+query' :: forall qd m w out qf. (Queryable qd out, MonadSystem w m, Collectable qf QueryFilter) => qd -> qf -> m [out]
 query' qd filter = do
   world <- unsafeGetWorld
-  runQuery qd filter world
+  runQuery qd (collect filter) world
 
 single :: forall qd m w out. (Queryable qd out, MonadSystem w m) => qd -> m (Maybe out)
 single qd = do
@@ -79,14 +82,14 @@ single qd = do
     [x] -> return $ Just x
     _ -> return Nothing
 
-single' :: forall qd m w out. (Queryable qd out, MonadSystem w m) => qd -> QueryFilter -> m (Maybe out)
+single' :: forall qd m w out qf. (Queryable qd out, MonadSystem w m, Collectable qf QueryFilter) => qd -> qf -> m (Maybe out)
 single' qd filter = do
   res <- query' qd filter
   case res of
     [x] -> return $ Just x
     _ -> return Nothing
 
-res :: forall c out. (Queryable c out, Component c) => System (Maybe (Result c))
+res :: forall c. (Queryable (C c) (Result c), Component c) => System (Maybe (Result c))
 res = do
   meta <- meta @c
   get (C @c) meta
@@ -108,7 +111,7 @@ res = do
 
 filterQuery :: forall qd out. (Queryable qd out) => World -> QueryFilter -> [ArchetypeId] -> IO ((Int, (Entity, out)) -> IO Bool)
 filterQuery _ NoFilter _ = return $ const $ return True
-filterQuery world (With x) _ = do
+filterQuery world (QFWith x) _ = do
   component <- getComponentId x world.components
   case component of
     Nothing -> return (const $ return False)
@@ -120,7 +123,7 @@ filterQuery world (With x) _ = do
             Nothing -> return True
             Just components ->
               return $ component `elem` components
-filterQuery world (WithRel x e) _ = do
+filterQuery world (QFWithRel x e) _ = do
   component <- liftIO $ getComponentId x world.components
   case component of
     Nothing -> return (const $ return False)
@@ -133,27 +136,39 @@ filterQuery world (WithRel x e) _ = do
             Nothing -> return True
             Just components ->
               return $ component `elem` components
-filterQuery world (Changed x) archetypes = do
+filterQuery world (QFWithRelAny x) _ = do
+  component <- liftIO $ getComponentId x world.components
+  case component of
+    Nothing -> return (const $ return False)
+    Just (ComponentId {id}) -> do
+      return $
+        \(_, (entity, _)) -> do
+          components <- findComponentsOfEntity world entity
+          case components of
+            Nothing -> return True
+            Just components ->
+              return $ any (\c -> isJust c.entity && c.id == id) components
+filterQuery world (QFChanged x) archetypes = do
   res <- liftIO $ tryGetTicks x world archetypes
   (lastSystemTick, currentSystemTick) <- getSystemTicks world
   return $
     \(index, _) ->
       let res' = res !! index
        in pure $ res'.changed >= lastSystemTick && res'.changed < currentSystemTick
-filterQuery world (Added x) archetypes = do
+filterQuery world (QFAdded x) archetypes = do
   res <- liftIO $ tryGetTicks x world archetypes
   (lastSystemTick, currentSystemTick) <- getSystemTicks world
   return $
     \(index, _) ->
       let res' = res !! index
        in pure $ res'.added >= lastSystemTick && res'.added < currentSystemTick
-filterQuery world (CheckRaw (x, ef)) archetypes = do
+filterQuery world (QFCheckRaw (x, ef)) archetypes = do
   id <- liftIO $ getComponentId x world.components
   case id of
     Nothing -> return $ const $ return False
     Just id ->
       filterCheck @qd world archetypes id ef
-filterQuery world (a `And` b) archetypes = do
+filterQuery world (a `QFAnd` b) archetypes = do
   res <- filterQuery @qd world a archetypes
   res2 <- filterQuery @qd world b archetypes
   return $
@@ -161,7 +176,7 @@ filterQuery world (a `And` b) archetypes = do
       b1 <- res x
       b2 <- res2 x
       return $ b1 && b2
-filterQuery world (a `Or` b) archetypes = do
+filterQuery world (a `QFOr` b) archetypes = do
   res <- filterQuery @qd world a archetypes
   res2 <- filterQuery @qd world b archetypes
   return $
@@ -169,7 +184,7 @@ filterQuery world (a `Or` b) archetypes = do
       b1 <- res x
       b2 <- res2 x
       return $ b1 || b2
-filterQuery world (Not a) archetypes = do
+filterQuery world (QFNot a) archetypes = do
   f <- filterQuery @qd world a archetypes
   return $ \x -> do
     r <- f x
@@ -198,143 +213,7 @@ findComponentsOfEntity world entity = do
         Nothing -> Nothing
         Just x -> Just x.components
 
-data QueryFilter
-  = NoFilter
-  | With TypeRep
-  | WithRel TypeRep Entity
-  | Changed TypeRep
-  | Added TypeRep
-  | CheckRaw (TypeRep, ErasedCheck)
-  | Not QueryFilter
-  | And QueryFilter QueryFilter
-  | Or QueryFilter QueryFilter
-  deriving (Show)
-
-data ErasedCheck where
-  ErasedCheck :: (Component c) => (c -> Bool) -> ErasedCheck
-
-instance Show ErasedCheck where
-  show _ = "erased check"
-
-with :: forall qd. (BundleTypes qd) => QueryFilter
-with = and' $ map With (Set.toList $ types (Proxy @qd))
-
-withRel :: forall c. (Component c) => Entity -> QueryFilter
-withRel = WithRel (typeRep $ Proxy @c)
-
-without :: forall qd. (BundleTypes qd) => QueryFilter
-without = and' $ map (Not . With) (Set.toList $ types (Proxy @qd))
-
-changed :: forall qd. (BundleTypes qd) => QueryFilter
-changed = and' $ map Changed (Set.toList $ types (Proxy @qd))
-
-check :: forall c. (Component c) => (c -> Bool) -> QueryFilter
-check f = With (typeRep $ Proxy @c) &. CheckRaw (typeRep $ Proxy @c, ErasedCheck f)
-
-eq :: forall c. (Component c, Eq c) => c -> QueryFilter
-eq c = check @c (== c)
-
-added :: forall qd. (BundleTypes qd) => QueryFilter
-added = and' $ map Added (Set.toList $ types (Proxy @qd))
-
-and' :: [QueryFilter] -> QueryFilter
-and' [x] = x
-and' x = foldr (&.) NoFilter x
-
-(&.) :: QueryFilter -> QueryFilter -> QueryFilter
-(&.) = And
-
-(|.) :: QueryFilter -> QueryFilter -> QueryFilter
-(|.) = Or
-
-neg :: QueryFilter -> QueryFilter
-neg = Not
-
-filterArchetype :: QueryFilter -> [ComponentId] -> World -> IO Bool
-filterArchetype NoFilter _ _ = return True
-filterArchetype (With x) components world = do
-  component <- getComponentId x world.components
-  return $ case component of
-    Nothing -> False
-    Just component -> component `elem` components
-filterArchetype (WithRel x e) components world = do
-  component <- getComponentId x world.components
-  case component of
-    Nothing -> pure False
-    Just (ComponentId {id}) -> do
-      let component = ComponentId {id, entity = Just e}
-      return $ component `elem` components
-filterArchetype (a `And` b) c w = do
-  x <- filterArchetype a c w
-  y <- filterArchetype b c w
-  return $ x && y
-filterArchetype (a `Or` b) c w = do
-  x <- filterArchetype a c w
-  y <- filterArchetype b c w
-  return $ x || y
-filterArchetype (Not a) c w = not <$> filterArchetype a c w
-filterArchetype _ _ _ = pure True
-
--- | Extracts archetype-level filters from the bigger filter where possible, to be applied at the start of querying for better performance.
-extractArchetypeFilters :: QueryFilter -> (QueryFilter, QueryFilter)
-extractArchetypeFilters NoFilter = (NoFilter, NoFilter)
-extractArchetypeFilters (With x) = (NoFilter, With x)
-extractArchetypeFilters (WithRel x e) = (NoFilter, WithRel x e)
-extractArchetypeFilters (Changed x) = (Changed x, NoFilter)
-extractArchetypeFilters (Added x) = (Added x, NoFilter)
-extractArchetypeFilters (CheckRaw x) = (CheckRaw x, NoFilter)
-extractArchetypeFilters (a `And` b) = (filter1 `And` filter2, res1 `And` res2)
-  where
-    (filter1, res1) = extractArchetypeFilters a
-    (filter2, res2) = extractArchetypeFilters b
-extractArchetypeFilters (a `Or` b) =
-  if isArchetypeFilter a && isArchetypeFilter b
-    then
-      (filter1 `Or` filter2, res1 `Or` res2)
-    else
-      (a `Or` b, NoFilter)
-  where
-    (filter1, res1) = extractArchetypeFilters a
-    (filter2, res2) = extractArchetypeFilters b
-extractArchetypeFilters (Not a) = (Not x, Not y)
-  where
-    (x, y) = extractArchetypeFilters a
-
-isArchetypeFilter :: QueryFilter -> Bool
-isArchetypeFilter NoFilter = True
-isArchetypeFilter (Changed _) = False
-isArchetypeFilter (Added _) = False
-isArchetypeFilter (With _) = True
-isArchetypeFilter (WithRel _ _) = True
-isArchetypeFilter (a `And` b) = isArchetypeFilter a || isArchetypeFilter b
-isArchetypeFilter (a `Or` b) = isArchetypeFilter a && isArchetypeFilter b
-isArchetypeFilter (CheckRaw _) = False
-isArchetypeFilter (Not a) = isArchetypeFilter a
-
-preprocessFilter :: QueryFilter -> QueryFilter
-preprocessFilter = propagateNot
-
-propagateNot :: QueryFilter -> QueryFilter
-propagateNot (Not NoFilter) = NoFilter
-propagateNot (Not (Not a)) = propagateNot a
-propagateNot (Not (a `And` b)) = propagateNot (Not a) `Or` propagateNot (Not b)
-propagateNot (Not (a `Or` b)) = propagateNot (Not a) `And` propagateNot (Not b)
-propagateNot (a `And` b) = propagateNot a `And` propagateNot b
-propagateNot (a `Or` b) = propagateNot a `Or` propagateNot b
-propagateNot x = x
-
-data A = A deriving (Component)
-
-data B = B deriving (Component)
-
-data E = E deriving (Component)
-
-data ChildOf = ChildOf deriving (Component)
-
-e :: Entity
-e = undefined
-
-test :: System ()
-test = do
-  x <- query (M @A, MR @ChildOf Any)
-  undefined
+x :: System ()
+x = do
+  x <- query (C @Entity)
+  return ()

@@ -46,7 +46,7 @@ createNode components = do
   comps <-
     mapM
       ( \c -> do
-          t <- get @ComponentType @System c.id
+          t <- get (C @ComponentType) c.id
           return $ fmap (getRep . value) t
       )
       (Set.toList components)
@@ -57,12 +57,12 @@ createNode components = do
     case component.entity of
       -- Component isn't a pair.
       Nothing -> do
-        set <- get @ComponentArchetypes component.id
+        set <- get (C @ComponentArchetypes) component.id
         for_ set $ \set -> do
           modify set $ \ComponentArchetypes {inner} -> ComponentArchetypes {inner = Set.insert (ArchetypeId id) inner}
       -- Component is a pair.
       Just entity -> do
-        set <- get @ComponentPairs component.id
+        set <- get (C @ComponentPairs) component.id
         for_ set $ \set -> do
           modify set $ \ComponentPairs {any, pairs} ->
             ComponentPairs
@@ -145,7 +145,7 @@ getArchetypeOnInsertSingle (ArchetypeId id) component = do
       components <- do
         let components = node.archetype.components
 
-        isExclusiveRel <- get @(Has IsExclusiveRelationship) component.id
+        isExclusiveRel <- get (Has @IsExclusiveRelationship) component.id
 
         case isExclusiveRel of
           Just True ->
@@ -213,7 +213,7 @@ getArchetypeOnSpawn components =
 
 getRequirements :: ComponentId -> System (Set ComponentId)
 getRequirements component = do
-  x <- get @(Rel Requires) component.id
+  x <- get (R @Requires Any) component.id
   return $ case x of
     Nothing -> Set.empty
     Just x -> Set.fromList $ map ((\x -> ComponentId {id = x, entity = Nothing}) . target) x
@@ -226,14 +226,14 @@ findMatchingArchetypes components Archetypes {graph} = do
   archetypes'' <- forM components $ \(component, q) -> do
     case q of
       ComponentQuery -> do
-        Just x <- get @ComponentArchetypes component.id
+        Just x <- get (C @ComponentArchetypes) component.id
         return x.inner
       RelationshipQueryAny -> do
-        Just x <- get @ComponentPairs component.id
+        Just x <- get (C @ComponentPairs) component.id
         return x.any
       RelationshipQuery -> do
         let target = fromMaybe undefined component.entity
-        Just x <- get @ComponentPairs component.id
+        Just x <- get (C @ComponentPairs) component.id
         return $ fromMaybe undefined $ Map.lookup target x.pairs
 
   case map Set.toList archetypes'' of

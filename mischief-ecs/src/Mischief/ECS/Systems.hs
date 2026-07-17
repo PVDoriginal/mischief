@@ -17,6 +17,7 @@ import Mischief.ECS.Relationships.Order
 import Mischief.ECS.World
 import Mischief.ECS.World.Insert
 import Mischief.ECS.World.Query
+import Mischief.ECS.World.Query.QueryFilter
 import Mischief.ECS.World.Query.Queryable
 import Mischief.ECS.World.Remove
 import Mischief.ECS.World.Spawn
@@ -47,7 +48,7 @@ removeOne schedule system = do
 
   despawn s
 
-  (query' @Entity $ withRel @Before s)
+  query' (C @Entity) (WithR @Before s)
     >>= traverse_ (removeRel @Before s)
 
 spawn :: System () -> System Entity
