@@ -49,6 +49,8 @@ instance Component TestRel where
 
 data OtherRel = OtherRel deriving (Component, Show)
 
+newtype TestRel2 = TestRel2 Int deriving (Component, Show)
+
 main :: IO ()
 main = do
   app <- newApp MainPlugin
