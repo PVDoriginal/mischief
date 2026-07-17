@@ -56,7 +56,7 @@ getSystemId' schedule system stableName list = do
   case find (\x -> fst x `eqStableName` stableName) list' of
     Just (_, x) -> return x
     Nothing -> do
-      index <- spawn (SystemFunction system, Rel (ScheduledIn, schedule.id))
+      index <- spawn (SystemFunction system, Rel ScheduledIn schedule.id)
       liftIO $ modifyIORef' list (++ [(stableName, SystemId index)])
       return $ SystemId index
 

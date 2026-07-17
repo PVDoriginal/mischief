@@ -204,7 +204,7 @@ tryGetComponentFromColumn (Column components) pointer = do
   element <- Vec.read components pointer.rowIndex
   pure $ tryGetComponent element.value
 
-tryGetRelCollectionFromTable :: forall c. (Component c) => Table -> Entity -> EntityPointer -> ComponentId -> IO (Maybe [RelResult c])
+tryGetRelCollectionFromTable :: forall c. (Component c) => Table -> Entity -> EntityPointer -> ComponentId -> IO (Maybe [Result (Rel c)])
 tryGetRelCollectionFromTable table entity pointer componentId =
   do
     columns <- readIORef table.columns
@@ -224,7 +224,7 @@ tryGetRelCollectionFromTable table entity pointer componentId =
       then
         return Nothing
       else
-        return $ Just $ map (\(value, target) -> RelResult (value, entity, target)) $ catMaybes components'
+        return $ Just $ map (\(value, target) -> Result (Rel value target, entity)) $ catMaybes components'
 
 tryGetComponentFromTable :: forall c. (Component c) => Table -> EntityPointer -> ComponentId -> IO (Maybe c)
 tryGetComponentFromTable table pointer componentId =
@@ -236,7 +236,7 @@ tryGetComponentFromTable table pointer componentId =
       Nothing -> return Nothing
       Just column -> tryGetComponentFromColumn column pointer
 
-tryGetRelCollectionFromTables :: forall c. (Component c) => Tables -> Entity -> EntityPointer -> ComponentId -> IO (Maybe ([RelResult c]))
+tryGetRelCollectionFromTables :: forall c. (Component c) => Tables -> Entity -> EntityPointer -> ComponentId -> IO (Maybe ([Result (Rel c)]))
 tryGetRelCollectionFromTables (Tables tables) entity pointer componentId =
   do
     tables <- readIORef tables
@@ -289,7 +289,7 @@ tryGetComponentsFromColumn (Column components) = do
   let x = Vector.mapM (\x -> tryGetComponent x.value) frozen
   pure $ maybe [] Vector.toList x
 
-tryGetRelCollectionsFromTable :: forall c. (Component c) => Table -> ComponentId -> IO [(Entity, [RelResult c])]
+tryGetRelCollectionsFromTable :: forall c. (Component c) => Table -> ComponentId -> IO [(Entity, [Result (Rel c)])]
 tryGetRelCollectionsFromTable table componentId =
   do
     -- let Just entity = componentId.entity
@@ -310,7 +310,7 @@ tryGetRelCollectionsFromTable table componentId =
     let components'' = zip (map fst entities) $ transpose $ catMaybes components'
     return $
       map
-        (\(entity, components) -> (entity, map (\(value, target) -> RelResult (value, entity, target)) components))
+        (\(entity, components) -> (entity, map (\(value, target) -> Result (Rel value target, entity)) components))
         components''
 
 tryGetComponentsFromTable :: forall c. (Component c) => Table -> ComponentId -> IO [(Entity, Result c)]
@@ -343,7 +343,7 @@ tryGetComponentsFromTableMaybe table componentId =
         entities <- Vec.toList table.entities
         return $ zipWith (\x e -> (e, Just $ Result (x, e))) results (map fst entities)
 
-tryGetRelCollectionsFromArchetype :: forall c. (Component c) => ArchetypeId -> Map ArchetypeId Table -> ComponentId -> IO [(Entity, [RelResult c])]
+tryGetRelCollectionsFromArchetype :: forall c. (Component c) => ArchetypeId -> Map ArchetypeId Table -> ComponentId -> IO [(Entity, [Result (Rel c)])]
 tryGetRelCollectionsFromArchetype archetype tables componentId =
   case Map.lookup archetype tables of
     Nothing -> return []
@@ -361,7 +361,7 @@ tryGetComponentsFromArchetypeMaybe archetype tables componentId =
     Nothing -> return []
     Just table -> tryGetComponentsFromTableMaybe table componentId
 
-tryGetRelCollectionsFromTables :: forall c. (Component c) => Tables -> [ArchetypeId] -> ComponentId -> IO [(Entity, [RelResult c])]
+tryGetRelCollectionsFromTables :: forall c. (Component c) => Tables -> [ArchetypeId] -> ComponentId -> IO [(Entity, [Result (Rel c)])]
 tryGetRelCollectionsFromTables (Tables tables) archetypes componentId =
   do
     tables <- readIORef tables
@@ -382,21 +382,20 @@ tryGetComponentsFromTablesMaybe (Tables tables) archetypes componentId =
     results <- mapM (\archetype -> tryGetComponentsFromArchetypeMaybe archetype tables componentId) archetypes
     return $ concat results
 
-class Value c where
-  value :: c a -> a
-
-class EntityOf c where
-  entityOf :: c -> Entity
-
 newtype Result c = Result (c, Entity)
 
-instance Value Result where
-  value :: Result c -> c
-  value (Result (c, _)) = c
+data ErasedResult where
+  ErasedResult :: Result c -> ErasedResult
 
-instance EntityOf (Result c) where
-  entityOf :: Result c -> Entity
-  entityOf (Result (_, e)) = e
+value :: Result c -> c
+value (Result (c, _)) = c
+
+type family IsRel a where
+  IsRel (Rel a) = True
+  IsRel a = False
+
+entityOf :: Result c -> Entity
+entityOf (Result (_, e)) = e
 
 instance (Show c) => Show (Result c) where
   show :: Result c -> String
@@ -413,32 +412,5 @@ instance (Ord c) => Ord (Result c) where
 instance (HasField a b c) => HasField a (Result b) c where
   getField a = getField @a (value a)
 
-newtype RelResult c = RelResult (c, Entity, Entity)
-
-instance Value RelResult where
-  value (RelResult (c, _, _)) = c
-
-instance EntityOf (RelResult c) where
-  entityOf :: RelResult c -> Entity
-  entityOf (RelResult (_, e, _)) = e
-
-instance (Show c) => Show (RelResult c) where
-  show :: RelResult c -> String
-  show r = show (value r, target r)
-
-instance (Eq c) => Eq (RelResult c) where
-  (==) :: RelResult c -> RelResult c -> Bool
-  (==) a b = (value a, target a) == (value b, target b)
-
-instance (Ord c) => Ord (RelResult c) where
-  compare :: RelResult c -> RelResult c -> Ordering
-  compare a b = compare (value a, target a) (value b, target b)
-
-instance (HasField a b c) => HasField a (RelResult b) c where
-  getField a = getField @a (value a)
-
-target :: RelResult c -> Entity
-target (RelResult (_, _, t)) = t
-
-pickRel :: Entity -> [RelResult c] -> Maybe (RelResult c)
-pickRel e = find (\x -> target x == e)
+pickRel :: Entity -> [Result (Rel c)] -> Maybe (Result (Rel c))
+pickRel e = find (\x -> (value x).target == e)

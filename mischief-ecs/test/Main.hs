@@ -41,7 +41,7 @@ data E = E deriving (Generic, Default, Show)
 instance Component E where
   required = require @()
 
-data TestRel = TestRel
+data TestRel = TestRel deriving (Show)
 
 instance Component TestRel where
   hooks :: Hooks TestRel
@@ -75,10 +75,10 @@ setup :: System ()
 setup = do
   _ <- spawn (A 5, Name "Lol")
   c <- spawn (A 6, Name "Lmao")
-  _ <- spawn (A 7, Name "wow")
+  b <- spawn (A 7, Name "wow")
   _ <- spawn (A 4, Name "idk")
 
-  remove @B c
+  remove (C @B) c
 
   e <- spawn (A 5)
   insert (Name "") e
@@ -89,9 +89,13 @@ setup = do
 
   info $ text e
 
-  x <- spawn (Rel (TestRel, e))
+  x <- spawn (Rel TestRel e)
   despawn e
   (err . text) =<< isAlive x
+
+  y <- spawn (Rel (TestRel2 5) e, Rel (TestRel2 7) b)
+  remove (R @TestRel2 b) y
+  (err . text) =<< get (R @TestRel2 Any) y
 
 dummy :: System ()
 dummy = return ()

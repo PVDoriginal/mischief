@@ -151,7 +151,7 @@ instance (Component c) => EraseIntoStorage c BundleData where
     BundleData $ Set.singleton BundleElement {rep = ComponentRep $ ComponentType $ Proxy @c, component = Mischief.ECS.Components.erase c}
 
 instance {-# OVERLAPPING #-} (Component c) => EraseIntoStorage (Rel c) BundleData where
-  erase (Rel (c, entity)) =
+  erase (Rel c entity) =
     BundleData $ Set.singleton BundleElement {rep = PairRep (ComponentType $ Proxy @c, entity), component = Mischief.ECS.Components.erase c}
 
 -- | Unique id corresponding to an archetype.
@@ -177,7 +177,7 @@ data ComponentData = ComponentData {value :: ErasedComponent, ticks :: Component
 instance Component Entity
 
 -- | Type used for querying and inserting relationships.
-newtype Rel c = Rel (c, Entity)
+data Rel c = Rel {comp :: c, target :: Entity} deriving (Show)
 
 -- | @Meta@ component with the /erased/ default value of this component. Added to components required by other components.
 newtype DefaultValue = DefaultValue ErasedComponent deriving anyclass (Component)

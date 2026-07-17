@@ -56,7 +56,7 @@ alter !f !entity = do
 
   if isNothing r && isJust val
     then
-      remove @c entity
+      remove (C @c) entity
     else case r of
       Just r ->
         insert r entity

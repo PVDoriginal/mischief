@@ -106,9 +106,9 @@ appInit = do
 
   for_ [init, pre, startup, post] $ insert StartupSchedule
 
-  insert (Rel (Before, pre)) init
-  insert (Rel (Before, startup)) pre
-  insert (Rel (Before, post)) startup
+  insert (Rel Before pre) init
+  insert (Rel Before startup) pre
+  insert (Rel Before post) startup
 
   pre <- scheduleEntity PreUpdate
   update <- scheduleEntity Update
@@ -116,8 +116,8 @@ appInit = do
 
   for_ [pre, update, post] $ insert UpdateSchedule
 
-  insert (Rel (Before, update)) pre
-  insert (Rel (Before, post)) update
+  insert (Rel Before update) pre
+  insert (Rel Before post) update
 
 register :: forall c. (Runnable c) => System ()
 register = runFor @c registerComponent

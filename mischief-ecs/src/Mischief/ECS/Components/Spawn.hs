@@ -65,8 +65,8 @@ getOrAddComponentId (ComponentType (_ :: Proxy c)) = do
 
       for_ (requireAll @c) $ \(DefaultComponentType (_ :: (Proxy other))) -> do
         other <- getOrAddComponentId (ComponentType $ Proxy @other)
-        insert (Rel (RequiredBy, result)) other.id
-        insert (Rel (Requires, other.id)) result
+        insert (Rel RequiredBy result) other.id
+        insert (Rel Requires other.id) result
         insert (DefaultValue $ ErasedComponent $ def @other) other.id
 
       registerHooks $ hooks @c

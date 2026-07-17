@@ -33,7 +33,7 @@ add schedule system = do
   for_ edges $ \(s1, s2) -> do
     id1 <- systemEntity schedule s1
     id2 <- systemEntity schedule s2
-    insert (Rel (Before, id2)) id1
+    insert (Rel Before id2) id1
 
 remove :: (Schedule sc, Collectable a [System ()]) => sc -> a -> System ()
 remove schedule systems = do
@@ -62,7 +62,7 @@ schedule sch s = do
   s' <- meta sch s
   sch' <- scheduleEntity sch
 
-  insert (Rel (ScheduledIn, sch')) s'
+  insert (Rel ScheduledIn sch') s'
 
 unschedule :: (Schedule sc) => sc -> System () -> System ()
 unschedule sch s = do

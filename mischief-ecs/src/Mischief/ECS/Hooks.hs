@@ -45,7 +45,7 @@ insertComplementary :: forall (a :: Type) b. (Component b, Component a) => (a ->
 insertComplementary f event = do
   warn $ text event.target
   Just val <- pickRel event.target . unwrap <$> get (R @a Any) event.entity
-  insert (Rel (f $ value val, event.entity)) event.target
+  insert (Rel (f val.comp) event.entity) event.target
 
 removeComplementary :: forall b a. (Component b) => OnRemoveRel a -> System ()
 removeComplementary event = removeRel @b event.entity event.target
@@ -60,11 +60,11 @@ relCleanupDespawn :: forall (a :: Type). (Component a) => Hooks a
 relCleanupDespawn = relCleanup (\r -> despawn r.entity)
 
 insertCleanupWatcher :: forall c. (Component c) => (CleanupRequest -> System ()) -> OnInsertRel c -> System ()
-insertCleanupWatcher f e = insert (Rel (CleanupWatcher @c f, e.entity)) e.target
+insertCleanupWatcher f e = insert (Rel (CleanupWatcher @c f) e.entity) e.target
 
 removeCleanupWatcher :: forall c. (Component c) => OnRemoveRel c -> System ()
 removeCleanupWatcher e = do
-  insert (Rel (CleanupWatcher @c (pure . pure ()), e.entity)) e.target
+  insert (Rel (CleanupWatcher @c (pure . pure ())) e.entity) e.target
   removeRel @(CleanupWatcher c) e.entity e.target
 
 newtype CleanupWatcher c = CleanupWatcher {function :: CleanupRequest -> System ()}
@@ -80,4 +80,4 @@ instance (Component c) => Component (CleanupWatcher c) where
 triggerCleanup :: forall c. (Component c) => OnRemoveRel (CleanupWatcher c) -> System ()
 triggerCleanup e = do
   Just watcher <- pickRel e.target . unwrap <$> get (R @(CleanupWatcher c) Any) e.entity
-  (value watcher).function CleanupRequest {entity = e.target, target = e.entity}
+  watcher.comp.function CleanupRequest {entity = e.target, target = e.entity}

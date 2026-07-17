@@ -25,7 +25,7 @@ data Visited = Visited deriving (Component)
 orderEntities :: [Entity] -> System [Entity]
 orderEntities entities = do
   res <- orderEntitiesStep (Set.fromList entities)
-  for_ entities $ remove @Visited
+  for_ entities $ remove (C @Visited)
   -- err $ text res
   return res
 

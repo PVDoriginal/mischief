@@ -85,7 +85,7 @@ instance {-# OVERLAPPABLE #-} (CQuery (IsComponentC c) c o) => Queryable (C c) o
 
 --   queryTypes _ = Set.empty
 
-instance (Component c) => Queryable (R c Any) [RelResult c] where
+instance (Component c) => Queryable (R c Any) [Result (Rel c)] where
   runQueryEntity _ world entity = do
     res <- tryGetEntityRelCollection @c world entity
     return $ case res of
@@ -96,11 +96,11 @@ instance (Component c) => Queryable (R c Any) [RelResult c] where
 
   queryTypes _ = Set.singleton (typeRep $ Proxy @c, RelQ)
 
-instance (Component c) => Queryable (R c Entity) (RelResult c) where
+instance (Component c) => Queryable (R c Entity) (Result (Rel c)) where
   runQueryEntity (R target) world entity = do
     res <- tryGetEntityRel @c target world entity
     return $ case res of
-      Just (Just x) -> Just $ RelResult (x, entity, target)
+      Just (Just x) -> Just $ Result (Rel x target, entity)
       _ -> Nothing
 
   runQueryInternal (R target) archetypes world = tryGetRels @c target world archetypes
@@ -119,7 +119,7 @@ instance (Component c) => Queryable (M c) (Maybe (Result c)) where
 
   queryTypes _ = Set.empty
 
-instance (Component c) => Queryable (MR c Any) [RelResult c] where
+instance (Component c) => Queryable (MR c Any) [Result (Rel c)] where
   runQueryEntity _ world entity = do
     res <- tryGetEntityRelCollection @c world entity
     return $ case res of
@@ -130,13 +130,13 @@ instance (Component c) => Queryable (MR c Any) [RelResult c] where
   runQueryInternal _ archetypes world = tryGetRelCollections @c world archetypes
   queryTypes _ = Set.empty
 
-instance (Component c) => Queryable (MR c Entity) (Maybe (RelResult c)) where
+instance (Component c) => Queryable (MR c Entity) (Maybe (Result (Rel c))) where
   runQueryEntity (MR target) world entity = do
     res <- tryGetEntityRel @c target world entity
     return $ case res of
       Nothing -> Nothing
       Just Nothing -> Just Nothing
-      Just (Just x) -> Just $ Just (RelResult (x, entity, target))
+      Just (Just x) -> Just $ Just (Result (Rel x target, entity))
 
   runQueryInternal (MR target) archetypes world = tryGetRelsMaybe @c target world archetypes
   queryTypes _ = Set.empty
