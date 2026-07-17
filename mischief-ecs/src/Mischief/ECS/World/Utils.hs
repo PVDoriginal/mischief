@@ -9,6 +9,7 @@ import Control.Monad.Primitive (PrimMonad (..))
 import Control.Monad.Reader.Class (MonadReader (..), asks)
 import Control.Monad.Trans (MonadTrans (..))
 import Control.Monad.Trans.Reader (ReaderT (runReaderT))
+import Data.Bifunctor qualified
 import Data.IORef
 import Data.List
 import Data.Map qualified as Map
@@ -147,6 +148,23 @@ tryGetEntityComponent world entity =
               res <- tryGetComponentFromTables world.tables pointer componentId
               return $ Just res
 
+tryGetEntityRel :: forall c. (Component c) => Entity -> World -> Entity -> IO (Maybe (Maybe c))
+tryGetEntityRel target world entity =
+  do
+    pointer <- getPointer entity world.entities
+
+    case pointer of
+      Nothing -> return Nothing
+      Just pointer ->
+        do
+          componentId <- getComponentId (typeRep $ Proxy @c) world.components
+          case componentId of
+            Nothing -> return Nothing
+            Just componentId -> do
+              pointer <- readIORef pointer
+              res <- tryGetComponentFromTables world.tables pointer componentId {entity = Just target}
+              return $ Just res
+
 tryGetRelCollections :: forall c. (Component c) => World -> [ArchetypeId] -> IO [(Entity, [RelResult c])]
 tryGetRelCollections world archetypes =
   do
@@ -164,6 +182,31 @@ tryGetComponents world archetypes =
       Nothing -> return []
       Just componentId ->
         tryGetComponentsFromTables world.tables archetypes componentId
+
+tryGetRels :: forall c. (Component c) => Entity -> World -> [ArchetypeId] -> IO [(Entity, RelResult c)]
+tryGetRels target world archetypes =
+  do
+    componentId <- getComponentId (typeRep $ Proxy @c) world.components
+    case componentId of
+      Nothing -> return []
+      Just componentId -> do
+        res <- tryGetComponentsFromTables world.tables archetypes componentId {entity = Just target}
+        return $ map (\(e, res) -> (e, RelResult (value res, entityOf res, target))) res
+
+tryGetRelsMaybe :: forall c. (Component c) => Entity -> World -> [ArchetypeId] -> IO [(Entity, Maybe (RelResult c))]
+tryGetRelsMaybe target world archetypes =
+  do
+    componentId <- getComponentId (typeRep $ Proxy @c) world.components
+    case componentId of
+      Nothing -> return []
+      Just componentId -> do
+        res <- tryGetComponentsFromTablesMaybe world.tables archetypes componentId {entity = Just target}
+        return $
+          map
+            ( Data.Bifunctor.second
+                (fmap (\res -> RelResult (value res, entityOf res, target)))
+            )
+            res
 
 tryGetComponentsMaybe :: forall c. (Component c) => World -> [ArchetypeId] -> IO [(Entity, Maybe (Result c))]
 tryGetComponentsMaybe world archetypes =

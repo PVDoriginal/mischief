@@ -25,7 +25,7 @@ import Mischief.ECS.World.Query.Val
 import Mischief.ECS.World.Utils
 import Prelude hiding (and)
 
-runQuery :: forall qd m w output. (Queryable qd output, MonadSystem w m) => Proxy qd -> QueryFilter -> World -> m [output]
+runQuery :: forall qd m w output. (Queryable qd output, MonadSystem w m) => qd -> QueryFilter -> World -> m [output]
 runQuery query filter world =
   do
     components <-
@@ -54,42 +54,42 @@ runQuery query filter world =
 
     return $ map (snd . snd) outputs'
 
-query :: forall qd output m w. (Queryable qd output, MonadSystem w m) => m [output]
-query = do
+query :: forall qd output m w. (Queryable qd output, MonadSystem w m) => qd -> m [output]
+query qd = do
   world <- unsafeGetWorld
-  runQuery (Proxy @qd) NoFilter world
+  runQuery qd NoFilter world
 
-entityQuery :: forall qd output m w. (Queryable qd output, MonadSystem w m) => Entity -> m (Maybe output)
-entityQuery entity = do
+entityQuery :: forall qd output m w. (Queryable qd output, MonadSystem w m) => qd -> Entity -> m (Maybe output)
+entityQuery qd entity = do
   world <- unsafeGetWorld
-  liftIO $ runQueryEntity (Proxy @qd) world entity
+  liftIO $ runQueryEntity qd world entity
 
-get :: forall qd m w out. (Queryable qd out, MonadSystem w m) => Entity -> m (Maybe out)
-get = entityQuery @qd
+get :: forall qd m w out. (Queryable qd out, MonadSystem w m) => qd -> Entity -> m (Maybe out)
+get = entityQuery
 
-query' :: forall qd m w out. (Queryable qd out, MonadSystem w m) => QueryFilter -> m [out]
-query' filter = do
+query' :: forall qd m w out. (Queryable qd out, MonadSystem w m) => qd -> QueryFilter -> m [out]
+query' qd filter = do
   world <- unsafeGetWorld
-  runQuery (Proxy @qd) filter world
+  runQuery qd filter world
 
-single :: forall qd m w out. (Queryable qd out, MonadSystem w m) => m (Maybe out)
-single = do
-  res <- query @qd
+single :: forall qd m w out. (Queryable qd out, MonadSystem w m) => qd -> m (Maybe out)
+single qd = do
+  res <- query qd
   case res of
     [x] -> return $ Just x
     _ -> return Nothing
 
-single' :: forall qd m w out. (Queryable qd out, MonadSystem w m) => QueryFilter -> m (Maybe out)
-single' filter = do
-  res <- query' @qd filter
+single' :: forall qd m w out. (Queryable qd out, MonadSystem w m) => qd -> QueryFilter -> m (Maybe out)
+single' qd filter = do
+  res <- query' qd filter
   case res of
     [x] -> return $ Just x
     _ -> return Nothing
 
-res :: forall c out. (Queryable c out, Component c) => System (Maybe out)
+res :: forall c out. (Queryable c out, Component c) => System (Maybe (Result c))
 res = do
   meta <- meta @c
-  get @c meta
+  get (C @c) meta
 
 -- iter :: forall qd m w. (Queryable qd, MonadSystem w m) => (QueryOutput qd -> m ()) -> m ()
 -- iter system = do
@@ -322,3 +322,19 @@ propagateNot (Not (a `Or` b)) = propagateNot (Not a) `And` propagateNot (Not b)
 propagateNot (a `And` b) = propagateNot a `And` propagateNot b
 propagateNot (a `Or` b) = propagateNot a `Or` propagateNot b
 propagateNot x = x
+
+data A = A deriving (Component)
+
+data B = B deriving (Component)
+
+data E = E deriving (Component)
+
+data ChildOf = ChildOf deriving (Component)
+
+e :: Entity
+e = undefined
+
+test :: System ()
+test = do
+  x <- query (M @A, MR @ChildOf Any)
+  undefined
