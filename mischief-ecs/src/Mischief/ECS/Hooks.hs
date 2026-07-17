@@ -44,7 +44,7 @@ relComplementary f = collect (insertComplementary f, removeComplementary @b @a)
 insertComplementary :: forall (a :: Type) b. (Component b, Component a) => (a -> b) -> OnInsertRel a -> System ()
 insertComplementary f event = do
   warn $ text event.target
-  Just val <- pickRel event.target . unwrap <$> get (R @a Any) event.entity
+  Just val <- get (R @a event.target) event.entity
   insert (Rel (f val.comp) event.entity) event.target
 
 removeComplementary :: forall b a. (Component b) => OnRemoveRel a -> System ()
@@ -79,5 +79,5 @@ instance (Component c) => Component (CleanupWatcher c) where
 
 triggerCleanup :: forall c. (Component c) => OnRemoveRel (CleanupWatcher c) -> System ()
 triggerCleanup e = do
-  Just watcher <- pickRel e.target . unwrap <$> get (R @(CleanupWatcher c) Any) e.entity
+  Just watcher <- get (R @(CleanupWatcher c) e.target) e.entity
   watcher.comp.function CleanupRequest {entity = e.target, target = e.entity}
