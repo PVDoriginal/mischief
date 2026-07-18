@@ -2,7 +2,6 @@
 
 module Mischief.ECS.Relationships.Tree where
 
-import Mischief.ECS (Result)
 import Mischief.ECS.Components
 import Mischief.ECS.Components.BundleTypes
 import Mischief.ECS.Entities

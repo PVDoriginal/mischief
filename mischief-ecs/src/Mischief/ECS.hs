@@ -24,14 +24,14 @@ module Mischief.ECS
     -- ** Systems
     -- $systems
 
-    -- ** Plugins
-    -- $plugins
-
     -- ** Scheduling
     -- $scheduling
 
-    -- ** Ordering
-    -- $ordering
+    -- ** Plugins
+    -- $plugins
+
+    -- ** Logging
+    -- $logging
 
     -- ** Queries
     -- $queries
@@ -53,62 +53,107 @@ module Mischief.ECS
 
     -- * In-Depth Tutorials
     -- $tutorials
-    module Mischief.ECS.Components,
-    module Mischief.ECS.Entities,
-    module Mischief.ECS.Tables,
-    module Mischief.ECS.World,
-    module Mischief.ECS.Components.Bundle,
-    module Mischief.ECS.Components.Required,
-    module Mischief.ECS.World.Query,
-    module Mischief.ECS.World.Query.Queryable,
-    module Mischief.ECS.World.Insert,
-    module Mischief.ECS.World.Par,
-    module Mischief.ECS.World.Spawn,
-    module Mischief.ECS.World.Modify,
-    module Mischief.ECS.World.Remove,
-    module Mischief.ECS.World.Defer,
     module Mischief.ECS.App,
-    module Mischief.ECS.Utils,
+    module Mischief.ECS.App.Plugins,
     module Mischief.ECS.App.Schedules,
-    module Mischief.ECS.Components.Common,
     module Mischief.ECS.App.SystemConfig,
-    module Mischief.ECS.Messages,
+    module Mischief.ECS.App.Systems,
+    module Mischief.ECS.Archetypes,
+    module Mischief.ECS.Archetypes.Graph,
+    module Mischief.ECS.Collectable,
+    module Mischief.ECS.Components,
+    module Mischief.ECS.Components.Bundle,
+    module Mischief.ECS.Components.BundleTypes,
+    module Mischief.ECS.Components.Common,
+    module Mischief.ECS.Components.Hooks,
+    module Mischief.ECS.Components.Required,
+    module Mischief.ECS.Components.Runnable,
+    module Mischief.ECS.Components.Spawn,
+    module Mischief.ECS.Entities,
     module Mischief.ECS.Events,
-    module Mischief.ECS.Time,
+    module Mischief.ECS.Hooks,
+    module Mischief.ECS.Log,
+    module Mischief.ECS.Mappable,
+    module Mischief.ECS.Messages,
+    module Mischief.ECS.Prelude,
     module Mischief.ECS.Relationships,
     module Mischief.ECS.Relationships.ChildOf,
-    module Mischief.ECS.Log,
+    module Mischief.ECS.Relationships.Graph,
+    module Mischief.ECS.Relationships.Order,
+    module Mischief.ECS.Relationships.Tree,
+    module Mischief.ECS.Tables,
+    module Mischief.ECS.Time,
+    module Mischief.ECS.Utils,
+    module Mischief.ECS.World,
+    module Mischief.ECS.World.Change,
+    module Mischief.ECS.World.Defer,
+    module Mischief.ECS.World.Insert,
+    module Mischief.ECS.World.Modify,
+    module Mischief.ECS.World.Par,
+    module Mischief.ECS.World.Prefs,
+    module Mischief.ECS.World.Query,
+    module Mischief.ECS.World.Query.Queryable,
+    module Mischief.ECS.World.Query.QueryFilter,
+    module Mischief.ECS.World.Remove,
+    module Mischief.ECS.World.Spawn,
+    module Mischief.ECS.World.Utils,
   )
 where
 
+import Control.Monad (void)
 import Control.Monad.IO.Class (MonadIO (liftIO))
 import Data.Foldable (for_)
+import Data.Text (Text)
 import Language.Haskell.TH
 import Mischief.ECS.App
+import Mischief.ECS.App.Plugins
+import Mischief.ECS.App.Scheduler
 import Mischief.ECS.App.Schedules
 import Mischief.ECS.App.SystemConfig
+import Mischief.ECS.App.Systems
+import Mischief.ECS.Archetypes
+import Mischief.ECS.Archetypes.Graph
+import Mischief.ECS.Collectable (collect)
 import Mischief.ECS.Components
 import Mischief.ECS.Components.Bundle
+import Mischief.ECS.Components.BundleTypes
 import Mischief.ECS.Components.Common
+import Mischief.ECS.Components.Hooks
 import Mischief.ECS.Components.Required
+import Mischief.ECS.Components.Runnable
+import Mischief.ECS.Components.Spawn
 import Mischief.ECS.Entities
 import Mischief.ECS.Events
+import Mischief.ECS.Graph
+import Mischief.ECS.Hooks
 import Mischief.ECS.Log
+import Mischief.ECS.Mappable
 import Mischief.ECS.Messages
+import Mischief.ECS.Prelude
 import Mischief.ECS.Relationships
 import Mischief.ECS.Relationships.ChildOf
+import Mischief.ECS.Relationships.Graph
+import Mischief.ECS.Relationships.Order
+import Mischief.ECS.Relationships.Tree
+import Mischief.ECS.Systems
 import Mischief.ECS.Tables
 import Mischief.ECS.Time
 import Mischief.ECS.Utils
+import Mischief.ECS.Vec
 import Mischief.ECS.World
+import Mischief.ECS.World.Change
 import Mischief.ECS.World.Defer
 import Mischief.ECS.World.Insert
 import Mischief.ECS.World.Modify
 import Mischief.ECS.World.Par
+import Mischief.ECS.World.Prefs
 import Mischief.ECS.World.Query
+import Mischief.ECS.World.Query.QueryFilter
 import Mischief.ECS.World.Query.Queryable
+import Mischief.ECS.World.Query.Val
 import Mischief.ECS.World.Remove
 import Mischief.ECS.World.Spawn
+import Mischief.ECS.World.Systems
 import Mischief.ECS.World.Utils
 
 -- $mischief
@@ -137,7 +182,7 @@ import Mischief.ECS.World.Utils
 -- This module will go over some brief notions to give you an idea of how Mischief works, setting you up for reading the other tutorials that go more in-depth.
 
 -- $components
--- A @Component@ is a piece of data attached to an entity. This can be any type that derives the 'Component' typeclass, for instance:
+-- A @Component@ is a piece of data attached to an entity. This can be any type that derives the Component typeclass, for instance:
 --
 -- @
 -- data Health = Health 'Int' deriving ('Component')
@@ -146,244 +191,281 @@ import Mischief.ECS.World.Utils
 -- Additionally, a tuple of components is generally referred to as a 'Bundle'.
 
 -- $entities
--- An 'Entity' is just an index towards a specific group of components.
+-- An @Entity@ is a group of components that exist within the World.
+--
+-- The actual @'Entity'@ type is just an index pointing towards those components.
 
 -- $systems
--- @Systems@ are the lifeblood of Mischief. A system is a function that mutates the 'World', the global space containing all data stored by the ECS.
+-- @Systems@ are the lifeblood of Mischief. A system is a function which mutates the 'World', the global space containing all data stored by the ECS.
 --
--- Mischief's systems are quite different from other ECS's; each system is a 'Monad', making them fully composable.
---
--- There are many predefined systems, such as 'spawn', used for creating a new entity given a bundle of components:
+-- Mischief's systems are quite different from other ECS's. They are fully composable, taking full advantage of Haskell's monadic actions:
 --
 -- @
--- 'spawn' :: ('Bundle' b) => b -> 'System' 'Entity'
+-- foo :: 'System' ()
+-- foo = do
+--   bar
+--   baz
+--
+-- bar :: 'System' ()
+-- bar = ...
+--
+-- baz :: 'System' ()
+-- baz = ...
 -- @
 --
--- Or 'despawn', which deletes an entity, along with all its components, from the world.
+-- There are many helpful predefined systems, such as @spawn@, used for creating a new entity from a bundle of components:
 --
 -- @
--- 'despawn' :: 'Entity' -> 'System' ()
+-- foo <- 'spawn' ('Name' \"Foo\")
 -- @
 --
--- So let's write our first custom system. A system that spawns an entity with the @Player@ component and gives it a custom @'Name'@:
+-- You can insert new components on an entity with @insert@. This can also be used to change the value of existing components:
 --
 -- @
--- data Player = Player deriving ('Component')
---
--- spawnPlayer :: 'System' ()
--- spawnPlayer = do
---  e <- 'spawn' ('Name' "Player Name", Player)
---  'return' ()
+-- 'insert' (Name \"Healthy Foo\", Health 100) foo
 -- @
 --
--- Keep in mind that every 'System' also has 'IO' access via 'liftIO'.
+-- Components can be removed using @remove@ (more on what @C@ is later):
+--
+-- @
+-- 'remove' ('C' @Health) foo
+-- @
+--
+-- And @despawn@ deletes an entity, along with all its components, from the world.
+--
+-- @
+-- 'despawn' foo
+-- @
+--
+-- Every system also has 'IO' access via @liftIO@.
 --
 -- @
 -- helloWorld :: 'System' ()
 -- helloWorld = 'liftIO' $ 'print' "Hello World!"
 -- @
+
+-- $scheduling
+-- A @Schedule@ is a group of systems that can be ran using 'runSchedule'.
 --
--- Some other systems to keep in mind are 'insert' and 'remove', used for inserting and removing components from the provided entity.
+-- Systems can be added to a schedule using @[Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add'@, which is actually just a convenient wrapper around
+-- some spawn and insert operations.
+--
+-- @
+-- import "Mischief.ECS.Systems" qualified as [Systems]("Mischief.ECS.Systems")
+--
+-- data SomeSchedule = SomeSchedule deriving ('Schedule')
+--
+-- scheduleFoo :: 'System' ()
+-- scheduleFoo = do
+--   [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' SomeSchedule foo
+--
+-- foo :: 'System' ()
+-- foo = ...
+-- @
+--
+-- There are a few predefined schedules which are ran automatically by the app, such as 'Startup', which runs once at the start of the app, and
+-- 'Update', which runs once per frame.
+--
+-- @Systems.add@ also allows explicitly ordering systems via '`after`' and '`before`'.
+--
+-- @
+-- [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' SomeSchedule $ foo '`after`' bar '`before`' baz
+-- @
 
 -- $plugins
--- A 'Plugin' is a configuration added to the 'App'. It can spawn a component or set some pre-defined setting.
---
--- Plugins are ran before running the app, and before any schedules (more on that later).
+-- A @Plugin@ is a configuration added to the @App@. Each plugin runs an initialization system and can have multiple other plugins as dependencies. They are generally
+-- used for giving resources initial values, and for scheduling systems.
 --
 -- @
 -- main :: 'IO' ()
 -- main = do
---  app <- 'newApp' [plugin]
+--  app <- 'newApp' HelloPlugin
 --  'runApp' app
 --
--- plugin :: 'Plugin' ()
--- plugin = do
---  'addPlugin' anotherPlugin
---  'addSystems' 'Startup' spawnPlayer
+-- data HelloPlugin = HelloPlugin deriving ('Eq')
+--
+-- instance 'Plugin' HelloPlugin where
+--
+--   'Mischief.ECS.App.Plugins.init' :: 'System' ()
+--   'Mischief.ECS.App.Plugins.init' = 'info' \"Hello World!\"
+--
+--   'plugins' :: 'Plugins'
+--   'plugins' = 'collect' (somePlugin, someOtherPlugin)
+--
 -- @
 --
--- As shown above, an 'App' expects a list of plugins when it is created.
--- New plugins can also be added via @'addPlugin' :: 'Plugin' () -> 'Plugin' ()@.
+-- As shown above, an @App@ needs a @Plugin@ when it is created. That will be the source of all logic that goes into the app.
 
--- $scheduling
--- Any @'System' ()@ can be added to a 'Schedule', telling it to run at a certain time.
+-- $logging
 --
--- There are a few predefined schedules, such as 'Startup', which runs once at the start of the app, and
--- 'Update', which runs once per frame.
---
--- For instance, the following code will schedule a player to be spawned in the 'Startup' schedule:
+-- Systems can invoke custom log actions via "Mischief.ECS.Log", backed by @Co-log@.
 --
 -- @
--- 'addSystems' Startup spawnPlayer
--- @
---
--- 'addSystems' itself is a system, meaning systems can be scheduled at any time during the app's execution.
---
--- Creating custom schedules and running them on-demand is also possible.
-
--- $ordering
--- The scheduler also allows custom ordering between systems.
---
--- Let's consider the following system:
+-- foo :: 'System' ()
+-- foo = do
+--   'info'  "Hello!"
+--   'warn'  "Be warned.."
+--   'err'   "Critical error!"
+--   'panic' "Stopping execution."
 --
 -- @
--- changePlayerName :: 'System' ()
--- changePlayerName = do
---  Just name <- 'single'' \@'Name' $ 'with' \@Player
---  'set' name $ 'Name' "New Player Name"
--- @
 --
--- Don't worry if you're confused by the 'single'', we'll get to that later. All you need to know
--- is that this system changes the name of the player.
+-- Note that these actions expect a  @'Text'@ rather than a @'String'@. You can use 'text' to convert a 'Show'-able data to Text, and '<>' to concatenate two Texts.
 --
--- However, if we just add them both to the 'Startup' schedule, there's no guarantee
--- that this sytem will run after the one spawning the player. So instead, what we can do is specify that we want /this/ system
--- to run after the other. This explicit ordering can be mentioned when adding a system inside a plugin:
+-- You also need the @OverloadedStrings@ language extension to implicitly convert a string literaly to @Text@.
 --
 -- @
--- 'addSystems' 'Startup' spawnPlayer
--- 'addSystems' 'Startup' $ changePlayerName '`after`' spawnPlayer
+-- let name = \"Player's Name\"
+-- 'info' $ "The player's name is " <> 'text' name
 -- @
 
 -- $queries
--- @Queries@ are operations that allow reading specific data from the ECS. For instance, we may use the following query to get
--- the @'Name'@ and @Health@ (defined above) of each entity in our 'World':
+-- @Queries@ are operations that allow reading data from entities. For instance, we may use the following query to get
+-- the @Name@ and @Health@ of each entity in our World:
 --
 -- @
--- x <- 'query' @('Name', Health)
+-- x <- 'query' ('C' \@Name, 'C' \@Health)
 -- @
 --
--- Note that the 'Queryable' typeclass needs to be derived on each 'Component' that you wish to query. So, @Health@ would now look like this:
+-- The @'C'@ type used above is a marker that indicates the type of data you are querying for. @C@ is short for @Component@. There are other similar markers, such
+-- as @'R'@, short for @Relationship@.
+--
+-- Let's check the type of the above query:
 --
 -- @
--- data Health = Health 'Int' deriving ('Component', 'Queryable')
+-- x :: [('Result' Name, 'Result' Health)]
 -- @
 --
--- Notice how we use the '@' type hints to specify what components we are querying for. The result will be a list of tuples of those components,
--- an element corresponding to each entity that has those specific components. This type hint is usually referred to as @Query Data@.
---
--- In this case, the type of @x@ will be @x :: [('Result' Name, 'Result' Health)]@.
---
--- 'Result' is a wrapper type around the 'Component' that carries additional information, such as the 'Entity' that 'Component' belongs to.
---
--- This allows for special systems such as 'set', 'modify', 'delete' to operate directly on a 'Result'. For instance, we can do this:
+-- @'Result'@ is a wrapper type around the component's value that carries additional information. The inner value can be obtained using the @'value'@ function.
+-- A @Result@ can be used for operations such as 'set', 'modify', 'delete'. For instance, we can do this to increase the Health of each entity and then print
+-- it:
 --
 -- @
 -- 'for_' x $\(name, health) -> do
---   'liftIO' $ 'print' $ 'show' name ++ " has " ++ 'show' health
---   'set' name $ 'Name' "New Name"
 --   'modify' health $ (\(Health x) -> Health (x + 1))
+--   'info' $ 'text' name '<>' \" now has health: \" '<>' 'text' health
 -- @
 --
--- A component's value can be obtained at any time from a 'Result' by using @'value' :: 'Result' c -> c@.
---
--- 'single' is type of query that attempts to return the components of a single entity, if only one such entity exists.
--- If a query over the same components would return @[a]@, 'single' will return @'Maybe' a@
---
--- 'get' is another special type of query that grabs the specified components of a provided entity.
--- If we have a @player :: 'Entity'@, we can use the following to obtain its 'Name'.
+-- You can query for components of a given @'Entity'@ using @'get'@:
 --
 -- @
--- 'Just' name <- 'get' @'Name' player
+-- 'Just' name <- 'get' ('C' \@'Name') player
 -- @
 --
--- Keep in mind that doing @'Just' x <-@ will only work if the value was not 'Nothing'. This is essentially the equivalent of an @.unwrap()@ from @Rust@.
--- Only do this is if you are absolutely certain the query will be valid, otherwise it is recommended to treat both cases, such as:
+-- Keep in mind that doing @'Just' name <-@ will only work if the value was not 'Nothing'. This is essentially the equivalent of an @.unwrap()@ from @Rust@.
+-- Only do this is if you are absolutely certain the query will be valid, otherwise it is recommended to treat both cases:
 --
 -- @
--- name <- 'get' @'Name' player
+-- name <- 'get' ('C' \@'Name') player
 --
 -- case name of
 --   'Nothing' -> 'return' ()
 --   'Just' name -> do
---     'liftIO' $ 'print' name
+--     ...
 -- @
 --
--- There are special types of 'QueryData' that don't return a 'Result'. For instance, querying @/@'Entity'@ will just return an 'Entity' in that place in the tuple.
+-- Querying for @('C' \@Name, 'C' \@Health)@ will only select entities which contain those components. You can use @'M'@ (short for @Maybe@) to
+-- also include entities that don't necessarily have a specific component:
+--
+-- @
+-- x <- 'query' ('C' \@Name, 'M' \@Health)
+-- @
+--
+-- @
+-- x :: [('Result' Name, 'Maybe' ('Result' Health))]
+-- @
 
 -- $filters
--- @Filters@ are special modifiers to a query that can filter out certain entities based on various properties.
+-- @Filters@ can be added to a query to filter which entities it can return.
 --
--- For instance, the 'with' and 'without' filters can be used to include or exclude one or more components from a query.
+-- For instance, the @With@ and @Without@ filters can be used to include or exclude one or more components from a query.
 --
--- Multiple filters can be combined using the '&.' and '|.' operators.
---
--- The following query will return the @'Name'@ of all players that have @Health@ but aren't
+-- The following query will return the @Name@ of all players that have @Health@ but aren't
 -- @Enemies@.
 --
 -- @
--- players <- 'query'' \@'Name' $ 'with' \@(Player, Health) '&.' 'without' \@Enemy
+-- 'query'' ('C' \@'Name') ('With' \@(Player, Health), 'Without' \@Enemy)
 -- @
 --
--- Notice how 'query'' is a variant of 'query' that also takes a 'QueryFilter' as an argument.
--- This is also true for other queries, such as 'single''.
+-- The @query'@ above is a variant of @query@ that also takes a filter as an argument.
+-- Other types of queries follow the same pattern.
+--
+-- The @'|.'@ operator can be used to express @or@ between filters, and @'Not'@ can be used to negate a filter.
 
 -- $change
--- @Filters@ can also look at changes that have happened for a component.
+-- @Change detection@ is implemented through query filters.
 --
--- The 'added' filter can check if the components were added since the current system was last ran.
+-- The @Added@ and @Changed@ filters can check if certain components have been added or changed since the current system last ran.
+--
+-- The following query returns all Entities that have either just been added the @Player@ component, or that have had their @Health@ changed:
 --
 -- @
--- -- Query entities that have just receives the Player component.
--- x <- 'query'' @'Entity' $ 'added' @Player
+-- 'query'' ('C' \@'Entity') ('Added' \@Player '|.' 'Changed' \@Health)
 -- @
---
--- Similarly, 'changed' can check if 'Component's have changed their values.
 
 -- $resources
--- @Resources@ are special singleton-type entities. Essentially, they can be used to store /global/ 'Component's that can be easily
--- grabbed and changed at any time.
+-- @Resources@ are special singleton-type values. Any component can be a resource.
 --
--- @'insertRes' :: ('Component' c) => c -> 'System' ()@ can be used to add a new @Resource@ into the 'World', or to update its value if it already exists.
+-- @
+-- data FooRes = FooRes Int deriving ('Component')
+-- @
 --
--- @'res' :: forall c. ('Component' c) => 'System' ('Maybe' c)@ can be used to retrieve the value of a resource (it usually required a type hint).
+-- A resource can be inserted using @insertRes@:
+--
+-- @
+-- 'insertRes' $ FooRes 5
+-- @
+--
+-- The value of a resource can be obtained using @res@:
+--
+-- @
+-- 'Just' foo <- 'res' \@FooRes
+-- @
 
 -- $events
--- @Events@ are types that can trigger @Observers@.
+-- @Events@ and @Observers@ are important primitives of Mischief.
 --
--- For instance, having this 'Event':
---
--- @
--- data Foo = Foo 'Int' deriving ('Event', 'Show')
--- @
---
--- We can create the following 'Observer':
+-- An event is just a data type deriving the @Event@ typeclass:
 --
 -- @
--- onFoo :: Foo -> 'System' ()
--- onFoo foo = do
---  'liftIO' $ 'print' foo
+-- data MyEvent = MyEvent 'Int' deriving ('Event')
 -- @
 --
--- As you can see, an 'Observer' is any function @E -> 'System' ()@, where @E@ is a type instancing 'Event'.
---
--- 'Observer's can be added to an 'App' via the 'addObserver' plugin:
+-- Any event can be triggered using the @trigger@ system:
 --
 -- @
--- 'addObserver' onFoo
+-- 'trigger' $ MyEvent 10
 -- @
 --
--- And you can use @'trigger' :: ('Event' e) => e -> 'System' ()@ to cause every observer watching the respective event to run:
+-- Triggering an event will cause any observer listening to that event to run.
+--
+-- An observer is just a function that looks like @e -> 'System' ()@, where @e@ is an Event. For instance:
 --
 -- @
--- trigger (Foo 5)
+-- onMyEvent :: MyEvent -> 'System' ()
+-- onMyEvent (MyEvent x) = 'info' $ \"MyEvent was triggered with value \" '<>' 'text' x
+-- @
+--
+-- In order to activate an observer, it just needs to be spawned into the world:
+--
+-- @
+-- obs <- 'spawn' $ 'Observer' onMyEvent
 -- @
 
 -- $special_events
--- There are some special events  already defined by the @ECS@.
+-- There are some built-in events which are automatically triggered by the ECS for you.
 --
--- @'OnInsert' c@ triggers each time the @c@ 'Component' is inserted on an entity, and carries the 'Entity' via @.entity@.
+-- @OnInsert c@ triggers each time the @c@ component is inserted (or re-inserted) on an entity. It also contains the entity itself.
 --
 -- @
 -- handleNewPlayer :: 'OnInsert' Player -> 'System' ()
--- handleNewPlayer event = do
---  'liftIO' $ 'print' $ "The player component was added to " ++ 'show' event.entity
+-- handleNewPlayer event = 'info' $ "The player component was added to " <> 'text' event.entity
 -- @
 --
--- @'OnRemove' c@ is another such 'Event', which is triggered before the @c@ 'Component' is removed from an entity.
+-- @'OnRemove' c@ is another such event, which is triggered /before/ the @c@ component is removed from an entity.
 
 -- $tutorials
--- Now that you have a basic understanding of how things work, it is recommended to read the rest of the @Tutorial@ modules.
+-- Now that you (hopefully) have a basic understanding of how things work, you can start reading the rest of the @Tutorial@ modules.
 --
 -- (1) [App and Plugins]("Mischief.ECS.Tutorial.App")
 -- (2) [Components]("Mischief.ECS.Tutorial.Components")

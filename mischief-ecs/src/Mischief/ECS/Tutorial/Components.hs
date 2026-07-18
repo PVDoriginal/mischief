@@ -267,11 +267,18 @@ import Mischief.ECS.World.Spawn
 -- 'insert' ('Rel' (Likes bob)) alice
 -- @
 --
--- The 'withRel' 'QueryFilter' lets us easily query for components of entities that have a certain relationship with a certain entity.
+-- The 'WithR' query filter lets us easily query for components of entities that have a certain relationship with a certain entity.
+--
+-- Getting a list of all entities that like bob.
 --
 -- @
--- -- Getting a list of all entities that like bob
--- x <- 'query'' \@'Entity' $ 'withRel' \@Likes bob
+-- x <- 'query'' ('C' @'Entity') ('WithR' @Likes bob)
+-- @
+--
+-- Getting a list of all entities that like anyone.
+--
+-- @
+-- x <- 'query'' ('C' @'Entity') ('WithR' @Likes Any)
 -- @
 --
 -- We can also modify @Likes@ to have an @Int@ as well, representing how much an entity likes another:
@@ -284,25 +291,31 @@ import Mischief.ECS.World.Spawn
 -- 'insert' ('Rel' (Likes 5, alice), 'Rel' (Likes 8, charlie)) bob
 -- @
 --
--- The 'Rel' type can be used in a query to get a @['RelResult']@ for each entity.
+-- The 'R' marker type can be used in a query to get a @['Result' ('Rel' c)]@ for each entity.
+--
+-- Getting the name and all the Likes relationships of all entities.
 --
 -- @
--- r <- query \@('Rel' Likes)
+-- x <- query (C \@Name, 'R' \@Likes Any)
 -- @
 --
 -- @
--- r :: [['ResResult' Likes]]
+-- x :: [('Result' Name, ['Result' ('Rel' Likes)])]
 -- @
 --
--- A 'RelResult' is the relationship equivalent of a 'Result', with an extra @target@ function:
+--
+-- Getting the name and the Like relationship with bob for all entities.
 --
 -- @
--- 'value' :: 'RelResult' c -> c
--- 'target' :: 'RelResult' c -> Entity
--- 'entityOf' :: 'RelResult' c -> Entity
+-- x <- query (C \@Name, 'R' \@Likes bob)
 -- @
 --
--- The 'Show', 'Ord', 'Eq' of 'RelResult' are based on the @('value', 'target')@ pair.
+-- @
+-- x :: [('Result' Name, 'Result' ('Rel' Likes))]
+-- @
+--
+-- Note that @'R' \@Likes@ will limit the query to only the archetypes that contain any relation with @Likes@.
+-- You can also use @'MR'@ (Maybe relationship) to also include the entities that don't contain such relationships.
 --
 -- A component can be made @exclusive@ by setting the following 'Bool' in the 'Component' instance:
 --
