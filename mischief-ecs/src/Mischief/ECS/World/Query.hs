@@ -48,6 +48,7 @@ runQuery query filter world =
           (Set.toList (queryTypes query))
     archetypes <- findMatchingArchetypes (catMaybes components) world.archetypes
     let (otherFilter, archetypeFilter) = extractArchetypeFilters $ preprocessFilter filter
+    -- err $ text otherFilter
 
     archetypes' <- filterM (\(components, _) -> liftIO $ (filterArchetype . preprocessFilter) archetypeFilter components world) archetypes
 
@@ -150,18 +151,27 @@ filterQuery world (QFWithRelAny x) _ = do
               return $ any (\c -> isJust c.entity && c.id == id) components
 filterQuery world (QFChanged x) archetypes = do
   res <- liftIO $ tryGetTicks x world archetypes
-  (lastSystemTick, currentSystemTick) <- getSystemTicks world
-  return $
-    \(index, _) ->
-      let res' = res !! index
-       in pure $ res'.changed >= lastSystemTick && res'.changed < currentSystemTick
+  case res of
+    Nothing -> return $ const $ pure False
+    Just res -> do
+      (lastSystemTick, currentSystemTick) <- getSystemTicks world
+      return $
+        \(index, _) -> pure $ case res !! index of
+          Nothing -> False
+          Just res' ->
+            res'.changed >= lastSystemTick && res'.changed < currentSystemTick
 filterQuery world (QFAdded x) archetypes = do
   res <- liftIO $ tryGetTicks x world archetypes
-  (lastSystemTick, currentSystemTick) <- getSystemTicks world
-  return $
-    \(index, _) ->
-      let res' = res !! index
-       in pure $ res'.added >= lastSystemTick && res'.added < currentSystemTick
+  case res of
+    Nothing -> return $ const $ pure False
+    Just res -> do
+      (lastSystemTick, currentSystemTick) <- getSystemTicks world
+      return $
+        \(index, _) ->
+          pure $ case res !! index of
+            Nothing -> False
+            Just res' ->
+              res'.added >= lastSystemTick && res'.added < currentSystemTick
 filterQuery world (QFCheckRaw (x, ef)) archetypes = do
   id <- liftIO $ getComponentId x world.components
   case id of

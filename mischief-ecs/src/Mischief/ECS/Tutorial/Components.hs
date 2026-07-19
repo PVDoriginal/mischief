@@ -27,6 +27,9 @@ module Mischief.ECS.Tutorial.Components
     -- * Meta Components
     -- $meta
 
+    -- * Resources
+    -- $resources
+
     -- * Required Components
     -- $required
 
@@ -37,6 +40,7 @@ module Mischief.ECS.Tutorial.Components
   )
 where
 
+import Control.Monad (void)
 import Data.Default (Default (def))
 import Data.Foldable
 import GHC.Generics (Generic)
@@ -62,6 +66,10 @@ import Mischief.ECS
 -- $name
 -- @'Name'@ is a special component provided by Mischief that is internally added to every spawned entity, based on its @Entity@ index,
 -- if none is provided on spawn. It can be, of course, changed at any time.
+--
+-- @
+-- newtype Name = Name 'String' deriving ('Component')
+-- @
 --
 -- Consider this system that prints the name of a given Entity:
 --
@@ -108,9 +116,11 @@ import Mischief.ECS
 
 -- $ops
 -- As you must have seen many times already, we can use @spawn@ to create a new entity, @insert@ to add or change one of its components,
--- @remove@ to remove them, and @despawn@ to erase the entity.
+-- @remove@ to remove them, and @despawn@ to erase the entity. Here's a chunkier, whole example showcasing these operations:
 --
 -- @
+-- import "Mischief.ECS.Prelude"
+--
 -- data CompA = CompA 'Int' 'Int' deriving ('Component', 'Show')
 --
 -- data CompB = CompB 'String' deriving ('Component', 'Show')
@@ -134,7 +144,7 @@ import Mischief.ECS
 --
 --     'insert' (Name \"Foo2\", CompA 100 100, CompC) foo
 --     'remove' ('C' \@CompC, 'C' \@CompB) baz
---     'insert' (CompA 150 5) bar
+--     'despawn' bar
 --
 --     'info' . 'text' '=<<' 'query' ('C' \@Name, 'C' \@CompA, 'M' \@CompB, 'M' \@CompC)
 -- @
@@ -148,37 +158,75 @@ import Mischief.ECS
 --
 -- >> [Info] [
 --   ("\Foo2\", CompA 100 100, Just CompB \"Component B on Foo\", Just CompC),
---   (\"Bar\",  CompA 150 5,   Just CompB \"Component B on Bar\", Nothing   ),
 --   (\"Baz\",  CompA 0 0,     Nothing, Nothing)
 -- ]
 -- @
 
---
--- @
--- data CompA = CompA Int Int deriving (String)
--- @
---
---
--- @
---
--- @
-
 -- $results
--- A @'Result' c@ is a wrapper around the component @c@ that's produced by a query.
+-- A @'Result' c@ is a wrapper around the component @c@ that's produced by a query. We will discuss querying itself more in the [Query Chapter](TODO).
 --
 -- @
--- newtype 'Result' c = 'Result' (c, 'Entity')
+-- health <- 'get' ('C' \@Health) player
 -- @
+--
+-- @
+-- health :: 'Result' Health
+-- @
+--
+-- There are a number of useful operations that can be done on a @Result@:
+--
+-- * Set a new value for this component.
+--
+-- @
+-- 'set' health (Health 100)
+-- @
+--
+-- * Modify the value of this component.
+--
+-- @
+-- 'modify' health (\(Health x) -> Health (x + 1))
+-- @
+--
+-- * Remove the component from the entity.
+--
+-- @
+-- 'delete' health
+-- @
+--
+-- Note that these functions just call the @insert@, @remove@, etc. operations.
+--
+-- So these two are equivalent, performance-wise:
+--
+-- @
+-- health <- 'query' ('C' \@Health)
+--
+-- 'for_' health $ \(health) -> do
+--   'modify' health $ \(Health x) -> Health (x + 1)
+-- @
+--
+-- @
+-- health <- 'query' ('C' \@Health, 'C' \@Entity)
+--
+-- 'for_' health $ \((Health x), entity) -> do
+--   'insert' (Health (x + 1)) entity
+-- @
+--
+-- Or, if you prefer compact code:
+--
+-- @
+-- 'query' ('C' \@Health) '>>=' 'traverse_' ('`modify`' (\(Health x) -> Health (x + 1)))
+-- @
+--
+-- You can use the @value@ function to obtain the inner value of a @Result@.
 --
 -- @
 -- 'value' :: 'Result' c -> c
--- 'entityOf' :: 'Result' c -> Entity
 -- @
 --
--- The inner component's value can be obtained via the @value@ function.
+-- For instance:
 --
 -- @
--- 'Just' name <- 'get' \@'Name' e
+-- 'Just' name <- 'get' (C \@'Name') e
 -- let name' = 'value' name
 -- @
 --
@@ -209,66 +257,100 @@ import Mischief.ECS
 --
 -- Note that the value of a 'Result' is the value gotten at the time of querying. It could be outdated, in case the live value
 -- was changed after querying.
---
--- A 'Result' can be used in various functions such as:
---
--- * Set a new value for this component.
---
--- @
--- 'set' :: 'Result' c -> c -> 'System' ()
--- @
---
--- * Change the value of a component only if the value is different from the current one.
--- Useful if you don't wish to trigger change detection.
---
--- @
--- 'setIfNeq' :: ('Eq' c) => 'Result' c -> c -> 'System' ()
--- @
---
--- * Modify the value of this component (the function will be applied over the live value).
---
--- @
--- 'modify' :: 'Result' c -> (c -> c) -> 'System' ()
--- @
---
--- * Get the live value from the 'World'.
---
--- @
--- 'update' :: 'Result' c -> 'System' ('Maybe' ('Result' c))
--- @
---
--- * Remove the component from the entity.
---
--- @
--- 'delete' :: 'Result' c -> 'System' ()
--- @
 
 -- $meta
--- Each component has a corresponding entity in the 'World', called a @Meta Component@.
---
+-- Each component has a corresponding entity in the World.
 -- The components on that entity store information about the component itself. Such as which archetypes it is part of.
 --
--- A component's entity can be accessed by using @'meta' :: forall c. ('Component' c) => 'System' 'Entity'@.
--- For instance, the entity of 'Name' is @'meta' \@'Name'@.
+-- A component's entity can be accessed by using @meta@.
 --
---  This is, in fact, how @resources@ are stored: by inserting the value of a component unto its own corresponding entity.
---
--- @
--- 'res' :: forall c. ('Queryable' c, 'Component' c) => 'System' ('Maybe' ('Result' c))
--- 'res' = do
---   meta <- 'meta' \@c
---   'get' \@c meta
--- @
+-- Getting the entities of the @Name@ and @Player@ components:
 --
 -- @
--- 'insertRes' :: forall r. ('Component' r, 'Bundle' r) => r -> 'System' ()
--- 'insertRes' res = do
---   entity <- 'meta' \@r
---   'insert' res entity
+-- x <- 'meta' \@Name
+-- y <- 'meta' \@Player
 -- @
 --
 -- Most users should avoid tinkering with @Meta Components@ unless they have a good reason to,
 -- and should absolutely never remove or change any components added to them by the @ECS@.
+
+-- $resources
+-- @Resources@ are singleton components that can be set and read at any time.
+--
+-- For instance, let's create a resource that keeps track of how many players there are.
+--
+-- @
+-- data PlayerCount = PlayerCount 'Int' deriving ('Component', 'Show')
+--
+-- changeCount :: 'Int' -> PlayerCount -> PlayerCount
+-- changeCount n (PlayerCount x) = PlayerCount (x + n)
+-- @
+--
+-- We need to write a system that queries all entities that have had a @Player@ component added to them and updates @PlayerCount@ accordingly:
+--
+-- @
+-- updateCount :: 'System' ()
+-- updateCount = do
+--   x <- 'query'' ('C' @Entity) ('Added' \@Player)
+--
+--   count <- 'res' \@PlayerCount
+--   'modify' count $ changeCount ('length' x)
+-- @
+--
+-- We couldn't have used an observer for this since 'OnInsert' also catches re-insertions.
+--
+-- We'll also make an Observer that listens to the @OnRemove@ event to update @PlayerCount@:
+--
+-- @
+-- handlePlayerRemove :: 'OnRemove' Player -> 'System' ()
+-- handlePlayerRemove _ = do
+--   count <- 'res' \@PlayerCount
+--   'modify' count $ changecount (-1)
+-- @
+--
+-- I also wrote this system that spawns 3 Players and despawns one of them each frame, to make sure both the previous sytems works fine.
+--
+-- @
+-- spawnPlayers :: 'System' ()
+-- spawnPlayers = do
+--   ('info' . 'text') '=<<' 'res' \@PlayerCount
+--
+--   p <- 'spawn' Player
+--   'void' $ 'spawn' Player
+--   'void' $ 'spawn' Player
+--
+--   'despawn' p
+-- @
+--
+-- Now let's write a a simple app that makes use of these systems:
+--
+-- @
+-- import "Mischief.ECS.Systems" qualified as [Systems]("Mischief.ECS.Systems")
+--
+-- data Player = Player deriving ('Component')
+--
+-- main :: 'IO' ()
+-- main = do
+--   app <- 'newApp' MainPlugin
+--   'runApp' app
+--
+-- data MainPlugin = MainPlugin deriving ('Eq')
+--
+-- instance 'Plugin' MainPlugin where
+--   'Mischief.ECS.App.Plugins.init' _ = do
+--     'insertRes' $ PlayerCount 0
+--     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Update' (updateCount, spawnPlayers)
+--     'void' . 'spawn' $ 'Observer' handlePlayerRemove
+-- @
+--
+-- Running it will result in:
+--
+-- @
+-- [INFO] Just (PlayerCount 0)
+-- [INFO] Just (PlayerCount 2)
+-- [INFO] Just (PlayerCount 4)
+-- ...
+-- @
 
 -- $required
 -- Each component can have a list of components that it @requires@.

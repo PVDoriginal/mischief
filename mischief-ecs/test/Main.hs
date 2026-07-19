@@ -27,11 +27,7 @@ import Mischief.ECS.World.Query.QueryFilter
 import Mischief.ECS.World.Utils
 import System.Exit (exitSuccess)
 
-data CompA = CompA Int Int deriving (Component, Show)
-
-data CompB = CompB String deriving (Component, Show)
-
-data CompC = CompC deriving (Component, Show)
+data Player = Player deriving (Component)
 
 main :: IO ()
 main = do
@@ -42,14 +38,35 @@ data MainPlugin = MainPlugin deriving (Eq)
 
 instance Plugin MainPlugin where
   init _ = do
-    foo <- spawn (Name "Foo", CompA 10 10, CompB "Component B on Foo", CompC)
-    bar <- spawn (Name "Bar", CompA 15 3, CompB "Component B on Bar")
-    baz <- spawn (Name "Baz", CompA 0 0, CompB "Component B on Baz", CompC)
+    insertRes $ PlayerCount 0
+    Systems.add Update (updateCount, spawnPlayers)
+    void . spawn $ Observer handlePlayerRemove
 
-    info . text =<< query (C @Name, C @CompA, M @CompB, M @CompC)
+spawnPlayers :: System ()
+spawnPlayers = do
+  Just x <- res @PlayerCount
+  when (x.inner < 10) $ do
+    (info . text) =<< res @PlayerCount
 
-    insert (Name "Foo2", CompA 100 100, CompC) foo
-    remove (C @CompC, C @CompB) baz
-    insert (CompA 150 5) bar
+    p <- spawn Player
+    void $ spawn Player
+    void $ spawn Player
 
-    info . text =<< query (C @Name, C @CompA, M @CompB, M @CompC)
+    despawn p
+
+data PlayerCount = PlayerCount {inner :: Int} deriving (Component, Show)
+
+changeCount :: Int -> PlayerCount -> PlayerCount
+changeCount n (PlayerCount x) = PlayerCount (x + n)
+
+updateCount :: System ()
+updateCount = do
+  x <- query' (C @Entity) (Added @Player)
+  Just count <- res @PlayerCount
+  modify count $ changeCount (length x)
+  err $ text count
+
+handlePlayerRemove :: OnRemove Player -> System ()
+handlePlayerRemove _ = do
+  Just count <- res @PlayerCount
+  modify count $ changeCount (-1)

@@ -20,8 +20,9 @@ import Mischief.ECS.World.Query
 import Mischief.ECS.World.Query.Queryable
 import Mischief.ECS.World.Utils
 
-newtype ChangeResult = ChangeResult
-  { requiredComponentsAdded :: [ProcessedBundleElement]
+data ChangeResult = ChangeResult
+  { requiredComponentsAdded :: [ProcessedBundleElement],
+    newComponents :: [ProcessedBundleElement]
   }
 
 changeArchetype :: (HasCallStack) => Entity -> ArchetypeData -> Maybe ProcessedBundleData -> System ChangeResult

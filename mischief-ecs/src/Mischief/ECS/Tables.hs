@@ -9,7 +9,7 @@ import Data.Kind
 import Data.List (transpose)
 import Data.Map (Map)
 import Data.Map qualified as Map
-import Data.Maybe (catMaybes, fromMaybe, isNothing)
+import Data.Maybe (catMaybes, fromMaybe, isJust, isNothing)
 import Data.Traversable (for)
 import Data.Typeable (Proxy (Proxy), eqT, typeRep, type (:~:) (Refl))
 import Data.Vector qualified as Vector
@@ -264,21 +264,24 @@ tryGetTicksFromColumn (Column components) = do
   let x = Vector.map (\x -> x.ticks) frozen
   return $ Vector.toList x
 
-tryGetTicksFromTable :: Table -> ComponentId -> IO [ComponentTicks]
+tryGetTicksFromTable :: Table -> ComponentId -> IO [Maybe ComponentTicks]
 tryGetTicksFromTable table componentId =
   do
     columns <- readIORef table.columns
     case Map.lookup componentId columns of
-      Nothing -> return []
-      Just column -> tryGetTicksFromColumn column
+      Nothing -> do
+        l <- Vec.length table.entities
+        return $ map (const Nothing) [1 .. l]
+      Just column -> do
+        map Just <$> tryGetTicksFromColumn column
 
-tryGetTicksFromArchetype :: ArchetypeId -> Map ArchetypeId Table -> ComponentId -> IO [ComponentTicks]
-tryGetTicksFromArchetype archetype tables componentId =
+tryGetTicksFromArchetype :: ArchetypeId -> Map ArchetypeId Table -> ComponentId -> IO [Maybe ComponentTicks]
+tryGetTicksFromArchetype archetype tables componentId = do
   case Map.lookup archetype tables of
     Nothing -> return []
     Just table -> tryGetTicksFromTable table componentId
 
-tryGetTicksFromTables :: Tables -> [ArchetypeId] -> ComponentId -> IO [ComponentTicks]
+tryGetTicksFromTables :: Tables -> [ArchetypeId] -> ComponentId -> IO [Maybe ComponentTicks]
 tryGetTicksFromTables (Tables tables) archetypes componentId =
   do
     tables <- readIORef tables

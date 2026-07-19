@@ -195,12 +195,12 @@ instance (IntoQueryFilter a, IntoQueryFilter b) => IntoQueryFilter (a `Or` b) wh
 data Changed c = Changed
 
 instance (BundleTypes c) => IntoQueryFilter (Changed c) where
-  intoQueryFilter _ = and' $ map QFChanged (Set.toList $ types (Proxy @c))
+  intoQueryFilter _ = and' $ map (\x -> QFWith x `QFAnd` QFChanged x) (Set.toList $ types (Proxy @c))
 
 data Added c = Added
 
 instance (BundleTypes c) => IntoQueryFilter (Added c) where
-  intoQueryFilter _ = and' $ map QFAdded (Set.toList $ types (Proxy @c))
+  intoQueryFilter _ = and' $ map (\x -> QFWith x `QFAnd` QFAdded x) (Set.toList $ types (Proxy @c))
 
 newtype Check c = Check (c -> Bool)
 
