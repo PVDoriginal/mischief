@@ -15,6 +15,12 @@ module Mischief.ECS.Tutorial.Components
     -- * Introduction
     -- $introduction
 
+    -- * The Name Component
+    -- $name
+
+    -- * Operations
+    -- $ops
+
     -- * Query Results
     -- $results
 
@@ -35,76 +41,127 @@ import Data.Default (Default (def))
 import Data.Foldable
 import GHC.Generics (Generic)
 import GHC.Records (HasField)
-import Mischief.ECS (require)
-import Mischief.ECS.Components
-import Mischief.ECS.Components.Bundle
-import Mischief.ECS.Components.Spawn
-import Mischief.ECS.Entities
-import Mischief.ECS.Relationships.ChildOf
-import Mischief.ECS.Tables
-import Mischief.ECS.World
-import Mischief.ECS.World.Insert
-import Mischief.ECS.World.Modify
-import Mischief.ECS.World.Query
-import Mischief.ECS.World.Remove
-import Mischief.ECS.World.Spawn
+import Mischief.ECS
 
 -- $introduction
 -- A component is any type which derives the 'Component' typeclass. They can be both carriers of data or marker components used for querying (@Tags@ from @Flecs@):
 --
--- @
--- -- Component that carries data.
--- data Health = Health 'Int' deriving ('Component', 'Queryable')
---
--- -- Marker components.
--- data Player = Player deriving ('Component', 'Queryable')
--- data Enemy = Enemy deriving ('Component', 'Queryable')
--- @
---
--- Components can be @inserted@ and @removed@ from entities:
+-- Component that carries data.
 --
 -- @
--- foo <- 'spawn' ('Name' \"Foo\")
--- bar <- 'spawn' ('Name' \"Bar\", Enemy)
--- baz <- 'spawn' ('Name' \"Baz\", Player, Enemy)
---
--- 'insert' (Health 0, Player) foo
---
--- -- Re-inserting a component changes its value.
--- 'insert' ('Name' "New Baz Name") baz
---
--- 'remove' @(Enemy, 'Name') baz
+-- data Health = Health 'Int' deriving ('Component')
 -- @
 --
--- They can be @queried@ and @changed@:
+-- Marker components.
 --
 -- @
--- -- Get the Name and Health of all players that aren't enemies.
--- players <- 'query'' @('Name', 'Health') $ 'with' @Player '&.' 'without' @Enemy
+-- data Player = Player deriving ('Component')
+-- data Enemy = Enemy deriving ('Component')
+-- @
+
+-- $name
+-- @'Name'@ is a special component provided by Mischief that is internally added to every spawned entity, based on its @Entity@ index,
+-- if none is provided on spawn. It can be, of course, changed at any time.
 --
--- 'for_' players $ \(name, health) -> do
---  'liftIO' $ 'print' $ "Healing " ++ 'show' name
---  'modify' health $ (\(Health x) -> Health (x + 1))
+-- Consider this system that prints the name of a given Entity:
+--
+-- @
+-- printName :: 'Entity' -> 'System' ()
+-- printName e = 'info' . 'text' '=<<' 'get' ('C' \@'Name') e
 -- @
 --
--- They can be stored as @resources@ (also called @singletons@):
+-- Notice how the Names behave here:
 --
 -- @
--- data Players = Players ['Entity'] deriving (Component, Queryable)
--- addPlayer :: 'Entity' -> Players -> Players
--- addPlayer entity (Players list) = Players (entity : list)
+-- foo <- 'spawn' ()
+-- printName foo
 --
--- setup :: 'System' ()
--- setup = 'insertRes' $ Players []
+-- insert ('Name' \"Foo\") foo
+-- printName foo
 --
--- handleNewPlayer :: 'OnInserted' Player -> 'System' ()
--- handleNewPlayer event = do
---  'Just' players <- 'res' @Players
---  'modify' players $ addPlayer event.target
+-- bar <- 'spawn' ('Name' \"Bar\")
+-- printName bar
 -- @
 --
--- 'Name' is a special component provided by Mischief that is added to every spawned entity, if it contains none, and
--- is usually equal to @'show' 'Entity'@.
+-- @
+-- >> [INFO] Just \"Entity 15v1\"
+-- >> [INFO] Just \"Foo\"
+-- >> [INFO] Just \"Bar\"
+-- @
+--
+-- === __Don't know what =<< is?__
+--
+-- @=<<@ is just an operator which takes the result of a monadic action on the right, and applies it
+-- to the monadic action on the left. It's equivalent to writing:
+--
+-- @
+-- printName e = do
+--   x <- 'get' ('C' \@'Name') e
+--   'info' $ 'text' x
+-- @
+--
+-- There is also the @>>=@ operator whcih does the same but in the opposite direction.
+--
+-- @
+-- printName e = 'get' ('C' \@'Name') e '>>=' 'info' . 'text'
+-- @
+
+-- $ops
+-- As you must have seen many times already, we can use @spawn@ to create a new entity, @insert@ to add or change one of its components,
+-- @remove@ to remove them, and @despawn@ to erase the entity.
+--
+-- @
+-- data CompA = CompA 'Int' 'Int' deriving ('Component', 'Show')
+--
+-- data CompB = CompB 'String' deriving ('Component', 'Show')
+--
+-- data CompC = CompC deriving ('Component', 'Show')
+--
+-- main :: 'IO' ()
+-- main = do
+--   app <- 'newApp' MainPlugin
+--   'runApp' app
+--
+-- data MainPlugin = MainPlugin deriving ('Eq')
+--
+-- instance 'Plugin' MainPlugin where
+--   'Mischief.ECS.App.Plugins.init' _ = do
+--     foo <- 'spawn' (Name \"Foo\", CompA 10 10, CompB \"Component B on Foo\", CompC)
+--     bar <- 'spawn' (Name \"Bar\", CompA 15 3,  CompB \"Component B on Bar\")
+--     baz <- 'spawn' (Name \"Baz\", CompA 0 0,   CompB \"Component B on Baz\", CompC)
+--
+--     'info' . 'text' '=<<' 'query' ('C' \@Name, 'C' \@CompA, 'M' \@CompB, 'M' \@CompC)
+--
+--     'insert' (Name \"Foo2\", CompA 100 100, CompC) foo
+--     'remove' ('C' \@CompC, 'C' \@CompB) baz
+--     'insert' (CompA 150 5) bar
+--
+--     'info' . 'text' '=<<' 'query' ('C' \@Name, 'C' \@CompA, 'M' \@CompB, 'M' \@CompC)
+-- @
+--
+-- @
+-- >> [Info] [
+--   (\"Foo\", CompA 10 10, Just CompB \"Component B on Foo\", Just CompC),
+--   (\"Baz\", CompA 0 0,   Just CompB \"Component B on Baz\", Just CompC),
+--   (\"Bar\", CompA 15 3,  Just CompB \"Component B on Bar\", Nothing)
+-- ]
+--
+-- >> [Info] [
+--   ("\Foo2\", CompA 100 100, Just CompB \"Component B on Foo\", Just CompC),
+--   (\"Bar\",  CompA 150 5,   Just CompB \"Component B on Bar\", Nothing   ),
+--   (\"Baz\",  CompA 0 0,     Nothing, Nothing)
+-- ]
+-- @
+
+--
+-- @
+-- data CompA = CompA Int Int deriving (String)
+-- @
+--
+--
+-- @
+--
+-- @
 
 -- $results
 -- A @'Result' c@ is a wrapper around the component @c@ that's produced by a query.

@@ -1,3 +1,4 @@
+{- HLINT ignore "Use newtype instead of data" -}
 module Main where
 
 import Control.Concurrent
@@ -26,30 +27,11 @@ import Mischief.ECS.World.Query.QueryFilter
 import Mischief.ECS.World.Utils
 import System.Exit (exitSuccess)
 
-newtype A = A Int deriving (Show, Eq)
+data CompA = CompA Int Int deriving (Component, Show)
 
-instance Component A where
-  required = require @B
+data CompB = CompB String deriving (Component, Show)
 
-data B = B deriving (Show, Generic, Default)
-
-instance Component B where
-  required = require @E
-
-data E = E deriving (Generic, Default, Show)
-
-instance Component E where
-  required = require @()
-
-data TestRel = TestRel deriving (Show)
-
-instance Component TestRel where
-  hooks :: Hooks TestRel
-  hooks = Hooks.relCleanupDespawn
-
-data OtherRel = OtherRel deriving (Component, Show)
-
-newtype TestRel2 = TestRel2 Int deriving (Component, Show)
+data CompC = CompC deriving (Component, Show)
 
 main :: IO ()
 main = do
@@ -60,39 +42,14 @@ data MainPlugin = MainPlugin deriving (Eq)
 
 instance Plugin MainPlugin where
   init _ = do
-    Systems.add Startup setup
-    Systems.add Update dummy
+    foo <- spawn (Name "Foo", CompA 10 10, CompB "Component B on Foo", CompC)
+    bar <- spawn (Name "Bar", CompA 15 3, CompB "Component B on Bar")
+    baz <- spawn (Name "Baz", CompA 0 0, CompB "Component B on Baz", CompC)
 
-  plugins _ = collect (Foo, Bar, Baz)
+    info . text =<< query (C @Name, C @CompA, M @CompB, M @CompC)
 
-data Foo = Foo deriving (Plugin, Eq)
+    insert (Name "Foo2", CompA 100 100, CompC) foo
+    remove (C @CompC, C @CompB) baz
+    insert (CompA 150 5) bar
 
-data Bar = Bar deriving (Plugin, Eq)
-
-data Baz = Baz deriving (Plugin, Eq)
-
-setup :: System ()
-setup = do
-  a <- spawn (A 5, Name "Lol")
-  b <- spawn (A 6, Name "Lmao")
-  c <- spawn (A 7, Name "wow")
-  d <- spawn (A 4, Name "idk")
-
-  insert (Rel (TestRel2 5) a) b
-  Just q <- get (R @TestRel2 a) b
-  set q $ TestRel2 6
-
-  (err . text) =<< get (R @TestRel2 Any) b
-
-dummy :: System ()
-dummy = return ()
-
-newtype Counter = Counter Int
-  deriving anyclass (Component)
-  deriving stock (Show)
-
-onInsert :: OnInsert A -> System ()
-onInsert _ = err "AAA"
-
-onRemove :: OnRemove A -> System ()
-onRemove _ = err "BBBB"
+    info . text =<< query (C @Name, C @CompA, M @CompB, M @CompC)
