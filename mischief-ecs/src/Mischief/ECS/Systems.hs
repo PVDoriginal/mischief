@@ -48,7 +48,7 @@ removeOne schedule system = do
 
   despawn s
 
-  query' (C @Entity) (WithR @Before s)
+  query' E (WithR @Before s)
     >>= traverse_ (removeRel @Before s)
 
 spawn :: System () -> System Entity

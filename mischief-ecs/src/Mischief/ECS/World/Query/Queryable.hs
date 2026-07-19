@@ -25,31 +25,9 @@ data HasR a b = HasR b
 
 data Val a = Val a
 
+data E = E
+
 data C a = C
-
-class CQuery flag c output | flag c -> output where
-  runQueryEntityC :: qd -> World -> Entity -> IO (Maybe output)
-  runQueryInternalC :: qd -> [ArchetypeId] -> World -> IO [(Entity, output)]
-  queryTypesC :: qd -> Set (TypeRep, TypeQuery)
-
-instance (Component c) => CQuery HTrue c (Result c) where
-  runQueryEntityC _ world entity = do
-    result <- tryGetEntityComponent @c world entity
-    return $ case result of
-      Just (Just res) -> Just $ Result (res, entity)
-      _ -> Nothing
-
-  runQueryInternalC _ archetypes world = tryGetComponents @c world archetypes
-
-  queryTypesC _ = Set.singleton (typeRep (Proxy @c), CompQ)
-
-instance CQuery HFalse Entity Entity where
-  runQueryEntityC _ _ entity = pure (Just entity)
-  runQueryInternalC _ archetypes world = do
-    results <- tryGetComponents @Entity world archetypes
-    pure $ fmap (\cr -> (fst cr, fst cr)) results
-
-  queryTypesC _ = Set.empty
 
 newtype R a b = R b
 
@@ -72,10 +50,16 @@ type family IsComponentC c where
   IsComponentC Entity = HFalse
   IsComponentC a = HTrue
 
-instance {-# OVERLAPPABLE #-} (CQuery (IsComponentC c) c o) => Queryable (C c) o where
-  runQueryEntity = runQueryEntityC @(IsComponentC c) @c
-  runQueryInternal = runQueryInternalC @(IsComponentC c) @c
-  queryTypes = queryTypesC @(IsComponentC c) @c
+instance {-# OVERLAPPABLE #-} (Component c) => Queryable (C c) (Result c) where
+  runQueryEntity _ world entity = do
+    result <- tryGetEntityComponent @c world entity
+    return $ case result of
+      Just (Just res) -> Just $ Result (res, entity)
+      _ -> Nothing
+
+  runQueryInternal _ archetypes world = tryGetComponents @c world archetypes
+
+  queryTypes _ = Set.singleton (typeRep (Proxy @c), CompQ)
 
 -- instance {-# OVERLAPPING #-} Queryable (C Entity) Entity where
 --   runQueryEntity _ _ entity = pure (Just entity)
@@ -95,6 +79,13 @@ instance (Component c) => Queryable (R c Any) [Result (Rel c)] where
   runQueryInternal _ archetypes world = tryGetRelCollections @c world archetypes
 
   queryTypes _ = Set.singleton (typeRep $ Proxy @c, RelQ)
+
+instance Queryable E Entity where
+  runQueryEntity _ _ entity = return $ Just entity
+
+  runQueryInternal _ archetypes world = map (\x -> (x, x)) <$> tryGetEntities world archetypes
+
+  queryTypes _ = Set.empty
 
 instance (Component c) => Queryable (R c Entity) (Result (Rel c)) where
   runQueryEntity (R target) world entity = do

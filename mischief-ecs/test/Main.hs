@@ -61,7 +61,7 @@ changeCount n (PlayerCount x) = PlayerCount (x + n)
 
 updateCount :: System ()
 updateCount = do
-  x <- query' (C @Entity) (Added @Player)
+  x <- query' E (Added @Player)
   Just count <- res @PlayerCount
   modify count $ changeCount (length x)
   err $ text count

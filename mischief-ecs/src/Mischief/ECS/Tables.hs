@@ -322,18 +322,19 @@ tryGetComponentsFromTable :: forall c. (Component c) => Table -> ComponentId -> 
 tryGetComponentsFromTable table componentId =
   do
     columns <- readIORef table.columns
-    case eqT @c @Entity of
-      Just Refl -> do
+    case Map.lookup componentId columns of
+      Nothing -> undefined
+      Just column -> do
+        results <- tryGetComponentsFromColumn @c column
         entities <- Vec.toList table.entities
-        return $ map (\(a, _) -> (a, Result (a, a))) entities
-      Nothing ->
-        case Map.lookup componentId columns of
-          Nothing -> undefined
-          Just column -> do
-            results <- tryGetComponentsFromColumn @c column
-            entities <- Vec.toList table.entities
-            let zipped = zip (map fst entities) results
-            return $ map (\(e, r) -> (e, Result (r, e))) zipped
+        let zipped = zip (map fst entities) results
+        return $ map (\(e, r) -> (e, Result (r, e))) zipped
+
+tryGetEntitiesFromTable :: Table -> IO [Entity]
+tryGetEntitiesFromTable table =
+  do
+    entities <- Vec.toList table.entities
+    return $ map fst entities
 
 tryGetComponentsFromTableMaybe :: forall c. (Component c) => Table -> ComponentId -> IO [(Entity, Maybe (Result c))]
 tryGetComponentsFromTableMaybe table componentId =
@@ -360,6 +361,12 @@ tryGetComponentsFromArchetype archetype tables componentId = do
     Nothing -> return []
     Just table -> tryGetComponentsFromTable table componentId
 
+tryGetEntitiesFromArchetype :: ArchetypeId -> Map ArchetypeId Table -> IO [Entity]
+tryGetEntitiesFromArchetype archetype tables = do
+  case Map.lookup archetype tables of
+    Nothing -> return []
+    Just table -> tryGetEntitiesFromTable table
+
 tryGetComponentsFromArchetypeMaybe :: forall c. (Component c) => ArchetypeId -> Map ArchetypeId Table -> ComponentId -> IO [(Entity, Maybe (Result c))]
 tryGetComponentsFromArchetypeMaybe archetype tables componentId =
   case Map.lookup archetype tables of
@@ -378,6 +385,13 @@ tryGetComponentsFromTables (Tables tables) archetypes componentId =
   do
     tables <- readIORef tables
     results <- mapM (\archetype -> tryGetComponentsFromArchetype archetype tables componentId) archetypes
+    return $ concat results
+
+tryGetEntitiesFromTables :: Tables -> [ArchetypeId] -> IO [Entity]
+tryGetEntitiesFromTables (Tables tables) archetypes =
+  do
+    tables <- readIORef tables
+    results <- mapM (`tryGetEntitiesFromArchetype` tables) archetypes
     return $ concat results
 
 tryGetComponentsFromTablesMaybe :: forall c. (Component c) => Tables -> [ArchetypeId] -> ComponentId -> IO [(Entity, Maybe (Result c))]

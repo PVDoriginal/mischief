@@ -41,5 +41,5 @@ orderEntitiesStep entities =
 
 isAvailable :: Entity -> System Bool
 isAvailable entity = do
-  before <- query' (C @Entity) (WithR @Before entity)
+  before <- query' E (WithR @Before entity)
   isNothing <$> findM ((not . unwrap <$>) . get (Has @Visited)) before

@@ -183,6 +183,9 @@ tryGetComponents world archetypes =
       Just componentId ->
         tryGetComponentsFromTables world.tables archetypes componentId
 
+tryGetEntities :: World -> [ArchetypeId] -> IO [Entity]
+tryGetEntities world = tryGetEntitiesFromTables world.tables
+
 tryGetRels :: forall c. (Component c) => Entity -> World -> [ArchetypeId] -> IO [(Entity, Result (Rel c))]
 tryGetRels target world archetypes =
   do

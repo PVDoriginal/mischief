@@ -222,8 +222,3 @@ findComponentsOfEntity world entity = do
       return $ case Map.lookup pointer.archetypeId tables of
         Nothing -> Nothing
         Just x -> Just x.components
-
-x :: System ()
-x = do
-  x <- query (C @Entity)
-  return ()

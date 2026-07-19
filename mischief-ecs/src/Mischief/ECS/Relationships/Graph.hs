@@ -20,4 +20,4 @@ outgoing entity = do
     Just next -> map (\x -> x.target) next
 
 ingoing :: forall c m w. (Component c, BundleTypes c, MonadSystem w m) => Entity -> m [Entity]
-ingoing entity = query' (C @Entity) (WithR @c entity)
+ingoing entity = query' E (WithR @c entity)

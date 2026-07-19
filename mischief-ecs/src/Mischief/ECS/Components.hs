@@ -174,8 +174,6 @@ data ComponentTicks = ComponentTicks {changed :: Tick, added :: Tick} deriving (
 -- | Data for a component that's stored in a table.
 data ComponentData = ComponentData {value :: ErasedComponent, ticks :: ComponentTicks}
 
-instance Component Entity
-
 -- | Type used for querying and inserting relationships.
 data Rel c = Rel {comp :: c, target :: Entity} deriving (Show)
 
