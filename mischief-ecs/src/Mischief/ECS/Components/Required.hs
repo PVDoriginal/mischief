@@ -44,5 +44,5 @@ expandAll set =
 expandOne :: DefaultComponentType -> Set DefaultComponentType
 expandOne (DefaultComponentType (_ :: (Proxy c))) = required @c
 
-toBundleElement :: DefaultComponentType -> BundleElement
+toBundleElement :: DefaultComponentType -> BundleElement ErasedComponent
 toBundleElement (DefaultComponentType (_ :: (Proxy c))) = BundleElement (ComponentRep $ ComponentType $ Proxy @c) $ ErasedComponent $ def @c

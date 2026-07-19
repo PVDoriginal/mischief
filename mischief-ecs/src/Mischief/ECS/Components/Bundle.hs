@@ -11,7 +11,7 @@ newtype ProcessedBundleData = ProcessedBundleData {elements :: [ProcessedBundleE
 
 data ProcessedBundleElement = ProcessedBundleElement {id :: ComponentId, component :: ComponentData}
 
-addComponentToBundleData :: forall c. (Component c) => c -> BundleData -> BundleData
+addComponentToBundleData :: forall c. (Component c) => c -> BundleData ErasedComponent -> BundleData ErasedComponent
 addComponentToBundleData c (BundleData {elements}) =
   let rep = ComponentRep $ ComponentType (Proxy @c)
       component = ErasedComponent c
@@ -26,7 +26,16 @@ instance Ord ProcessedBundleElement where
   compare :: ProcessedBundleElement -> ProcessedBundleElement -> Ordering
   compare ProcessedBundleElement {id = id1} ProcessedBundleElement {id = id2} = compare id1 id2
 
-type Bundle b = Collectable b BundleData
+type Bundle b = Collectable b (BundleData ErasedComponent)
 
-bundleData :: (Bundle b) => b -> BundleData
+bundleData :: (Bundle b) => b -> BundleData ErasedComponent
 bundleData = collect
+
+type BundleEq b = Collectable b (BundleData ErasedComponentEq)
+
+bundleDataEq :: (BundleEq b) => b -> BundleData ErasedComponentEq
+bundleDataEq = collect
+
+bundleEqToSimple :: BundleData ErasedComponentEq -> BundleData ErasedComponent
+bundleEqToSimple BundleData {elements} =
+  BundleData $ Set.map (\BundleElement {rep, component = ErasedComponentEq (a :: s)} -> BundleElement {rep, component = ErasedComponent a}) elements

@@ -39,6 +39,7 @@ module Mischief.ECS.Components
     Rel (..),
     ComponentRep (..),
     Tick (..),
+    ErasedComponentEq (..),
   )
 where
 
@@ -59,10 +60,6 @@ import Mischief.ECS.Utils
 
 -- | The @Component@ typeclass.
 class (Typeable c) => Component c where
-  -- | Automatic type erasure
-  erase :: c -> ErasedComponent
-  erase = ErasedComponent
-
   -- | List of components required by this one.
   -- All required components must be 'Default'
   --
@@ -143,16 +140,27 @@ tryGetComponent (ErasedComponent (s :: c')) =
     Just Refl -> Just s
     Nothing -> Nothing
 
-instance {-# OVERLAPPING #-} EraseIntoStorage () BundleData where
-  erase _ = BundleData $ Set.empty
+instance {-# OVERLAPPING #-} EraseIntoStorage () (BundleData e) where
+  erase _ = BundleData Set.empty
 
-instance (Component c) => EraseIntoStorage c BundleData where
+instance {-# OVERLAPPING #-} EraseIntoStorage (BundleData ErasedComponent) (BundleData ErasedComponent) where
+  erase = id
+
+instance (Component c) => EraseIntoStorage c (BundleData ErasedComponent) where
   erase c =
-    BundleData $ Set.singleton BundleElement {rep = ComponentRep $ ComponentType $ Proxy @c, component = Mischief.ECS.Components.erase c}
+    BundleData $ Set.singleton BundleElement {rep = ComponentRep $ ComponentType $ Proxy @c, component = ErasedComponent c}
 
-instance {-# OVERLAPPING #-} (Component c) => EraseIntoStorage (Rel c) BundleData where
+instance {-# OVERLAPPING #-} (Component c) => EraseIntoStorage (Rel c) (BundleData ErasedComponent) where
   erase (Rel c entity) =
-    BundleData $ Set.singleton BundleElement {rep = PairRep (ComponentType $ Proxy @c, entity), component = Mischief.ECS.Components.erase c}
+    BundleData $ Set.singleton BundleElement {rep = PairRep (ComponentType $ Proxy @c, entity), component = ErasedComponent c}
+
+instance (Component c, Eq c) => EraseIntoStorage c (BundleData ErasedComponentEq) where
+  erase c =
+    BundleData $ Set.singleton BundleElement {rep = ComponentRep $ ComponentType $ Proxy @c, component = ErasedComponentEq c}
+
+instance {-# OVERLAPPING #-} (Component c, Eq c) => EraseIntoStorage (Rel c) (BundleData ErasedComponentEq) where
+  erase (Rel c entity) =
+    BundleData $ Set.singleton BundleElement {rep = PairRep (ComponentType $ Proxy @c, entity), component = ErasedComponentEq c}
 
 -- | Unique id corresponding to an archetype.
 newtype ArchetypeId = ArchetypeId
@@ -161,10 +169,10 @@ newtype ArchetypeId = ArchetypeId
   deriving (Show, Eq, Ord)
 
 -- | Data extracted from a 'Mischief.ECS.Components.Bundle.Bundle'.
-newtype BundleData = BundleData {elements :: Set BundleElement} deriving newtype (Semigroup)
+newtype BundleData e = BundleData {elements :: Set (BundleElement e)} deriving newtype (Semigroup)
 
-instance Show BundleData where
-  show BundleData {elements} = mconcat ["BundleData [", List.intercalate ", " ts, "]"]
+instance Show (BundleData e) where
+  show BundleData {elements} = mconcat ["BundleData e [", List.intercalate ", " ts, "]"]
     where
       ts = map (\bundle -> show bundle.rep) (Set.toList elements)
 
@@ -191,23 +199,26 @@ data Requires = Requires deriving (Component)
 
 -- | Type for component erasure.
 data ErasedComponent where
-  ErasedComponent :: (Typeable c) => c -> ErasedComponent
+  ErasedComponent :: (Component c) => c -> ErasedComponent
+
+data ErasedComponentEq where
+  ErasedComponentEq :: (Component c, Eq c) => c -> ErasedComponentEq
 
 data ComponentRep = ComponentRep ComponentType | PairRep (ComponentType, Entity) deriving (Show, Eq, Ord)
 
--- | Element of a 'BundleData'.
-data BundleElement = BundleElement {rep :: ComponentRep, component :: ErasedComponent}
+-- | Element of a 'BundleData e'.
+data BundleElement e = BundleElement {rep :: ComponentRep, component :: e}
 
-instance Show BundleElement where
-  show :: BundleElement -> String
+instance Show (BundleElement a) where
+  show :: BundleElement a -> String
   show e = show e.rep
 
-instance Eq BundleElement where
-  (==) :: BundleElement -> BundleElement -> Bool
+instance Eq (BundleElement a) where
+  (==) :: BundleElement a -> BundleElement a -> Bool
   (==) BundleElement {rep = rep1} BundleElement {rep = rep2} = rep1 == rep2
 
-instance Ord BundleElement where
-  compare :: BundleElement -> BundleElement -> Ordering
+instance Ord (BundleElement a) where
+  compare :: BundleElement a -> BundleElement a -> Ordering
   compare BundleElement {rep = rep1} BundleElement {rep = rep2} = compare rep1 rep2
 
 -- @Meta@ component containing the erased type of this component.

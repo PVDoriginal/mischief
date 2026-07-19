@@ -29,6 +29,10 @@ import System.Exit (exitSuccess)
 
 data Player = Player deriving (Component)
 
+data CompA = CompA Int deriving (Component, Eq)
+
+data CompB = CompB String deriving (Component, Eq)
+
 main :: IO ()
 main = do
   app <- newApp MainPlugin
@@ -38,9 +42,11 @@ data MainPlugin = MainPlugin deriving (Eq)
 
 instance Plugin MainPlugin where
   init _ = do
-    insertRes $ PlayerCount 0
-    Systems.add Update (updateCount, spawnPlayers)
-    void . spawn $ Observer handlePlayerRemove
+    void $ spawn $ Observer a
+    x <- spawn (CompA 5)
+    insertIfNeq (CompA 5, CompB "AA") x
+
+    Systems.add Update updateCount
 
 spawnPlayers :: System ()
 spawnPlayers = do
@@ -61,12 +67,12 @@ changeCount n (PlayerCount x) = PlayerCount (x + n)
 
 updateCount :: System ()
 updateCount = do
-  x <- query' E (Added @Player)
-  Just count <- res @PlayerCount
-  modify count $ changeCount (length x)
-  err $ text count
+  return ()
 
 handlePlayerRemove :: OnRemove Player -> System ()
 handlePlayerRemove _ = do
   Just count <- res @PlayerCount
   modify count $ changeCount (-1)
+
+a :: OnInsert CompA -> System ()
+a _ = err "AAAA"

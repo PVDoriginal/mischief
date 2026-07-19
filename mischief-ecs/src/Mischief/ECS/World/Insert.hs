@@ -127,6 +127,21 @@ insertNew bundle entity =
             unless world.prefs.supressEvents $
               triggerInsertEvent newComponents entity
 
+insertIfNeq :: (BundleEq b) => b -> Entity -> System ()
+insertIfNeq b entity = do
+  let BundleData {elements} = bundleDataEq b
+
+  comps <- flip filterM (Set.toList elements) $ \BundleElement {rep, component = ErasedComponentEq (val :: c)} -> do
+    val' <- case rep of
+      PairRep (_, target) -> fmap (\x -> x.comp) <$> get (R @c target) entity
+      _ -> fmap value <$> get (C @c) entity
+
+    case val' of
+      Nothing -> return True
+      Just val' -> return (val /= val')
+
+  insert (bundleEqToSimple $ BundleData (Set.fromList comps)) entity
+
 -- | Insert a resource into this world. If the resource already exists, its value will be overwritten.
 insertRes :: forall r. (Component r, Bundle r) => r -> System ()
 insertRes res = do

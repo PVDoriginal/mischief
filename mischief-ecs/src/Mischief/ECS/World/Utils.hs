@@ -36,7 +36,7 @@ import Mischief.ECS.World.Prefs
 import {-# SOURCE #-} Mischief.ECS.World.Spawn (spawnIO)
 
 -- | Process a 'BundleElement', turning its 'TypeRep' into a 'ComponentId'.
-processBundleElement :: World -> ComponentTicks -> BundleElement -> IO ProcessedBundleElement
+processBundleElement :: World -> ComponentTicks -> (BundleElement ErasedComponent) -> IO ProcessedBundleElement
 processBundleElement world ticks BundleElement {rep = (ComponentRep r), component} =
   do
     id <- runSystem (getOrAddComponentId r) world
@@ -63,7 +63,7 @@ processBundleElement world ticks BundleElement {rep = (PairRep (r, entity)), com
         }
 
 -- | Process a set of 'BundleElement's into a 'ProcessedBundleData'.
-processBundleElements :: World -> ComponentTicks -> Set BundleElement -> IO ProcessedBundleData
+processBundleElements :: World -> ComponentTicks -> Set (BundleElement ErasedComponent) -> IO ProcessedBundleData
 processBundleElements world ticks elements =
   do
     elements <- mapM (processBundleElement world ticks) (Set.toList elements)
