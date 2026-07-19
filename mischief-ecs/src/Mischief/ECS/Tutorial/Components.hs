@@ -24,6 +24,9 @@ module Mischief.ECS.Tutorial.Components
     -- * Query Results
     -- $results
 
+    -- * Change Detection
+    -- $change
+
     -- * Meta Components
     -- $meta
 
@@ -32,9 +35,6 @@ module Mischief.ECS.Tutorial.Components
 
     -- * Required Components
     -- $required
-
-    -- * Change Detection
-    -- $change
 
     -- * Registering Components
     -- $reg
@@ -193,7 +193,7 @@ import Mischief.ECS
 -- @
 --
 -- @
--- health <- 'query' ('C' \@Health, 'C' \@Entity)
+-- health <- 'query' ('C' \@Health, 'E')
 --
 -- 'for_' health $ \((Health x), entity) -> do
 --   'insert' (Health (x + 1)) entity
@@ -356,15 +356,17 @@ import Mischief.ECS
 --
 -- * @OnRemove@ is triggered when a component is removed from an entity.
 --
+-- @
 -- onNameRemove :: 'OnRemove' 'Name' -> 'System' ()
+-- @
 --
 -- Both events have a @.entity@ field you can use to obtain the entity which it happened on.
 --
--- In order to have those systems be triggered, you just need to spawn an Observer for them:
+-- Don't forget to spawn an Observer to listen to each event.
 --
 -- @
--- obs1 <- 'spawn' ('Observer' onNameInsert)
--- obs2 <- 'spawn' ('Observer' onNameRemove)
+-- 'void' $ 'spawn' ('Observer' onNameInsert)
+-- 'void' $ 'spawn' ('Observer' onNameRemove)
 -- @
 --
 -- @OnInsert@ is always triggered /after/ a component has been inserted, while @OnRemove@ is triggered /before/. This
@@ -378,20 +380,26 @@ import Mischief.ECS
 -- 'query' ('C' \@'Name') ('Added' \@Player)
 -- @
 --
--- You will only obtain the name of entities which had the @Player@ component added on top since the current (scheduled) system last ran.
+-- You will only obtain the name of entities which had the @Player@ component added to them since the current (scheduled) system last ran.
 --
--- @Added c@ will catch entities that just had @c@ added to them, while @Changed c@ will catch any entity that just had the @c@ component inserted or changed (re-inserted).
---
+-- @Added c@ will catch entities that just had @c@ added to them, while @Changed c@ will catch any insertion, similar to @OnInsert@.
 -- If you wish to query for entities that have had a component changed but it wasn't just added, you can do:
 --
 -- @
--- 'query' ('C' \@'Name') ('Changed' \@Player, 'Not' ('Added' /@Player))
+-- 'query' ('C' \@'Name') ('Changed' \@Player, 'Not' ('Added' \@Player))
 -- @
 --
--- One essential detail to be aware of here is that re-insertion and change are the same thing. The values exposed to you by Mischief are always immutable,
--- and changing them involves an insertion.
+-- One essential detail to be aware of here is that insertion (@OnInsert@ or @Changed@) doesn't necessarily mean a component has been changed.
 --
--- You can use 'setIfNeq'
+-- The following @insert@ /will/ trigger change detection:
+--
+-- @
+-- p <- 'spawn' Player
+-- 'insert' Player p
+-- @
+--
+-- To avoid this, you can derive 'Eq' on your components and use @'insertIfNeq'@ and @'setIfNeq'@, which will only perform insertion if the value of the component is different
+-- from the current one.
 
 -- $relationships
 -- Mischief implement @Relationships@ in a similar way to @Flecs@.
@@ -427,13 +435,13 @@ import Mischief.ECS
 -- Getting a list of all entities that like bob.
 --
 -- @
--- x <- 'query'' ('C' @'Entity') ('WithR' @Likes bob)
+-- x <- 'query'' 'E' ('WithR' @Likes bob)
 -- @
 --
 -- Getting a list of all entities that like anyone.
 --
 -- @
--- x <- 'query'' ('C' @'Entity') ('WithR' @Likes Any)
+-- x <- 'query'' 'E' ('WithR' @Likes Any)
 -- @
 --
 -- We can also modify @Likes@ to have an @Int@ as well, representing how much an entity likes another:
@@ -561,7 +569,7 @@ import Mischief.ECS
 -- @
 -- updateCount :: 'System' ()
 -- updateCount = do
---   x <- 'query'' ('C' @Entity) ('Added' \@Player)
+--   x <- 'query'' 'E' ('Added' \@Player)
 --
 --   count <- 'res' \@PlayerCount
 --   'modify' count $ changeCount ('length' x)
