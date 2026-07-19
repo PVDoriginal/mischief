@@ -33,8 +33,14 @@ module Mischief.ECS.Tutorial.Components
     -- * Required Components
     -- $required
 
-    -- * Relationships
-    -- $relationships
+    -- * Change Detection
+    -- $change
+
+    -- * Registering Components
+    -- $reg
+
+    -- * Examples
+    -- $examples
 
     -- * [Next Chapter: Systems]("Mischief.ECS.Tutorial.Systems")
   )
@@ -115,52 +121,34 @@ import Mischief.ECS
 -- @
 
 -- $ops
--- As you must have seen many times already, we can use @spawn@ to create a new entity, @insert@ to add or change one of its components,
--- @remove@ to remove them, and @despawn@ to erase the entity. Here's a chunkier, whole example showcasing these operations:
+--
+-- Mischief offers various @operations@ for inserting and manipulating data into the ECS:
+--
+-- * You can spawn entities as bundles of components:
 --
 -- @
--- import "Mischief.ECS.Prelude"
---
--- data CompA = CompA 'Int' 'Int' deriving ('Component', 'Show')
---
--- data CompB = CompB 'String' deriving ('Component', 'Show')
---
--- data CompC = CompC deriving ('Component', 'Show')
---
--- main :: 'IO' ()
--- main = do
---   app <- 'newApp' MainPlugin
---   'runApp' app
---
--- data MainPlugin = MainPlugin deriving ('Eq')
---
--- instance 'Plugin' MainPlugin where
---   'Mischief.ECS.App.Plugins.init' _ = do
---     foo <- 'spawn' (Name \"Foo\", CompA 10 10, CompB \"Component B on Foo\", CompC)
---     bar <- 'spawn' (Name \"Bar\", CompA 15 3,  CompB \"Component B on Bar\")
---     baz <- 'spawn' (Name \"Baz\", CompA 0 0,   CompB \"Component B on Baz\", CompC)
---
---     'info' . 'text' '=<<' 'query' ('C' \@Name, 'C' \@CompA, 'M' \@CompB, 'M' \@CompC)
---
---     'insert' (Name \"Foo2\", CompA 100 100, CompC) foo
---     'remove' ('C' \@CompC, 'C' \@CompB) baz
---     'despawn' bar
---
---     'info' . 'text' '=<<' 'query' ('C' \@Name, 'C' \@CompA, 'M' \@CompB, 'M' \@CompC)
+-- player <- 'spawn' (Name \"Player\", Player)
 -- @
 --
--- @
--- >> [Info] [
---   (\"Foo\", CompA 10 10, Just CompB \"Component B on Foo\", Just CompC),
---   (\"Baz\", CompA 0 0,   Just CompB \"Component B on Baz\", Just CompC),
---   (\"Bar\", CompA 15 3,  Just CompB \"Component B on Bar\", Nothing)
--- ]
+-- * You can insert components on existing entities:
 --
--- >> [Info] [
---   ("\Foo2\", CompA 100 100, Just CompB \"Component B on Foo\", Just CompC),
---   (\"Baz\",  CompA 0 0,     Nothing, Nothing)
--- ]
 -- @
+-- 'insert' (Name \"New Player Name\", Health 100)
+-- @
+--
+-- * You can remove components:
+--
+-- @
+-- 'remove' ('C' \@Health, 'C' \@Player) player
+-- @
+--
+-- * You can despawn entities:
+--
+-- @
+-- 'despawn' player
+-- @
+--
+-- Additionally, @'insertNew'@ is a variant of @insert@ that only inserts components that aren't already on the entity.
 
 -- $results
 -- A @'Result' c@ is a wrapper around the component @c@ that's produced by a query. We will discuss querying itself more in the [Query Chapter](TODO).
@@ -275,107 +263,135 @@ import Mischief.ECS
 -- and should absolutely never remove or change any components added to them by the @ECS@.
 
 -- $resources
--- @Resources@ are singleton components that can be set and read at any time.
+-- @Resources@ are singleton components that can be easily accessed and modified from any system.
 --
--- For instance, let's create a resource that keeps track of how many players there are.
---
--- @
--- data PlayerCount = PlayerCount 'Int' deriving ('Component', 'Show')
---
--- changeCount :: 'Int' -> PlayerCount -> PlayerCount
--- changeCount n (PlayerCount x) = PlayerCount (x + n)
--- @
---
--- We need to write a system that queries all entities that have had a @Player@ component added to them and updates @PlayerCount@ accordingly:
+-- A resource can be any component.
 --
 -- @
--- updateCount :: 'System' ()
--- updateCount = do
---   x <- 'query'' ('C' @Entity) ('Added' \@Player)
---
---   count <- 'res' \@PlayerCount
---   'modify' count $ changeCount ('length' x)
+-- data MyRes = MyRes 'Int' deriving ('Component')
 -- @
 --
--- We couldn't have used an observer for this since 'OnInsert' also catches re-insertions.
---
--- We'll also make an Observer that listens to the @OnRemove@ event to update @PlayerCount@:
+-- You can insert a resource into the World using @insertRes@.
 --
 -- @
--- handlePlayerRemove :: 'OnRemove' Player -> 'System' ()
--- handlePlayerRemove _ = do
---   count <- 'res' \@PlayerCount
---   'modify' count $ changecount (-1)
+-- 'insertRes' $ MyRes 5
 -- @
 --
--- I also wrote this system that spawns 3 Players and despawns one of them each frame, to make sure both the previous sytems works fine.
+-- And you can query for the value of a resource using @res@:
 --
 -- @
--- spawnPlayers :: 'System' ()
--- spawnPlayers = do
---   ('info' . 'text') '=<<' 'res' \@PlayerCount
---
---   p <- 'spawn' Player
---   'void' $ 'spawn' Player
---   'void' $ 'spawn' Player
---
---   'despawn' p
+-- 'Just' myRes <- 'res' \@MyRes
 -- @
 --
--- Now let's write a a simple app that makes use of these systems:
+-- @res r@ returns a @'Maybe' r@ because it's possible for the resource to not have been inserted yet.
+--
+-- Resources are implemented by inserting a component into its own meta entity.
+--
+-- @'res' \@MyRes@ is the same as doing:
 --
 -- @
--- import "Mischief.ECS.Systems" qualified as [Systems]("Mischief.ECS.Systems")
---
--- data Player = Player deriving ('Component')
---
--- main :: 'IO' ()
--- main = do
---   app <- 'newApp' MainPlugin
---   'runApp' app
---
--- data MainPlugin = MainPlugin deriving ('Eq')
---
--- instance 'Plugin' MainPlugin where
---   'Mischief.ECS.App.Plugins.init' _ = do
---     'insertRes' $ PlayerCount 0
---     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Update' (updateCount, spawnPlayers)
---     'void' . 'spawn' $ 'Observer' handlePlayerRemove
--- @
---
--- Running it will result in:
---
--- @
--- [INFO] Just (PlayerCount 0)
--- [INFO] Just (PlayerCount 2)
--- [INFO] Just (PlayerCount 4)
--- ...
+-- m <- 'meta' \@MyRes
+-- 'get' ('C' \@MyRes) m
 -- @
 
 -- $required
--- Each component can have a list of components that it @requires@.
---
--- If two components, @B@ and @C@ are required by component @A@, they will be added to each entity that @A@ is added to.
---
--- @Requirements@ can be set via a custom instance of 'Component'.
+-- Each component can @require@ a bundle of other components.
 --
 -- @
--- data B = B deriving ('Generic', 'Component', 'Default')
--- data C = C deriving ('Generic', 'Component', 'Default')
+-- data Player = Player
 --
--- data A = A
--- instance 'Component' A where
---   'required' = 'require' \@(B, C)
+-- instance 'Component' Player where
+--   'required' = 'require' \@(Position, Health)
 -- @
 --
--- As implied above, in order for a component to be required by another, it needs to implement 'Default'.
--- That can either be a 'Generic' derive, or a fully custom instance:
+-- This means that each time @Player@ is added to an entity, a /default/ @Position@ and @Health@ will also be inserted, if they aren't already present.
+--
+-- In order for a component to be required by another, it must instance the @'Default'@ typeclass, either through a @Generic@ derive or a custom instance.
 --
 -- @
--- data Health = Health 'Int'
+-- data Position = Position 'Int' 'Int' deriving ('Component', 'Generic', 'Default')
+-- @
+--
+-- @
+-- data Health = Health 'Int' deriving ('Component')
+--
 -- instance 'Default' Health where
---   'def' = Health 0
+--   'def' = Health 100
 -- @
+--
+-- Requirements are transitive (if @A requires B@ and @B requires C@, then @A requires C@) and /can/ contain cycles.
+--
+-- A requirement is added to the ECS as a @'RequiredBy'@ \/ @'Requires'@ relationship between the components' entities.
+
+-- $reg
+-- @Registering@ a component involves spawning its meta entity and adding the corresponding data.
+--
+-- Each component is registered automatically the first time it is inserted on an Entity, so you don't usually
+-- have to worry about registration.
+--
+-- Queries are also smart about components; if you query or filter for a component hasn't been registered yet, they will just
+-- assume that component can't be be on any Entity. Queries can't perform registration themselves, because they're not allowed to mutate
+-- the world in any way. (TODO par link).
+--
+-- However, there may be /extremely/ niche situations where you want to register components earlier than normal, which is where manual registration comes in:
+--
+-- @
+-- 'register' \@(Player, Health, Position)
+-- @
+--
+-- One such situation could be wanting to check the requirements in-between multiple components.
+-- If a component hasn't been registered yet, it won't show up when you query for components that require a specific component.
+
+-- $change
+-- @Change detection@ can be done in two ways: @Observers@ and @Filters@.
+--
+-- Observers can listen to the @'OnInsert'@ and @'OnRemove'@ event:
+--
+-- * @OnInsert c@ is triggered each time @c@ is inserted on an entity. This event is also triggered when a
+-- compoenent is re-inserted / changed, meaning this isn't a reliable way to determine if a component was just added.
+--
+-- @
+-- onNameInsert :: 'OnInsert' 'Name' -> 'System' ()
+-- @
+--
+-- * @OnRemove@ is triggered when a component is removed from an entity.
+--
+-- onNameRemove :: 'OnRemove' 'Name' -> 'System' ()
+--
+-- Both events have a @.entity@ field you can use to obtain the entity which it happened on.
+--
+-- In order to have those systems be triggered, you just need to spawn an Observer for them:
+--
+-- @
+-- obs1 <- 'spawn' ('Observer' onNameInsert)
+-- obs2 <- 'spawn' ('Observer' onNameRemove)
+-- @
+--
+-- @OnInsert@ is always triggered /after/ a component has been inserted, while @OnRemove@ is triggered /before/. This
+-- allows you to query for the component and get its value.
+--
+-- Now for the other way of doing change detection: the @'Changed'@ and @'Added'@ query filters.
+--
+-- With the following query:
+--
+-- @
+-- 'query' ('C' \@'Name') ('Added' \@Player)
+-- @
+--
+-- You will only obtain the name of entities which had the @Player@ component added on top since the current (scheduled) system last ran.
+--
+-- @Added c@ will catch entities that just had @c@ added to them, while @Changed c@ will catch any entity that just had the @c@ component inserted or changed (re-inserted).
+--
+-- If you wish to query for entities that have had a component changed but it wasn't just added, you can do:
+--
+-- @
+-- 'query' ('C' \@'Name') ('Changed' \@Player, 'Not' ('Added' /@Player))
+-- @
+--
+-- One essential detail to be aware of here is that re-insertion and change are the same thing. The values exposed to you by Mischief are always immutable,
+-- and changing them involves an insertion.
+--
+-- You can use 'setIfNeq'
 
 -- $relationships
 -- Mischief implement @Relationships@ in a similar way to @Flecs@.
@@ -475,6 +491,136 @@ import Mischief.ECS
 -- @(Likes, charlie)@ will overwrite @(Likes, alice)@.
 --
 -- This is useful for relationships such as 'ChildOf', since an entity can only have one parent at a time.
+
+-- $examples
+--
+-- This section contains a few chunkier examples that combine the notions from this entire chapter.
+--
+-- === __Example 1__
+--
+--
+-- An example showing different operations that spawn and alter entities.
+--
+-- @
+-- import "Mischief.ECS.Prelude"
+--
+-- data CompA = CompA 'Int' 'Int' deriving ('Component', 'Show')
+--
+-- data CompB = CompB 'String' deriving ('Component', 'Show')
+--
+-- data CompC = CompC deriving ('Component', 'Show')
+--
+-- main :: 'IO' ()
+-- main = do
+--   app <- 'newApp' MainPlugin
+--   'runApp' app
+--
+-- data MainPlugin = MainPlugin deriving ('Eq')
+--
+-- instance 'Plugin' MainPlugin where
+--   'Mischief.ECS.App.Plugins.init' _ = do
+--     foo <- 'spawn' (Name \"Foo\", CompA 10 10, CompB \"Component B on Foo\", CompC)
+--     bar <- 'spawn' (Name \"Bar\", CompA 15 3,  CompB \"Component B on Bar\")
+--     baz <- 'spawn' (Name \"Baz\", CompA 0 0,   CompB \"Component B on Baz\", CompC)
+--
+--     'info' . 'text' '=<<' 'query' ('C' \@Name, 'C' \@CompA, 'M' \@CompB, 'M' \@CompC)
+--
+--     'insert' (Name \"Foo2\", CompA 100 100, CompC) foo
+--     'remove' ('C' \@CompC, 'C' \@CompB) baz
+--     'despawn' bar
+--
+--     'info' . 'text' '=<<' 'query' ('C' \@Name, 'C' \@CompA, 'M' \@CompB, 'M' \@CompC)
+-- @
+--
+-- @
+-- >> [Info] [
+--   (\"Foo\", CompA 10 10, Just CompB \"Component B on Foo\", Just CompC),
+--   (\"Baz\", CompA 0 0,   Just CompB \"Component B on Baz\", Just CompC),
+--   (\"Bar\", CompA 15 3,  Just CompB \"Component B on Bar\", Nothing)
+-- ]
+--
+-- >> [Info] [
+--   ("\Foo2\", CompA 100 100, Just CompB \"Component B on Foo\", Just CompC),
+--   (\"Baz\",  CompA 0 0,     Nothing, Nothing)
+-- ]
+-- @
+--
+-- === __Example 2__
+--
+-- This example shows you how to make a resource that independently tracks the number of Players in the World.
+--
+-- @
+-- data PlayerCount = PlayerCount 'Int' deriving ('Component', 'Show')
+--
+-- changeCount :: 'Int' -> PlayerCount -> PlayerCount
+-- changeCount n (PlayerCount x) = PlayerCount (x + n)
+-- @
+--
+-- We need to write a system that queries all entities that have had a @Player@ component added to them and updates @PlayerCount@ accordingly:
+--
+-- @
+-- updateCount :: 'System' ()
+-- updateCount = do
+--   x <- 'query'' ('C' @Entity) ('Added' \@Player)
+--
+--   count <- 'res' \@PlayerCount
+--   'modify' count $ changeCount ('length' x)
+-- @
+--
+-- We couldn't have used an observer for this since 'OnInsert' also catches re-insertions.
+--
+-- We'll also make an Observer that listens to the @OnRemove@ event to update @PlayerCount@:
+--
+-- @
+-- handlePlayerRemove :: 'OnRemove' Player -> 'System' ()
+-- handlePlayerRemove _ = do
+--   count <- 'res' \@PlayerCount
+--   'modify' count $ changecount (-1)
+-- @
+--
+-- I also wrote this system that spawns 3 Players and despawns one of them each frame, to make sure both the previous sytems works fine.
+--
+-- @
+-- spawnPlayers :: 'System' ()
+-- spawnPlayers = do
+--   ('info' . 'text') '=<<' 'res' \@PlayerCount
+--
+--   p <- 'spawn' Player
+--   'void' $ 'spawn' Player
+--   'void' $ 'spawn' Player
+--
+--   'despawn' p
+-- @
+--
+-- Now let's write a a simple app that makes use of these systems:
+--
+-- @
+-- import "Mischief.ECS.Systems" qualified as [Systems]("Mischief.ECS.Systems")
+--
+-- data Player = Player deriving ('Component')
+--
+-- main :: 'IO' ()
+-- main = do
+--   app <- 'newApp' MainPlugin
+--   'runApp' app
+--
+-- data MainPlugin = MainPlugin deriving ('Eq')
+--
+-- instance 'Plugin' MainPlugin where
+--   'Mischief.ECS.App.Plugins.init' _ = do
+--     'insertRes' $ PlayerCount 0
+--     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Update' (updateCount, spawnPlayers)
+--     'void' . 'spawn' $ 'Observer' handlePlayerRemove
+-- @
+--
+-- Running it will result in:
+--
+-- @
+-- [INFO] Just (PlayerCount 0)
+-- [INFO] Just (PlayerCount 2)
+-- [INFO] Just (PlayerCount 4)
+-- ...
+-- @
 
 -- $next
 -- "Mischief.ECS.Tutorial.Systems"
