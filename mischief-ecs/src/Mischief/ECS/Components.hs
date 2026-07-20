@@ -140,7 +140,7 @@ tryGetComponent (ErasedComponent (s :: c')) =
     Just Refl -> Just s
     Nothing -> Nothing
 
-instance {-# OVERLAPPING #-} EraseIntoStorage () (BundleData e) where
+instance {-# OVERLAPPING #-} EraseIntoStorage () (BundleData ErasedComponent) where
   erase _ = BundleData Set.empty
 
 instance {-# OVERLAPPING #-} EraseIntoStorage (BundleData ErasedComponent) (BundleData ErasedComponent) where

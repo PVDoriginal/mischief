@@ -168,10 +168,10 @@ instance (BundleTypes c) => IntoQueryFilter (Changed c) where
 newtype ChangedR c e = ChangedR e
 
 instance (BundleTypes c) => IntoQueryFilter (ChangedR c Entity) where
-  intoQueryFilter (ChangedR e) = and' $ map (\x -> QFWith (x, Nothing) `QFAnd` QFChanged (x, Just e) qfChangedF) (Set.toList $ types (Proxy @c))
+  intoQueryFilter (ChangedR e) = and' $ map (\x -> QFWith (x, Just e) `QFAnd` QFChanged (x, Just e) qfChangedF) (Set.toList $ types (Proxy @c))
 
 instance (BundleTypes c) => IntoQueryFilter (ChangedR c Any) where
-  intoQueryFilter _ = and' $ map (\x -> QFWith (x, Nothing) `QFAnd` QFChangedRelAny x qfChangedF) (Set.toList $ types (Proxy @c))
+  intoQueryFilter _ = and' $ map (\x -> QFWithRelAny x `QFAnd` QFChangedRelAny x qfChangedF) (Set.toList $ types (Proxy @c))
 
 data Added c = Added
 
@@ -181,10 +181,10 @@ instance (BundleTypes c) => IntoQueryFilter (Added c) where
 newtype AddedR c e = AddedR e
 
 instance (BundleTypes c) => IntoQueryFilter (AddedR c Entity) where
-  intoQueryFilter (AddedR e) = and' $ map (\x -> QFWith (x, Nothing) `QFAnd` QFChanged (x, Just e) qfAddedF) (Set.toList $ types (Proxy @c))
+  intoQueryFilter (AddedR e) = and' $ map (\x -> QFWith (x, Just e) `QFAnd` QFChanged (x, Just e) qfAddedF) (Set.toList $ types (Proxy @c))
 
 instance (BundleTypes c) => IntoQueryFilter (AddedR c Any) where
-  intoQueryFilter _ = and' $ map (\x -> QFWith (x, Nothing) `QFAnd` QFChangedRelAny x qfAddedF) (Set.toList $ types (Proxy @c))
+  intoQueryFilter _ = and' $ map (\x -> QFWithRelAny x `QFAnd` QFChangedRelAny x qfAddedF) (Set.toList $ types (Proxy @c))
 
 newtype Check c = Check (c -> Bool)
 
@@ -194,7 +194,7 @@ instance (Component c) => IntoQueryFilter (Check c) where
 data CheckR c e = CheckR e (c -> Bool)
 
 instance (Component c) => IntoQueryFilter (CheckR c Entity) where
-  intoQueryFilter (CheckR e f) = QFWith (typeRep $ Proxy @c, Nothing) `QFAnd` QFCheckRaw (typeRep $ Proxy @c, Just e, ErasedCheck f)
+  intoQueryFilter (CheckR e f) = QFWith (typeRep $ Proxy @c, Just e) `QFAnd` QFCheckRaw (typeRep $ Proxy @c, Just e, ErasedCheck f)
 
 instance (Component c) => IntoQueryFilter (CheckR c Any) where
-  intoQueryFilter (CheckR _ f) = QFWith (typeRep $ Proxy @c, Nothing) `QFAnd` QFCheckRawRelAny (typeRep $ Proxy @c, ErasedCheck f)
+  intoQueryFilter (CheckR _ f) = QFWithRelAny (typeRep $ Proxy @c) `QFAnd` QFCheckRawRelAny (typeRep $ Proxy @c, ErasedCheck f)

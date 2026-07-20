@@ -48,7 +48,6 @@ runQuery query filter world =
           (Set.toList (queryTypes query))
     archetypes <- findMatchingArchetypes (catMaybes components) world.archetypes
     let (otherFilter, archetypeFilter) = extractArchetypeFilters $ preprocessFilter filter
-    -- err $ text otherFilter
 
     archetypes' <- filterM (\(components, _) -> liftIO $ (filterArchetype . preprocessFilter) archetypeFilter components world) archetypes
 

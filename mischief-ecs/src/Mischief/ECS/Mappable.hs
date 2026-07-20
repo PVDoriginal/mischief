@@ -4,7 +4,6 @@ module Mischief.ECS.Mappable where
 
 import Mischief.ECS.Entities
 import Mischief.ECS.Tables
-import Prelude hiding (map)
 
 class Mappable flag a b | flag a -> b where
   mapTuple :: a -> b
@@ -22,6 +21,9 @@ instance {-# OVERLAPPABLE #-} Mappable MapQueryVal (Maybe (Result a)) (Maybe a) 
 
 instance {-# OVERLAPPING #-} Mappable MapQueryVal (Result a) a where
   mapTuple (Result (a, _)) = a
+
+instance {-# OVERLAPPING #-} Mappable MapQueryVal [Result a] [a] where
+  mapTuple = map value
 
 instance {-# OVERLAPPING #-} (Mappable flag a0 b0, Mappable flag a1 b1) => Mappable flag (a0, a1) (b0, b1) where
   mapTuple (a0, a1) = (mapTuple @flag a0, mapTuple @flag a1)
