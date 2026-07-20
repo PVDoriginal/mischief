@@ -197,3 +197,38 @@ findComponentsOfEntity world entity = do
       return $ case Map.lookup pointer.archetypeId tables of
         Nothing -> Nothing
         Just x -> Just x.components
+
+class GetResultComponentId c where
+  getResultComponentId :: (MonadSystem w m) => c -> m (Maybe ComponentId)
+
+class GetResultComponentId' flag c where
+  getResultComponentId' :: (MonadSystem w m) => c -> m (Maybe ComponentId)
+
+instance (Component c) => GetResultComponentId' True (Result c) where
+  getResultComponentId' _ = fmap (`ComponentId` Nothing) <$> tryMeta @c
+
+instance (Component c) => GetResultComponentId' False (Result (Rel c)) where
+  getResultComponentId' r = fmap (`ComponentId` Just r.target) <$> tryMeta @c
+
+instance (GetResultComponentId' (IsComp c) (Result c)) => GetResultComponentId (Result c) where
+  getResultComponentId = getResultComponentId' @(IsComp c)
+
+addedChanged :: forall c m w. (MonadSystem w m, GetResultComponentId (Result c)) => (ComponentTicks -> Tick -> Tick -> Bool) -> Result c -> m Bool
+addedChanged f r = do
+  id <- getResultComponentId r
+  case id of
+    Nothing -> return False
+    Just id -> do
+      world <- unsafeGetWorld
+      ticks <- liftIO $ tryGetEntityTicks (entityOf r) id world
+      case ticks of
+        Nothing -> return False
+        Just ticks -> do
+          (lastSystemTick, currentSystemTick) <- liftIO $ getSystemTicks world
+          return $ f ticks lastSystemTick currentSystemTick
+
+added :: forall c m w. (MonadSystem w m, GetResultComponentId (Result c)) => Result c -> m Bool
+added = addedChanged qfAddedF
+
+changed :: forall c m w. (MonadSystem w m, GetResultComponentId (Result c)) => Result c -> m Bool
+changed = addedChanged qfChangedF

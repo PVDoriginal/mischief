@@ -11,3 +11,4 @@ import Mischief.ECS.World
 getOrAddPairId :: Pair -> System ComponentId
 getOrAddComponentId :: ComponentType -> System ComponentId
 meta :: forall c. (Component c) => System Entity
+tryMeta :: forall c m w. (Component c, MonadSystem w m) => m (Maybe Entity)

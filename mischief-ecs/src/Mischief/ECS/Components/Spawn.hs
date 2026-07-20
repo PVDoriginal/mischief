@@ -80,3 +80,9 @@ meta :: forall c. (Component c) => System Entity
 meta = do
   component <- getOrAddComponentId (ComponentType $ Proxy @c)
   return component.id
+
+tryMeta :: forall c m w. (Component c, MonadSystem w m) => m (Maybe Entity)
+tryMeta = do
+  world <- unsafeGetWorld
+  component <- liftIO $ getComponentId (typeRep $ Proxy @c) world.components
+  return $ fmap (\x -> x.id) component

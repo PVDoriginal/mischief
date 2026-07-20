@@ -223,8 +223,14 @@ tryGetComponentsMaybe world archetypes =
 tryGetTicks :: ComponentId -> World -> [ArchetypeId] -> IO [Maybe ComponentTicks]
 tryGetTicks componentId world archetypes = tryGetTicksFromTables world.tables archetypes componentId
 
-tryGetEntityTicks :: EntityPointer -> ComponentId -> World -> IO (Maybe ComponentTicks)
-tryGetEntityTicks pointer componentId world = tryGetEntityTicksFromTables world.tables pointer componentId
+tryGetEntityTicks :: Entity -> ComponentId -> World -> IO (Maybe ComponentTicks)
+tryGetEntityTicks entity componentId world = do
+  pointer <- getPointer entity world.entities
+  case pointer of
+    Nothing -> return Nothing
+    Just pointer -> do
+      pointer <- readIORef pointer
+      tryGetEntityTicksFromTables world.tables pointer componentId
 
 isAlive :: forall m w. (MonadSystem w m) => Entity -> m Bool
 isAlive entity = do
