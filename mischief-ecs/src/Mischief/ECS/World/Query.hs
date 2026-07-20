@@ -142,14 +142,11 @@ filterQuery world (QFChanged (x, entity) f) archetypes = do
     Nothing -> return $ const $ pure False
     Just component -> do
       res <- liftIO $ tryGetTicks component world archetypes
-      case res of
-        Nothing -> return $ const $ pure False
-        Just res -> do
-          (lastSystemTick, currentSystemTick) <- getSystemTicks world
-          return $
-            \(index, _) -> pure $ case res !! index of
-              Nothing -> False
-              Just res' -> f res' lastSystemTick currentSystemTick
+      (lastSystemTick, currentSystemTick) <- getSystemTicks world
+      return $
+        \(index, _) -> pure $ case res !! index of
+          Nothing -> False
+          Just res' -> f res' lastSystemTick currentSystemTick
 filterQuery world (QFCheckRaw (x, ef)) archetypes = do
   id <- liftIO $ getComponentId x world.components
   case id of

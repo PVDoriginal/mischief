@@ -264,6 +264,9 @@ tryGetTicksFromColumn (Column components) = do
   let x = Vector.map (\x -> x.ticks) frozen
   return $ Vector.toList x
 
+tryGetEntityTicksFromColumn :: Column -> EntityPointer -> IO ComponentTicks
+tryGetEntityTicksFromColumn (Column components) pointer = (\x -> x.ticks) <$> Vec.read components pointer.rowIndex
+
 tryGetTicksFromTable :: Table -> ComponentId -> IO [Maybe ComponentTicks]
 tryGetTicksFromTable table componentId =
   do
@@ -275,11 +278,25 @@ tryGetTicksFromTable table componentId =
       Just column -> do
         map Just <$> tryGetTicksFromColumn column
 
+tryGetEntityTicksFromTable :: Table -> EntityPointer -> ComponentId -> IO (Maybe ComponentTicks)
+tryGetEntityTicksFromTable table pointer componentId =
+  do
+    columns <- readIORef table.columns
+    case Map.lookup componentId columns of
+      Nothing -> return Nothing
+      Just column -> Just <$> tryGetEntityTicksFromColumn column pointer
+
 tryGetTicksFromArchetype :: ArchetypeId -> Map ArchetypeId Table -> ComponentId -> IO [Maybe ComponentTicks]
 tryGetTicksFromArchetype archetype tables componentId = do
   case Map.lookup archetype tables of
     Nothing -> return []
     Just table -> tryGetTicksFromTable table componentId
+
+tryGetEntityTicksFromArchetype :: ArchetypeId -> Map ArchetypeId Table -> EntityPointer -> ComponentId -> IO (Maybe ComponentTicks)
+tryGetEntityTicksFromArchetype archetype tables pointer componentId = do
+  case Map.lookup archetype tables of
+    Nothing -> return Nothing
+    Just table -> tryGetEntityTicksFromTable table pointer componentId
 
 tryGetTicksFromTables :: Tables -> [ArchetypeId] -> ComponentId -> IO [Maybe ComponentTicks]
 tryGetTicksFromTables (Tables tables) archetypes componentId =
@@ -287,6 +304,12 @@ tryGetTicksFromTables (Tables tables) archetypes componentId =
     tables <- readIORef tables
     results <- mapM (\archetype -> tryGetTicksFromArchetype archetype tables componentId) archetypes
     return $ concat results
+
+tryGetEntityTicksFromTables :: Tables -> EntityPointer -> ComponentId -> IO (Maybe ComponentTicks)
+tryGetEntityTicksFromTables (Tables tables) pointer componentId =
+  do
+    tables <- readIORef tables
+    tryGetEntityTicksFromArchetype pointer.archetypeId tables pointer componentId
 
 tryGetComponentsFromColumn :: forall c. (Component c) => Column -> IO [c]
 tryGetComponentsFromColumn (Column components) = do
