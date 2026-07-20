@@ -220,14 +220,10 @@ tryGetComponentsMaybe world archetypes =
       Just componentId ->
         tryGetComponentsFromTablesMaybe world.tables archetypes componentId
 
-tryGetTicks :: TypeRep -> World -> [ArchetypeId] -> IO (Maybe [Maybe ComponentTicks])
-tryGetTicks rep world archetypes =
+tryGetTicks :: ComponentId -> World -> [ArchetypeId] -> IO (Maybe [Maybe ComponentTicks])
+tryGetTicks componentId world archetypes =
   do
-    componentId <- getComponentId rep world.components
-    case componentId of
-      Nothing -> return Nothing
-      Just componentId ->
-        Just <$> tryGetTicksFromTables world.tables archetypes componentId
+    Just <$> tryGetTicksFromTables world.tables archetypes componentId
 
 isAlive :: forall m w. (MonadSystem w m) => Entity -> m Bool
 isAlive entity = do

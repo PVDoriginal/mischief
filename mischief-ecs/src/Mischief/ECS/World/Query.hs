@@ -112,24 +112,11 @@ res = do
 
 filterQuery :: forall qd out. (Queryable qd out) => World -> QueryFilter -> [ArchetypeId] -> IO ((Int, (Entity, out)) -> IO Bool)
 filterQuery _ NoFilter _ = return $ const $ return True
-filterQuery world (QFWith x) _ = do
-  component <- getComponentId x world.components
+filterQuery world (QFWith (x, entity)) _ = do
+  component <- fmap (\x -> x {entity}) <$> getComponentId x world.components
   case component of
     Nothing -> return (const $ return False)
     Just component ->
-      return $
-        \(_, (entity, _)) -> do
-          components <- findComponentsOfEntity world entity
-          case components of
-            Nothing -> return True
-            Just components ->
-              return $ component `elem` components
-filterQuery world (QFWithRel x e) _ = do
-  component <- liftIO $ getComponentId x world.components
-  case component of
-    Nothing -> return (const $ return False)
-    Just (ComponentId {id}) -> do
-      let component = ComponentId {id, entity = Just e}
       return $
         \(_, (entity, _)) -> do
           components <- findComponentsOfEntity world entity
@@ -149,29 +136,20 @@ filterQuery world (QFWithRelAny x) _ = do
             Nothing -> return True
             Just components ->
               return $ any (\c -> isJust c.entity && c.id == id) components
-filterQuery world (QFChanged x) archetypes = do
-  res <- liftIO $ tryGetTicks x world archetypes
-  case res of
+filterQuery world (QFChanged (x, entity) f) archetypes = do
+  component <- fmap (\x -> x {entity}) <$> getComponentId x world.components
+  case component of
     Nothing -> return $ const $ pure False
-    Just res -> do
-      (lastSystemTick, currentSystemTick) <- getSystemTicks world
-      return $
-        \(index, _) -> pure $ case res !! index of
-          Nothing -> False
-          Just res' ->
-            res'.changed >= lastSystemTick && res'.changed < currentSystemTick
-filterQuery world (QFAdded x) archetypes = do
-  res <- liftIO $ tryGetTicks x world archetypes
-  case res of
-    Nothing -> return $ const $ pure False
-    Just res -> do
-      (lastSystemTick, currentSystemTick) <- getSystemTicks world
-      return $
-        \(index, _) ->
-          pure $ case res !! index of
-            Nothing -> False
-            Just res' ->
-              res'.added >= lastSystemTick && res'.added < currentSystemTick
+    Just component -> do
+      res <- liftIO $ tryGetTicks component world archetypes
+      case res of
+        Nothing -> return $ const $ pure False
+        Just res -> do
+          (lastSystemTick, currentSystemTick) <- getSystemTicks world
+          return $
+            \(index, _) -> pure $ case res !! index of
+              Nothing -> False
+              Just res' -> f res' lastSystemTick currentSystemTick
 filterQuery world (QFCheckRaw (x, ef)) archetypes = do
   id <- liftIO $ getComponentId x world.components
   case id of

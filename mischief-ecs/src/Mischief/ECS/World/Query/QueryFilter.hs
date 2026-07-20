@@ -14,18 +14,21 @@ import Mischief.ECS.World.Query.Queryable
 
 -- newtype QueryFilters = QueryFilters [QueryFilter] deriving newtype (Semigroup)
 
+qfChangedF :: ComponentTicks -> Tick -> Tick -> Bool
+qfChangedF ticks lastSystemTick currentSystemTick = ticks.changed >= lastSystemTick && ticks.changed < currentSystemTick
+
+qfAddedF :: ComponentTicks -> Tick -> Tick -> Bool
+qfAddedF ticks lastSystemTick currentSystemTick = ticks.added >= lastSystemTick && ticks.added < currentSystemTick
+
 data QueryFilter
   = NoFilter
-  | QFWith TypeRep
-  | QFWithRel TypeRep Entity
+  | QFWith (TypeRep, Maybe Entity)
   | QFWithRelAny TypeRep
-  | QFChanged TypeRep
-  | QFAdded TypeRep
+  | QFChanged (TypeRep, Maybe Entity) (ComponentTicks -> Tick -> Tick -> Bool)
   | QFCheckRaw (TypeRep, ErasedCheck)
   | QFNot QueryFilter
   | QFAnd QueryFilter QueryFilter
   | QFOr QueryFilter QueryFilter
-  deriving (Show)
 
 instance Semigroup QueryFilter where
   (<>) :: QueryFilter -> QueryFilter -> QueryFilter
@@ -79,18 +82,11 @@ and' x = foldr QFAnd NoFilter x
 
 filterArchetype :: QueryFilter -> [ComponentId] -> World -> IO Bool
 filterArchetype NoFilter _ _ = return True
-filterArchetype (QFWith x) components world = do
-  component <- getComponentId x world.components
+filterArchetype (QFWith (x, entity)) components world = do
+  component <- fmap (\x -> x {entity}) <$> getComponentId x world.components
   return $ case component of
     Nothing -> False
     Just component -> component `elem` components
-filterArchetype (QFWithRel x e) components world = do
-  component <- getComponentId x world.components
-  case component of
-    Nothing -> pure False
-    Just (ComponentId {id}) -> do
-      let component = ComponentId {id, entity = Just e}
-      return $ component `elem` components
 filterArchetype (QFWithRelAny x) components world = do
   component <- getComponentId x world.components
   case component of
@@ -112,10 +108,8 @@ filterArchetype _ _ _ = pure True
 extractArchetypeFilters :: QueryFilter -> (QueryFilter, QueryFilter)
 extractArchetypeFilters NoFilter = (NoFilter, NoFilter)
 extractArchetypeFilters (QFWith x) = (NoFilter, QFWith x)
-extractArchetypeFilters (QFWithRel x e) = (NoFilter, QFWithRel x e)
 extractArchetypeFilters (QFWithRelAny x) = (NoFilter, QFWithRelAny x)
-extractArchetypeFilters (QFChanged x) = (QFChanged x, NoFilter)
-extractArchetypeFilters (QFAdded x) = (QFAdded x, NoFilter)
+extractArchetypeFilters (QFChanged x f) = (QFChanged x f, NoFilter)
 extractArchetypeFilters (QFCheckRaw x) = (QFCheckRaw x, NoFilter)
 extractArchetypeFilters (a `QFAnd` b) = (filter1 `QFAnd` filter2, res1 `QFAnd` res2)
   where
@@ -136,10 +130,8 @@ extractArchetypeFilters (QFNot a) = (QFNot x, QFNot y)
 
 isArchetypeFilter :: QueryFilter -> Bool
 isArchetypeFilter NoFilter = True
-isArchetypeFilter (QFChanged _) = False
-isArchetypeFilter (QFAdded _) = False
+isArchetypeFilter (QFChanged _ _) = False
 isArchetypeFilter (QFWith _) = True
-isArchetypeFilter (QFWithRel _ _) = True
 isArchetypeFilter (QFWithRelAny _) = True
 isArchetypeFilter (a `QFAnd` b) = isArchetypeFilter a || isArchetypeFilter b
 isArchetypeFilter (a `QFOr` b) = isArchetypeFilter a && isArchetypeFilter b
@@ -164,17 +156,17 @@ class IntoQueryFilter qf where
 data With c = With
 
 instance (BundleTypes c) => IntoQueryFilter (With c) where
-  intoQueryFilter _ = and' $ map QFWith (Set.toList $ types (Proxy @c))
+  intoQueryFilter _ = and' $ map (\x -> QFWith (x, Nothing)) (Set.toList $ types (Proxy @c))
 
 data Without c = Without
 
 instance (BundleTypes c) => IntoQueryFilter (Without c) where
-  intoQueryFilter _ = and' $ map (QFNot . QFWith) (Set.toList $ types (Proxy @c))
+  intoQueryFilter _ = and' $ map (\x -> QFNot $ QFWith (x, Nothing)) (Set.toList $ types (Proxy @c))
 
 newtype WithR c e = WithR e
 
 instance (BundleTypes c) => IntoQueryFilter (WithR c Entity) where
-  intoQueryFilter (WithR target) = and' $ map (`QFWithRel` target) (Set.toList $ types (Proxy @c))
+  intoQueryFilter (WithR target) = and' $ map (\x -> QFWith (x, Just target)) (Set.toList $ types (Proxy @c))
 
 instance (BundleTypes c) => IntoQueryFilter (WithR c Any) where
   intoQueryFilter _ = and' $ map QFWithRelAny (Set.toList $ types (Proxy @c))
@@ -195,14 +187,14 @@ instance (IntoQueryFilter a, IntoQueryFilter b) => IntoQueryFilter (a `Or` b) wh
 data Changed c = Changed
 
 instance (BundleTypes c) => IntoQueryFilter (Changed c) where
-  intoQueryFilter _ = and' $ map (\x -> QFWith x `QFAnd` QFChanged x) (Set.toList $ types (Proxy @c))
+  intoQueryFilter _ = and' $ map (\x -> QFWith (x, Nothing) `QFAnd` QFChanged (x, Nothing) qfChangedF) (Set.toList $ types (Proxy @c))
 
 data Added c = Added
 
 instance (BundleTypes c) => IntoQueryFilter (Added c) where
-  intoQueryFilter _ = and' $ map (\x -> QFWith x `QFAnd` QFAdded x) (Set.toList $ types (Proxy @c))
+  intoQueryFilter _ = and' $ map (\x -> QFWith (x, Nothing) `QFAnd` QFChanged (x, Nothing) qfAddedF) (Set.toList $ types (Proxy @c))
 
 newtype Check c = Check (c -> Bool)
 
 instance (Component c) => IntoQueryFilter (Check c) where
-  intoQueryFilter (Check f) = QFWith (typeRep $ Proxy @c) `QFAnd` QFCheckRaw (typeRep $ Proxy @c, ErasedCheck f)
+  intoQueryFilter (Check f) = QFWith (typeRep $ Proxy @c, Nothing) `QFAnd` QFCheckRaw (typeRep $ Proxy @c, ErasedCheck f)
