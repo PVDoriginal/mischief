@@ -25,6 +25,7 @@ data QueryFilter
   | QFWith (TypeRep, Maybe Entity)
   | QFWithRelAny TypeRep
   | QFChanged (TypeRep, Maybe Entity) (ComponentTicks -> Tick -> Tick -> Bool)
+  | QFChangedRelAny TypeRep (ComponentTicks -> Tick -> Tick -> Bool)
   | QFCheckRaw (TypeRep, ErasedCheck)
   | QFNot QueryFilter
   | QFAnd QueryFilter QueryFilter
@@ -46,39 +47,9 @@ data ErasedCheck where
 instance Show ErasedCheck where
   show _ = "erased check"
 
--- with :: forall qd. (BundleTypes qd) => QueryFilter
--- with = and' $ map QFWith (Set.toList $ types (Proxy @qd))
-
--- withRel :: forall c. (Component c) => Entity -> QueryFilter
--- withRel = QFWithRel (typeRep $ Proxy @c)
-
--- without :: forall qd. (BundleTypes qd) => QueryFilter
--- without = and' $ map (QFNot . QFWith) (Set.toList $ types (Proxy @qd))
-
--- changed :: forall qd. (BundleTypes qd) => QueryFilter
--- changed = and' $ map QFChanged (Set.toList $ types (Proxy @qd))
-
--- check :: forall c. (Component c) => (c -> Bool) -> QueryFilter
--- check f = QFWith (typeRep $ Proxy @c) &. QFCheckRaw (typeRep $ Proxy @c, ErasedCheck f)
-
--- eq :: forall c. (Component c, Eq c) => c -> QueryFilter
--- eq c = check @c (== c)
-
--- added :: forall qd. (BundleTypes qd) => QueryFilter
--- added = and' $ map QFAdded (Set.toList $ types (Proxy @qd))
-
 and' :: [QueryFilter] -> QueryFilter
 and' [x] = x
 and' x = foldr QFAnd NoFilter x
-
--- (&.) :: QueryFilter -> QueryFilter -> QueryFilter
--- (&.) = QFAnd
-
--- (|.) :: (IntoQueryFilter a, IntoQueryFilter b, IntoQueryFilter c) => a -> b -> c
--- (|.) a b = QFOr (intoQueryFilter a) (intoQueryFilter b)
-
--- neg :: QueryFilter -> QueryFilter
--- neg = QFNot
 
 filterArchetype :: QueryFilter -> [ComponentId] -> World -> IO Bool
 filterArchetype NoFilter _ _ = return True
@@ -110,6 +81,7 @@ extractArchetypeFilters NoFilter = (NoFilter, NoFilter)
 extractArchetypeFilters (QFWith x) = (NoFilter, QFWith x)
 extractArchetypeFilters (QFWithRelAny x) = (NoFilter, QFWithRelAny x)
 extractArchetypeFilters (QFChanged x f) = (QFChanged x f, NoFilter)
+extractArchetypeFilters (QFChangedRelAny x f) = (QFChangedRelAny x f, NoFilter)
 extractArchetypeFilters (QFCheckRaw x) = (QFCheckRaw x, NoFilter)
 extractArchetypeFilters (a `QFAnd` b) = (filter1 `QFAnd` filter2, res1 `QFAnd` res2)
   where
@@ -131,6 +103,7 @@ extractArchetypeFilters (QFNot a) = (QFNot x, QFNot y)
 isArchetypeFilter :: QueryFilter -> Bool
 isArchetypeFilter NoFilter = True
 isArchetypeFilter (QFChanged _ _) = False
+isArchetypeFilter (QFChangedRelAny _ _) = False
 isArchetypeFilter (QFWith _) = True
 isArchetypeFilter (QFWithRelAny _) = True
 isArchetypeFilter (a `QFAnd` b) = isArchetypeFilter a || isArchetypeFilter b
@@ -189,10 +162,26 @@ data Changed c = Changed
 instance (BundleTypes c) => IntoQueryFilter (Changed c) where
   intoQueryFilter _ = and' $ map (\x -> QFWith (x, Nothing) `QFAnd` QFChanged (x, Nothing) qfChangedF) (Set.toList $ types (Proxy @c))
 
+newtype ChangedR c e = ChangedR e
+
+instance (BundleTypes c) => IntoQueryFilter (ChangedR c Entity) where
+  intoQueryFilter (ChangedR e) = and' $ map (\x -> QFWith (x, Nothing) `QFAnd` QFChanged (x, Just e) qfChangedF) (Set.toList $ types (Proxy @c))
+
+instance (BundleTypes c) => IntoQueryFilter (ChangedR c Any) where
+  intoQueryFilter _ = and' $ map (\x -> QFWith (x, Nothing) `QFAnd` QFChangedRelAny x qfChangedF) (Set.toList $ types (Proxy @c))
+
 data Added c = Added
 
 instance (BundleTypes c) => IntoQueryFilter (Added c) where
   intoQueryFilter _ = and' $ map (\x -> QFWith (x, Nothing) `QFAnd` QFChanged (x, Nothing) qfAddedF) (Set.toList $ types (Proxy @c))
+
+newtype AddedR c e = AddedR e
+
+instance (BundleTypes c) => IntoQueryFilter (AddedR c Entity) where
+  intoQueryFilter (AddedR e) = and' $ map (\x -> QFWith (x, Nothing) `QFAnd` QFChanged (x, Just e) qfAddedF) (Set.toList $ types (Proxy @c))
+
+instance (BundleTypes c) => IntoQueryFilter (AddedR c Any) where
+  intoQueryFilter _ = and' $ map (\x -> QFWith (x, Nothing) `QFAnd` QFChangedRelAny x qfAddedF) (Set.toList $ types (Proxy @c))
 
 newtype Check c = Check (c -> Bool)
 

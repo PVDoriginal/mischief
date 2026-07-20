@@ -121,7 +121,7 @@ filterQuery world (QFWith (x, entity)) _ = do
         \(_, (entity, _)) -> do
           components <- findComponentsOfEntity world entity
           case components of
-            Nothing -> return True
+            Nothing -> return False
             Just components ->
               return $ component `elem` components
 filterQuery world (QFWithRelAny x) _ = do
@@ -133,7 +133,7 @@ filterQuery world (QFWithRelAny x) _ = do
         \(_, (entity, _)) -> do
           components <- findComponentsOfEntity world entity
           case components of
-            Nothing -> return True
+            Nothing -> return False
             Just components ->
               return $ any (\c -> isJust c.entity && c.id == id) components
 filterQuery world (QFChanged (x, entity) f) archetypes = do
@@ -147,6 +147,21 @@ filterQuery world (QFChanged (x, entity) f) archetypes = do
         \(index, _) -> pure $ case res !! index of
           Nothing -> False
           Just res' -> f res' lastSystemTick currentSystemTick
+filterQuery world (QFChangedRelAny x f) _ = do
+  component <- liftIO $ getComponentId x world.components
+  case component of
+    Nothing -> return (const $ return False)
+    Just (ComponentId {id}) -> do
+      return $
+        \(_, (entity, _)) -> do
+          components <- findComponentsOfEntity world entity
+          case components of
+            Nothing -> return True
+            Just components' -> do
+              let components = filter (\c -> isJust c.entity && c.id == id) components'
+              ticks <- catMaybes <$> mapM (\x -> tryGetEntityTicks entity x world) components
+              (lastSystemTick, currentSystemTick) <- getSystemTicks world
+              return $ any (\t -> f t lastSystemTick currentSystemTick) ticks
 filterQuery world (QFCheckRaw (x, ef)) archetypes = do
   id <- liftIO $ getComponentId x world.components
   case id of
