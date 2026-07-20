@@ -26,7 +26,8 @@ data QueryFilter
   | QFWithRelAny TypeRep
   | QFChanged (TypeRep, Maybe Entity) (ComponentTicks -> Tick -> Tick -> Bool)
   | QFChangedRelAny TypeRep (ComponentTicks -> Tick -> Tick -> Bool)
-  | QFCheckRaw (TypeRep, ErasedCheck)
+  | QFCheckRaw (TypeRep, Maybe Entity, ErasedCheck)
+  | QFCheckRawRelAny (TypeRep, ErasedCheck)
   | QFNot QueryFilter
   | QFAnd QueryFilter QueryFilter
   | QFOr QueryFilter QueryFilter
@@ -83,6 +84,7 @@ extractArchetypeFilters (QFWithRelAny x) = (NoFilter, QFWithRelAny x)
 extractArchetypeFilters (QFChanged x f) = (QFChanged x f, NoFilter)
 extractArchetypeFilters (QFChangedRelAny x f) = (QFChangedRelAny x f, NoFilter)
 extractArchetypeFilters (QFCheckRaw x) = (QFCheckRaw x, NoFilter)
+extractArchetypeFilters (QFCheckRawRelAny x) = (QFCheckRawRelAny x, NoFilter)
 extractArchetypeFilters (a `QFAnd` b) = (filter1 `QFAnd` filter2, res1 `QFAnd` res2)
   where
     (filter1, res1) = extractArchetypeFilters a
@@ -109,6 +111,7 @@ isArchetypeFilter (QFWithRelAny _) = True
 isArchetypeFilter (a `QFAnd` b) = isArchetypeFilter a || isArchetypeFilter b
 isArchetypeFilter (a `QFOr` b) = isArchetypeFilter a && isArchetypeFilter b
 isArchetypeFilter (QFCheckRaw _) = False
+isArchetypeFilter (QFCheckRawRelAny _) = False
 isArchetypeFilter (QFNot a) = isArchetypeFilter a
 
 preprocessFilter :: QueryFilter -> QueryFilter
@@ -186,4 +189,12 @@ instance (BundleTypes c) => IntoQueryFilter (AddedR c Any) where
 newtype Check c = Check (c -> Bool)
 
 instance (Component c) => IntoQueryFilter (Check c) where
-  intoQueryFilter (Check f) = QFWith (typeRep $ Proxy @c, Nothing) `QFAnd` QFCheckRaw (typeRep $ Proxy @c, ErasedCheck f)
+  intoQueryFilter (Check f) = QFWith (typeRep $ Proxy @c, Nothing) `QFAnd` QFCheckRaw (typeRep $ Proxy @c, Nothing, ErasedCheck f)
+
+data CheckR c e = CheckR e (c -> Bool)
+
+instance (Component c) => IntoQueryFilter (CheckR c Entity) where
+  intoQueryFilter (CheckR e f) = QFWith (typeRep $ Proxy @c, Nothing) `QFAnd` QFCheckRaw (typeRep $ Proxy @c, Just e, ErasedCheck f)
+
+instance (Component c) => IntoQueryFilter (CheckR c Any) where
+  intoQueryFilter (CheckR _ f) = QFWith (typeRep $ Proxy @c, Nothing) `QFAnd` QFCheckRawRelAny (typeRep $ Proxy @c, ErasedCheck f)

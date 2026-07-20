@@ -162,12 +162,13 @@ filterQuery world (QFChangedRelAny x f) _ = do
               ticks <- catMaybes <$> mapM (\x -> tryGetEntityTicks entity x world) components
               (lastSystemTick, currentSystemTick) <- getSystemTicks world
               return $ any (\t -> f t lastSystemTick currentSystemTick) ticks
-filterQuery world (QFCheckRaw (x, ef)) archetypes = do
-  id <- liftIO $ getComponentId x world.components
+filterQuery world (QFCheckRaw (x, entity, ef)) archetypes = do
+  id <- fmap (\a -> a {entity}) <$> getComponentId x world.components
   case id of
     Nothing -> return $ const $ return False
     Just id ->
       filterCheck @qd world archetypes id ef
+filterQuery world (QFCheckRawRelAny (_, ef)) archetypes = filterCheckRelAny @qd world archetypes ef
 filterQuery world (a `QFAnd` b) archetypes = do
   res <- filterQuery @qd world a archetypes
   res2 <- filterQuery @qd world b archetypes
@@ -189,6 +190,14 @@ filterQuery world (QFNot a) archetypes = do
   return $ \x -> do
     r <- f x
     return $ not r
+
+filterCheckRelAny :: forall qd out. (Queryable qd out) => World -> [ArchetypeId] -> ErasedCheck -> IO ((Int, (Entity, out)) -> IO Bool)
+filterCheckRelAny world archetypes (ErasedCheck (f :: (c -> Bool))) = do
+  components <- tryGetRelCollections @c world archetypes
+
+  return $
+    \(index, _) -> do
+      pure $ any (f . (\x -> x.comp)) (snd $ components !! index)
 
 filterCheck :: forall qd out. (Queryable qd out) => World -> [ArchetypeId] -> ComponentId -> ErasedCheck -> IO ((Int, (Entity, out)) -> IO Bool)
 filterCheck world archetypes id (ErasedCheck (f :: (c -> Bool))) = do
