@@ -45,13 +45,25 @@ data MainPlugin = MainPlugin deriving (Eq)
 instance Plugin MainPlugin where
   init _ = do
     a <- spawn (Name "A")
-    c <- spawn (Name "C", Rel (TestRel 5) a)
-    b <- spawn (Name "B", Rel (TestRel 5) a, Rel (TestRel 6) c)
+    b <- spawn (Name "B")
+    c <- spawn (Name "C")
 
-    (info . text) =<< query' (C @Name) (CheckR Any (== TestRel 5))
-    (info . text) =<< query' (C @Name) (CheckR Any (== TestRel 7))
-    (info . text) =<< query' (C @Name) (CheckR a (== TestRel 6))
-    (info . text) =<< query' (C @Name) (CheckR c (== TestRel 6))
+    insert (Rel (TestRel 5) b, Rel (TestRel 10) c) a
+    insert (Rel (TestRel 3) a, Rel (TestRel 4) c) b
+    insert (Rel (TestRel 2) a, Rel (TestRel 6) b) c
+    Systems.add Update (up, up2)
 
-    a <- query (Val (C @Name, C @Name, R @Name Any))
-    undefined
+up :: System ()
+up = do
+  Just a <- single' E $ Check (== Name "A")
+  Just b <- single' E $ Check (== Name "B")
+
+  (info . text) =<< query' (C @Name) (AddedR @TestRel a |. ChangedR @TestRel b)
+
+up2 :: System ()
+up2 = do
+  Just a <- single' E $ Check (== Name "A")
+  Just b <- single' E $ Check (== Name "B")
+  Just c <- single' E $ Check (== Name "C")
+
+  insert (Rel (TestRel 5) a) b
