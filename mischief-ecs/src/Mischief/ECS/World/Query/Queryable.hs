@@ -110,15 +110,15 @@ instance (Component c) => Queryable (M c) (Maybe (Result c)) where
 
   queryTypes _ = Set.empty
 
-instance (Component c) => Queryable (MR c Any) [Result (Rel c)] where
-  runQueryEntity _ world entity = do
-    res <- tryGetEntityRelCollection @c world entity
-    return $ case res of
-      Nothing -> Nothing
-      Just Nothing -> Just []
-      Just (Just x) -> Just x
+instance (Component c) => Queryable (MR c Any) (Maybe [Result (Rel c)]) where
+  runQueryEntity _ = tryGetEntityRelCollection @c
 
-  runQueryInternal _ archetypes world = tryGetRelCollections @c world archetypes
+  runQueryInternal _ archetypes world = do
+    x <- tryGetRelCollections @c world archetypes
+    return $ flip map x $ \(e, x) ->
+      case x of
+        [] -> (e, Nothing)
+        x -> (e, Just x)
   queryTypes _ = Set.empty
 
 instance (Component c) => Queryable (MR c Entity) (Maybe (Result (Rel c))) where
