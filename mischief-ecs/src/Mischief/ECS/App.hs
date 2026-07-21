@@ -16,7 +16,8 @@ import Data.IORef
 import Mischief.ECS.App.Plugins
 import Mischief.ECS.App.Schedules
 import Mischief.ECS.App.SystemConfig hiding (Before)
-import Mischief.ECS.App.Systems (LastSystemTick (LastSystemTick), ScheduledIn (ScheduledIn), SystemFunction (SystemFunction), SystemTick (SystemTick), Systems, systemEntity)
+import Mischief.ECS.App.SystemDef
+import Mischief.ECS.App.Systems (ScheduledIn (ScheduledIn), SystemFunction (SystemFunction), Systems, systemEntity)
 import Mischief.ECS.App.Systems qualified as Systems
 import Mischief.ECS.Components
 import Mischief.ECS.Components.Runnable (Runnable, runFor)

@@ -17,6 +17,7 @@ import Data.Kind
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Mischief.ECS.App
+import Mischief.ECS.App.SystemDef
 import Mischief.ECS.App.Systems
 import Mischief.ECS.Components
 import Mischief.ECS.Tables

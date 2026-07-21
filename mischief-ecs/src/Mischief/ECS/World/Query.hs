@@ -11,7 +11,7 @@ import Data.IORef
 import Data.Map qualified as Map
 import Data.Maybe
 import Data.Set qualified as Set
-import {-# SOURCE #-} Mischief.ECS.App.Systems
+import Mischief.ECS.App.SystemDef
 import {-# SOURCE #-} Mischief.ECS.Archetypes.Graph
 import Mischief.ECS.Collectable
 import Mischief.ECS.Components
@@ -142,7 +142,7 @@ filterQuery world (QFChanged (x, entity) f) archetypes = do
     Nothing -> return $ const $ pure False
     Just component -> do
       res <- liftIO $ tryGetTicks component world archetypes
-      (lastSystemTick, currentSystemTick) <- getSystemTicks world
+      (lastSystemTick, currentSystemTick) <- getSystemTicksInternal world
       return $
         \(index, _) -> pure $ case res !! index of
           Nothing -> False
@@ -160,7 +160,7 @@ filterQuery world (QFChangedRelAny x f) _ = do
             Just components' -> do
               let components = filter (\c -> isJust c.entity && c.id == id) components'
               ticks <- catMaybes <$> mapM (\x -> tryGetEntityTicks entity x world) components
-              (lastSystemTick, currentSystemTick) <- getSystemTicks world
+              (lastSystemTick, currentSystemTick) <- getSystemTicksInternal world
               return $ any (\t -> f t lastSystemTick currentSystemTick) ticks
 filterQuery world (QFCheckRaw (x, entity, ef)) archetypes = do
   id <- fmap (\a -> a {entity}) <$> getComponentId x world.components
@@ -248,7 +248,7 @@ addedChanged f r = do
       case ticks of
         Nothing -> return False
         Just ticks -> do
-          (lastSystemTick, currentSystemTick) <- liftIO $ getSystemTicks world
+          (lastSystemTick, currentSystemTick) <- liftIO $ getSystemTicksInternal world
           return $ f ticks lastSystemTick currentSystemTick
 
 added :: forall c m w. (MonadSystem w m, GetResultComponentId (Result c)) => Result c -> m Bool
@@ -256,3 +256,13 @@ added = addedChanged qfAddedF
 
 changed :: forall c m w. (MonadSystem w m, GetResultComponentId (Result c)) => Result c -> m Bool
 changed = addedChanged qfChangedF
+
+getSystemTicksInternal :: World -> IO (Tick, Tick)
+getSystemTicksInternal world = do
+  let (SystemId sys) = world.systemId
+  runSystem
+    ( do
+        Just (a, b) <- get (C @LastSystemTick, C @SystemTick) sys
+        return (a.inner, b.inner)
+    )
+    world

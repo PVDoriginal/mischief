@@ -7,7 +7,7 @@ import Data.Map qualified as Map
 import Data.Maybe
 import Data.Set qualified as Set
 import GHC.Stack (HasCallStack)
-import {-# SOURCE #-} Mischief.ECS.App.Systems
+import Mischief.ECS.App.SystemDef
 import Mischief.ECS.Archetypes
 import Mischief.ECS.Components
 import Mischief.ECS.Components.Bundle

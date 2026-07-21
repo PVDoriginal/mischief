@@ -13,6 +13,7 @@ import GHC.Generics
 import GHC.StableName (StableName, eqStableName, hashStableName, makeStableName)
 import GHC.Stack.Types
 import Mischief.ECS.App.Schedules
+import Mischief.ECS.App.SystemDef
 import Mischief.ECS.Components
 import Mischief.ECS.Components.Bundle
 import Mischief.ECS.Components.Required
@@ -36,14 +37,6 @@ newtype SystemFunction = SystemFunction {inner :: System ()}
 
 instance Component SystemFunction where
   required = require @(SystemTick, LastSystemTick)
-
-newtype SystemTick = SystemTick {inner :: Tick}
-  deriving stock (Generic)
-  deriving anyclass (Component, Default)
-
-newtype LastSystemTick = LastSystemTick {inner :: Tick}
-  deriving stock (Generic)
-  deriving anyclass (Component, Default)
 
 newSystems :: IO Systems
 newSystems = do
@@ -95,16 +88,6 @@ systemEntity sch s = do
   x <- getSystemId (ScheduleId schId) s
   return x.id
 
-getSystemTicks :: World -> IO (Tick, Tick)
-getSystemTicks world = do
-  let (SystemId sys) = world.systemId
-  runSystem
-    ( do
-        Just (a, b) <- get (C @LastSystemTick, C @SystemTick) sys
-        return (a.inner, b.inner)
-    )
-    world
-
 self :: forall m w. (MonadSystem w m) => m Entity
 self = do
   world <- unsafeGetWorld
@@ -117,3 +100,13 @@ local c = do
   getOrInsert c loc
 
 data ScheduledIn = ScheduledIn deriving (Component)
+
+getSystemTicks :: World -> IO (Tick, Tick)
+getSystemTicks world = do
+  let (SystemId sys) = world.systemId
+  runSystem
+    ( do
+        Just (a, b) <- get (C @LastSystemTick, C @SystemTick) sys
+        return (a.inner, b.inner)
+    )
+    world

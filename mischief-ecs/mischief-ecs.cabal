@@ -55,6 +55,7 @@ library
     Mischief.ECS.App.Scheduler
     Mischief.ECS.App.Schedules
     Mischief.ECS.App.SystemConfig
+    Mischief.ECS.App.SystemDef
     Mischief.ECS.App.Systems
     Mischief.ECS.Archetypes
     Mischief.ECS.Archetypes.Graph
