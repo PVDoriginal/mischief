@@ -58,7 +58,7 @@ up = do
   Just a <- single' E $ Check (== Name "A")
   Just b <- single' E $ Check (== Name "B")
 
-  (info . text) =<< query' (C @Name) (AddedR @TestRel a |. ChangedR @TestRel b)
+  (info . text) =<< query' (C @Name) (Changed (R @TestRel a) |. Changed (R @TestRel b))
 
 up2 :: System ()
 up2 = do

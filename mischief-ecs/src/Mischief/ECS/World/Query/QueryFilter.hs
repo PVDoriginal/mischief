@@ -136,18 +136,12 @@ instance (Collectable c FilterType) => IntoQueryFilter (With c) where
     let l :: FilterType = collect c
      in and' $ map withF l.inner
 
-data Without c = Without
+newtype Without c = Without c
 
-instance (BundleTypes c) => IntoQueryFilter (Without c) where
-  intoQueryFilter _ = and' $ map (\x -> QFNot $ QFWith (x, Nothing)) (Set.toList $ types (Proxy @c))
-
-newtype WithR c e = WithR e
-
-instance (BundleTypes c) => IntoQueryFilter (WithR c Entity) where
-  intoQueryFilter (WithR target) = and' $ map (\x -> QFWith (x, Just target)) (Set.toList $ types (Proxy @c))
-
-instance (BundleTypes c) => IntoQueryFilter (WithR c Any) where
-  intoQueryFilter _ = and' $ map QFWithRelAny (Set.toList $ types (Proxy @c))
+instance (Collectable c FilterType) => IntoQueryFilter (Without c) where
+  intoQueryFilter (Without c) =
+    let l :: FilterType = collect c
+     in and' $ map (QFNot . withF) l.inner
 
 newtype Not c = Not c
 
@@ -162,60 +156,48 @@ data Or a b = Or a b
 instance (IntoQueryFilter a, IntoQueryFilter b) => IntoQueryFilter (a `Or` b) where
   intoQueryFilter (Or a b) = QFOr (intoQueryFilter a) (intoQueryFilter b)
 
-data Changed c = Changed
+newtype Changed c = Changed c
 
-instance (BundleTypes c) => IntoQueryFilter (Changed c) where
-  intoQueryFilter _ = and' $ map (\x -> QFWith (x, Nothing) `QFAnd` QFChanged (x, Nothing) qfChangedF) (Set.toList $ types (Proxy @c))
+instance (Collectable c FilterType) => IntoQueryFilter (Changed c) where
+  intoQueryFilter (Changed c) =
+    let l :: FilterType = collect c
+     in and' $ map changedF l.inner
 
-newtype ChangedR c e = ChangedR e
+newtype Added c = Added c
 
-instance (BundleTypes c) => IntoQueryFilter (ChangedR c Entity) where
-  intoQueryFilter (ChangedR e) = and' $ map (\x -> QFWith (x, Just e) `QFAnd` QFChanged (x, Just e) qfChangedF) (Set.toList $ types (Proxy @c))
-
-instance (BundleTypes c) => IntoQueryFilter (ChangedR c Any) where
-  intoQueryFilter _ = and' $ map (\x -> QFWithRelAny x `QFAnd` QFChangedRelAny x qfChangedF) (Set.toList $ types (Proxy @c))
-
-data Added c = Added
-
-instance (BundleTypes c) => IntoQueryFilter (Added c) where
-  intoQueryFilter _ = and' $ map (\x -> QFWith (x, Nothing) `QFAnd` QFChanged (x, Nothing) qfAddedF) (Set.toList $ types (Proxy @c))
-
-newtype AddedR c e = AddedR e
-
-instance (BundleTypes c) => IntoQueryFilter (AddedR c Entity) where
-  intoQueryFilter (AddedR e) = and' $ map (\x -> QFWith (x, Just e) `QFAnd` QFChanged (x, Just e) qfAddedF) (Set.toList $ types (Proxy @c))
-
-instance (BundleTypes c) => IntoQueryFilter (AddedR c Any) where
-  intoQueryFilter _ = and' $ map (\x -> QFWithRelAny x `QFAnd` QFChangedRelAny x qfAddedF) (Set.toList $ types (Proxy @c))
+instance (Collectable c FilterType) => IntoQueryFilter (Added c) where
+  intoQueryFilter (Added c) =
+    let l :: FilterType = collect c
+     in and' $ map addedF l.inner
 
 newtype Check c = Check (c -> Bool)
 
 instance (Component c) => IntoQueryFilter (Check c) where
-  intoQueryFilter (Check f) = QFWith (typeRep $ Proxy @c, Nothing) `QFAnd` QFCheckRaw (typeRep $ Proxy @c, Nothing, ErasedCheck f)
+  intoQueryFilter (Check f) = checkF (typeRep $ Proxy @c, Nothing, Nothing, ErasedCheck f)
 
-data CheckR c e = CheckR e (c -> Bool)
+data CheckR e c = CheckR e (c -> Bool)
 
-instance (Component c) => IntoQueryFilter (CheckR c Entity) where
-  intoQueryFilter (CheckR e f) = QFWith (typeRep $ Proxy @c, Just e) `QFAnd` QFCheckRaw (typeRep $ Proxy @c, Just e, ErasedCheck f)
+instance (Component c) => IntoQueryFilter (CheckR Entity c) where
+  intoQueryFilter (CheckR e f) = checkF (typeRep $ Proxy @c, Just e, Nothing, ErasedCheck f)
 
-instance (Component c) => IntoQueryFilter (CheckR c Any) where
-  intoQueryFilter (CheckR _ f) = QFWithRelAny (typeRep $ Proxy @c) `QFAnd` QFCheckRawRelAny (typeRep $ Proxy @c, ErasedCheck f)
+instance (Component c) => IntoQueryFilter (CheckR Any c) where
+  intoQueryFilter (CheckR _ f) = checkF (typeRep $ Proxy @c, Nothing, Just Any, ErasedCheck f)
 
 withF :: (TypeRep, Maybe Entity, Maybe Any) -> QueryFilter
 withF (c, e, Nothing) = QFWith (c, e)
 withF (c, _, _) = QFWithRelAny c
 
 addedF :: (TypeRep, Maybe Entity, Maybe Any) -> QueryFilter
-addedF (c, e, Nothing) = QFChanged (c, e) qfAddedF
-addedF (c, _, _) = QFChangedRelAny c qfAddedF
+addedF (c, e, Nothing) = QFWith (c, e) `QFAnd` QFChanged (c, e) qfAddedF
+addedF (c, _, _) = QFWithRelAny c `QFAnd` QFChangedRelAny c qfAddedF
 
 changedF :: (TypeRep, Maybe Entity, Maybe Any) -> QueryFilter
-changedF (c, e, Nothing) = QFChanged (c, e) qfChangedF
-changedF (c, _, _) = QFChangedRelAny c qfChangedF
+changedF (c, e, Nothing) = QFWith (c, e) `QFAnd` QFChanged (c, e) qfChangedF
+changedF (c, _, _) = QFWithRelAny c `QFAnd` QFChangedRelAny c qfChangedF
 
 checkF :: (TypeRep, Maybe Entity, Maybe Any, ErasedCheck) -> QueryFilter
-checkF (c, e, Nothing, f) = QFCheckRaw (c, e, f)
-checkF (c, _, _, f) = QFCheckRawRelAny (c, f)
+checkF (c, e, Nothing, f) = QFWith (c, e) `QFAnd` QFCheckRaw (c, e, f)
+checkF (c, _, _, f) = QFWithRelAny c `QFAnd` QFCheckRawRelAny (c, f)
 
 newtype FilterType = FilterType {inner :: [(TypeRep, Maybe Entity, Maybe Any)]} deriving newtype (Semigroup)
 
@@ -238,3 +220,7 @@ instance (Component c) => EraseIntoStorage (R c Entity, c -> Bool) CheckFilterTy
 
 instance (Component c) => EraseIntoStorage (R c Any, c -> Bool) CheckFilterType where
   erase (_, f) = CheckFilterType [(typeRep $ Proxy @c, Nothing, Just Any, ErasedCheck f)]
+
+type family InnerC a where
+  InnerC (C (Rel a)) = a
+  InnerC (C a) = a

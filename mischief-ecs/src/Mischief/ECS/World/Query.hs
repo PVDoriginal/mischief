@@ -256,8 +256,3 @@ added = addedChanged qfAddedF
 
 changed :: forall c m w. (MonadSystem w m, GetResultComponentId (Result c)) => Result c -> m Bool
 changed = addedChanged qfChangedF
-
-x :: System ()
-x = do
-  q <- query' E (With (C @Name, R @Name Any))
-  undefined
