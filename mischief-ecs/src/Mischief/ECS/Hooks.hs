@@ -20,6 +20,7 @@ import Mischief.ECS.Components
 import Mischief.ECS.Components.Bundle
 import Mischief.ECS.Components.Common
 import Mischief.ECS.Components.Hooks
+import Mischief.ECS.Components.HooksDef
 import Mischief.ECS.Entities
 import Mischief.ECS.Events
 import Mischief.ECS.Log

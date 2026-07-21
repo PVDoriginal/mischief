@@ -26,14 +26,13 @@ import Mischief.ECS.Components
 import Mischief.ECS.Components.Bundle
 import {-# SOURCE #-} Mischief.ECS.Components.Spawn
 import Mischief.ECS.Entities
-import {-# SOURCE #-} Mischief.ECS.Events
+import Mischief.ECS.EventDef
 import Mischief.ECS.Hidden
 import Mischief.ECS.Log
 import Mischief.ECS.Tables
 import Mischief.ECS.Utils
 import Mischief.ECS.World
 import Mischief.ECS.World.Prefs
-import {-# SOURCE #-} Mischief.ECS.World.Spawn (spawnIO)
 
 -- | Process a 'BundleElement', turning its 'TypeRep' into a 'ComponentId'.
 processBundleElement :: World -> ComponentTicks -> (BundleElement ErasedComponent) -> IO ProcessedBundleElement

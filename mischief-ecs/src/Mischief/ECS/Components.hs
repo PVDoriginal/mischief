@@ -54,7 +54,7 @@ import Data.Set qualified as Set
 import Data.Typeable
 import GHC.Generics
 import Mischief.ECS.Collectable
-import {-# SOURCE #-} Mischief.ECS.Components.Hooks
+import Mischief.ECS.Components.HooksDef
 import {-# SOURCE #-} Mischief.ECS.Entities
 import Mischief.ECS.Utils
 

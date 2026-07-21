@@ -43,7 +43,7 @@ import Mischief.ECS.Entities
     Entity (Entity),
     emptyEntities,
   )
-import {-# SOURCE #-} Mischief.ECS.Events
+import Mischief.ECS.EventDef
 import Mischief.ECS.Hidden
 import Mischief.ECS.Tables (Tables, emptyTables)
 import Mischief.ECS.World.Prefs (WorldPrefs, newPrefs)

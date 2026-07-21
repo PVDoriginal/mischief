@@ -13,6 +13,7 @@ import Mischief.ECS.Components
 import Mischief.ECS.Components.Bundle
 import Mischief.ECS.Components.Required (require)
 import Mischief.ECS.Entities
+import Mischief.ECS.EventDef
 import Mischief.ECS.Tables
 import Mischief.ECS.World
 import Mischief.ECS.World.Query
@@ -29,11 +30,6 @@ newtype ObserverOrder = ObserverOrder Int
   deriving (Show)
   deriving anyclass (Component)
   deriving newtype (Eq, Ord, Default)
-
--- | @Event@ typeclass.
-class (Typeable e) => Event e where
-  eraseEvent :: e -> ErasedEvent
-  eraseEvent = ErasedEvent
 
 trigger :: (Event e) => e -> System ()
 trigger event = do
@@ -70,6 +66,3 @@ newtype OnRemove c = OnRemove {entity :: Entity}
 data OnRemoveRel c = OnRemoveRel {entity :: Entity, target :: Entity}
   deriving anyclass (Event)
   deriving stock (Show)
-
-data ErasedEvent where
-  ErasedEvent :: (Typeable e) => e -> ErasedEvent

@@ -25,6 +25,7 @@ import Mischief.ECS.Components.Bundle
 import Mischief.ECS.Components.Common
 import {-# SOURCE #-} Mischief.ECS.Components.Spawn
 import Mischief.ECS.Entities
+import Mischief.ECS.EventDef
 import Mischief.ECS.Events
 import Mischief.ECS.Log
 import Mischief.ECS.Tables
