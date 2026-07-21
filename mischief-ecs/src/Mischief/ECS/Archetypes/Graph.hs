@@ -4,6 +4,7 @@ import Control.Monad
 import Control.Monad.IO.Class
 import Control.Monad.Primitive
 import Control.Monad.Reader
+import Data.Data
 import Data.Foldable
 import Data.IORef
 import Data.List
@@ -14,6 +15,7 @@ import Data.Set (Set)
 import Data.Set qualified as Set
 import Mischief.ECS.Archetypes
 import Mischief.ECS.Components
+import Mischief.ECS.Entities
 import Mischief.ECS.Log
 import Mischief.ECS.Relationships
 import Mischief.ECS.Tables

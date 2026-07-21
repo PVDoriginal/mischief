@@ -242,3 +242,5 @@ expect t a = withFrozenCallStack $ do
   case a of
     Nothing -> panic t >>= const undefined
     Just x -> return x
+
+newtype GetSystem = GetSystem (forall c. (Component c) => Proxy c -> Entity -> System (Maybe c))

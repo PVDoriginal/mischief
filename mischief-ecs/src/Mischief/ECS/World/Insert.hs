@@ -18,6 +18,8 @@ import Data.Text qualified as Text
 import GHC.Stack
 import Mischief.ECS.Archetypes
 import {-# SOURCE #-} Mischief.ECS.Archetypes.Graph
+  ( getArchetypeOnInsert,
+  )
 import Mischief.ECS.Components
 import Mischief.ECS.Components.Bundle
 import Mischief.ECS.Components.Common

@@ -41,7 +41,11 @@ main = do
   app <- newApp MainPlugin
   runApp app
 
-x = quoteE
+x :: System ()
+x = do
+  -- x <- $(quoteC ''ChildOf)
+  let x = $quoteE
+  undefined
 
 data MainPlugin = MainPlugin deriving (Eq)
 

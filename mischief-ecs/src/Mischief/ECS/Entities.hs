@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveLift #-}
+-- {-# LANGUAGE DeriveLift #-}
 
 module Mischief.ECS.Entities
   ( -- * Entity
@@ -23,7 +23,6 @@ import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Maybe (isJust)
 import GHC.Conc
-import Language.Haskell.TH.Syntax
 import Mischief.ECS.Components
 
 -- | A pointer to the exact table and row that an entity is in.
@@ -92,7 +91,7 @@ isAliveIO entity Entities {pointers} = do
 -- | Points to an unique entity. Has an id and a generation.
 --
 -- It is guaranteed that there can't be two alive entities with the same id.
-data Entity = Entity {id :: Int, gen :: Int} deriving (Eq, Ord, Lift)
+data Entity = Entity {id :: Int, gen :: Int} deriving (Eq, Ord)
 
 instance Show Entity where
   show :: Entity -> String
