@@ -55,7 +55,7 @@ import Data.Typeable
 import GHC.Generics
 import Mischief.ECS.Collectable
 import Mischief.ECS.Components.HooksDef
-import {-# SOURCE #-} Mischief.ECS.Entities
+import Mischief.ECS.EntityDef
 import Mischief.ECS.Utils
 
 -- | The @Component@ typeclass.

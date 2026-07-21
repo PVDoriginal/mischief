@@ -69,6 +69,7 @@ library
     Mischief.ECS.Components.Runnable
     Mischief.ECS.Components.Spawn
     Mischief.ECS.Entities
+    Mischief.ECS.EntityDef
     Mischief.ECS.EventDef
     Mischief.ECS.Events
     Mischief.ECS.Graph
