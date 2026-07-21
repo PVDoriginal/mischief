@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wno-unused-top-binds #-}
+
 -- |
 --
 -- Module: ECS
@@ -105,6 +107,7 @@ import Control.Monad.IO.Class (MonadIO (liftIO))
 import Data.Foldable (for_)
 import Data.Text (Text)
 import Language.Haskell.TH
+import Language.Haskell.TH.Syntax
 import Mischief.ECS.App
 import Mischief.ECS.App.Plugins
 import Mischief.ECS.App.Scheduler
@@ -113,7 +116,7 @@ import Mischief.ECS.App.SystemConfig
 import Mischief.ECS.App.Systems
 import Mischief.ECS.Archetypes
 import Mischief.ECS.Archetypes.Graph
-import Mischief.ECS.Collectable (collect)
+import Mischief.ECS.Collectable (Collectable, EraseIntoStorage (..), collect)
 import Mischief.ECS.Components
 import Mischief.ECS.Components.Bundle
 import Mischief.ECS.Components.BundleTypes
@@ -148,6 +151,7 @@ import Mischief.ECS.World.Modify
 import Mischief.ECS.World.Par
 import Mischief.ECS.World.Prefs
 import Mischief.ECS.World.Query
+import Mischief.ECS.World.Query.Quasi
 import Mischief.ECS.World.Query.QueryFilter
 import Mischief.ECS.World.Query.Queryable
 import Mischief.ECS.World.Query.Val
@@ -156,27 +160,39 @@ import Mischief.ECS.World.Spawn
 import Mischief.ECS.World.Systems
 import Mischief.ECS.World.Utils
 
+e :: Entity
+e = Entity 0 0
+
+-- x = quoteD
+
+x = $quoteE
+
+qq :: System ()
+qq = do
+  -- x <- $(quoteC ''ChildOf)
+  undefined
+
 -- $mischief
+-- ings. It can be a group of rats. Or it can refer to being naughty and playful.
 --
--- Mischief has a few different meanings. It can be a group of rats. Or it can refer to being naughty and playful.
+--  This Mischief, however, is an @ECS Game Engine@! In other words...
 --
--- This Mischief, however, is an @ECS Game Engine@! In other words...
+--  @
+--  Mischief :: Entity -> Component c
+--  Mischief has a few different mean => System ()
+--  @
 --
--- @
--- Mischief :: Entity -> Component c => System ()
--- @
+--  Mischief takes great inspiration from [@Bevy@](https://bevy.org/) and [@Flecs@](https://www.flecs.dev/flecs/), and
+--  was written in @100% Haskell@, taking advantage of its @great ergonomics and strong type system@.
+--  It is a refreshing spin on the @functional@ and @data-driven@ paradigms.
 --
--- Mischief takes great inspiration from [@Bevy@](https://bevy.org/) and [@Flecs@](https://www.flecs.dev/flecs/), and
--- was written in @100% Haskell@, taking advantage of its @great ergonomics and strong type system@.
--- It is a refreshing spin on the @functional@ and @data-driven@ paradigms.
+--  This package contains only @mischief-ecs@, the ECS at the core of Mischief. Other packages, such as @mischief-input@, @mischief-assets@,
+--  @mischief-render@ are planned, but haven't yet been developed to the same level as the ECS itself.
 --
--- This package contains only @mischief-ecs@, the ECS at the core of Mischief. Other packages, such as @mischief-input@, @mischief-assets@,
--- @mischief-render@ are planned, but haven't yet been developed to the same level as the ECS itself.
---
--- Performance-wise, Mischief still has a long way to go; there are many easy performance gains that we have just been too busy to implement, as we've
--- been mostly focusing on @ergonomics, modularity, and ease-of-use@.
--- This is a pretty strong @Archetype ECS@ however, and it is possible to bring it to about the same /asymptotic/ performance as @Bevy@ or @Flecs@, although
--- there will probably always be a layer of indirection (or 20) that makes it a bit slower, due to the high-level, boxed, nature of Haskell.
+--  Performance-wise, Mischief still has a long way to go; there are many easy performance gains that we have just been too busy to implement, as we've
+--  been mostly focusing on @ergonomics, modularity, and ease-of-use@.
+--  This is a pretty strong @Archetype ECS@ however, and it is possible to bring it to about the same /asymptotic/ performance as @Bevy@ or @Flecs@, although
+--  there will probably always be a layer of indirection (or 20) that makes it a bit slower, due to the high-level, boxed, nature of Haskell.
 
 -- $learn
 -- This module will go over some brief notions to give you an idea of how Mischief works, setting you up for reading the other tutorials that go more in-depth.

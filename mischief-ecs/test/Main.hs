@@ -23,6 +23,7 @@ import Mischief.ECS.Components.Spawn
 import Mischief.ECS.Hooks
 import Mischief.ECS.Hooks qualified as Hooks
 import Mischief.ECS.Systems qualified as Systems
+import Mischief.ECS.World.Query.Quasi
 import Mischief.ECS.World.Query.QueryFilter
 import Mischief.ECS.World.Utils
 import System.Exit (exitSuccess)
@@ -39,6 +40,8 @@ main :: IO ()
 main = do
   app <- newApp MainPlugin
   runApp app
+
+x = quoteE
 
 data MainPlugin = MainPlugin deriving (Eq)
 
@@ -67,3 +70,6 @@ up2 = do
   Just c <- single' E $ Check (== Name "C")
 
   insert (Rel (TestRel 5) a) b
+
+-- x :: IO ()
+-- x = print $ runQ [e|Just 5|]

@@ -84,8 +84,8 @@ library
     Mischief.ECS.Tables
     Mischief.ECS.Time
     Mischief.ECS.Tutorial.App
-    Mischief.ECS.Tutorial.Relationships 
     Mischief.ECS.Tutorial.Components
+    Mischief.ECS.Tutorial.Relationships
     Mischief.ECS.Tutorial.Systems
     Mischief.ECS.Utils
     Mischief.ECS.Vec
@@ -97,6 +97,7 @@ library
     Mischief.ECS.World.Par
     Mischief.ECS.World.Prefs
     Mischief.ECS.World.Query
+    Mischief.ECS.World.Query.Quasi
     Mischief.ECS.World.Query.Queryable
     Mischief.ECS.World.Query.QueryFilter
     Mischief.ECS.World.Query.Val
@@ -174,6 +175,7 @@ test-suite mischief-test
     OverloadedRecordDot
     OverloadedStrings
     RequiredTypeArguments
+    TemplateHaskell
     TypeFamilyDependencies
 
   -- other-extensions:
