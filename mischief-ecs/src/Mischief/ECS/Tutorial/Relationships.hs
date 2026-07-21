@@ -1,0 +1,164 @@
+{-# OPTIONS_GHC -Wno-unused-imports #-}
+
+-- |
+-- Module: Relationships Tutorial
+-- Description: Tutorial on using @Relationships@
+--
+-- This module contains a more in-depth tutorial on @Mischief Relationships@.
+--
+-- [Previous Chapter: Components]("Mischief.ECS.Tutorial.Components")
+--
+-- [Next Chapter: TODO]("Mischief.ECS.Tutorial.Relationships")
+--
+-- [Main Page]("Mischief.ECS")
+module Mischief.ECS.Tutorial.Relationships
+  ( -- * Introduction
+    -- $intro
+
+    -- * Insertion
+    -- $insertion
+
+    -- * Removal
+    -- $removal
+  )
+where
+
+import Mischief.ECS
+
+-- $intro
+-- Mischief implement @Relationships@ in a similar way to @Flecs@.
+--
+-- When a component is added to an entity, it is actually indexed by a @ComponentId@:
+--
+-- @
+-- data 'ComponentId' = ComponentId {id :: 'Entity', entity :: 'Maybe' 'Entity'}
+-- @
+--
+-- The first field, @id@, is the entity corresponding to the component, while the second field, @entity@, is an optional reference to another entity.
+--
+-- This means that each @ComponentId@ can either be a simple component, or a pair between a component and an entity (technically even between
+-- two components or two entities but that's not directly allowed by the API).
+--
+-- So a relationship in Mischief is a pair between a component and an entity. It can be inserted on entities using @Rel@:
+--
+-- @
+-- data 'Rel' c = Rel {comp :: c, target :: 'Entity'}
+-- @
+--
+-- For instance, this is how we spawn an entity @b@ that's a child of @a@:
+--
+-- @
+-- a <- 'spawn' ()
+-- b <- 'spawn' ('Rel' 'ChildOf' a)
+-- @
+
+-- $insertion
+-- Let's consider the following component, which will symbolize that an entity likes another, and by how much:
+--
+-- @
+-- data Likes = Likes 'Int' deriving ('Component')
+-- @
+--
+-- And three spawned entities: @alice@, @bob@, @charlie@.
+--
+-- As mentioned before, we can insert a relationship using the 'Rel' type.
+--
+-- @
+-- 'insert' ('Rel' (Likes 3) alice, 'Rel' (Likes 5) charlie) bob
+-- 'insert' ('Rel' (Likes 2) bob) alice
+-- @
+--
+-- If we insert a second relationship with the same component and the same target, its value will overwrite the other. For instance, the following code
+-- will make @alice@ like @bob@ by 3 instead of 2:
+--
+-- @
+-- 'insert' ('Rel' (Likes 3) bob) alice
+-- @
+
+-- $removal
+-- Removing relationships can be done through the @remove@ function, same as normal components. But instead of using the @'C'@ marker, we will use the @'R'@ marker.
+--
+-- Making @bob@ stop liking @alice@.
+--
+-- @
+-- 'remove' ('R' \@Likes alice) bob
+-- @
+--
+-- The @'R'@ marker takes a type hint of the relationship's type (@\@Likes@), and a target Entity (@alice@). But it can also be given the @Any@ wildcard instead:
+--
+-- @
+-- 'remove' ('R' \@Likes 'Any') bob
+-- @
+--
+-- This will remove all @Likes@ relationships from @bob@, making him not like anyone.
+
+---
+-- The 'WithR' query filter lets us easily query for components of entities that have a certain relationship with a certain entity.
+--
+-- Getting a list of all entities that like bob.
+--
+-- @
+-- x <- 'query'' 'E' ('WithR' @Likes bob)
+-- @
+--
+-- Getting a list of all entities that like anyone.
+--
+-- @
+-- x <- 'query'' 'E' ('WithR' @Likes Any)
+-- @
+--
+-- We can also modify @Likes@ to have an @Int@ as well, representing how much an entity likes another:
+--
+-- @
+-- data Likes = Likes 'Int' deriving ('Component')
+-- @
+--
+-- @
+-- 'insert' ('Rel' (Likes 5, alice), 'Rel' (Likes 8, charlie)) bob
+-- @
+--
+-- The 'R' marker type can be used in a query to get a @['Result' ('Rel' c)]@ for each entity.
+--
+-- Getting the name and all the Likes relationships of all entities.
+--
+-- @
+-- x <- query (C \@Name, 'R' \@Likes Any)
+-- @
+--
+-- @
+-- x :: [('Result' Name, ['Result' ('Rel' Likes)])]
+-- @
+--
+--
+-- Getting the name and the Like relationship with bob for all entities.
+--
+-- @
+-- x <- query (C \@Name, 'R' \@Likes bob)
+-- @
+--
+-- @
+-- x :: [('Result' Name, 'Result' ('Rel' Likes))]
+-- @
+--
+-- Note that @'R' \@Likes@ will limit the query to only the archetypes that contain any relation with @Likes@.
+-- You can also use @'MR'@ (Maybe relationship) to also include the entities that don't contain such relationships.
+--
+-- A component can be made @exclusive@ by setting the following 'Bool' in the 'Component' instance:
+--
+-- @
+-- instance 'Component' Likes where
+--   'isExclusiveRel' = 'True'
+-- @
+--
+-- If a component is exclusive, there can only be one relationship containing it on an entity at once.
+--
+-- For instance, if we do:
+--
+-- @
+-- 'insert' ('Rel' (Likes, alice) bob
+-- 'insert' ('Rel' (Likes, charlie)) bob
+-- @
+--
+-- @(Likes, charlie)@ will overwrite @(Likes, alice)@.
+--
+-- This is useful for relationships such as 'ChildOf', since an entity can only have one parent at a time.

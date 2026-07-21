@@ -129,10 +129,12 @@ propagateQFNot x = x
 class IntoQueryFilter qf where
   intoQueryFilter :: qf -> QueryFilter
 
-data With c = With
+newtype With c = With c
 
-instance (BundleTypes c) => IntoQueryFilter (With c) where
-  intoQueryFilter _ = and' $ map (\x -> QFWith (x, Nothing)) (Set.toList $ types (Proxy @c))
+instance (Collectable c FilterType) => IntoQueryFilter (With c) where
+  intoQueryFilter (With c) =
+    let l :: FilterType = collect c
+     in and' $ map withF l.inner
 
 data Without c = Without
 
@@ -198,3 +200,41 @@ instance (Component c) => IntoQueryFilter (CheckR c Entity) where
 
 instance (Component c) => IntoQueryFilter (CheckR c Any) where
   intoQueryFilter (CheckR _ f) = QFWithRelAny (typeRep $ Proxy @c) `QFAnd` QFCheckRawRelAny (typeRep $ Proxy @c, ErasedCheck f)
+
+withF :: (TypeRep, Maybe Entity, Maybe Any) -> QueryFilter
+withF (c, e, Nothing) = QFWith (c, e)
+withF (c, _, _) = QFWithRelAny c
+
+addedF :: (TypeRep, Maybe Entity, Maybe Any) -> QueryFilter
+addedF (c, e, Nothing) = QFChanged (c, e) qfAddedF
+addedF (c, _, _) = QFChangedRelAny c qfAddedF
+
+changedF :: (TypeRep, Maybe Entity, Maybe Any) -> QueryFilter
+changedF (c, e, Nothing) = QFChanged (c, e) qfChangedF
+changedF (c, _, _) = QFChangedRelAny c qfChangedF
+
+checkF :: (TypeRep, Maybe Entity, Maybe Any, ErasedCheck) -> QueryFilter
+checkF (c, e, Nothing, f) = QFCheckRaw (c, e, f)
+checkF (c, _, _, f) = QFCheckRawRelAny (c, f)
+
+newtype FilterType = FilterType {inner :: [(TypeRep, Maybe Entity, Maybe Any)]} deriving newtype (Semigroup)
+
+instance (Component c) => EraseIntoStorage (C c) FilterType where
+  erase _ = FilterType [(typeRep $ Proxy @c, Nothing, Nothing)]
+
+instance (Component c) => EraseIntoStorage (R c Entity) FilterType where
+  erase (R e) = FilterType [(typeRep $ Proxy @c, Just e, Nothing)]
+
+instance (Component c) => EraseIntoStorage (R c Any) FilterType where
+  erase _ = FilterType [(typeRep $ Proxy @c, Nothing, Just Any)]
+
+newtype CheckFilterType = CheckFilterType {inner :: [(TypeRep, Maybe Entity, Maybe Any, ErasedCheck)]} deriving newtype (Semigroup)
+
+instance (Component c) => EraseIntoStorage (C c, c -> Bool) CheckFilterType where
+  erase (_, f) = CheckFilterType [(typeRep $ Proxy @c, Nothing, Nothing, ErasedCheck f)]
+
+instance (Component c) => EraseIntoStorage (R c Entity, c -> Bool) CheckFilterType where
+  erase (R e, f) = CheckFilterType [(typeRep $ Proxy @c, Just e, Nothing, ErasedCheck f)]
+
+instance (Component c) => EraseIntoStorage (R c Any, c -> Bool) CheckFilterType where
+  erase (_, f) = CheckFilterType [(typeRep $ Proxy @c, Nothing, Just Any, ErasedCheck f)]

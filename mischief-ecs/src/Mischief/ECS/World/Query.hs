@@ -16,6 +16,7 @@ import {-# SOURCE #-} Mischief.ECS.Archetypes.Graph
 import Mischief.ECS.Collectable
 import Mischief.ECS.Components
 import Mischief.ECS.Components.BundleTypes
+import Mischief.ECS.Components.Common
 import {-# SOURCE #-} Mischief.ECS.Components.Spawn
 import Mischief.ECS.Entities
 import Mischief.ECS.Log
@@ -255,3 +256,8 @@ added = addedChanged qfAddedF
 
 changed :: forall c m w. (MonadSystem w m, GetResultComponentId (Result c)) => Result c -> m Bool
 changed = addedChanged qfChangedF
+
+x :: System ()
+x = do
+  q <- query' E (With (C @Name, R @Name Any))
+  undefined
