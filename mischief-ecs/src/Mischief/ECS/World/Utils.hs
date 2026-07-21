@@ -21,7 +21,6 @@ import Data.Text (Text)
 import Data.Typeable
 import GHC.Stack
 import Mischief.ECS.Archetypes
-import {-# SOURCE #-} Mischief.ECS.Archetypes.Graph (getArchetypeOnRemove)
 import Mischief.ECS.Components
 import Mischief.ECS.Components.Bundle
 import {-# SOURCE #-} Mischief.ECS.Components.Spawn

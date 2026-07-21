@@ -13,7 +13,6 @@ import {-# SOURCE #-} Mischief.ECS.Archetypes.Graph (getArchetypeOnSpawn)
 import Mischief.ECS.Components
 import Mischief.ECS.Components.Bundle
 import Mischief.ECS.Components.Common
-import {-# SOURCE #-} Mischief.ECS.Components.Spawn (getOrAddComponentId)
 import Mischief.ECS.Entities
 import Mischief.ECS.EventDef
 import Mischief.ECS.Events
