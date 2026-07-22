@@ -12,7 +12,7 @@ import Data.Maybe
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Mischief.ECS.Archetypes
-import {-# SOURCE #-} Mischief.ECS.Archetypes.Graph
+import Mischief.ECS.Archetypes.Graph
 import Mischief.ECS.Collectable
 import Mischief.ECS.Components
 import Mischief.ECS.Components.Common
