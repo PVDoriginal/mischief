@@ -17,7 +17,6 @@ import Mischief.ECS.Collectable
 import Mischief.ECS.Components
 import Mischief.ECS.Components.BundleTypes
 import Mischief.ECS.Components.Common
-import {-# SOURCE #-} Mischief.ECS.Components.Spawn
 import Mischief.ECS.Entities
 import Mischief.ECS.Log
 import Mischief.ECS.Tables
@@ -89,11 +88,6 @@ single' qd filter = do
   case res of
     [x] -> return $ Just x
     _ -> return Nothing
-
-res :: forall c. (Queryable (C c) (Result c), Component c) => System (Maybe (Result c))
-res = do
-  meta <- meta @c
-  get (C @c) meta
 
 -- iter :: forall qd m w. (Queryable qd, MonadSystem w m) => (QueryOutput qd -> m ()) -> m ()
 -- iter system = do
@@ -229,10 +223,16 @@ class GetResultComponentId' flag c where
   getResultComponentId' :: (MonadSystem w m) => c -> m (Maybe ComponentId)
 
 instance (Component c) => GetResultComponentId' True (Result c) where
-  getResultComponentId' _ = fmap (`ComponentId` Nothing) <$> tryMeta @c
+  getResultComponentId' _ = fmap (`ComponentId` Nothing) <$> tryMetaLocal @c
 
 instance (Component c) => GetResultComponentId' False (Result (Rel c)) where
-  getResultComponentId' r = fmap (`ComponentId` Just r.target) <$> tryMeta @c
+  getResultComponentId' r = fmap (`ComponentId` Just r.target) <$> tryMetaLocal @c
+
+tryMetaLocal :: forall c m w. (Component c, MonadSystem w m) => m (Maybe Entity)
+tryMetaLocal = do
+  world <- unsafeGetWorld
+  component <- liftIO $ getComponentId (typeRep $ Proxy @c) world.components
+  return $ fmap (\x -> x.id) component
 
 instance (GetResultComponentId' (IsComp c) (Result c)) => GetResultComponentId (Result c) where
   getResultComponentId = getResultComponentId' @(IsComp c)

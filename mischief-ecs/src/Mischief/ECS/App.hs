@@ -135,6 +135,11 @@ insertRes res = do
   entity <- meta @r
   insert res entity
 
+res :: forall c. (Queryable (C c) (Result c), Component c) => System (Maybe (Result c))
+res = do
+  meta <- meta @c
+  get (C @c) meta
+
 getTools :: SystemTools
 getTools =
   SystemTools
