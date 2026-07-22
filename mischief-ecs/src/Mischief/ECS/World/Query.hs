@@ -12,7 +12,7 @@ import Data.Map qualified as Map
 import Data.Maybe
 import Data.Set qualified as Set
 import Mischief.ECS.App.SystemDef
-import {-# SOURCE #-} Mischief.ECS.Archetypes.Graph
+import Mischief.ECS.Archetypes.Graph
 import Mischief.ECS.Collectable
 import Mischief.ECS.Components
 import Mischief.ECS.Components.BundleTypes
