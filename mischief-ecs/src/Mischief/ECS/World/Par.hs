@@ -17,7 +17,7 @@ par !parSystems = do
 
   x <- forM parSystems $ \(ParSystem p) -> do
     systems <- liftIO $ newIORef []
-    id <- liftIO $ async $ runReaderT p ParWorld {world = Hidden world, deferred = systems}
+    id <- liftIO $ async $ runReaderT p ParWorld {world = Hidden world, parDeferred = systems}
     return (id, systems)
 
   for_ x $ \(id, systems) -> do
@@ -37,7 +37,7 @@ parIterList !list !s = do
   x <- forM chunks $ \chunk -> do
     systems <- liftIO $ newIORef []
     let ParSystem p = s chunk
-    id <- liftIO $ async $ runReaderT p ParWorld {world = Hidden world, deferred = systems}
+    id <- liftIO $ async $ runReaderT p ParWorld {world = Hidden world, parDeferred = systems}
     return (id, systems)
 
   for_ x $ \(id, systems) -> do

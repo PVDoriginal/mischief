@@ -41,8 +41,8 @@ instance Defer System where
 instance Defer ParSystem where
   defer :: System a -> ParSystem ()
   defer !s = do
-    ParWorld {deferred} <- ask
-    liftIO $ modifyIORef' deferred (++ [s $> ()])
+    ParWorld {parDeferred} <- ask
+    liftIO $ modifyIORef' parDeferred (++ [s $> ()])
 
 -- | Flush the current list of deferred commands.
 flush :: System ()

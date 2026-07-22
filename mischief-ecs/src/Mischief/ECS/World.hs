@@ -8,6 +8,10 @@ module Mischief.ECS.World
     setPrefs,
     forkPrefs,
     Frame (..),
+    SystemTools (..),
+    worldGet,
+    worldGetRAny,
+    worldSet,
 
     -- * Systems
     System (..),
@@ -29,15 +33,19 @@ import Control.Monad.Primitive (PrimMonad (..), RealWorld)
 import Control.Monad.Reader.Class (MonadReader (..), asks)
 import Control.Monad.Trans (MonadTrans (..))
 import Control.Monad.Trans.Reader (ReaderT (runReaderT))
+import Data.Data
 import Data.IORef (IORef, modifyIORef', newIORef)
 import GHC.Stack (HasCallStack)
 import Mischief.ECS.Archetypes (Archetypes, emptyArchetypes)
 import Mischief.ECS.Collectable
 import Mischief.ECS.Components
-  ( Components,
+  ( Component,
+    Components,
+    Rel,
     Tick (Tick),
     emptyComponents,
   )
+import Mischief.ECS.Components.Bundle
 import Mischief.ECS.Entities
   ( Entities,
     Entity (Entity),
@@ -45,7 +53,7 @@ import Mischief.ECS.Entities
   )
 import Mischief.ECS.EventDef
 import Mischief.ECS.Hidden
-import Mischief.ECS.Tables (Tables, emptyTables)
+import Mischief.ECS.Tables (Result, Tables, emptyTables)
 import Mischief.ECS.World.Prefs (WorldPrefs, newPrefs)
 
 -- | @The World@ is the main data structure storing the entities, components, archetypes, and everything else that lives in our app.
@@ -73,7 +81,8 @@ data World = World
     frame :: IORef Frame,
     -- | Certain toggleable settings.
     prefs :: WorldPrefs,
-    logger :: Colog.LogAction IO Colog.Message
+    logger :: Colog.LogAction IO Colog.Message,
+    tools :: SystemTools
   }
 
 newtype Frame = Frame Int deriving (Show, Eq, Ord)
@@ -82,8 +91,8 @@ newtype Frame = Frame Int deriving (Show, Eq, Ord)
 newtype SystemId = SystemId {id :: Entity} deriving (Show, Eq, Ord)
 
 -- | Create a new World in IO.
-newWorld :: IO World
-newWorld = do
+newWorld :: SystemTools -> IO World
+newWorld tools = do
   archetypes <- emptyArchetypes
   components <- emptyComponents
   entities <- emptyEntities
@@ -110,7 +119,8 @@ newWorld = do
         systemId = SystemId (Entity 0 0),
         frame,
         prefs,
-        logger
+        logger,
+        tools
       }
 
 -- | Change the current SystemId of the World.
@@ -160,7 +170,7 @@ data ParWorld = ParWorld
     world :: Hidden World,
     -- | Deferred systems will be collected in this dedicated list and then
     -- merged back into the main deferred list once the parallel systems are joined.
-    deferred :: IORef [System ()]
+    parDeferred :: IORef [System ()]
   }
 
 -- | A variant of 'System' that contains a 'ParWorld' instead of 'World'.
@@ -197,3 +207,24 @@ unsafeGetWorld = do
 instance EraseIntoStorage (System ()) [System ()] where
   erase :: System () -> [System ()]
   erase x = [x]
+
+data SystemTools = SystemTools
+  { get :: forall c m w. (Component c, MonadSystem w m) => Proxy c -> Entity -> m (Maybe c),
+    getRAny :: forall c m w. (Component c, MonadSystem w m) => Proxy c -> Entity -> m (Maybe [Rel c]),
+    set :: forall c. (Bundle c) => c -> Entity -> System ()
+  }
+
+worldGet :: forall c m w. (Component c, MonadSystem w m) => Proxy c -> Entity -> m (Maybe c)
+worldGet p e = do
+  World {tools = SystemTools {get}} <- unsafeGetWorld
+  get p e
+
+worldSet :: forall c. (Bundle c) => c -> Entity -> System ()
+worldSet c e = do
+  World {tools = SystemTools {set}} <- unsafeGetWorld
+  set c e
+
+worldGetRAny :: forall c m w. (Component c, MonadSystem w m) => Proxy c -> Entity -> m (Maybe [Rel c])
+worldGetRAny p e = do
+  World {tools = SystemTools {getRAny}} <- unsafeGetWorld
+  getRAny p e

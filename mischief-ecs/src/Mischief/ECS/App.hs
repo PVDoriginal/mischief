@@ -29,6 +29,7 @@ import Mischief.ECS.Hidden
 import Mischief.ECS.Log
 import Mischief.ECS.Relationships.Order
 import Mischief.ECS.Systems qualified as Systems
+import Mischief.ECS.Tables
 import Mischief.ECS.World
 import Mischief.ECS.World.Defer
 import Mischief.ECS.World.Insert
@@ -43,7 +44,7 @@ data App = App
 
 newApp :: (Plugin p) => p -> IO App
 newApp plugin = do
-  world <- newWorld
+  world <- newWorld getTools
   systems <- Systems.newSystems
 
   let app = App {world, systems}
@@ -133,3 +134,20 @@ insertRes :: forall r. (Component r, Bundle r) => r -> System ()
 insertRes res = do
   entity <- meta @r
   insert res entity
+
+getTools :: SystemTools
+getTools =
+  SystemTools
+    { get = toolsGet,
+      getRAny = toolsGetRAny,
+      set = toolsSet
+    }
+
+toolsGet :: forall c m w. (Component c, MonadSystem w m) => Proxy c -> Entity -> m (Maybe c)
+toolsGet _ = get (Val (C @c))
+
+toolsSet :: forall c. (Bundle c) => c -> Entity -> System ()
+toolsSet = insert
+
+toolsGetRAny :: forall c m w. (Component c, MonadSystem w m) => Proxy c -> Entity -> m (Maybe [Rel c])
+toolsGetRAny _ = get (Val (R @c Any))
