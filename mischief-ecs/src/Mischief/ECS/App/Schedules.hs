@@ -8,6 +8,7 @@ import GHC.Generics
 import Mischief.ECS.Components
 import Mischief.ECS.Entities
 import Mischief.ECS.Log
+import Mischief.ECS.Resources
 import Mischief.ECS.World
 import Mischief.ECS.World.Modify
 import Mischief.ECS.World.Query

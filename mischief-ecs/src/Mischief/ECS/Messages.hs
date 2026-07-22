@@ -20,6 +20,7 @@ import Mischief.ECS.App
 import Mischief.ECS.App.SystemDef
 import Mischief.ECS.App.Systems
 import Mischief.ECS.Components
+import Mischief.ECS.Resources
 import Mischief.ECS.Tables
 import Mischief.ECS.Utils
 import Mischief.ECS.World

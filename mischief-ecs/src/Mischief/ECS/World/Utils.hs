@@ -23,7 +23,7 @@ import GHC.Stack
 import Mischief.ECS.Archetypes
 import Mischief.ECS.Components
 import Mischief.ECS.Components.Bundle
-import {-# SOURCE #-} Mischief.ECS.Components.Spawn
+import Mischief.ECS.Components.Spawn
 import Mischief.ECS.Entities
 import Mischief.ECS.EventDef
 import Mischief.ECS.Hidden

@@ -9,15 +9,15 @@ import Data.Map qualified as Map
 import Data.Maybe
 import Data.Set qualified as Set
 import GHC.Stack
-import {-# SOURCE #-} Mischief.ECS.Archetypes.Graph (getArchetypeOnSpawn)
+import Mischief.ECS.Archetypes.Graph (getArchetypeOnSpawn)
 import Mischief.ECS.Components
 import Mischief.ECS.Components.Bundle
 import Mischief.ECS.Components.Common
 import Mischief.ECS.Entities
 import Mischief.ECS.EventDef
-import Mischief.ECS.Events
 import Mischief.ECS.Hidden
 import Mischief.ECS.Log
+import Mischief.ECS.Observer
 import Mischief.ECS.Tables
 import Mischief.ECS.World
 import Mischief.ECS.World.Change

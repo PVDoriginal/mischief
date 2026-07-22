@@ -28,6 +28,7 @@ import Mischief.ECS.Events
 import Mischief.ECS.Hidden
 import Mischief.ECS.Log
 import Mischief.ECS.Relationships.Order
+import Mischief.ECS.Resources
 import Mischief.ECS.Systems qualified as Systems
 import Mischief.ECS.Tables
 import Mischief.ECS.World
@@ -36,6 +37,7 @@ import Mischief.ECS.World.Insert
 import Mischief.ECS.World.Query
 import Mischief.ECS.World.Query.QueryFilter
 import Mischief.ECS.World.Query.Queryable
+import Mischief.ECS.World.Spawn
 
 data App = App
   { world :: World,
@@ -129,23 +131,13 @@ registerComponent c = do
   _ <- getOrAddComponentId (ComponentType c)
   return ()
 
--- | Insert a resource into this world. If the resource already exists, its value will be overwritten.
-insertRes :: forall r. (Component r, Bundle r) => r -> System ()
-insertRes res = do
-  entity <- meta @r
-  insert res entity
-
-res :: forall c. (Queryable (C c) (Result c), Component c) => System (Maybe (Result c))
-res = do
-  meta <- meta @c
-  get (C @c) meta
-
 getTools :: SystemTools
 getTools =
   SystemTools
     { get = toolsGet,
       getRAny = toolsGetRAny,
-      set = toolsSet
+      set = toolsSet,
+      spawnByInsert = toolsSpawnByInsert
     }
 
 toolsGet :: forall c m w. (Component c, MonadSystem w m) => Proxy c -> Entity -> m (Maybe c)
@@ -156,3 +148,6 @@ toolsSet = insert
 
 toolsGetRAny :: forall c m w. (Component c, MonadSystem w m) => Proxy c -> Entity -> m (Maybe [Rel c])
 toolsGetRAny _ = get (Val (R @c Any))
+
+toolsSpawnByInsert :: forall b. (Bundle b) => Entity -> b -> System ()
+toolsSpawnByInsert = spawnEntityByInsert

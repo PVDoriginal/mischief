@@ -78,12 +78,14 @@ library
     Mischief.ECS.Log
     Mischief.ECS.Mappable
     Mischief.ECS.Messages
+    Mischief.ECS.Observer
     Mischief.ECS.Prelude
     Mischief.ECS.Relationships
     Mischief.ECS.Relationships.ChildOf
     Mischief.ECS.Relationships.Graph
     Mischief.ECS.Relationships.Order
     Mischief.ECS.Relationships.Tree
+    Mischief.ECS.Resources
     Mischief.ECS.Systems
     Mischief.ECS.Tables
     Mischief.ECS.Time

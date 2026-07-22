@@ -12,6 +12,7 @@ module Mischief.ECS.World
     worldGet,
     worldGetRAny,
     worldSet,
+    worldSpawnByInsert,
 
     -- * Systems
     System (..),
@@ -211,7 +212,8 @@ instance EraseIntoStorage (System ()) [System ()] where
 data SystemTools = SystemTools
   { get :: forall c m w. (Component c, MonadSystem w m) => Proxy c -> Entity -> m (Maybe c),
     getRAny :: forall c m w. (Component c, MonadSystem w m) => Proxy c -> Entity -> m (Maybe [Rel c]),
-    set :: forall c. (Bundle c) => c -> Entity -> System ()
+    set :: forall c. (Bundle c) => c -> Entity -> System (),
+    spawnByInsert :: forall b. (Bundle b) => Entity -> b -> System ()
   }
 
 worldGet :: forall c m w. (Component c, MonadSystem w m) => Proxy c -> Entity -> m (Maybe c)
@@ -228,3 +230,8 @@ worldGetRAny :: forall c m w. (Component c, MonadSystem w m) => Proxy c -> Entit
 worldGetRAny p e = do
   World {tools = SystemTools {getRAny}} <- unsafeGetWorld
   getRAny p e
+
+worldSpawnByInsert :: forall b. (Bundle b) => Entity -> b -> System ()
+worldSpawnByInsert e b = do
+  World {tools = SystemTools {spawnByInsert}} <- unsafeGetWorld
+  spawnByInsert e b

@@ -14,22 +14,11 @@ import Mischief.ECS.Components.Bundle
 import Mischief.ECS.Components.Required (require)
 import Mischief.ECS.Entities
 import Mischief.ECS.EventDef
+import Mischief.ECS.Observer
 import Mischief.ECS.Tables
 import Mischief.ECS.World
 import Mischief.ECS.World.Query
 import Mischief.ECS.World.Query.Queryable
-
-data EventProxy e = EventProxy deriving (Component, Generic, Default)
-
-newtype Observer e = Observer (e -> System ())
-
-instance (Typeable e) => Component (Observer e) where
-  required = require @(EventProxy e, ObserverOrder)
-
-newtype ObserverOrder = ObserverOrder Int
-  deriving (Show)
-  deriving anyclass (Component)
-  deriving newtype (Eq, Ord, Default)
 
 trigger :: (Event e) => e -> System ()
 trigger event = do

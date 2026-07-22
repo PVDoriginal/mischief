@@ -20,6 +20,7 @@ import Mischief.ECS.Components.Required
 import Mischief.ECS.Entities
 import Mischief.ECS.Log
 import Mischief.ECS.Relationships.Order
+import Mischief.ECS.Resources
 import Mischief.ECS.Tables
 import Mischief.ECS.Utils
 import Mischief.ECS.World

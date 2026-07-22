@@ -16,7 +16,7 @@ import Mischief.ECS.Archetypes.Graph
 import Mischief.ECS.Collectable
 import Mischief.ECS.Components
 import Mischief.ECS.Components.Common
-import {-# SOURCE #-} Mischief.ECS.Components.Spawn
+import Mischief.ECS.Components.Spawn
 import Mischief.ECS.Entities
 import Mischief.ECS.EventDef
 import Mischief.ECS.Events
@@ -27,14 +27,6 @@ import Mischief.ECS.World.Change (changeArchetype)
 import Mischief.ECS.World.Query
 import Mischief.ECS.World.Query.Queryable
 import Mischief.ECS.World.Utils
-
-class Removable c where
-  getTypes :: Proxy c -> System (Set ComponentId)
-
-instance {-# OVERLAPPABLE #-} (Component c) => Removable c where
-  getTypes c = do
-    x <- getOrAddComponentId (ComponentType c)
-    return $ Set.singleton x
 
 newtype ToRemove = ToRemove {inner :: [(ComponentType, Maybe Entity, Maybe Any)]} deriving newtype (Semigroup)
 

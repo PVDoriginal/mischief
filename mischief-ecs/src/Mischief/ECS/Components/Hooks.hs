@@ -16,12 +16,3 @@ instance (Event (e c)) => EraseIntoStorage (e c -> System ()) (Hooks c) where
 
 instance EraseIntoStorage (Hooks c) (Hooks c) where
   erase = id
-
-registerHooks :: Hooks c -> System ()
-registerHooks (Hooks h) = for_ h registerHook
-
-registerHook :: ErasedHook c -> System ()
-registerHook (ErasedHook (h :: e c -> m ())) =
-  case eqT @m @System of
-    Just Refl -> void $ spawn $ Observer h
-    Nothing -> undefined
