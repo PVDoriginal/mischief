@@ -22,8 +22,6 @@ import {-# SOURCE #-} Mischief.ECS.Archetypes.Graph
   )
 import Mischief.ECS.Components
 import Mischief.ECS.Components.Bundle
-import Mischief.ECS.Components.Common
-import {-# SOURCE #-} Mischief.ECS.Components.Spawn
 import Mischief.ECS.Entities
 import Mischief.ECS.EventDef
 import Mischief.ECS.Events
@@ -144,12 +142,6 @@ insertIfNeq b entity = do
       Just val' -> return (val /= val')
 
   insert (bundleEqToSimple $ BundleData (Set.fromList comps)) entity
-
--- | Insert a resource into this world. If the resource already exists, its value will be overwritten.
-insertRes :: forall r. (Component r, Bundle r) => r -> System ()
-insertRes res = do
-  entity <- meta @r
-  insert res entity
 
 class Settable c i | c -> i where
   setInner :: c -> i -> System ()

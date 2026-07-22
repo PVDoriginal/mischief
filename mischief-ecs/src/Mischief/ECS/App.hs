@@ -20,8 +20,9 @@ import Mischief.ECS.App.SystemDef
 import Mischief.ECS.App.Systems (ScheduledIn (ScheduledIn), SystemFunction (SystemFunction), Systems, systemEntity)
 import Mischief.ECS.App.Systems qualified as Systems
 import Mischief.ECS.Components
+import Mischief.ECS.Components.Bundle
 import Mischief.ECS.Components.Runnable (Runnable, runFor)
-import Mischief.ECS.Components.Spawn (getOrAddComponentId)
+import Mischief.ECS.Components.Spawn (getOrAddComponentId, meta)
 import Mischief.ECS.Entities
 import Mischief.ECS.Events
 import Mischief.ECS.Hidden
@@ -126,3 +127,9 @@ registerComponent :: forall c. (Component c) => Proxy c -> System ()
 registerComponent c = do
   _ <- getOrAddComponentId (ComponentType c)
   return ()
+
+-- | Insert a resource into this world. If the resource already exists, its value will be overwritten.
+insertRes :: forall r. (Component r, Bundle r) => r -> System ()
+insertRes res = do
+  entity <- meta @r
+  insert res entity
