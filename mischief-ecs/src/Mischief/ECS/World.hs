@@ -36,7 +36,6 @@ import Control.Monad.Trans (MonadTrans (..))
 import Control.Monad.Trans.Reader (ReaderT (runReaderT))
 import Data.Data
 import Data.IORef (IORef, modifyIORef', newIORef)
-import GHC.Stack (HasCallStack)
 import Mischief.ECS.Archetypes (Archetypes, emptyArchetypes)
 import Mischief.ECS.Collectable
 import Mischief.ECS.Components
@@ -54,7 +53,7 @@ import Mischief.ECS.Entities
   )
 import Mischief.ECS.EventDef
 import Mischief.ECS.Hidden
-import Mischief.ECS.Tables (Result, Tables, emptyTables)
+import Mischief.ECS.Tables (Tables, emptyTables)
 import Mischief.ECS.World.Prefs (WorldPrefs, newPrefs)
 
 -- | @The World@ is the main data structure storing the entities, components, archetypes, and everything else that lives in our app.

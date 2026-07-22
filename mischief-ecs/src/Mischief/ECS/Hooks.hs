@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 -- {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
@@ -22,6 +23,7 @@ import Mischief.ECS.Components.Common
 import Mischief.ECS.Components.Hooks
 import Mischief.ECS.Components.HooksDef
 import Mischief.ECS.Entities
+import Mischief.ECS.EventDef
 import Mischief.ECS.Events
 import Mischief.ECS.Log
 import Mischief.ECS.Tables
@@ -33,6 +35,13 @@ import Mischief.ECS.World.Query.Queryable
 import Mischief.ECS.World.Remove
 import Mischief.ECS.World.Spawn
 import Mischief.ECS.World.Utils
+
+instance (Event (e c)) => EraseIntoStorage (e c -> System ()) (Hooks c) where
+  erase :: (e c -> System ()) -> Hooks c
+  erase x = Hooks [ErasedHook x]
+
+instance EraseIntoStorage (Hooks c) (Hooks c) where
+  erase = id
 
 -- | When applied on a component @A@, this hook takes a function @(A -> B)@ and does two things:
 --
