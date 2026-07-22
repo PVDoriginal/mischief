@@ -24,8 +24,6 @@ import Mischief.ECS.Vec (IOVec)
 import Mischief.ECS.Vec qualified as Vec
 import Mischief.ECS.World
 import Mischief.ECS.World (SystemTools (get))
-import Mischief.ECS.World.Modify
--- import Mischief.ECS.World.Query
 import Mischief.ECS.World.Query.Queryable
 
 data ArchetypeTransition = Inserted ComponentId | Removed ComponentId

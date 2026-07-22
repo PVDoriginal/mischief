@@ -17,7 +17,7 @@ import Data.Set qualified as Set
 import Data.Text qualified as Text
 import GHC.Stack
 import Mischief.ECS.Archetypes
-import {-# SOURCE #-} Mischief.ECS.Archetypes.Graph
+import Mischief.ECS.Archetypes.Graph
   ( getArchetypeOnInsert,
   )
 import Mischief.ECS.Components
