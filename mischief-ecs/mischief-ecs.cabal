@@ -128,6 +128,7 @@ library
     NoFieldSelectors
     OverloadedRecordDot
     OverloadedStrings
+    QuasiQuotes
     RequiredTypeArguments
     TemplateHaskell
     TypeFamilyDependencies
@@ -180,6 +181,7 @@ test-suite mischief-test
     NoGeneralizedNewtypeDeriving
     OverloadedRecordDot
     OverloadedStrings
+    QuasiQuotes
     RequiredTypeArguments
     TemplateHaskell
     TypeFamilyDependencies

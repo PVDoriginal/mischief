@@ -18,6 +18,7 @@ import Mischief.ECS.App.Plugins
 import Mischief.ECS.App.Systems
 import Mischief.ECS.Collectable
 import Mischief.ECS.Components.Common
+import Mischief.ECS.Components.Common (Name)
 import Mischief.ECS.Components.Hooks
 import Mischief.ECS.Components.Spawn
 import Mischief.ECS.Hooks
@@ -44,13 +45,15 @@ main = do
 x :: System ()
 x = do
   -- x <- $(quoteC ''ChildOf)
-  let x = $quoteE
+  -- let x = $quoteE
   undefined
 
 data MainPlugin = MainPlugin deriving (Eq)
 
 instance Plugin MainPlugin where
   init _ = do
+    let x = [qquery|Name|]
+
     a <- spawn (Name "A")
     b <- spawn (Name "B")
     c <- spawn (Name "C")

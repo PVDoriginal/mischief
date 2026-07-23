@@ -99,6 +99,7 @@ module Mischief.ECS
     module Mischief.ECS.World.Remove,
     module Mischief.ECS.World.Spawn,
     module Mischief.ECS.World.Utils,
+    TestTest (..),
   )
 where
 
@@ -160,12 +161,14 @@ import Mischief.ECS.World.Spawn
 import Mischief.ECS.World.Systems
 import Mischief.ECS.World.Utils
 
+data TestTest = TestTest
+
 e :: Entity
 e = Entity 0 0
 
 -- x = quoteD
 
-x = $quoteE
+-- x = $quoteE
 
 qq :: System ()
 qq = do
