@@ -155,6 +155,7 @@ import Mischief.ECS.World.Query
 import Mischief.ECS.World.Query.QueryFilter
 import Mischief.ECS.World.Query.Queryable
 import Mischief.ECS.World.Query.TH
+-- import Mischief.ECS.World.Query.TH.QD
 import Mischief.ECS.World.Query.Val
 import Mischief.ECS.World.Remove
 import Mischief.ECS.World.Spawn
