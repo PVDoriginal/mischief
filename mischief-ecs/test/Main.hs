@@ -24,8 +24,8 @@ import Mischief.ECS.Components.Spawn
 import Mischief.ECS.Hooks
 import Mischief.ECS.Hooks qualified as Hooks
 import Mischief.ECS.Systems qualified as Systems
-import Mischief.ECS.World.Query.Quasi
 import Mischief.ECS.World.Query.QueryFilter
+import Mischief.ECS.World.Query.TH
 import Mischief.ECS.World.Utils
 import System.Exit (exitSuccess)
 
@@ -52,7 +52,7 @@ data MainPlugin = MainPlugin deriving (Eq)
 
 instance Plugin MainPlugin where
   init _ = do
-    let x = [qquery|Name|]
+    x <- [q|Name|]
 
     a <- spawn (Name "A")
     b <- spawn (Name "B")
