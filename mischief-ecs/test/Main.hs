@@ -52,7 +52,8 @@ data MainPlugin = MainPlugin deriving (Eq)
 
 instance Plugin MainPlugin where
   init _ = do
-    x <- [q|Name|]
+    a <- spawn ()
+    x <- [q|Name, Name, ChildOf a, Name|]
 
     a <- spawn (Name "A")
     b <- spawn (Name "B")
