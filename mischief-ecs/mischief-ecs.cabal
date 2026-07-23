@@ -103,9 +103,9 @@ library
     Mischief.ECS.World.Par
     Mischief.ECS.World.Prefs
     Mischief.ECS.World.Query
-    Mischief.ECS.World.Query.TH
     Mischief.ECS.World.Query.Queryable
     Mischief.ECS.World.Query.QueryFilter
+    Mischief.ECS.World.Query.TH
     Mischief.ECS.World.Query.Val
     Mischief.ECS.World.Remove
     Mischief.ECS.World.Spawn
@@ -141,6 +141,7 @@ library
     async,
     base ^>=4.21.0.0,
     binary,
+    haskell-src-meta,
     bytestring,
     clock,
     co-log,

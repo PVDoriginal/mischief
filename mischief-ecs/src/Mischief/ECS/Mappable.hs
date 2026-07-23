@@ -25,6 +25,9 @@ instance {-# OVERLAPPING #-} Mappable MapQueryVal (Result a) a where
 instance {-# OVERLAPPING #-} Mappable MapQueryVal [Result a] [a] where
   mapTuple = map value
 
+instance {-# OVERLAPPING #-} Mappable MapQueryVal (Maybe [Result a]) (Maybe [a]) where
+  mapTuple = fmap (mapTuple @MapQueryVal)
+
 instance {-# OVERLAPPING #-} (Mappable flag a0 b0, Mappable flag a1 b1) => Mappable flag (a0, a1) (b0, b1) where
   mapTuple (a0, a1) = (mapTuple @flag a0, mapTuple @flag a1)
 

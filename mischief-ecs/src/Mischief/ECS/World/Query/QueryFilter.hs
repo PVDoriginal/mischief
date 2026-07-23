@@ -153,8 +153,20 @@ data Or a b = Or a b
 (|.) :: a -> b -> Or a b
 (|.) = Or
 
+data And a b = And a b
+
+(&.) :: a -> b -> And a b
+(&.) = And
+
+infix 8 &.
+
+infix 9 |.
+
 instance (IntoQueryFilter a, IntoQueryFilter b) => IntoQueryFilter (a `Or` b) where
   intoQueryFilter (Or a b) = QFOr (intoQueryFilter a) (intoQueryFilter b)
+
+instance (IntoQueryFilter a, IntoQueryFilter b) => IntoQueryFilter (a `And` b) where
+  intoQueryFilter (And a b) = QFAnd (intoQueryFilter a) (intoQueryFilter b)
 
 newtype Changed c = Changed c
 
