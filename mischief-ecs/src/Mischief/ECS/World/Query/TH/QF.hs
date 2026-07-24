@@ -21,12 +21,12 @@ import Text.Megaparsec (MonadParsec (eof, lookAhead, notFollowedBy, try), Parsec
 import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer qualified as L
 
-data Qf = With' [QfType] | Added' [QfType] | Changed' [QfType] | Not' Qf | Tup' [Qf] | Or' Qf Qf deriving (Show)
+data Qf = With' [QfType] | Added' [QfType] | Changed' [QfType] | Not' Qf | Tup' [Qf] | Or' Qf Qf | Check CompType Qf deriving (Show)
 
 data QfType = QfType {name :: Text, compType :: CompType} deriving (Show)
 
 pQf :: Parser Qf
-pQf = Tup' <$> pTup'
+pQf = Tup' . concat <$> pTup pTup'
 
 pTup' :: Parser [Qf]
 pTup' = try ((char '(' *> whitespace) *> (concat <$> pTup pTup') <* (char ')' *> whitespace)) <|> (: []) <$> pOr
@@ -75,6 +75,10 @@ pChanged = do
   whitespace
   Changed' <$> pTypes
 
+pCheck :: Parser Qf
+pCheck = do
+  undefined
+
 pTypes :: Parser [QfType]
 pTypes = try ((char '(' *> whitespace) *> (concat <$> pTup pTypes) <* (char ')' *> whitespace)) <|> (: []) <$> pType
 
@@ -100,3 +104,26 @@ pType = do
       { name,
         compType
       }
+
+quoteQf :: Qf -> Q Exp
+quoteQf (Tup' qf) = processTup qf
+quoteQf (With' x) = AppE (ConE 'With) <$> processTypes x
+quoteQf (Changed' x) = AppE (ConE 'Changed) <$> processTypes x
+quoteQf (Added' x) = AppE (ConE 'Added) <$> processTypes x
+quoteQf (Or' x y) = do
+  x <- quoteQf x
+  y <- quoteQf y
+  return $ AppE (AppE (ConE 'Or) x) y
+quoteQf (Not' x) = AppE (ConE 'Not) <$> quoteQf x
+
+processTup :: [Qf] -> Q Exp
+processTup [x] = quoteQf x
+processTup t = TupE . map Just <$> forM t quoteQf
+
+processTypes :: [QfType] -> Q Exp
+processTypes [x] = processType x
+processTypes t = TupE . map Just <$> forM t processType
+
+processType :: QfType -> Q Exp
+processType (QfType {name, compType = Single}) = QD.processC name
+processType (QfType {name, compType}) = QD.processR name =<< QD.relExp compType

@@ -23,7 +23,8 @@ import Mischief.ECS.World.Query
 import Mischief.ECS.World.Query.QueryFilter
 import Mischief.ECS.World.Query.Queryable
 import Mischief.ECS.World.Query.TH.QD
-import Text.Megaparsec (MonadParsec (eof), Parsec, choice, parse, parseTest, runParserT, some, (<|>))
+import Mischief.ECS.World.Query.TH.QF (Qf, pQf, quoteQf)
+import Text.Megaparsec (MonadParsec (eof), Parsec, choice, optional, parse, parseTest, runParserT, some, (<|>))
 import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer qualified as L
 
@@ -40,11 +41,29 @@ q =
       quoteDec = undefined
     }
 
-data Query = Query Qd deriving (Show)
+data CompA = CompA deriving (Component)
+
+data CompB = CompB deriving (Component)
+
+data CompC = CompC deriving (Component)
+
+data Query = Query Qd (Maybe Qf) deriving (Show)
 
 pQuery :: Parser Query
 pQuery = do
-  Query <$> pQd
+  qd <- pQd
+  whitespace
+
+  qf <- optional $ do
+    void $ char '/'
+    whitespace
+    pQf
+
+  pure $ Query qd qf
 
 quoteQuery :: Query -> Q Exp
-quoteQuery (Query qd) = AppE (VarE 'query) <$> quoteQd qd
+quoteQuery (Query qd Nothing) = AppE (VarE 'query) <$> quoteQd qd
+quoteQuery (Query qd (Just qf)) = do
+  qd <- quoteQd qd
+  qf <- quoteQf qf
+  return $ AppE (AppE (VarE 'query') qd) qf
