@@ -6,14 +6,16 @@ import Data.Maybe
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Void
+import Language.Haskell.Meta.Parse as M
 import Language.Haskell.TH
 import Language.Haskell.TH qualified
 import Language.Haskell.TH.Quote
 import Language.Haskell.TH.Syntax
+import Mischief.ECS.Components (Component)
 import Mischief.ECS.World.Query
 import Mischief.ECS.World.Query.QueryFilter
 import Mischief.ECS.World.Query.Queryable
-import Text.Megaparsec (MonadParsec (eof, lookAhead, try), Parsec, choice, optional, parseTest, some, (<|>))
+import Text.Megaparsec (MonadParsec (eof, lookAhead, try), Parsec, choice, manyTill, optional, parseTest, some, (<|>))
 import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer qualified as L
 
@@ -56,27 +58,29 @@ pTup = do
         (Just _, Nothing) -> ([r] ++) <$> pTup
         _ -> return [r]
 
+data TestG a b = TestG deriving (Component)
+
 pSingle :: Parser Qd
 pSingle = do
   try pEntity <|> try pVal <|> try pMaybe <|> try pHas <|> pType
 
 pEntity :: Parser Qd
 pEntity = do
-  void $ choice [string "Entity", string "entity", string "E", string "e"]
+  void $ choice [string "Entity ", string "entity ", string "E ", string "e "]
   whitespace
 
   return Entity'
 
 pVal :: Parser Qd
 pVal = do
-  void $ choice [string "Val", string "val", string "V", string "v"]
+  void $ choice [string "Val ", string "val ", string "V ", string "v "]
   whitespace
 
   Val' <$> pEl
 
 pMaybe :: Parser Qd
 pMaybe = do
-  void $ choice [string "Maybe", string "maybe", string "M", string "m"]
+  void $ choice [string "Maybe ", string "maybe ", string "M ", string "m "]
   whitespace
 
   Type t <- pType
@@ -86,7 +90,7 @@ pMaybe = do
 
 pHas :: Parser Qd
 pHas = do
-  void $ choice [string "Has", string "has", string "H", string "h"]
+  void $ choice [string "Has ", string "has ", string "H ", string "h "]
   whitespace
 
   Type t <- pType
@@ -96,7 +100,7 @@ pHas = do
 
 pType :: Parser Qd
 pType = do
-  name <- T.pack <$> some alphaNumChar
+  name <- pTypeGeneric <|> T.pack <$> some alphaNumChar
   whitespace
 
   target <- optional $ string "*" <|> T.pack <$> some alphaNumChar
@@ -113,6 +117,9 @@ pType = do
         compType,
         mod = Nothing
       }
+
+pTypeGeneric :: Parser Text
+pTypeGeneric = T.pack <$> (char '{' *> manyTill L.charLiteral (char '}'))
 
 whitespace :: Parser ()
 whitespace =
@@ -144,8 +151,11 @@ processVal = AppE (ConE 'Val)
 
 processC :: Text -> Q Exp
 processC name = do
-  name <- getTypeName name
-  return $ AppTypeE (ConE 'C) (ConT name)
+  -- name <- getTypeName name
+  let t = M.parseType (T.unpack name)
+  case t of
+    Left e -> error e
+    Right t -> return $ AppTypeE (ConE 'C) t
 
 processM :: Text -> Q Exp
 processM name = do
