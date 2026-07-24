@@ -57,7 +57,7 @@ data TG2 a b c deriving (Component)
 instance Plugin MainPlugin where
   init _ = do
     a <- spawn ()
-    x <- [q|Name -> a, ChildOf -> *|]
+    x <- [q|Val (Entity, Name -> a)|]
 
     a <- spawn (Name "A")
     b <- spawn (Name "B")

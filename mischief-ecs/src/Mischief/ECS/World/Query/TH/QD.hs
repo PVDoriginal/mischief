@@ -15,7 +15,7 @@ import Mischief.ECS.Components (Component)
 import Mischief.ECS.World.Query
 import Mischief.ECS.World.Query.QueryFilter
 import Mischief.ECS.World.Query.Queryable
-import Text.Megaparsec (MonadParsec (eof, lookAhead, try), Parsec, choice, manyTill, optional, parseTest, some, (<|>))
+import Text.Megaparsec (MonadParsec (eof, lookAhead, notFollowedBy, try), Parsec, choice, manyTill, optional, parseTest, some, (<|>))
 import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer qualified as L
 
@@ -35,7 +35,7 @@ pQd = do
 
 pEl :: Parser Qd
 pEl = do
-  bracket <- optional $ string "("
+  bracket <- optional $ string "(" <* whitespace
   case bracket of
     Nothing -> pSingle
     Just _ -> Tup <$> pTup
@@ -66,21 +66,21 @@ pSingle = do
 
 pEntity :: Parser Qd
 pEntity = do
-  void $ choice [string "Entity ", string "entity ", string "E ", string "e "]
+  void $ choice [string "Entity", string "entity", string "E", string "e"] <* notFollowedBy alphaNumChar
   whitespace
 
   return Entity'
 
 pVal :: Parser Qd
 pVal = do
-  void $ choice [string "Val ", string "val ", string "V ", string "v "]
+  void $ choice [string "Val", string "val", string "V", string "v"] <* notFollowedBy alphaNumChar
   whitespace
 
   Val' <$> pEl
 
 pMaybe :: Parser Qd
 pMaybe = do
-  void $ choice [string "Maybe ", string "maybe ", string "M ", string "m "]
+  void $ choice [string "Maybe", string "maybe", string "M", string "m"] <* notFollowedBy alphaNumChar
   whitespace
 
   Type t <- pType
@@ -90,7 +90,7 @@ pMaybe = do
 
 pHas :: Parser Qd
 pHas = do
-  void $ choice [string "Has ", string "has ", string "H ", string "h "]
+  void $ choice [string "Has", string "has", string "H", string "h"] <* notFollowedBy alphaNumChar
   whitespace
 
   Type t <- pType
