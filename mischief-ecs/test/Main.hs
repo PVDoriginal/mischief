@@ -1,4 +1,6 @@
 {- HLINT ignore "Use newtype instead of data" -}
+{-# OPTIONS_GHC -Wno-unused-matches #-}
+
 module Main where
 
 import Control.Concurrent
@@ -29,35 +31,38 @@ import Mischief.ECS.World.Query.TH
 import Mischief.ECS.World.Utils
 import System.Exit (exitSuccess)
 
+data Pos = Pos Int Int deriving (Component, Eq)
+
 data Player = Player deriving (Component, Show)
 
 data CompA = CompA Int deriving (Component, Eq, Show)
 
 data CompB = CompB String deriving (Component, Eq, Show)
 
-data TestRel = TestRel Int deriving (Component, Show, Eq)
+s :: System ()
+s = do
+  a <- spawn ()
+  b <- spawn ()
+  c <- spawn ()
+
+  x <- [q|Name / Check (\(Pos x y) -> y > 5)|]
+  return ()
 
 main :: IO ()
 main = do
   app <- newApp MainPlugin
   runApp app
 
-x :: System ()
-x = do
-  -- x <- $(quoteC ''ChildOf)
-  -- let x = $quoteE
-  undefined
+data TestRel = TestRel Int deriving (Component, Show, Eq)
 
 data MainPlugin = MainPlugin deriving (Eq)
-
-data TG a b c d deriving (Component)
-
-data TG2 a b c deriving (Component)
 
 instance Plugin MainPlugin where
   init _ = do
     a <- spawn ()
-    x <- [q|Name / Changed Name || Not Changed ChildOf, Added (Name, ChildOf)|]
+    b <- spawn ()
+    c <- spawn ()
+    x <- [q|Name / Check (==Name "A")|]
 
     y <- query' (C @Name) (Changed (C @Name))
 
