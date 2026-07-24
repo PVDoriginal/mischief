@@ -78,7 +78,7 @@ getDefault component = do
   let (DefaultValue value) = dv
 
   let (SystemId sys) = world.systemId
-  currentSystemTick <- fromMaybe (SystemTick $ Tick 0) <$> get (Val $ C @SystemTick) sys
+  currentSystemTick <- fromMaybe (SystemTick $ Tick (0, 0)) <$> get (Val $ C @SystemTick) sys
 
   return
     ProcessedBundleElement

@@ -2,7 +2,6 @@ module Mischief.ECS.World
   ( -- * World
     World (..),
     newWorld,
-    tick,
     setSystemId,
     setDeferred,
     setPrefs,
@@ -35,7 +34,7 @@ import Control.Monad.Reader.Class (MonadReader (..), asks)
 import Control.Monad.Trans (MonadTrans (..))
 import Control.Monad.Trans.Reader (ReaderT (runReaderT))
 import Data.Data
-import Data.IORef (IORef, modifyIORef', newIORef)
+import Data.IORef (IORef, modifyIORef', newIORef, readIORef)
 import Mischief.ECS.Archetypes (Archetypes, emptyArchetypes)
 import Mischief.ECS.Collectable
 import Mischief.ECS.Components
@@ -100,7 +99,7 @@ newWorld tools = do
   deferred <- newIORef []
   deferredAsync <- newTVarIO []
   events <- newIORef []
-  tick <- newIORef (Tick 0)
+  tick <- newIORef (Tick (0, 0))
   frame <- newIORef (Frame 0)
   let prefs = newPrefs
 
@@ -134,12 +133,6 @@ setDeferred deferred world = world {deferred}
 -- | Set new WorldPrefs for the World.
 setPrefs :: WorldPrefs -> World -> World
 setPrefs prefs world = world {prefs}
-
--- | Increment the World's Tick.
-tick :: System ()
-tick = do
-  world <- unsafeGetWorld
-  liftIO $ modifyIORef' world.tick (\(Tick x) -> Tick $ x + 1)
 
 -- | A System is a set of instructions applied over a World.
 -- It can be added to the App to be ran on a certain Schedule.

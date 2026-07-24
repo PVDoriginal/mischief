@@ -151,3 +151,19 @@ toolsGetRAny _ = get (Val (R @c Any))
 
 toolsSpawnByInsert :: forall b. (Bundle b) => Entity -> b -> System ()
 toolsSpawnByInsert = spawnEntityByInsert
+
+incTick :: Tick -> Maybe Tick
+incTick (Tick (a, b)) | a == maxBound && b == maxBound = Nothing
+incTick (Tick (a, b)) | b == maxBound = Just $ Tick (a + 1, 0)
+incTick (Tick (a, b)) = Just $ Tick (a, b + 1)
+
+-- | Increment the World's Tick.
+tick :: System ()
+tick = do
+  world <- unsafeGetWorld
+  tick <- liftIO $ incTick <$> readIORef world.tick
+  case tick of
+    Nothing -> do
+      warn "Reached maximum Tick. Resetting count. Previous changed will not be detected."
+      liftIO $ writeIORef world.tick $ Tick (0, 0)
+    Just t -> liftIO $ writeIORef world.tick t
