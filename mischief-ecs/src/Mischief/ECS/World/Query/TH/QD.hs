@@ -31,31 +31,30 @@ type Parser = Parsec Void Text
 
 pQd :: Parser Qd
 pQd = do
-  Tup <$> pTup
+  Tup <$> pTup pEl
 
 pEl :: Parser Qd
 pEl = do
-  bracket <- optional $ string "(" <* whitespace
-  case bracket of
-    Nothing -> pSingle
-    Just _ -> Tup <$> pTup
+  bracket <- ((char '(' *> whitespace) *> (Tup <$> pTup pEl) <* (char ')' *> whitespace)) <|> pSingle
+  return bracket
 
-pTup :: Parser [Qd]
-pTup = do
-  r <- optional pEl
+-- case bracket of
+--   Nothing -> pSingle
+--   Just _ -> Tup <$> pTup pEl
+
+pTup :: Parser Qd -> Parser [Qd]
+pTup p = do
+  r <- optional p
   whitespace
 
   comma <- optional $ string ","
   whitespace
 
-  bracket <- optional $ string ")"
-  whitespace
-
   case r of
     Nothing -> return []
     Just r -> do
-      case (comma, bracket) of
-        (Just _, Nothing) -> ([r] ++) <$> pTup
+      case comma of
+        (Just _) -> ([r] ++) <$> pTup p
         _ -> return [r]
 
 data TestG a b = TestG deriving (Component)
