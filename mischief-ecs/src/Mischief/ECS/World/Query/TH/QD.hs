@@ -17,7 +17,7 @@ import Text.Megaparsec (MonadParsec (eof, lookAhead, try), Parsec, choice, optio
 import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer qualified as L
 
-data Qd = Val' Qd | Tup [Qd] | Type QdType deriving (Show)
+data Qd = Val' Qd | Tup [Qd] | Entity' | Type QdType deriving (Show)
 
 data QdType = QdType {name :: Text, compType :: CompType, mod :: Maybe Mod} deriving (Show)
 
@@ -58,7 +58,14 @@ pTup = do
 
 pSingle :: Parser Qd
 pSingle = do
-  try pVal <|> try pMaybe <|> try pHas <|> pType
+  try pEntity <|> try pVal <|> try pMaybe <|> try pHas <|> pType
+
+pEntity :: Parser Qd
+pEntity = do
+  void $ choice [string "Entity", string "entity", string "E", string "e"]
+  whitespace
+
+  return Entity'
 
 pVal :: Parser Qd
 pVal = do
@@ -125,6 +132,7 @@ quoteQd (Val' qd) = processVal <$> quoteQd qd
 quoteQd (Tup []) = return $ ConE '()
 quoteQd (Tup [x]) = quoteQd x
 quoteQd (Tup t) = TupE <$> mapM (fmap Just . quoteQd) t
+quoteQd Entity' = return $ ConE 'E
 
 relExp :: CompType -> Q Exp
 relExp PairAny = return $ ConE 'Any

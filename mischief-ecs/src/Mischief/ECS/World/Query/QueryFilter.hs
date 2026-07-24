@@ -228,9 +228,11 @@ instance (Component c) => EraseIntoStorage (C c, c -> Bool) CheckFilterType wher
   erase (_, f) = CheckFilterType [(typeRep $ Proxy @c, Nothing, Nothing, ErasedCheck f)]
 
 instance (Component c) => EraseIntoStorage (R c Entity, c -> Bool) CheckFilterType where
+  erase :: (Component c) => (R c Entity, c -> Bool) -> CheckFilterType
   erase (R e, f) = CheckFilterType [(typeRep $ Proxy @c, Just e, Nothing, ErasedCheck f)]
 
 instance (Component c) => EraseIntoStorage (R c Any, c -> Bool) CheckFilterType where
+  erase :: (Component c) => (R c Any, c -> Bool) -> CheckFilterType
   erase (_, f) = CheckFilterType [(typeRep $ Proxy @c, Nothing, Just Any, ErasedCheck f)]
 
 type family InnerC a where
