@@ -40,7 +40,7 @@ pEl = try ((char '(' *> whitespace) *> (Tup <$> pTup pEl) <* (char ')' *> whites
 --   Nothing -> pSingle
 --   Just _ -> Tup <$> pTup pEl
 
-pTup :: Parser Qd -> Parser [Qd]
+pTup :: Parser a -> Parser [a]
 pTup p = do
   r <- optional p
   whitespace

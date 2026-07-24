@@ -107,6 +107,7 @@ library
     Mischief.ECS.World.Query.QueryFilter
     Mischief.ECS.World.Query.TH
     Mischief.ECS.World.Query.TH.QD
+    Mischief.ECS.World.Query.TH.QF
     Mischief.ECS.World.Query.Val
     Mischief.ECS.World.Remove
     Mischief.ECS.World.Spawn
