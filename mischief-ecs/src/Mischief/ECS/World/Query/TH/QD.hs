@@ -103,8 +103,12 @@ pType = do
   name <- pTypeGeneric <|> T.pack <$> some alphaNumChar
   whitespace
 
-  target <- optional $ string "*" <|> T.pack <$> some alphaNumChar
-  whitespace
+  target <- optional $ do
+    void $ string "->"
+    whitespace
+    r <- string "*" <|> T.pack <$> some alphaNumChar
+    whitespace
+    return r
 
   let compType = case target of
         Nothing -> Single
