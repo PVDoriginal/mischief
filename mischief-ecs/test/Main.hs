@@ -45,7 +45,7 @@ s = do
   b <- spawn ()
   c <- spawn ()
 
-  x <- [q|Name / Check (\(Pos x y) -> y > 5)|]
+  x <- [q|Name / Check (\(Pos x y) -> y > 5) -> *|]
   return ()
 
 main :: IO ()

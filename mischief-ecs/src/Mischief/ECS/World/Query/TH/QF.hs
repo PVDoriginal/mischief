@@ -156,7 +156,7 @@ processCheck Single f = return $ AppE (ConE 'Check) f
 processCheck (Pair e') f = do
   e <- QD.getValueName e'
   return $ AppE (AppE (ConE 'CheckR) (VarE e)) f
-processCheck PairAny f = return $ AppE (AppE (ConE 'CheckR) (VarE 'Any)) f
+processCheck PairAny f = return $ AppE (AppE (ConE 'CheckR) (ConE 'Any)) f
 
 processTup :: [Qf] -> Q Exp
 processTup [x] = quoteQf x
