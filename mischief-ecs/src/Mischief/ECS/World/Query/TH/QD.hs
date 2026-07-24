@@ -15,7 +15,7 @@ import Mischief.ECS.Components (Component)
 import Mischief.ECS.World.Query
 import Mischief.ECS.World.Query.QueryFilter
 import Mischief.ECS.World.Query.Queryable
-import Text.Megaparsec (MonadParsec (eof, lookAhead, notFollowedBy, try), Parsec, choice, manyTill, optional, parseTest, some, (<|>))
+import Text.Megaparsec (MonadParsec (eof, lookAhead, notFollowedBy, try), Parsec, choice, many, manyTill, noneOf, optional, parseTest, some, (<|>))
 import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer qualified as L
 
@@ -34,9 +34,7 @@ pQd = do
   Tup <$> pTup pEl
 
 pEl :: Parser Qd
-pEl = do
-  bracket <- ((char '(' *> whitespace) *> (Tup <$> pTup pEl) <* (char ')' *> whitespace)) <|> pSingle
-  return bracket
+pEl = try ((char '(' *> whitespace) *> (Tup <$> pTup pEl) <* (char ')' *> whitespace)) <|> pSingle
 
 -- case bracket of
 --   Nothing -> pSingle
@@ -99,7 +97,8 @@ pHas = do
 
 pType :: Parser Qd
 pType = do
-  name <- pTypeGeneric <|> T.pack <$> some alphaNumChar
+  -- name <- pTypeGeneric <|> T.pack <$> some alphaNumChar
+  name <- pNameTup <|> T.pack <$> some alphaNumChar
   whitespace
 
   target <- optional $ do
@@ -120,6 +119,23 @@ pType = do
         compType,
         mod = Nothing
       }
+
+pName :: Parser Text
+pName = T.pack <$> some alphaNumChar <|> pNameTup
+
+pNameTup :: Parser Text
+pNameTup = (char '(' *> whitespace) *> pNameRec <* (char ')' *> whitespace)
+
+pNameRec :: Parser Text
+pNameRec = do
+  s <- T.pack <$> many (alphaNumChar <|> (' ' <$ space1) <|> char ',')
+  o <- optional $ (char '(' *> whitespace) *> pNameRec <* (char ')' *> whitespace)
+
+  case o of
+    Nothing -> return s
+    Just o -> do
+      n <- pNameRec
+      return $ s <> "(" <> o <> ")" <> n
 
 pTypeGeneric :: Parser Text
 pTypeGeneric = T.pack <$> (char '{' *> manyTill L.charLiteral (char '}'))
