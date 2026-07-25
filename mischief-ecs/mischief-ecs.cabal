@@ -91,6 +91,7 @@ library
     Mischief.ECS.Time
     Mischief.ECS.Tutorial.App
     Mischief.ECS.Tutorial.Components
+    Mischief.ECS.Tutorial.Queries
     Mischief.ECS.Tutorial.Relationships
     Mischief.ECS.Tutorial.Systems
     Mischief.ECS.Utils

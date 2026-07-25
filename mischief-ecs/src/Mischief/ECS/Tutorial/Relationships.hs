@@ -8,11 +8,13 @@
 --
 -- [Previous Chapter: Components]("Mischief.ECS.Tutorial.Components")
 --
--- [Next Chapter: TODO]("Mischief.ECS.Tutorial.Relationships")
+-- [Next Chapter: Queries]("Mischief.ECS.Tutorial.Queries")
 --
 -- [Main Page]("Mischief.ECS")
 module Mischief.ECS.Tutorial.Relationships
-  ( -- * Introduction
+  ( -- * Learn You an ECS for Great Mischief! - 3. Relationships
+
+    -- * Introduction
     -- $intro
 
     -- * Insertion
@@ -20,6 +22,14 @@ module Mischief.ECS.Tutorial.Relationships
 
     -- * Removal
     -- $removal
+
+    -- * Querying
+    -- $query
+
+    -- * Hooks
+    -- $hooks
+
+    -- * [Next Chapter: Queries]("Mischief.ECS.Tutorial.Queries")
   )
 where
 
@@ -92,7 +102,94 @@ import Mischief.ECS
 --
 -- This will remove all @Likes@ relationships from @bob@, making him not like anyone.
 
----
+-- $query
+-- Relationships can be queried using the @R@ marker.
+--
+-- @
+-- x <- 'query' ('R' \@Likes alice)
+-- @
+--
+-- @
+-- x :: ['Result' ('Rel' Likes)]
+-- @
+--
+-- @Result (Rel c)@ is the return type of @R \@c e@. It can be used in most Result-based operation discussed in the previous chapter, such as @'set'@ and @'delete'@.
+--
+-- Querying can also be done using the @Any@ wildcard:
+--
+-- @
+-- x <- 'query' ('R' \@Likes Any)
+-- @
+--
+-- @
+-- x :: [['Result' ('Rel' Likes)]]
+-- @
+--
+-- As you can see, the return type of @'R' \@c Any@ is @[Result (Rel c)]@. It's returning a list of relationships, rather than a single relationship.
+--
+-- Remember that the fields of the inner type of a Result are inherited by the Result itself. So we can just use @.comp@ and @.target@ to get the component and target of a @Result (Rel c)@.
+--
+-- @
+-- 'Just' x <- 'get' ('R' \@Likes alice) bob
+-- @
+--
+-- @
+-- x.target :: Entity
+-- x.comp   :: Likes
+-- @
+--
+-- In the case of querying for @R c Any@, the query will only match entities that have at least one such relationship. The resulting @[Result (Rel c)]@ should never be empty.
+--
+-- If you wish to also include entities that do not have those relationships, you can use @`MR`@ (short for @Maybe Relationships@), the relational equivalent of @'M'@.
+
+-- $exclusive
+-- A relationship can be made exclusive by setting the following Bool on the Component instance:
+--
+-- @
+-- instance 'Component' FooRel where
+--   'isExclusiveRel' = 'True'
+-- @
+--
+-- This will make it so only one instance of a relationship can exist on an entity at once.
+--
+-- @
+-- insert (Rel (FooRel, a)) c
+-- insert (Rel (FooRel, b)) c
+-- @
+--
+-- Will result in just @Rel (FooRel, b)@ being on @c@.
+
+-- $hooks
+-- There are a number of predefined hooks that are useful when working with relationships, which can be found in "Mischief.ECS.Hooks".
+--
+-- For instance, @relComplementary@ can be used to automate adding a complementary relationship on the target of a relationship.
+--
+-- As a quick example of why this is useful, let's create a @Before@/@After@ relationship between entities:
+--
+-- @
+-- data Before = Before
+-- data After = After
+--
+-- instance 'Component' Before where
+--   'hooks' = 'relComplementary' ('const' After)
+--
+-- instance 'Component' After where
+--   'hooks' = 'relComplementary' ('const' Before)
+-- @
+--
+-- Now, when we do
+--
+-- @
+-- 'insert' ('Rel' Before a) b
+-- @
+--
+-- A @Rel After b@ will be inserted automatically on a.
+--
+-- And vice versa.
+--
+-- There are also @'relCleanupRemove'@ and @'relCleanupDespawn'@ for automatically removing a relationship (or ,respectively, despawning its entity) when its target has been despawned. And a
+-- more generic @'relCleanup'@ which allows adding custom cleanup behavior.
+
 -- The 'WithR' query filter lets us easily query for components of entities that have a certain relationship with a certain entity.
 --
 -- Getting a list of all entities that like bob.

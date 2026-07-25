@@ -38,6 +38,9 @@ module Mischief.ECS
     -- ** Queries
     -- $queries
 
+    -- ** Quasi-Queries
+    -- $quasi
+
     -- ** Filters
     -- $filters
 
@@ -96,6 +99,7 @@ module Mischief.ECS
     module Mischief.ECS.World.Query,
     module Mischief.ECS.World.Query.Queryable,
     module Mischief.ECS.World.Query.QueryFilter,
+    module Mischief.ECS.World.Query.TH,
     module Mischief.ECS.World.Remove,
     module Mischief.ECS.World.Spawn,
     module Mischief.ECS.World.Utils,
@@ -177,26 +181,25 @@ qq = do
   undefined
 
 -- $mischief
--- ings. It can be a group of rats. Or it can refer to being naughty and playful.
+-- Mischief has various meanings. It can be a group of rats. Or it can refer to being naughty and playful.
 --
---  This Mischief, however, is an @ECS Game Engine@! In other words...
+-- This Mischief, however, is an @ECS Game Engine@! In other words...
 --
---  @
---  Mischief :: Entity -> Component c
---  Mischief has a few different mean => System ()
---  @
+-- @
+-- Mischief :: Entity -> Component c => System ()
+-- @
 --
---  Mischief takes great inspiration from [@Bevy@](https://bevy.org/) and [@Flecs@](https://www.flecs.dev/flecs/), and
---  was written in @100% Haskell@, taking advantage of its @great ergonomics and strong type system@.
---  It is a refreshing spin on the @functional@ and @data-driven@ paradigms.
+-- Mischief takes great inspiration from [@Bevy@](https://bevy.org/) and [@Flecs@](https://www.flecs.dev/flecs/), and
+-- was written in @100% Haskell@, taking advantage of its @great ergonomics and strong type system@.
+-- It is a refreshing spin on the @functional@ and @data-driven@ paradigms.
 --
---  This package contains only @mischief-ecs@, the ECS at the core of Mischief. Other packages, such as @mischief-input@, @mischief-assets@,
---  @mischief-render@ are planned, but haven't yet been developed to the same level as the ECS itself.
+-- This package contains only @mischief-ecs@, the ECS at the core of Mischief. Other packages, such as @mischief-input@, @mischief-assets@,
+-- @mischief-render@ are planned, but haven't yet been developed to the same level as the ECS itself.
 --
---  Performance-wise, Mischief still has a long way to go; there are many easy performance gains that we have just been too busy to implement, as we've
---  been mostly focusing on @ergonomics, modularity, and ease-of-use@.
---  This is a pretty strong @Archetype ECS@ however, and it is possible to bring it to about the same /asymptotic/ performance as @Bevy@ or @Flecs@, although
---  there will probably always be a layer of indirection (or 20) that makes it a bit slower, due to the high-level, boxed, nature of Haskell.
+-- Performance-wise, Mischief still has a long way to go; there are many easy performance gains that we have just been too busy to implement, as we've
+-- been mostly focusing on @ergonomics, modularity, and ease-of-use@.
+-- This is a pretty strong @Archetype ECS@ however, and it is possible to bring it to about the same /asymptotic/ performance as @Bevy@ or @Flecs@, although
+-- there will probably always be a layer of indirection (or 20) that makes it a bit slower, due to the high-level, boxed, nature of Haskell.
 
 -- $learn
 -- This module will go over some brief notions to give you an idea of how Mischief works, setting you up for reading the other tutorials that go more in-depth.
@@ -348,7 +351,7 @@ qq = do
 -- @
 --
 -- The @'C'@ type used above is a marker that indicates the type of data you are querying for. @C@ is short for @Component@. There are other similar markers, such
--- as @'R'@, short for @Relationship@.
+-- as @'E'@, short for @Entity@, or @'R'@, short for @Relationship@.
 --
 -- Let's check the type of the above query:
 --
@@ -366,7 +369,7 @@ qq = do
 --   'info' $ 'text' name '<>' \" now has health: \" '<>' 'text' health
 -- @
 --
--- You can query for components of a given @'Entity'@ using @'get'@:
+-- You can query for components of a given @'Entity'@ using @get@:
 --
 -- @
 -- 'Just' name <- 'get' ('C' \@'Name') player
@@ -404,7 +407,7 @@ qq = do
 -- @Enemies@.
 --
 -- @
--- 'query'' ('C' \@'Name') ('With' \@(Player, Health), 'Without' \@Enemy)
+-- 'query'' ('C' \@'Name') ('With' ('C' \@Player, 'C' \@Health), 'Without' ('C' \@Enemy))
 -- @
 --
 -- The @query'@ above is a variant of @query@ that also takes a filter as an argument.
@@ -420,8 +423,23 @@ qq = do
 -- The following query returns all Entities that have either just been added the @Player@ component, or that have had their @Health@ changed:
 --
 -- @
--- 'query'' ('C' \@'Entity') ('Added' \@Player '|.' 'Changed' \@Health)
+-- 'query'' 'E' ('Added' ('C' \@Player) '|.' 'Changed' ('C' \@Health))
 -- @
+
+-- $quasi
+-- @Quasi-Queries@ are Template-Haskell macros that enable you to more ergonomically write queries.
+--
+-- For instance, the following are equivalent:
+--
+-- @
+-- 'query'' ('C' \@CompA, 'C' \@CompB) ('With' ('C' \@CompC, 'C' \@CompD), 'Added' ('C' \@CompE))
+-- @
+--
+-- @
+-- ['q'|CompA, CompB / With (CompC, CompD), Added CompE|]
+-- @
+--
+-- There are /many/ more modifiers, markers, and features of queries that will be discussed in-depth in the [Query Chapter]("Mischief.ECS.Tutorial.Queries"), along with their Quasi equivalents.
 
 -- $resources
 -- @Resources@ are special singleton-type values. Any component can be a resource.
@@ -489,4 +507,6 @@ qq = do
 --
 -- (1) [App and Plugins]("Mischief.ECS.Tutorial.App")
 -- (2) [Components]("Mischief.ECS.Tutorial.Components")
--- (3) [Systems]("Mischief.ECS.Tutorial.Systems")
+-- (3) [Relationships]("Mischief.ECS.Tutorial.Relationships")
+-- (4) [Queries]("Mischief.ECS.Tutorial.Queries")
+-- (5) [Systems]("Mischief.ECS.Tutorial.Systems")

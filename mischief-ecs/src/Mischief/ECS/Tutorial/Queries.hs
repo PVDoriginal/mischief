@@ -1,0 +1,293 @@
+{-# OPTIONS_GHC -Wno-unused-imports #-}
+
+-- |
+-- Module: Queries Tutorial
+-- Description: Tutorial on using @Queries@
+--
+-- This module contains a more in-depth tutorial on @Mischief Queries@.
+--
+-- [Previous Chapter: Relationships]("Mischief.ECS.Tutorial.Relationships")
+--
+-- [Next Chapter: Systems]("Mischief.ECS.Tutorial.Systems")
+--
+-- [Main Page]("Mischief.ECS")
+module Mischief.ECS.Tutorial.Queries
+  ( -- * Learn You an ECS for Great Mischief! - 4. Queries
+
+    -- * Introduction
+    -- $intro
+
+    -- * Outputs
+    -- $outputs
+
+    -- * The Val Transformer@
+    -- $val
+
+    -- * Filters
+    -- $filters
+
+    -- * The Check Filter
+    -- $check
+
+    -- * Quasi-Queries
+    -- $quasi
+
+    -- * [Next Chapter: Systems]("Mischief.ECS.Tutorial.Systems")
+  )
+where
+
+import Mischief.ECS
+
+-- $intro
+-- Queries are the main way we read component data. They are fully type-checked and based on archetypes, making them quite fast.
+--
+-- Each query associates an output type to the types you put into it.
+--
+-- For instance,
+--
+-- @
+-- 'query' ('C' \@A, 'M' \@B)
+-- @
+--
+-- Will have an output type of:
+--
+-- @
+-- ('Result' A, 'Maybe' ('Result' B))
+-- @
+--
+-- Well, the actual type of the above expression will be:
+--
+-- @
+-- ['Result' A, 'Maybe' ('Result' B)]
+-- @
+--
+-- Because @query@ actually returns @[Output]@
+--
+-- @single@ on the other hand, returns a @Maybe Output@, only outputting something if there is exactly one entity which matches the query.
+--
+-- @
+-- 'single' ('C' \@A, 'M' \@B)
+-- @
+--
+-- @
+-- 'Maybe' ('Result' A, 'Maybe' ('Result' B))
+-- @
+--
+-- @get@ queries the components of a specific entity:
+--
+-- @
+-- 'get' ('C' \@A) e
+-- @
+--
+-- @
+-- 'Maybe' ('Result' A)
+-- @
+--
+-- @get@ returns @'Nothing'@ if the entity doesn't exist or if the components don't match.
+
+-- $val
+-- Do all the @Result c@ values obtained from queries give you a headache? Then I have something perfect for you.
+--
+-- All query types can be wrapped in a @Val@ in order to extract their values out of the @Result@:
+--
+-- @
+-- 'query' ('C' \@Foo, 'Val' ('C' \@Bar, 'C' \@Baz))
+-- @
+--
+-- Will return:
+--
+-- @
+-- ['Result' Foo, (Bar, Baz)]
+-- @
+--
+-- @Val@ maps anything that looks like a @Result c@ to just @c@, while leaving most other things be as they are.
+
+-- $outputs
+-- Here's a list of the the various markers you can use in queries and each of their output types:
+--
+-- Entity:
+--
+-- * @'E'@ -> @'Entity'@
+--
+-- Components:
+--
+-- * @'C' c@ -> @'Result' c@
+-- * @'M' c@ -> @'Maybe' ('Result' c)@
+-- * @'Has' c@ -> @'Bool'@
+--
+-- Relationships:
+--
+-- * @'R' c e@ -> @'Result' ('Rel' c)@
+-- * @'R' c 'Any'@ -> @['Result' ('Rel' c)]@
+-- * @'MR' c e@ -> @'Maybe' ('Result' ('Rel' c))@
+-- * @'MR' c 'Any'@ -> @'Maybe' ['Result' ('Rel' c)@
+-- * @'HasR' c e@ -> @'Bool'@
+-- * @'HasR' c 'Any'@ -> @'Bool'@
+
+-- $filters
+-- Filters can be passed to @'@ variants of query functions, such as @'query''@ and @'single''@.
+--
+-- There is an implicit @and@ between filters. @(A, B)@ means @A and B@. If you wish to express @A or B@, you can write it as @A |. B@. @Not@ can be used to
+-- negate filters.
+--
+-- @(A '|.' 'Not' (B, C))@ means @A or (not (B and C))@.
+--
+-- Most filters expect a tuple of @'C'@ and @'R'@ types. These are all valid filters:
+--
+-- * @'With' ('C' \@Foo)@
+-- * @'With' ('R' \@Foo e, 'C' \@Bar)@
+-- * @'With' ('R' \@Foo 'Any', 'C' \@Bar, 'C' \@Baz)@
+--
+-- Here's a quick list of filters and what they do:
+--
+-- * @'With'@: query entities that contain these components.
+-- * @'Without'@: same as @Not . With@
+-- * @'Changed'@: query entities that have had these components mutated since this system last ran.
+-- * @'Added'@: query entities that have had these component added since this system last ran.
+
+-- $check
+-- @'Check'@ is a special filter which takes a @f :: c -> 'Bool'@ function and only accepts entities for which @f@ applied over the @c@ component is True.
+-- Naturally, all entities that don't contain the @c@ component will fail.
+--
+-- For instance, here's how we can select all entities named \"Bob\":
+--
+-- @
+-- 'query'' 'E' ('Check' (== 'Name' "\Bob\"))
+-- @
+--
+-- For relationships, you must use the dedicated @'CheckR'@ variant which also expects an entity or @Any@:
+--
+-- @
+-- 'query'' 'E' ('CheckR' alice (> Likes 5))
+-- @
+--
+-- @
+-- 'query'' 'E' ('CheckR' 'Any' (> Like 10))
+-- @
+
+-- $quasi
+-- @Quasi-Queries@ are queries written via a special quasi-quoter. Make sure to have the @QuasiQuotes@ and @TemplateHaskell@ langauge extensions enabled in order to use them.
+--
+-- === Components
+--
+-- Here's how we can rewrite a simple query as a Quasi-Query:
+--
+-- @
+-- 'query' ('C' \@Foo, 'C' \@Bar)
+-- @
+--
+-- @
+-- ['q'|Foo, Bar|]
+-- @
+--
+-- As you can see, a @'C' \@c@ becomes simply @c@.
+--
+-- === Relationships
+--
+-- What about relationships?
+--
+-- @
+-- 'query' ('R' \@Foo e, 'R' \@Bar 'Any')
+-- @
+--
+-- @
+-- ['q'|Foo -> e, Bar -> *|]
+-- @
+--
+-- @'R' \@c a@ is translated to @c -> a@, and @Any@ becomes @*@.
+--
+-- === Modifiers
+--
+-- Quasi-Queries also accept @Maybe@ and @Has@ modifiers:
+--
+-- @
+-- 'query' ('M' \@Foo, 'HasR' \@Bar 'Any')
+-- @
+--
+-- @
+-- ['q'|Maybe Foo, Has Bar -> *|]
+-- @
+--
+-- Since Quasi-Queries are parsed internally by Mischief, alternative symbols are allowed:
+--
+-- * @Maybe@ | @maybe@ | @M@ | @m@
+-- * @Has@ | @has@ | @H@ | @h@
+--
+-- So the above query can also be written as:
+--
+-- @
+-- ['q'|M Foo, H Bar -> *|]
+-- @
+--
+-- === Val
+--
+-- @Val@ is accepted in quasi notation too:
+--
+-- @
+-- 'query' ('Val' ('C' \@Foo, 'C' \@Bar))
+-- @
+--
+-- @
+-- ['q'|Val (Foo, Bar)|]
+-- @
+--
+-- @Val@ can be written as: @Val@, @val@,  @V@,  @v@, @*@.
+--
+-- So this is equivalent to the above:
+--
+-- @
+-- ['q'|*(Foo, Bar)|]
+-- @
+--
+-- === Entity
+--
+-- @'E'@ can be written as: @Entity@, @entity@, @E@, @e@.
+--
+-- === Filters
+--
+-- In order to add a filter to a Quasi-Query, we must separate it with a @\/@ from the rest of the query:
+--
+-- @
+-- 'query'' ('C' \@Name) ('With' ('C' @\Foo, R @\Bar 'Any'), 'Without'('C' @\Baz))
+-- @
+--
+-- @
+-- ['q'|Name \/ With (Foo, Bar -> *), Without Baz|]
+-- @
+--
+-- @Added@ and @Changed@ also exists for Quasi-Queries. All filters can be written either starting with a lower or uppercase letter. For instance, both @with@ and @With@ are correct.
+-- @Not@ can also be written as @!@ and @|.@ can be written as @||@, @or@, @Or@.
+--
+-- === Check
+--
+-- In quasi notation, @Check@ is unified for both components and relationships. Simply put @-> a@ after it if it's a relationship:
+--
+-- @
+-- ['q'|Entity / Check (== Name \"Bob\"), Check (> Likes 5) -> alice|]
+-- @
+--
+-- === Generics
+--
+-- In order to use a Quasi-Query for a type with generic parameters, such as:
+--
+-- @
+-- data A a b = A deriving ('Component')
+-- @
+--
+-- The entire type must be put in @()@. For instance:
+--
+-- @
+-- ['q'|(A Int Float)|]
+-- @
+--
+-- === Other Quasies
+--
+-- There is also the @g@ Quasi-Query for @get@, and @s@ for @single@:
+--
+-- @
+-- ['g'|Name|] alice
+-- @
+--
+-- @
+-- ['s'|Name / with Player|]
+-- @

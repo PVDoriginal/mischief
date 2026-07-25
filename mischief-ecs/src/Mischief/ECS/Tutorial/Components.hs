@@ -44,7 +44,7 @@ module Mischief.ECS.Tutorial.Components
     -- * Examples
     -- $examples
 
-    -- * [Next Chapter: Systems]("Mischief.ECS.Tutorial.Systems")
+    -- * [Next Chapter: Relationship]("Mischief.ECS.Tutorial.Relationships")
   )
 where
 
@@ -402,6 +402,29 @@ import Mischief.ECS
 --
 -- To avoid this, you can derive 'Eq' on your components and use @'insertIfNeq'@ and @'setIfNeq'@, which will only perform insertion if the value of the component is different
 -- from the current one.
+
+-- $hooks
+-- @Component hooks@ are events associated directly to a Component instance.
+--
+-- @
+-- instance Component Foo where
+--   hooks :: 'Hooks' Foo
+--   hooks = 'collect' (onInsertFoo, onRemoveFoo, customFoo)
+--
+-- onInsertFoo :: 'OnInsert' Foo -> 'System' ()
+-- onInsertFoo = ...
+--
+-- onRemoveFoo :: 'OnRemove' Foo -> 'System' ()
+-- onRemoveFoo = ...
+--
+-- data SomeCustomEvent a deriving ('Event')
+-- customFoo :: SomeCustomEvent Foo -> 'System' ()
+-- customFoo = ...
+-- @
+--
+-- A Hook on component @c@ can be any function that looks like @('Event' e) => e c -> 'System' ()@.
+--
+-- Hooks are registered along with their respective component.
 
 -- $examples
 --
