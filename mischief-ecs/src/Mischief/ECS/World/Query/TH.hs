@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wno-overlapping-patterns #-}
 
-module Mischief.ECS.World.Query.TH (q) where
+module Mischief.ECS.World.Query.TH (q, s, g) where
 
 import Control.Monad
 import Control.Monad.IO.Class
@@ -41,12 +41,6 @@ q =
       quoteDec = undefined
     }
 
-data CompA = CompA deriving (Component)
-
-data CompB = CompB deriving (Component)
-
-data CompC = CompC deriving (Component)
-
 data Query = Query Qd (Maybe Qf) deriving (Show)
 
 pQuery :: Parser Query
@@ -67,3 +61,44 @@ quoteQuery (Query qd (Just qf)) = do
   qd <- quoteQd qd
   qf <- quoteQf qf
   return $ AppE (AppE (VarE 'query') qd) qf
+
+s :: QuasiQuoter
+s =
+  QuasiQuoter
+    { quoteExp = \str -> do
+        let x = parse (whitespace *> pQuery <* eof) "inline_input" (T.pack str)
+        case x of
+          Left f -> error (show f)
+          Right x -> quoteSingle x,
+      quotePat = undefined,
+      quoteType = undefined,
+      quoteDec = undefined
+    }
+
+quoteSingle :: Query -> Q Exp
+quoteSingle (Query qd Nothing) = AppE (VarE 'single) <$> quoteQd qd
+quoteSingle (Query qd (Just qf)) = do
+  qd <- quoteQd qd
+  qf <- quoteQf qf
+  return $ AppE (AppE (VarE 'single') qd) qf
+
+g :: QuasiQuoter
+g =
+  QuasiQuoter
+    { quoteExp = \str -> do
+        let x = parse (whitespace *> pGet <* eof) "inline_input" (T.pack str)
+        case x of
+          Left f -> error (show f)
+          Right x -> quoteGet x,
+      quotePat = undefined,
+      quoteType = undefined,
+      quoteDec = undefined
+    }
+
+pGet :: Parser Query
+pGet = do
+  qd <- pQd
+  pure $ Query qd Nothing
+
+quoteGet :: Query -> Q Exp
+quoteGet (Query qd _) = AppE (VarE 'get) <$> quoteQd qd

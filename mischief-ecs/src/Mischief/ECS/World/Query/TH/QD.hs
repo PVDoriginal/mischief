@@ -59,7 +59,7 @@ data TestG a b = TestG deriving (Component)
 
 pSingle :: Parser Qd
 pSingle = do
-  try pEntity <|> try pVal <|> try pMaybe <|> try pHas <|> pType
+  try pEntity <|> try pVal <|> try pMaybe <|> try pHas <|> pValStar <|> pType
 
 pEntity :: Parser Qd
 pEntity = do
@@ -67,6 +67,12 @@ pEntity = do
   whitespace
 
   return Entity'
+
+pValStar :: Parser Qd
+pValStar = do
+  void $ char '*'
+  whitespace
+  Val' <$> pEl
 
 pVal :: Parser Qd
 pVal = do

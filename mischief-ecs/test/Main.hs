@@ -39,13 +39,13 @@ data CompA = CompA Int deriving (Component, Eq, Show)
 
 data CompB = CompB String deriving (Component, Eq, Show)
 
-s :: System ()
-s = do
+s' :: System ()
+s' = do
   a <- spawn ()
   b <- spawn ()
   c <- spawn ()
 
-  x <- [q|Name / With Pos, !(With CompA, With CompB)|]
+  x <- [g|*Name, Entity|] a
   return ()
 
 main :: IO ()
