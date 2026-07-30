@@ -42,7 +42,7 @@ remove schedule systems = do
 
 removeOne :: (Schedule sc) => sc -> System () -> System ()
 removeOne schedule system = do
-  s <- meta schedule system
+  s <- Mischief.ECS.Systems.get schedule system
   sch <- scheduleEntity schedule
   removeSystemFromMap (ScheduleId sch) system
 
@@ -54,19 +54,19 @@ removeOne schedule system = do
 spawn :: System () -> System Entity
 spawn = Spawn.spawn . SystemFunction
 
-meta :: (Schedule sc) => sc -> System () -> System Entity
-meta = systemEntity
+get :: (Schedule sc) => sc -> System () -> System Entity
+get = systemEntity
 
 schedule :: (Schedule sc) => sc -> System () -> System ()
 schedule sch s = do
-  s' <- meta sch s
+  s' <- Mischief.ECS.Systems.get sch s
   sch' <- scheduleEntity sch
 
   insert (Rel ScheduledIn sch') s'
 
 unschedule :: (Schedule sc) => sc -> System () -> System ()
 unschedule sch s = do
-  s' <- meta sch s
+  s' <- Mischief.ECS.Systems.get sch s
   sch' <- scheduleEntity sch
 
   removeRel @ScheduledIn sch' s'

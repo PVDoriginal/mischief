@@ -110,12 +110,21 @@ despawn entity =
       Nothing -> warn $ "Despawn failed: Entity " <> text entity <> " is not alive."
       Just pointer -> do
         let Tables tables = world.tables
-        tables <- liftIO $ readIORef tables
+
+        tables' <- liftIO $ readIORef tables
         currentPointer <- liftIO $ readIORef pointer
 
-        case Map.lookup currentPointer.archetypeId tables of
+        case Map.lookup currentPointer.archetypeId tables' of
           Nothing -> undefined
           Just table -> do
             c <- liftIO $ collectComponentIdsFromTable table
             triggerRemoveEvent c entity
+
+        tables' <- liftIO $ readIORef tables
+        newPointer <- liftIO $ readIORef pointer
+
+        case Map.lookup newPointer.archetypeId tables' of
+          Nothing -> undefined
+          Just table -> do
+            void $ liftIO $ takeComponentsFromTable newPointer table
             liftIO $ removeEntity entity world.entities

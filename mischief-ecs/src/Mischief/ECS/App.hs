@@ -114,12 +114,14 @@ appInit = do
   insert (Rel Before startup) pre
   insert (Rel Before post) startup
 
+  first <- scheduleEntity First
   pre <- scheduleEntity PreUpdate
   update <- scheduleEntity Update
   post <- scheduleEntity PostUpdate
 
-  for_ [pre, update, post] $ insert UpdateSchedule
+  for_ [first, pre, update, post] $ insert UpdateSchedule
 
+  insert (Rel Before pre) first
   insert (Rel Before update) pre
   insert (Rel Before post) update
 

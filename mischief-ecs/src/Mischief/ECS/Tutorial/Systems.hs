@@ -18,16 +18,16 @@ module Mischief.ECS.Tutorial.Systems
     -- * Scheduling
     -- $scheduling
 
+    -- * Schedules
+    -- $schedules
+
     -- * Deferring
     -- $deferring
 
-    -- * ParSystem
+    -- * Parallelism
     -- $par
 
-    -- * Parallelism
-    -- $parallelism
-
-    -- * Simulating Asynchronicity with runAfter
+    -- * Asynchronicity
     -- $async
   )
 where
@@ -38,42 +38,180 @@ import Data.Foldable (for_)
 import Mischief.ECS
 
 -- $intro
--- A 'System' in Mischief is simply a 'Monad' allowing operations to be executed on a 'World'.
--- Being a wrapper around @'ReaderT' 'World' 'IO'@, it also enabled 'IO' access through 'liftIO'.
+-- A @System@ in Mischief is a Monad that executes operations on a World.
 --
--- Here is a simple system that spawns an entity and prints its @'Entity'@:
+-- Unlike other ECS's, systems here are fully composable, In fact, most of the functions discussed in this tutorial so far were systems.
+-- For instance, the type of @spawn@ is:
+--
+-- @
+-- 'spawn' :: ('Bundle' b) => b -> 'System' ()@
+-- @
+--
+-- Systems can either be ran directly, or they can be added scheduled.
+
+-- $scheduling
+-- Any @System ()@ can be added to a @Schedule@. This will make the system run when that schedule is ran.
+--
+-- There are two ways of scheduling systems, an automatic and a manual way. Tools for using both are found in "Mischief.ECS.Systems".
+--
+-- == Automatic
+--
+-- In order to schedule a system we just use the @add@ function:
+--
+--
+-- @
+-- data SomeSchedule = SomeSchedule deriving ('Schedule')
+-- systemA :: 'System' ()
+-- @
+--
+-- @
+-- [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' SomeSchedule systemA
+-- @
+--
+-- This will register @systemA@ and schedule it to run in @SomeSchedule@.
+--
+-- Systems scheduled this way are considered a unique combination of the actual system and the schedule.
+-- If we were to add @systemA@ to /another/ schedule, it would be considered a different system.
+--
+-- You can also add a tuple of systems directly:
+--
+-- @
+-- [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' SomeSchedule (systemA, systemB)
+-- @
+--
+-- This function also allows custom ordering between systems. For instance, if we want to schedule a new @systemC@ that happens /before/ @systemA@ and /after/ @SystemB@:
+--
+-- @
+-- [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' SomeSchedule $ systemC '`before`' systemA '`after`' systemB
+-- @
+--
+-- One very important thing to keep in mind is that a scheduled system is only unique as long as the type you're registering is @System ()@.
+--
+-- For instance, scheduling this system:
+--
+-- @
+-- systemA :: 'Int' -> 'System' ()
+-- @
+--
+-- @
+-- [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' SomeSchedule (systemA 5)
+-- @
+--
+-- And then another system which we want to run after:
+--
+-- @
+-- [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' SomeSchedule $ systemB '`after`' (systemA 4)
+-- @
+--
+-- Will compile fine, but since @systemA 5@ and @systemA 4@ are different systems, we've basically told @systemB@ to happen after a system that's not even running.
+--
+-- Both @systemB@ and @systemA 5@ will run, but there won't be any explicit ordering between them.
+--
+-- A system that's been added with @Systems.add@ can be removed using @Systems.remove@:
+--
+-- @
+-- [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.remove' SomeSchedule systemA
+-- @
+--
+-- Note however, that this will also erase all orderings @systemA@ had with other systems at that point.
+--
+-- If you wish to just temporarily disable a system while keeping its configuration, you can use
+-- @[Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.unschedule'@ instead. And then use @[Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.schedule'@ to
+-- re-enable it.
+--
+-- == Manual
+--
+-- In order to schedule a system manually you just spawn an entity for it:
 --
 -- @
 -- foo :: 'System' ()
--- foo = do
---   e <- 'spawn' ()
---   'liftIO' $ 'print' e
 -- @
 --
--- Note that, unlike other ECS's, systems here are fully @composable@. Even the 'spawn' used above is a 'System' that we are calling from another 'System'!
---
--- In the functions provided by @Mischief@ you may see the 'MonadSystem' typeclass being used:
---
 -- @
--- 'query' :: forall qd m w. ('Queryable' qd, 'MonadSystem' w m) => m ['QueryOutput' qd]
+-- fooEntity <- [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.spawn' foo
 -- @
 --
--- This makes the function accept other types of systems, besides just the normal 'System', such as 'ParSystem', but more on that later.
+-- And then link that entity to a schedule via the @ScheduledIn@ relationship.
+--
+-- @
+-- someSchedule <- [Schedules]("Mischief.ECS.Schedules").'Mischief.ECS.Schedules.get' SomeSchedule
+-- 'insert' ('Rel' 'ScheduledIn' someSchedule) fooEntity
+-- @
+--
+-- This will make make your system run along with @SomeSchedule@. Compared to using @Systems.add@, this method will not do any sort of bookkeeping for you.
+-- Is is your job to keep track of the spawned system's entity.
+--
+-- Two systems can be ordered by using the @Before@ relationship:
+--
+-- @
+-- fooEntity <- [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.spawn' foo
+-- barEntity <- [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.spawn' bar
+--
+-- 'insert' ('Rel' 'Before' fooEntity) barEntity
+-- @
+--
+-- The above will order @bar@ to happen before @foo@.
 
--- $scheduling
--- Scheduling a system means adding it to a @'Schedule'@. Mischief has a few predefined schedules:
+-- $schedules
+-- Same as systems, @Schedules@ are entities. Each schedule has an associated type, usually empty:
 --
--- @The startup schedules@ run once at the start of the app, before any Update, in this order:
+-- @
+-- data Update = Update deriving ('Schedule')
+-- @
+--
+-- You can both register and get the the entity of a schedule using @Schedules.get@:
+--
+-- @
+-- update <- [Schedules]("Mischief.ECS.Schedules").'Mischief.ECS.Schedules.get' Update
+-- @
+--
+-- You can run a schedule using @Schedules.run@:
+--
+-- @
+-- [Schedules]("Mischief.ECS.Schedules").'Mischief.ECS.Schedules.run' Update
+-- @
+--
+-- This will run all systems currently linked to that Schedule, respecting their ordering.
+--
+-- Mischief has two components: @'StartupSchedule'@ and @'UpdateSchedule'@ which you can add to a schedule to make it automatically run on app startup, respectively each frame.
+--
+-- These schedules can also be ordered via @'Before'@ (same relationship used for ordering systems).
+--
+-- The systems Mischief has by default in Startup:
+--
 -- * 'PreStartup'
 -- * 'Startup'
+-- * 'PostStartup'
+--
+-- And in Update:
+--
+-- * 'First'
+-- * 'PreUpdate'
+-- * 'Update'
+-- * 'PostUpdate'
+--
+-- @First@ is usually reserved for internal systems (such as updating time).
+
+-- @The startup schedules@ run once at the start of the app, before any Update, in this order:
+
+-- * 'PreStartup'
+
+-- * 'Startup'
+
 -- * 'PostStartup
+
 --
 -- @The update shchedules@ run once every frame, in this order:
 --
--- *'First'
--- *'PreUpdate'
--- *'Update'
--- *'PostUpdate'
+
+-- * 'First'
+
+-- * 'PreUpdate'
+
+-- * 'Update'
+
+-- * 'PostUpdate'
+
 -- 'Last'
 --
 -- Note that @First@ and @Last@ are reserved mostly for ECS internal logic and should generally be avoided.
@@ -124,13 +262,13 @@ import Mischief.ECS
 -- Also, a system can be added to any number of schedules. Adding a system twice to the same schedule will have no effect.
 
 -- $deferring
--- Time to learn a very powerful and important system:
+-- Time to learn a very powerful and important primitive:
 --
 -- @
 -- 'defer' :: 'System' a -> 'System' ()
 -- @
 --
--- All the systems presented so far in this tutorials had their effect applied immediately. When you write @'set' 'Name' $ 'Name' \"Player\"@,
+-- All the systems presented so far in this tutorial had their effect applied immediately. When you write @set Name $ Name \"Player\"@,
 -- you are /immediately/ mutating the respective component. When you do @e <- 'spawn' ()@, you are /immediately/ spawning that entity into the World.
 --
 -- @'defer'@ takes a system and adds it to an internal list instead of applying it.
@@ -145,96 +283,85 @@ import Mischief.ECS
 --   'insert' ('Name' \"Name\") e
 -- @
 --
--- You can then use @'flush' :: 'System' ()@ to empty the list of deferred systems, applying all of them.
+-- You can then use @'flush'@ to empty the list of deferred systems, applying all of them.
+-- Mischief automatically runs @'flush'@ at each @sync point@, usually at the end of each scheduled system.
 --
--- Mischief automatically runs @'flush'@ at each @sync point@, usually after running each system.
+-- @forkDeref@ is a useful function that temporarily restricts @flush@ to just the current context:
 --
--- There is also a special @'deferSpawn'@ primitive that immediately return an @'Entity'@ you can use but defers the actual spawn.
+-- @
+-- 'defer' $ a
+--
+-- 'forkDefer' $ do
+--   'defer' $ do
+--     b
+--     c
+--   'flush'
+-- @
+--
+-- The above @flush@ will just run @b@ and @c@. @forkDeref@ will drain all non-flushed systems into the outer context.
+--
+-- There is also a special @'deferSpawn'@ primitive that immediately returns an @Entity@ you can use but defers the actual spawn.
 
 -- $par
--- So why is @'defer'@ so important? The answer is: @'ParSystem'@.
+-- @Parallelism@ in Mischief happens through the @'ParSystem'@ monad.
 --
--- @'ParSystem'@ is a special variant of @'System'@ that, statically, forbids any mutations to the 'World'.
+-- @ParSystem@ is a special variant of @System@ that forbids any mutations to the World.
 --
--- Most systems, such as 'set', 'spawn', and so on, are only defined for 'System'. And 'ParSystem' is designed in such a way
--- that you can't externally access the 'World' from within it, preventing you from writing your own. Basically, a @'ParSystem'@ lets
--- you /read/ data via queries, while restricting the systems that cause mutations.
---
--- However, certain systems are defined with a generic 'MonadSystem':
+-- This will throw a compilation error:
 --
 -- @
--- 'query' :: forall qd m w. ('Queryable' qd, 'MonadSystem' w m) => m ['QueryOutput' qd]
+-- s :: 'ParSystem' ()
+-- s = 'void' $ 'spawn' ()
 -- @
 --
--- 'MonadSystem' is a typeclass instanced by both 'System' and 'ParSystem', meaning 'query' can work in both.
+-- There are generally 2 types of operations allowed in a @ParSystem@:
 --
--- So, how do you actually write logic in a @'ParSystem'@ that has effects on the 'World'? You guessed it!
+-- * Queries
+-- * Deferred Systems
 --
--- @'defer'@ also works for both!
---
--- Here's a 'ParSystem' that iterates over all entities with a specific name and renames them.
---
--- @
--- changeName :: 'Name' -> 'Name' -> 'ParSystem' ()
--- changeName oldName newName = do
---   names <- 'query'' \@'Name' $ 'check' (== oldName)
---   'for_' names $ \name -> do
---     'defer' $ 'set' name newName
--- @
---
--- The @'set'@ will just be deferred and applied at the next sync point.
-
--- $parallelism
--- Now that we've learned about 'ParSystem' and its constraints, let's look into how we actually parallelize systems.
---
--- The simplest way is to use the following function:
+-- So for instance, if we want to read and change the name of the player in a @ParSystem@:
 --
 -- @
--- 'par' :: ['ParSystem' ()] -> 'System' ()
+-- changeName :: 'ParSystem' ()
+-- changeName = do
+--   'Just' name <- 'single'' ('C' \@Name) ('With' ('C' \@Player))
+--   'defer' $ 'set' name (Name "New Name")
 -- @
 --
--- You provide a list of ParSystems, and Mischief will run them in parallel for you.
+-- so how can we actually run systems in parallel? There are two main primitives used for it: @par@ and @parIter@:
+--
+-- @par@ is given a list of @'ParSystem' ()@ and will run each of them in parallel:
 --
 -- @
--- s :: 'System' ()
--- s = do
---   par [p1, p2]
---
--- p1 :: 'ParSystem' ()
--- p1 = ...
---
--- p2 :: 'ParSystem' ()
--- p2 = ...
+-- 'par' [foo, bar, baz]
 -- @
 --
--- Another way is to use @'parIter'@, a function that works similarly to 'for_':
+-- @parIter@ (and @parIter_@ which ignores the result) applies a @ParSystem@ over the elements of a list. Given a list of Entities, this is how we can get their names in parallel:
 --
 -- @
--- players <- query @Entity $ 'with' @Player
--- 'parIter' players $ \entity -> do
---   ...
+-- entities :: ['Entity']
 -- @
+--
+-- @
+-- names <- 'parIter' entities $ 'get' ('C' \@Name)
+-- @
+--
+-- These primtiives should only be used in performance which are at the risk of bottlenecking performance.
 
 -- $async
--- Mischief doesn't currently natively suppot asynchornous systems, however, the same effect can be achieved with this primitive:
+-- Async in Mischief can be achieved using the @runAfter@ primtitive.
+-- You provide it an 'IO' action that returns an @a@, and a system which consumes that @a@.
+--
+-- The 'IO' will be ran fully asychrnously and then will add the system to a special async-friendly deferred list that
+-- will be applied at the first available sync point.
+--
+-- We can look at @delay@ as an example of how this may be useful:
 --
 -- @
--- 'runAfter' :: ('MonadSystem' w m) => 'IO' a -> (a -> 'System' ()) -> m ()
--- @
---
--- You provide it an 'IO' action that returns an @a@, and a system which takes that @a@.
---
--- This will run the 'IO' fully asychrnously and then will add the system to a special async-friendly deferred list that
--- will be applied at the first sync point possible.
---
--- We can look at @'delay'@ as an example of how this may be useful:
---
--- @
--- 'delay' :: ('MonadSystem' w m) => 'Int' -> 'System' () -> m ()
 -- 'delay' d system = 'runAfter' ('threadDelay' d) ('const' system)
 -- @
 --
--- It allows delaying any system by an amount of time:
+-- Whcih allows delaying any system by an amount of time:
 --
 -- @
 -- 'delay' 500 $ 'insert' (Health 100) player

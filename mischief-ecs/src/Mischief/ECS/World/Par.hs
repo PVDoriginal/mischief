@@ -2,6 +2,7 @@ module Mischief.ECS.World.Par where
 
 import Control.Concurrent (forkIO)
 import Control.Concurrent.Async (async, wait)
+import Control.Monad
 import Control.Monad.IO.Class
 import Control.Monad.Reader
 import Data.Foldable
@@ -25,7 +26,7 @@ par !parSystems = do
     systems <- liftIO $ readIORef systems
     liftIO $ modifyIORef' world.deferred (++ systems)
 
-parIterList :: (MonadSystem w m, Foldable t) => t a -> ([a] -> ParSystem ()) -> m ()
+parIterList :: (MonadSystem w m, Foldable t) => t a -> ([a] -> ParSystem b) -> m [b]
 parIterList !list !s = do
   world <- unsafeGetWorld
 
@@ -40,15 +41,19 @@ parIterList !list !s = do
     id <- liftIO $ async $ runReaderT p ParWorld {world = Hidden world, parDeferred = systems}
     return (id, systems)
 
-  for_ x $ \(id, systems) -> do
-    liftIO $ wait id
+  for x $ \(id, systems) -> do
+    a <- liftIO $ wait id
     systems <- liftIO $ readIORef systems
     liftIO $ modifyIORef' world.deferred (++ systems)
+    return a
 
 group :: Int -> [a] -> [[a]]
 group _ [] = []
 group 0 l = [l]
 group !n !l = take n l : group n (drop n l)
 
-parIter :: (MonadSystem w m, Foldable t) => t a -> (a -> ParSystem b) -> m ()
-parIter x s = parIterList x $ \chunk -> for_ chunk s
+parIter :: (MonadSystem w m, Foldable t) => t a -> (a -> ParSystem b) -> m [b]
+parIter x s = concat <$> parIterList x (`for` s)
+
+parIter_ :: (MonadSystem w m, Foldable t) => t a -> (a -> ParSystem b) -> m ()
+parIter_ x s = void (parIterList x (`for_` s))

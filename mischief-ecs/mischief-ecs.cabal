@@ -112,6 +112,7 @@ library
     Mischief.ECS.World.Query.Val
     Mischief.ECS.World.Remove
     Mischief.ECS.World.Spawn
+    Mischief.ECS.Schedules 
     Mischief.ECS.World.Systems
     Mischief.ECS.World.Utils
 

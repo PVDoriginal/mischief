@@ -29,6 +29,9 @@ module Mischief.ECS.Tutorial.Relationships
     -- * Hooks
     -- $hooks
 
+    -- * Examples
+    -- $examples
+
     -- * [Next Chapter: Queries]("Mischief.ECS.Tutorial.Queries")
   )
 where
@@ -259,3 +262,64 @@ import Mischief.ECS
 -- @(Likes, charlie)@ will overwrite @(Likes, alice)@.
 --
 -- This is useful for relationships such as 'ChildOf', since an entity can only have one parent at a time.
+
+-- $examples
+--
+-- === __Example 1__
+--
+--
+-- An example showing different operations on relationships, and the @relCleanupRemove@ hook.
+--
+-- @
+-- import "Mischief.ECS.Prelude"
+-- import "Mischief.ECS.Hooks" qualified as [Hooks]("Mischief.ECS.Hooks")
+-- import "Mischief.ECS.Systems" qualified as [Systems]("Mischief.ECS.Systems")
+--
+-- data Likes = Likes 'Int' deriving ('Show')
+--
+-- instance 'Component' Likes where
+--   'hooks' = [Hooks]("Mischief.ECS.Hooks").'Mischief.ECS.Hooks.relCleanupRemove'
+--
+-- main :: 'IO' ()
+-- main = do
+--   app <- 'newApp' MainPlugin
+--   'runApp' app
+--
+-- data MainPlugin = MainPlugin deriving ('Eq')
+--
+-- instance 'Plugin' MainPlugin where
+--   init _ = [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Startup' test
+--
+-- test :: 'System' ()
+-- test = do
+--   alice <- 'spawn' ('Name' \"Alice\")
+--   bob <- 'spawn' ('Name' \"Bob\")
+--   charlie <- 'spawn' ('Name' \"Charlie\")
+--
+--   'insert' ('Rel' (Likes 5) alice, 'Rel' (Likes 10) bob) charlie
+--   'insert' ('Rel' (Likes 7) alice) bob
+--   'insert' ('Rel' (Likes 9) bob, 'Rel' (Likes 5) charlie) alice
+--
+--   ('info' . 'text') =<< 'query' ('C' \@Name, 'R' \@Likes alice)
+--   ('info' . 'text') =<< 'query' ('C' \@Name, 'R' \@Likes bob)
+--   ('info' . 'text') =<< 'query' ('C' \@Name, 'R' \@Likes charlie)
+--
+--   'remove' ('R' \@Likes 'Any') alice
+--   'despawn' bob
+--
+--   ('info' . 'text') =<< 'query' ('C' \@Name, 'R' \@Likes alice)
+--   ('info' . 'text') =<< 'query' ('C' \@Name, 'R' \@Likes bob)
+--   ('info' . 'text') =<< 'query' ('C' \@Name, 'R' \@Likes charlie)
+-- @
+--
+-- @
+-- > [INFO] [(\"Bob\",Rel {comp = Likes 7, target = 28v1}),(\"Charlie\",Rel {comp = Likes 5, target = 28v1})]
+-- > [INFO] [(\"Alice\",Rel {comp = Likes 9, target = 29v1}),(\"Charlie\",Rel {comp = Likes 10, target = 29v1})]
+-- > [INFO] [(\"Alice\",Rel {comp = Likes 5, target = 30v1})]
+--
+-- > [INFO] [(\"Charlie\",Rel {comp = Likes 5, target = 28v1})]
+-- > [INFO] []
+-- > [INFO] []
+-- @
+--
+-- You can see in the second set of prints that nobody likes Bob anymore, since he "died", and the cleanup hook made it so any "Likes -> Bob" relationships were automatically removed.

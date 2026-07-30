@@ -20,7 +20,7 @@ module Mischief.ECS.Tutorial.Queries
     -- * Outputs
     -- $outputs
 
-    -- * The Val Transformer@
+    -- * Val
     -- $val
 
     -- * Filters
@@ -46,7 +46,7 @@ import Mischief.ECS
 -- For instance,
 --
 -- @
--- 'query' ('C' \@A, 'M' \@B)
+-- x <- 'query' ('C' \@A, 'M' \@B)
 -- @
 --
 -- Will have an output type of:
@@ -55,49 +55,49 @@ import Mischief.ECS
 -- ('Result' A, 'Maybe' ('Result' B))
 -- @
 --
--- Well, the actual type of the above expression will be:
+-- With an actual return type of:
 --
 -- @
--- ['Result' A, 'Maybe' ('Result' B)]
+-- x :: ['Result' A, 'Maybe' ('Result' B)]
 -- @
 --
--- Because @query@ actually returns @[Output]@
+-- Because @query@ actually returns @[Output]@.
 --
 -- @single@ on the other hand, returns a @Maybe Output@, only outputting something if there is exactly one entity which matches the query.
 --
 -- @
--- 'single' ('C' \@A, 'M' \@B)
+-- x <- 'single' ('C' \@A, 'M' \@B)
 -- @
 --
 -- @
--- 'Maybe' ('Result' A, 'Maybe' ('Result' B))
+-- x :: 'Maybe' ('Result' A, 'Maybe' ('Result' B))
 -- @
 --
 -- @get@ queries the components of a specific entity:
 --
 -- @
--- 'get' ('C' \@A) e
+-- x <- 'get' ('C' \@A) e
 -- @
 --
 -- @
--- 'Maybe' ('Result' A)
+-- x :: 'Maybe' ('Result' A)
 -- @
 --
--- @get@ returns @'Nothing'@ if the entity doesn't exist or if the components don't match.
+-- @get@ returns @'Nothing'@ if the entity doesn't exist or if it doesn't contain any of the components.
 
 -- $val
--- Do all the @Result c@ values obtained from queries give you a headache? Then I have something perfect for you.
+-- Working with @Result c@ can be annoying, especially if you only want to read the value of a component and not mutate anything.
 --
--- All query types can be wrapped in a @Val@ in order to extract their values out of the @Result@:
+-- That's why all query types can be wrapped in a @Val@ in order to extract their values out of the @Result@:
 --
 -- @
--- 'query' ('C' \@Foo, 'Val' ('C' \@Bar, 'C' \@Baz))
+-- 'query' ('C' \@Foo, 'Val' ('C' \@Bar, 'M' \@Baz))
 -- @
 --
 -- Will return:
 --
 -- @
--- ['Result' Foo, (Bar, Baz)]
+-- ['Result' Foo, (Bar, 'Maybe' Baz)]
 -- @
 --
 -- @Val@ maps anything that looks like a @Result c@ to just @c@, while leaving most other things be as they are.
@@ -130,7 +130,7 @@ import Mischief.ECS
 -- There is an implicit @and@ between filters. @(A, B)@ means @A and B@. If you wish to express @A or B@, you can write it as @A |. B@. @Not@ can be used to
 -- negate filters.
 --
--- @(A '|.' 'Not' (B, C))@ means @A or (not (B and C))@.
+-- @(A |. Not (B, C))@ means @A or (not (B and C))@.
 --
 -- Most filters expect a tuple of @'C'@ and @'R'@ types. These are all valid filters:
 --
@@ -138,15 +138,15 @@ import Mischief.ECS
 -- * @'With' ('R' \@Foo e, 'C' \@Bar)@
 -- * @'With' ('R' \@Foo 'Any', 'C' \@Bar, 'C' \@Baz)@
 --
--- Here's a quick list of filters and what they do:
+-- These filters are:
 --
--- * @'With'@: query entities that contain these components.
--- * @'Without'@: same as @Not . With@
--- * @'Changed'@: query entities that have had these components mutated since this system last ran.
--- * @'Added'@: query entities that have had these component added since this system last ran.
+-- * @'With'@
+-- * @'Without'@
+-- * @'Changed'@
+-- * @'Added'@
 
 -- $check
--- @'Check'@ is a special filter which takes a @f :: c -> 'Bool'@ function and only accepts entities for which @f@ applied over the @c@ component is True.
+-- @Check@ is a special filter which takes a @f :: c -> Bool@ function and only accepts entities for which @f@ applied over the @c@ component is True.
 -- Naturally, all entities that don't contain the @c@ component will fail.
 --
 -- For instance, here's how we can select all entities named \"Bob\":
@@ -155,11 +155,15 @@ import Mischief.ECS
 -- 'query'' 'E' ('Check' (== 'Name' "\Bob\"))
 -- @
 --
--- For relationships, you must use the dedicated @'CheckR'@ variant which also expects an entity or @Any@:
+-- For relationships, you must use the dedicated @'CheckR'@ variant which also expects an entity or @Any@.
+--
+-- Selecting all entities which Like alice more than 5:
 --
 -- @
 -- 'query'' 'E' ('CheckR' alice (> Likes 5))
 -- @
+--
+-- Selecting all entities which like any other entity more than 10:
 --
 -- @
 -- 'query'' 'E' ('CheckR' 'Any' (> Like 10))
@@ -170,7 +174,7 @@ import Mischief.ECS
 --
 -- === Components
 --
--- Here's how we can rewrite a simple query as a Quasi-Query:
+-- Here's how we can rewrite a simple componnet query in quasi form:
 --
 -- @
 -- 'query' ('C' \@Foo, 'C' \@Bar)
@@ -180,7 +184,7 @@ import Mischief.ECS
 -- ['q'|Foo, Bar|]
 -- @
 --
--- As you can see, a @'C' \@c@ becomes simply @c@.
+-- As you can see, a @'C' \@c@ becomes @c@.
 --
 -- === Relationships
 --
@@ -219,6 +223,8 @@ import Mischief.ECS
 -- ['q'|M Foo, H Bar -> *|]
 -- @
 --
+-- You don't need to worry about the distinction between @M@ and @MR@ and so on, the parer will infer which to use.
+--
 -- === Val
 --
 -- @Val@ is accepted in quasi notation too:
@@ -233,7 +239,7 @@ import Mischief.ECS
 --
 -- @Val@ can be written as: @Val@, @val@,  @V@,  @v@, @*@.
 --
--- So this is equivalent to the above:
+-- So an equivalent way to write the above would be:
 --
 -- @
 -- ['q'|*(Foo, Bar)|]
@@ -245,7 +251,7 @@ import Mischief.ECS
 --
 -- === Filters
 --
--- In order to add a filter to a Quasi-Query, we must separate it with a @\/@ from the rest of the query:
+-- In order to add a filter to a quasi-query, we must separate it with a @\/@ from the rest of the query:
 --
 -- @
 -- 'query'' ('C' \@Name) ('With' ('C' @\Foo, R @\Bar 'Any'), 'Without'('C' @\Baz))
@@ -255,20 +261,24 @@ import Mischief.ECS
 -- ['q'|Name \/ With (Foo, Bar -> *), Without Baz|]
 -- @
 --
--- @Added@ and @Changed@ also exists for Quasi-Queries. All filters can be written either starting with a lower or uppercase letter. For instance, both @with@ and @With@ are correct.
--- @Not@ can also be written as @!@ and @|.@ can be written as @||@, @or@, @Or@.
+-- @Added@ and @Changed@ also exists for quasi-queries. All filters can be written either starting with a lower or uppercase letter. For instance, both @with@ and @With@ are correct.
+-- @Not@ can also be written as @!@ and @|.@ can be written as @|.@, @||@, @or@, @Or@.
 --
 -- === Check
 --
--- In quasi notation, @Check@ is unified for both components and relationships. Simply put @-> a@ after it if it's a relationship:
+-- In quasi notation, @Check@ is unified for both components and relationships. Simply put @-> a@ after it if it's a relationship!
+--
+-- Getting all entities named \"Bob\" which like alice more than 5:
 --
 -- @
 -- ['q'|Entity / Check (== Name \"Bob\"), Check (> Likes 5) -> alice|]
 -- @
 --
+-- The argument for @Check@ can be any arbitrary lambda function or a function defined outside the quasi-quote.
+--
 -- === Generics
 --
--- In order to use a Quasi-Query for a type with generic parameters, such as:
+-- In order to use a quasi-query for a type with generic parameters, such as:
 --
 -- @
 -- data A a b = A deriving ('Component')
@@ -277,7 +287,7 @@ import Mischief.ECS
 -- The entire type must be put in @()@. For instance:
 --
 -- @
--- ['q'|(A Int Float)|]
+-- ['q'|Maybe (A Int Float), Likes -> *|]
 -- @
 --
 -- === Other Quasies
