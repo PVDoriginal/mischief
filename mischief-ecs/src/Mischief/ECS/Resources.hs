@@ -19,3 +19,8 @@ res :: forall c. (Queryable (C c) (Result c), Component c) => System (Maybe (Res
 res = do
   meta <- meta @c
   get (C @c) meta
+
+resOrInsert :: forall r. (Component r, Updateable (Result r), Bundle r) => r -> System (Result r)
+resOrInsert r = do
+  meta <- meta @r
+  getOrInsert r meta

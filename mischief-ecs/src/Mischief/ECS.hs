@@ -136,7 +136,7 @@ import Mischief.ECS.Graph
 import Mischief.ECS.Hooks
 import Mischief.ECS.Log
 import Mischief.ECS.Mappable
-import Mischief.ECS.Messages
+import Mischief.ECS.Messages (Message)
 import Mischief.ECS.Prelude
 import Mischief.ECS.Relationships
 import Mischief.ECS.Relationships.ChildOf
@@ -193,8 +193,21 @@ qq = do
 -- was written in @100% Haskell@, taking advantage of its @great ergonomics and strong type system@.
 -- It is a refreshing spin on the @functional@ and @data-driven@ paradigms.
 --
+-- == Package
+--
 -- This package contains only @mischief-ecs@, the ECS at the core of Mischief. Other packages, such as @mischief-input@, @mischief-assets@,
 -- @mischief-render@ are planned, but haven't yet been developed to the same level as the ECS itself.
+--
+-- == Design Goals
+--
+-- There are the main design goals of Mischief:
+--
+-- * __Ergonomics__. Mischief's main purpose is to provide a very clean, intuitive, high-level API. This is the main way we differentiate ourselves from other ECS's.
+-- * __Functional__. While the core logic of Mischief is highly mutable and dynamic for the sake of performance, the high-level API is tailored to be immutable and
+-- encourage functional programming.
+-- * __Modularity__. Mischief is meant to be modular, allowing you to plug packages in and out, whether they are made by us or a third party.
+--
+-- == Performance
 --
 -- Performance-wise, Mischief still has a long way to go; there are many easy performance gains that we have just been too busy to implement, as we've
 -- been mostly focusing on @ergonomics, modularity, and ease-of-use@.
@@ -487,7 +500,7 @@ qq = do
 -- In order to activate an observer, it just needs to be spawned into the world:
 --
 -- @
--- obs <- 'spawn' $ 'Observer' onMyEvent
+-- obs <- [Observers]("Mischief.ECS.Observers").'Mischief.ECS.Observers.spawn' onMyEvent
 -- @
 
 -- $special_events
@@ -510,3 +523,4 @@ qq = do
 -- (3) [Relationships]("Mischief.ECS.Tutorial.Relationships")
 -- (4) [Queries]("Mischief.ECS.Tutorial.Queries")
 -- (5) [Systems]("Mischief.ECS.Tutorial.Systems")
+-- (6) [Events and Messages]("Mischief.ECS.Tutorial.Events")

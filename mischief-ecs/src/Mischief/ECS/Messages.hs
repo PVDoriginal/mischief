@@ -2,10 +2,9 @@
 
 module Mischief.ECS.Messages
   ( Message,
-    Messages,
-    addMessage,
-    writeMessage,
-    readMessages,
+    add,
+    write,
+    read,
   )
 where
 
@@ -20,6 +19,7 @@ import Mischief.ECS.App
 import Mischief.ECS.App.SystemDef
 import Mischief.ECS.App.Systems
 import Mischief.ECS.Components
+import Mischief.ECS.Log
 import Mischief.ECS.Resources
 import Mischief.ECS.Tables
 import Mischief.ECS.Utils
@@ -28,6 +28,7 @@ import Mischief.ECS.World.Insert
 import Mischief.ECS.World.Modify
 import Mischief.ECS.World.Query (get)
 import Mischief.ECS.World.Query.Queryable
+import Prelude hiding (read)
 
 -- | Message typeclass.
 class (Typeable m) => Message m
@@ -54,9 +55,10 @@ getReader !m = do
 
 instance (Message m) => Component (Messages m)
 
--- | Write a message into the resource.
-writeMessage :: (Message m) => m -> Result (Messages m) -> System ()
-writeMessage !message !messages = do
+-- | Write a message.
+write :: forall m. (Message m) => m -> System ()
+write !message = do
+  messages <- resOrInsert $ newMessages @m
   world <- unsafeGetWorld
   frame <- liftIO $ readIORef world.frame
 
@@ -67,23 +69,27 @@ writeMessage !message !messages = do
   modify messages (\Messages {messages, readers} -> Messages {messages = message' : messages, readers})
   clearOldMessages messages
 
--- | Read all the messages from this resource that haven't been read by the current system.
-readMessages :: (Message m) => Result (Messages m) -> System [m]
-readMessages !m = do
-  Reader tick <- getReader m
-  readerTick <- liftIO $ readIORef tick
+-- | Read all the messages that haven't been read by the current system.
+read :: forall m. (Message m) => System [m]
+read = do
+  m <- res @(Messages m)
+  case m of
+    Nothing -> pure []
+    Just m -> do
+      Reader tick <- getReader m
+      readerTick <- liftIO $ readIORef tick
 
-  loc <- self
-  Just currentSystemTick <- get (C @SystemTick) loc
+      loc <- self
+      Just currentSystemTick <- get (C @SystemTick) loc
 
-  let newMessages = map (\(_, _, x) -> x) $ filter (\(_, tick, _) -> tick < currentSystemTick.inner && tick > readerTick) m.messages
-  liftIO $ writeIORef tick currentSystemTick.inner
+      let newMessages = map (\(_, _, x) -> x) $ filter (\(_, tick, _) -> tick < currentSystemTick.inner && tick > readerTick) m.messages
+      liftIO $ writeIORef tick currentSystemTick.inner
 
-  return newMessages
+      return newMessages
 
 -- | Register a new message type with the App. This will automatically create a corresponding resource.
-addMessage :: forall (m :: Type). (Message m) => System ()
-addMessage = insertRes $ newMessages @m
+add :: forall (m :: Type). (Message m) => System ()
+add = insertRes $ newMessages @m
 
 clearOldMessages :: (Message m) => Result (Messages m) -> System ()
 clearOldMessages !m = do

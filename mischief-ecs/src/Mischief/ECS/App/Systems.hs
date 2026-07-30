@@ -95,11 +95,6 @@ self = do
   let (SystemId sys) = world.systemId
   return sys
 
-local :: forall c. (Queryable c (Result c), Bundle c) => c -> System (Result c)
-local c = do
-  loc <- self
-  getOrInsert c loc
-
 data ScheduledIn = ScheduledIn deriving (Component)
 
 getSystemTicks :: World -> IO (Tick, Tick)

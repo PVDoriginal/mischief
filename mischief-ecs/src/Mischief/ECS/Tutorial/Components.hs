@@ -153,7 +153,7 @@ import Mischief.ECS
 -- Additionally, @'insertNew'@ is a variant of @insert@ that only inserts components that aren't already on the entity.
 
 -- $results
--- A @'Result' c@ is a wrapper around the component @c@ that's produced by a query. We will discuss querying itself more in the [Query Chapter](TODO).
+-- A @'Result' c@ is a wrapper around the component @c@ that's produced by a query. We will discuss querying itself more in the [Query Chapter]("Mischief.ECS.Tutorial.Queries").
 --
 -- @
 -- health <- 'get' ('C' \@Health) player

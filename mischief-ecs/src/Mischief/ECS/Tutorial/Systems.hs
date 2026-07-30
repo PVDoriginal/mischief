@@ -6,11 +6,13 @@
 --
 -- This module contains a more in-depth tutorial on using @Mischief Systems@.
 --
--- [Previous Chapter: Components]("Mischief.ECS.Tutorial.Components")
+-- [Previous Chapter: Queries]("Mischief.ECS.Tutorial.Queries")
+--
+-- [Next Chapter: Events and Messages]("Mischief.ECS.Tutorial.Events")
 --
 -- [Main Page]("Mischief.ECS")
 module Mischief.ECS.Tutorial.Systems
-  ( -- * Learn You an ECS for Great Mischief! - 3. Systems
+  ( -- * Learn You an ECS for Great Mischief! - 5. Systems
 
     -- * Introduction
     -- $intro

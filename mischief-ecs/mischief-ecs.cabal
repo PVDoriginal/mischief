@@ -79,6 +79,7 @@ library
     Mischief.ECS.Mappable
     Mischief.ECS.Messages
     Mischief.ECS.Observer
+    Mischief.ECS.Observers
     Mischief.ECS.Prelude
     Mischief.ECS.Relationships
     Mischief.ECS.Relationships.ChildOf
@@ -86,11 +87,13 @@ library
     Mischief.ECS.Relationships.Order
     Mischief.ECS.Relationships.Tree
     Mischief.ECS.Resources
+    Mischief.ECS.Schedules
     Mischief.ECS.Systems
     Mischief.ECS.Tables
     Mischief.ECS.Time
     Mischief.ECS.Tutorial.App
     Mischief.ECS.Tutorial.Components
+    Mischief.ECS.Tutorial.Events
     Mischief.ECS.Tutorial.Queries
     Mischief.ECS.Tutorial.Relationships
     Mischief.ECS.Tutorial.Systems
@@ -112,7 +115,6 @@ library
     Mischief.ECS.World.Query.Val
     Mischief.ECS.World.Remove
     Mischief.ECS.World.Spawn
-    Mischief.ECS.Schedules 
     Mischief.ECS.World.Systems
     Mischief.ECS.World.Utils
 

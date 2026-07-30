@@ -81,9 +81,9 @@ insert bundle entity =
         unless world.prefs.supressEvents $
           triggerInsertEvent bundleData entity
 
-getOrInsert :: forall qd. (Queryable qd (Result qd), Bundle qd) => qd -> Entity -> System (Result qd)
+getOrInsert :: forall qd. (Updateable (Result qd), Bundle qd) => qd -> Entity -> System (Result qd)
 getOrInsert val entity = do
-  g <- get val entity
+  g <- update (Result (val, entity))
   case g of
     Just g -> return g
     Nothing -> do
