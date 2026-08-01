@@ -43,14 +43,14 @@ newMessages = Messages {messages = [], readers = Map.empty}
 
 newtype Reader = Reader (IORef Tick)
 
-getReader :: (Message m) => Result (Messages m) -> System Reader
+getReader :: (Message m) => Messages m -> System Reader
 getReader !m = do
   world <- unsafeGetWorld
   case Map.lookup world.systemId m.readers of
     Just r -> return r
     Nothing -> do
       tick <- liftIO $ newIORef $ Tick (0, 0)
-      modify m (\Messages {messages, readers} -> Messages {messages, readers = Map.insert world.systemId (Reader tick) readers})
+      insertRes $ (\Messages {messages, readers} -> Messages {messages, readers = Map.insert world.systemId (Reader tick) readers}) m
       return $ Reader tick
 
 instance (Message m) => Component (Messages m)

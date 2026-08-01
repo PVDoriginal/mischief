@@ -15,10 +15,10 @@ insertRes res = do
   entity <- meta @r
   insert res entity
 
-res :: forall c. (Queryable (C c) (Result c), Component c) => System (Maybe (Result c))
+res :: forall c. (Queryable (C c) (Result c), Component c) => System (Maybe c)
 res = do
   meta <- meta @c
-  get (C @c) meta
+  get (Val (C @c)) meta
 
 resOrInsert :: forall r. (Component r, Updateable (Result r), Bundle r) => r -> System (Result r)
 resOrInsert r = do

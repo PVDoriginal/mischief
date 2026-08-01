@@ -38,4 +38,4 @@ updateTime :: System ()
 updateTime = do
   Just time <- res @Time
   currentTime <- liftIO $ getTime Monotonic
-  modify time $ \Time {elapsed} -> Time {delta = currentTime - elapsed, elapsed = currentTime}
+  insertRes Time {delta = currentTime - time.elapsed, elapsed = currentTime}

@@ -56,7 +56,7 @@ getSystemId' schedule system stableName list = do
 
 getSystemId :: (HasCallStack) => ScheduleId -> System () -> System SystemId
 getSystemId sch system = do
-  Systems {systemMap} <- value . unwrap <$> (res @Systems)
+  Systems {systemMap} <- unwrap <$> (res @Systems)
 
   stableName <- liftIO $ makeStableName system
   systemMap' <- liftIO $ readIORef systemMap
@@ -74,7 +74,7 @@ removeSystemFromMap' stableName list = do
 
 removeSystemFromMap :: ScheduleId -> System () -> System ()
 removeSystemFromMap sch system = do
-  Systems {systemMap} <- value . unwrap <$> (res @Systems)
+  Systems {systemMap} <- unwrap <$> (res @Systems)
 
   stableName <- liftIO $ makeStableName system
   systemMap' <- liftIO $ readIORef systemMap

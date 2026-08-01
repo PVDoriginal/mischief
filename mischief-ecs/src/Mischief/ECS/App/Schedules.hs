@@ -54,7 +54,7 @@ getScheduleId sch = do
     Just x -> return x
     Nothing -> do
       e <- spawn sch
-      modify schedules $ \(Schedules x) -> Schedules $ Map.insert sch.rep (ScheduleId e) x
+      insertRes $ Schedules $ Map.insert sch.rep (ScheduleId e) schedules.inner
       return $ ScheduleId e
 
 scheduleEntity :: (Schedule sch) => sch -> System Entity

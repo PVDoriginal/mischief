@@ -94,6 +94,7 @@ library
     Mischief.ECS.Tutorial.App
     Mischief.ECS.Tutorial.Components
     Mischief.ECS.Tutorial.Events
+    Mischief.ECS.Tutorial.Dungeon
     Mischief.ECS.Tutorial.Queries
     Mischief.ECS.Tutorial.Relationships
     Mischief.ECS.Tutorial.Systems

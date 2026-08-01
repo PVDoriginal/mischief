@@ -96,6 +96,7 @@ module Mischief.ECS
     module Mischief.ECS.World.Modify,
     module Mischief.ECS.World.Par,
     module Mischief.ECS.World.Prefs,
+    module Mischief.ECS.Resources,
     module Mischief.ECS.World.Query,
     module Mischief.ECS.World.Query.Queryable,
     module Mischief.ECS.World.Query.QueryFilter,
@@ -143,6 +144,7 @@ import Mischief.ECS.Relationships.ChildOf
 import Mischief.ECS.Relationships.Graph
 import Mischief.ECS.Relationships.Order
 import Mischief.ECS.Relationships.Tree
+import Mischief.ECS.Resources
 import Mischief.ECS.Systems
 import Mischief.ECS.Tables
 import Mischief.ECS.Time

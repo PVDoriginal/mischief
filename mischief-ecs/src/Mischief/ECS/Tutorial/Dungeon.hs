@@ -1,0 +1,232 @@
+{-# OPTIONS_GHC -Wno-unused-imports #-}
+
+-- |
+-- Module: Components Tutorial
+-- Description: Tutorial on using @Components@
+--
+-- This module contains a more in-depth tutorial on @Mischief Components@.
+--
+-- [Previous Chapter: App and Plugins]("Mischief.ECS.Tutorial.App")
+--
+-- [Next Chapter: Relationships]("Mischief.ECS.Tutorial.Relationships")
+--
+-- [Main Page]("Mischief.ECS")
+module Mischief.ECS.Tutorial.Dungeon
+  ( -- * Learn You an ECS for Great Mischief! - 2. Coding a Dungeon Game
+
+    -- * Introduction
+    -- $intro
+
+    -- * Creating an App
+    -- $creation
+
+    -- * Spawning the Grid
+    -- $grid
+
+    -- * Traversing the Grid
+    -- $traversing
+
+    -- * Spawning the Player
+    -- $player
+  )
+where
+
+import Control.Monad (void)
+import Data.Foldable (for_)
+import Data.List ((!?))
+import Data.Traversable (for)
+import Mischief.ECS
+
+-- $intro
+-- This module will walk you through creating a simple terminal-based dungeon crawler in Mischief.
+-- The goal is to have a player which we can freely move on a 2D grid, as well as various objects placed on tiles,
+-- such as enemies, weapons, obstacles, etc.
+
+-- $creation
+-- Let's start by creating our App and a Main Plugin which will serve as the starting point of all our logic.
+--
+-- @
+-- import "Mischief.ECS.Prelude"
+--
+-- main :: 'IO' ()
+-- main = do
+--   app <- 'newApp' MainPlugin
+--   'runApp' app
+--
+-- data MainPlugin = MainPlugin deriving ('Eq')
+--
+-- instance 'Plugin' MainPlugin where
+--   'Mischief.ECS.App.Plugins.init' _ = 'info' \"Hello World!\"
+-- @
+--
+-- If you run this program you should see \"Hello World!\" logged to the terminal.
+
+-- $grid
+-- The game will play out on a small 2D grid. There are many ways of representing this Mischief, the way I've chosen to do it
+-- is by having each tile of the grid be an entity, and the full list of entities stored in a global resource.
+--
+-- The @Tile@ component will be used to mark which entities are tiles:
+--
+-- @
+-- data Tile = Tile deriving ('Component')
+-- @
+--
+-- Each tile will also have a @Pos@ component containing it's position on the grid:
+--
+-- @
+-- data Pos = Pos ('Int', 'Int') deriving ('Component')
+-- @
+--
+-- @Grid@ will be the resource containing the (bidimensional) list of all tile entities:
+--
+-- @
+-- data Grid = Grid [['Entity']] deriving ('Component')
+-- @
+--
+-- Let's write a system that spawns the tiles and initializes the grid resource:
+--
+-- @
+-- spawnGrid :: 'System' ()
+-- spawnGrid = do
+--   tiles \<- 'for' [0 .. 10] $ \\i -\> 'for' [0 .. 10] $ \\j -\>
+--     'spawn' (Tile, Pos (i, j))
+--
+--   'insertRes' $ Grid tiles
+-- @
+--
+-- @insertRes@ inserts the component as a singleton resource into the ECS. We can grab its value at any time by using @res \@Grid@.
+--
+-- Now we just need to modify @MainPlugin@ so that it schedules @spawnGrid@ to happen when the app starts.
+--
+-- @
+-- import "Mischief.ECS.Systems" qualified as [Systems]("Mischief.ECS.Systems")
+--
+-- instance 'Plugin' MainPlugin where
+--   'Mischief.ECS.App.Plugins.init' _ = [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Startup' spawnGrid
+-- @
+
+-- $traversing
+-- Next, we need to code a way for traversing between adjacent tiles. Having a tile entity, we should have easy access to the entities found above, below, to the left and right of it.
+--
+-- First, I've written this function which gets an entity by position:
+--
+-- @
+-- getTile :: ('Int', 'Int') -> 'System' ('Maybe' 'Entity')
+-- getTile (x, y) = do
+--   grid <- 'res' @Grid
+--   'pure' $ do
+--     Grid tiles <- grid
+--     line <- tiles '!?' x
+--     line '!?' y
+-- @
+--
+-- Now we can write some functions which get the position of an entity and find adjacent tiles. For instance, we can get the tile above a given tile via:
+--
+-- @
+-- up :: 'Entity' -> 'System' ('Maybe' 'Entity')
+-- up entity = do
+--   'Just' pos <- 'get' ('C' \@Pos) entity
+--   let (Pos (x, y)) = 'value' pos
+--   getTile (x - 1, y)
+-- @
+--
+-- Queries will be explain in-depth later, but what happens essentially is that, our query returns a @Result Pos@ for the given entity, and
+-- we get and unwrap the inner @Pos@ value using the @'value'@ function.
+--
+-- We can completely bypass this by just using the @Val@ query transformer which unwraps the @Result@ for us:
+--
+-- @
+-- up entity = do
+--   'Just' (Pos (x, y)) <- 'get' ('Val' ('C' \@Pos)) entity
+--   getTile (x - 1, y)
+-- @
+--
+-- Now let's write the rest of the traversal functions:
+--
+-- @
+-- down :: 'Entity' -> 'System' ('Maybe' 'Entity')
+-- down entity = do
+--   'Just' (Pos (x, y)) <- 'get' ('Val' ('C' @Pos)) entity
+--   getTile (x + 1, y)
+-- @
+--
+-- @
+-- left :: 'Entity' -> 'System' ('Maybe' 'Entity')
+-- left entity = do
+--   'Just' (Pos (x, y)) <- 'get' ('Val' ('C' @Pos)) entity
+--   getTile (x, y - 1)
+-- @
+--
+-- @
+-- right :: 'Entity' -> 'System' ('Maybe' 'Entity')
+-- right entity = do
+--   'Just' (Pos (x, y)) <- 'get' ('Val' ('C' @Pos)) entity
+--   getTile (x, y + 1)
+-- @
+
+-- $player
+-- Our game needs a player, so we should have a component that uniquely identifies it:
+--
+-- @
+-- data Player = Player deriving ('Component')
+-- @
+--
+-- We should also have a relationship to associate an entity to a tile, teling us that it's currently placed on that tile.
+--
+-- @
+-- data OnTile = OnTile deriving ('Component')
+-- @
+--
+-- Additionally, an entity should only be able to be on a single tile at a time. Mischief has a convenient way of doing this hidden in the @Component@ class:
+--
+-- @
+-- instance 'Component' OnTile where
+--   'isExclusiveRel' = True
+-- @
+--
+-- This means that if we insert a new @OnTile@ relationship to the player, the old one will be automatically removed.
+--
+-- Anyway, it's finally time to spawn our player:
+--
+-- @
+-- spawnPlayer :: 'System' ()
+-- spawnPlayer = do
+--   'Just' tile <- getTile (5, 5)
+--   _ <- 'spawn' (Player, 'Rel' OnTile tile)
+--   'return' ()
+-- @
+--
+-- @Rel OnTile tile@ inserts the @(OnTile, tile)@ relationship on the player.
+--
+-- We can avoid the @return@ by just using @void@ to consume the value of @spawn@:
+--
+-- @
+-- spawnPlayer = do
+--   'Just' tile <- getTile (5, 5)
+--   'void' $ 'spawn' (Player, 'Rel' OnTile tile)
+-- @
+--
+-- Now we can add the player spawning lgoic to @Startup@:
+--
+-- @
+-- instance 'Plugin' MainPlugin where
+--   'Mischief.ECS.App.Plugins.init' _ = do
+--     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Startup' spawnPlayer
+--     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Startup' spawnGrid
+-- @
+--
+-- Except there's something really wrong in the logic above!
+-- If we run the app, we will get an error pointing us to the @Just tile <-@ in @spawnPlayer@.
+-- That system assumes @getTile@ will produce a valid result, but that will only happen if the grid is already initialized. Which means we want
+-- to guarantee that @spawnPlayer@ happens /after/ @spawnGrid@.
+--
+-- We can do this by providing an explicit order when scheduling:
+--
+-- @
+-- instance 'Plugin' MainPlugin where
+--   'Mischief.ECS.App.Plugins.init' _ = do
+--     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Startup' $ spawnPlayer '`after`' spawnGrid
+--     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Startup' spawnGrid
+-- @
+--
+-- The app should now run without issues!
