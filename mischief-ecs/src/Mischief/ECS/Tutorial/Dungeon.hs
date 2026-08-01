@@ -28,10 +28,19 @@ module Mischief.ECS.Tutorial.Dungeon
 
     -- * Spawning the Player
     -- $player
+
+    -- * Adding Walls
+    -- $walls
+
+    -- * Moving the Player
+    -- $move
+
+    -- * Displaying the Grid
+    -- $display
   )
 where
 
-import Control.Monad (void)
+import Control.Monad (unless, void)
 import Data.Foldable (for_)
 import Data.List ((!?))
 import Data.Traversable (for)
@@ -83,12 +92,22 @@ import Mischief.ECS
 -- data Grid = Grid [['Entity']] deriving ('Component')
 -- @
 --
+-- I've written two functions returning the width and height of the grid:
+--
+-- @
+-- gridH :: 'Int'
+-- gridH = 10
+--
+-- gridW :: 'Int'
+-- gridW = 20
+-- @
+--
 -- Let's write a system that spawns the tiles and initializes the grid resource:
 --
 -- @
 -- spawnGrid :: 'System' ()
 -- spawnGrid = do
---   tiles \<- 'for' [0 .. 10] $ \\i -\> 'for' [0 .. 10] $ \\j -\>
+--   tiles \<- 'for' [0 .. gridH - 1] $ \\i -\> 'for' [0 .. gridW - 1] $ \\j -\>
 --     'spawn' (Tile, Pos (i, j))
 --
 --   'insertRes' $ Grid tiles
@@ -120,14 +139,14 @@ import Mischief.ECS
 --     line '!?' y
 -- @
 --
--- Now we can write some functions which get the position of an entity and find adjacent tiles. For instance, we can get the tile above a given tile via:
+-- Now we can write a function that gets the position of a given tile and finds tiles offset by a certain amount:
 --
 -- @
--- up :: 'Entity' -> 'System' ('Maybe' 'Entity')
--- up entity = do
+-- moveBy :: ('Int', 'Int') -> 'Entity' -> 'System' ('Maybe' 'Entity')
+-- moveBy (x, y) entity = do
 --   'Just' pos <- 'get' ('C' \@Pos) entity
---   let (Pos (x, y)) = 'value' pos
---   getTile (x - 1, y)
+--   let (Pos (x', y')) = 'value' pos
+--   getTile (x' + x, y' + y)
 -- @
 --
 -- Queries will be explain in-depth later, but what happens essentially is that, our query returns a @Result Pos@ for the given entity, and
@@ -136,33 +155,22 @@ import Mischief.ECS
 -- We can completely bypass this by just using the @Val@ query transformer which unwraps the @Result@ for us:
 --
 -- @
--- up entity = do
---   'Just' (Pos (x, y)) <- 'get' ('Val' ('C' \@Pos)) entity
---   getTile (x - 1, y)
+-- moveBy (x, y) entity = do
+--   'Just' (Pos (x', y')) <- 'get' ('Val' ('C' \@Pos)) entity
+--   getTile (x' + x, y' + y)
 -- @
 --
--- Now let's write the rest of the traversal functions:
+-- We can compress the code even further by using @quasi-queries@. They are macros which allow us to write queries in faster, easier ways.
+-- They will be explained in a further chapter, but should be pretty easy to understand at an intuitive level. For instance, we can replace
+-- the above @get@ with the @g@ quasi-query:
 --
 -- @
--- down :: 'Entity' -> 'System' ('Maybe' 'Entity')
--- down entity = do
---   'Just' (Pos (x, y)) <- 'get' ('Val' ('C' @Pos)) entity
---   getTile (x + 1, y)
+-- moveBy (x, y) entity = do
+--   'Just' (Pos (x', y')) <- ['g'|*Pos|] entity
+--   getTile (x' + x, y' + y)
 -- @
 --
--- @
--- left :: 'Entity' -> 'System' ('Maybe' 'Entity')
--- left entity = do
---   'Just' (Pos (x, y)) <- 'get' ('Val' ('C' @Pos)) entity
---   getTile (x, y - 1)
--- @
---
--- @
--- right :: 'Entity' -> 'System' ('Maybe' 'Entity')
--- right entity = do
---   'Just' (Pos (x, y)) <- 'get' ('Val' ('C' @Pos)) entity
---   getTile (x, y + 1)
--- @
+-- The @*@ is the quasi equivalent of @Val@, although it can also just be written as @Val@ or @val@ if you prefer.
 
 -- $player
 -- Our game needs a player, so we should have a component that uniquely identifies it:
@@ -230,3 +238,251 @@ import Mischief.ECS
 -- @
 --
 -- The app should now run without issues!
+
+-- $walls
+-- Our game will also have Walls which can block the player's movement.
+--
+-- @
+-- data Wall = Wall deriving ('Component')
+-- @
+--
+-- I've written a system which spawns walls and places them on the tiles around the edge of the grid:
+--
+-- @
+-- spawnWall :: ('Int', 'Int') -> 'System' 'Entity'
+-- spawnWall pos = do
+--   'Just' tile <- getTile pos
+--   'spawn' (Wall, 'Rel' OnTile tile)
+--
+-- spawnWalls :: 'System' ()
+-- spawnWalls = do
+--   'for_' [0 .. gridW - 1] $ \i -> spawnWall (0, i)
+--   'for_' [0 .. gridW - 1] $ \i -> spawnWall (gridH - 1, i)
+--   'for_' [1 .. gridH - 2] $ \i -> spawnWall (i, 0)
+--   'for_' [1 .. gridH - 2] $ \i -> spawnWall (i, gridW - 1)
+-- @
+--
+-- The system also needs to be scheduled to run, so @MainPlugin@ now looks like this:
+--
+-- @
+-- instance 'Plugin' MainPlugin where
+--   'Mischief.ECS.App.Plugins.init' _ = do
+--     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Startup' spawnPlayer
+--     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Startup' (spawnGrid, spawnWalls)
+-- @
+--
+-- Additionally, I wrote a system which checks if a given tile has a wall on it:
+--
+-- @
+-- hasWall :: 'Entity' -> 'System' 'Bool'
+-- hasWall tile = do
+--   walls <- 'query'' 'E' ('With' ('C' \@Wall, 'R' \@OnTile tile))
+--   'pure' $ 'not' $ 'null' walls
+-- @
+--
+-- @E@ just grabs the Entity of all queried entities. @With@ is a query filter that makes it so the query only iterates over entities which have those components (in this case,
+-- they must have @Wall@ and must have a @OnTile@ relationship to this precise tile).
+-- Note that @query'@ is the filtered version of @query@.
+--
+-- Here's the same system but in quasi-notation:
+--
+-- @
+-- hasWall tile = do
+--   walls <- ['q'|Entity / With (Wall, OnTile -\> tile)|]
+--   'pure' $ 'not' $ 'null' walls
+-- @
+--
+-- We can compress it even further using @\<$\>@:
+--
+-- @
+-- hasWall tile = 'not' . 'null' '<$>' ['q'|Entity / With (Wall, OnTile -\> tile)|]
+-- @
+
+-- $move
+-- Next, we should write a system which moves the player from one tile to another.
+--
+-- First, let's write the actual logic for moving in a certain direction:
+--
+-- @
+-- movePlayerBy :: ('Int', 'Int') -> 'System' ()
+-- movePlayerBy dir = do
+--   'Just' player <- 'single'' E ('With' ('C' \@Player))
+--
+--   'Just' [rel] <- 'get' ('R' \@OnTile 'Any') player
+--   let tile = rel.target
+--
+--   newTile <- moveBy dir tile
+--
+--   'for_' newTile $ \t -> do
+--     wall <- hasWall t
+--     'unless' wall $ 'insert' ('Rel' OnTile t) player
+-- @
+--
+-- Let's break it down line-by-line.
+--
+--
+-- First, we get the entity of the player:
+--
+-- @
+-- 'Just' player <- 'single'' E ('With' ('C' \@Player))
+-- @
+--
+-- @single@ is a variant of @query@ which returns a @Maybe@ based on whether there is exactly one entity matching the query or not. We know there is exactly one player, and
+-- we know by this point it should be spawned, so doing the @Just player <-@ unwrapping is fine.
+--
+-- The query could also be writtten as:
+--
+-- @
+-- ['s'|Entity / With Player|]
+-- @
+--
+-- Next, we get the entity of the current tile the player is on:
+--
+-- @
+-- 'Just' [rel] <- 'get' ('R' \@OnTile 'Any') player
+-- let tile = rel.target
+-- @
+--
+-- Querying for @R \OnTile Any@ will give us a list of all @OnTile@ relationships of the player.
+-- We know that the relationship is exclusie, and that the player /must/ be on a tile at every point, so
+-- we pattern match directly to @Just [rel]@ to get the exact relationship.
+--
+-- We then use @rel.target@ to get the target entity of the relationship, which, in this case, is the tile we are looking for.
+--
+-- The @get@ could also be written as:
+--
+-- @
+-- ['g'|OnTile -\> *|] player
+-- @
+--
+-- After, we use the earlier @moveDir@ system to get the new tile the player will be on:
+--
+-- @
+-- newTile <- moveBy dir tile
+-- @
+--
+-- And finally, we unwrap it (@moveBy@ returns a @Maybe Entity@), check if there is a Wall on it, and if there isn't, move the player to it.
+--
+-- @
+-- 'for_' newTile $ \t -> do
+--   wall <- hasWall t
+--   'unless' wall $ 'insert' ('Rel' OnTile t) player
+-- @
+--
+-- This could also be written as:
+--
+-- @
+-- 'for_' newTile $ \t ->
+--  hasWall t '>>=' 'flip' 'unless' ('insert' ('Rel' OnTile t) player)
+-- @
+--
+-- We also need to somehow get input from the user. Mischief exposes some useful functions for this in the following module:
+--
+-- @
+-- import "Mischief.ECS.Stdin" qualified as [Stdin]("Mischief.ECS.Stdin")
+-- @
+--
+-- These functions are useful for the purpose of this tutorial but should probably never be used in a released game. Instead, you should import a dedicated
+-- haskell input library, or use @mischief-input@ which is based on SDL.
+--
+-- In order to read input we'll need to add @Stdin.init@ to a plugin, which you'll see a bit later.
+--
+-- For now, we can just use the @Stdin.readLast@ to empty the input buffer and get the last character typed by the user, if any.
+--
+-- @
+-- movePlayer :: 'System' ()
+-- movePlayer = do
+--   c <- [Stdin]("Mischief.ECS.Stdin").'Mischief.ECS.Stdin.readLast'
+--   'for_' c $ \case
+--     \'w\' -> movePlayerBy (-1, 0)
+--     \'s\' -> movePlayerBy (1, 0)
+--     \'a\' -> movePlayerBy (0, -1)
+--     \'d\' -> movePlayerBy (0, 1)
+--     _ -> 'pure' ()
+-- @
+--
+-- In case you're confused by it, the @for_@ just /'iterates/' over the @Maybe@, applying the function if it has a value, and doing nothing otherwise.
+--
+-- For scheduling the movement, I have decided to create a new @PlayerPlugin@ which handles all the player logic, and make it a dependency of @MainPlugin@:
+--
+-- @
+-- data MainPlugin = MainPlugin deriving ('Eq')
+--
+-- instance 'Plugin' MainPlugin where
+--   'Mischief.ECS.App.Plugins.init' _ = do
+--     [Stdin]("Mischief.ECS.Stdin").'Mischief.ECS.Stdin.init'
+--     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Startup' (spawnGrid, spawnWalls)
+--
+--   'plugins' _ = 'plug' PlayerPlugin
+--
+-- data PlayerPlugin = PlayerPlugin deriving ('Eq')
+--
+-- instance 'Plugin' PlayerPlugin where
+--   'Mischief.ECS.App.Plugins.init' _ = do
+--     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Startup' $ spawnPlayer '`after`' spawnGrid
+--     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Update' movePlayer
+-- @
+
+-- $display
+-- It's finally time to actually display our game's grid in the terminal!
+--
+-- First, we'll make a system which takes a single tile entity and returns a character:
+--
+-- @
+-- showTile :: 'Entity' -> 'System' 'Char'
+-- showTile tile = do
+--   entities <- 'query'' ('Has' \@Player, 'Has' \@Wall) ('With' ('R' \@OnTile tile))
+--   'pure' $ case entities of
+--     ((True, _) : _) -> '@'
+--     ((_, True) : _) -> '#'
+--     _ -> '.'
+-- @
+--
+-- It might seem a bit intimidating at first but the logic is really simple.
+--
+-- We can use @Has c@ in a query to reutrn a bool telling us whether each entity has @c@ or not.
+-- So the whole query is just grabbing all entities that are on the tile, and grabbing data on whether they're players or walls.
+--
+-- If no such entity was found, we'll just go on the last branch of the case and return @.@ . If the list is not empty, we'll just
+-- grab the first element and, if it's a player, return @\@@, otherwise @#@.
+--
+-- Next, I've written a system which produces a String for the whole grid by calling the previous function on each tile:
+--
+-- @
+-- showGrid :: 'System' 'String'
+-- showGrid = do
+--   'Just' (Grid tiles) <- 'res' \@Grid
+--   lines <- 'for' tiles $ 'traverse' showTile
+--   'pure' $ 'unlines' lines
+-- @
+--
+-- All that's left is to write a system that prints the string, and schedule it to happen each frame. We'll do the actual
+-- printing via the @printClear@ function of "Mischief.ECS.Stdout", which automatically clears the terminal.
+--
+-- @
+-- printGrid :: 'System' ()
+-- printGrid = 'Mischief.ECS.Stdout.printClear' '=<<' showGrid
+-- @
+--
+-- @
+-- instance 'Plugin' MainPlugin where
+--   'Mischief.ECS.App.Plugins.init' _ = do
+--     [Stdin]("Mischief.ECS.Stdin").'Mischief.ECS.Stdin.init'
+--     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Startup' (spawnGrid, spawnWalls)
+--     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Update' printGrid
+-- @
+--
+-- If you run the app now, you should see the game's grid and we able to use @wasd@ to move the player around!
+--
+-- @
+-- ####################
+-- \#..................#
+-- \#..................#
+-- \#..................#
+-- \#..................#
+-- \#....\@.............#
+-- \#..................#
+-- \#..................#
+-- \#..................#
+-- ####################
+-- @

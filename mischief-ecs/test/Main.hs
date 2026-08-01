@@ -5,13 +5,18 @@
 
 module Main where
 
-import Control.Monad (replicateM, void)
+import Control.Monad (forever, replicateM, unless, void, when)
+import Control.Monad.IO.Class
 import Data.Foldable
 import Data.List ((!?))
 import Data.Traversable
+import GHC.IO.Handle
 import Mischief.ECS
 import Mischief.ECS.Hooks qualified as Hooks
+import Mischief.ECS.Stdin qualified as Stdin
+import Mischief.ECS.Stdout
 import Mischief.ECS.Systems qualified as Systems
+import System.IO
 import Prelude hiding (Left, Right)
 
 data Likes = Likes Int deriving (Show)
@@ -28,8 +33,18 @@ data MainPlugin = MainPlugin deriving (Eq)
 
 instance Plugin MainPlugin where
   init _ = do
+    Stdin.init
+    Systems.add Startup (spawnGrid, spawnWalls)
+    Systems.add Update printGrid
+
+  plugins _ = plug PlayerPlugin
+
+data PlayerPlugin = PlayerPlugin deriving (Eq)
+
+instance Plugin PlayerPlugin where
+  init _ = do
     Systems.add Startup $ spawnPlayer `after` spawnGrid
-    Systems.add Startup spawnGrid
+    Systems.add Update movePlayer
 
 data Tile = Tile deriving (Component)
 
@@ -45,32 +60,23 @@ getTile (x, y) = do
     line <- tiles !? x
     line !? y
 
+gridH :: Int
+gridH = 10
+
+gridW :: Int
+gridW = 20
+
 spawnGrid :: System ()
 spawnGrid = do
-  tiles <- for [0 .. 10] $ \i -> for [0 .. 10] $ \j ->
+  tiles <- for [0 .. gridH - 1] $ \i -> for [0 .. gridW - 1] $ \j ->
     spawn (Tile, Pos (i, j))
 
   insertRes $ Grid tiles
 
-up :: Entity -> System (Maybe Entity)
-up entity = do
-  Just (Pos (x, y)) <- get (Val (C @Pos)) entity
-  getTile (x - 1, y)
-
-down :: Entity -> System (Maybe Entity)
-down entity = do
-  Just (Pos (x, y)) <- get (Val (C @Pos)) entity
-  getTile (x + 1, y)
-
-left :: Entity -> System (Maybe Entity)
-left entity = do
-  Just (Pos (x, y)) <- get (Val (C @Pos)) entity
-  getTile (x, y - 1)
-
-right :: Entity -> System (Maybe Entity)
-right entity = do
-  Just (Pos (x, y)) <- get (Val (C @Pos)) entity
-  getTile (x, y + 1)
+moveBy :: (Int, Int) -> Entity -> System (Maybe Entity)
+moveBy (x, y) entity = do
+  Just (Pos (x', y')) <- [g|*Pos|] entity
+  getTile (x' + x, y' + y)
 
 data Player = Player deriving (Component)
 
@@ -83,3 +89,59 @@ spawnPlayer :: System ()
 spawnPlayer = do
   Just tile <- getTile (5, 5)
   void $ spawn (Player, Rel OnTile tile)
+
+data Wall = Wall deriving (Component)
+
+spawnWall :: (Int, Int) -> System Entity
+spawnWall pos = do
+  Just tile <- getTile pos
+  spawn (Wall, Rel OnTile tile)
+
+spawnWalls :: System ()
+spawnWalls = do
+  for_ [0 .. gridW - 1] $ \i -> spawnWall (0, i)
+  for_ [0 .. gridW - 1] $ \i -> spawnWall (gridH - 1, i)
+  for_ [1 .. gridH - 2] $ \i -> spawnWall (i, 0)
+  for_ [1 .. gridH - 2] $ \i -> spawnWall (i, gridW - 1)
+
+showTile :: Entity -> System Char
+showTile tile = do
+  entities <- query' (Has @Player, Has @Wall) (With (R @OnTile tile))
+  pure $ case entities of
+    ((True, _) : _) -> '@'
+    ((_, True) : _) -> '#'
+    _ -> '.'
+
+showGrid :: System String
+showGrid = do
+  Just (Grid tiles) <- res @Grid
+  lines <- for tiles $ traverse showTile
+  return $ unlines lines
+
+printGrid :: System ()
+printGrid = printClear =<< showGrid
+
+movePlayer :: System ()
+movePlayer = do
+  c <- Stdin.readLast
+  for_ c $ \case
+    'w' -> movePlayerBy (-1, 0)
+    's' -> movePlayerBy (1, 0)
+    'a' -> movePlayerBy (0, -1)
+    'd' -> movePlayerBy (0, 1)
+    _ -> pure ()
+
+movePlayerBy :: (Int, Int) -> System ()
+movePlayerBy dir = do
+  Just player <- single' E (With (C @Player))
+
+  Just [rel] <- get (R @OnTile Any) player
+  let tile = rel.target
+
+  newTile <- moveBy dir tile
+
+  for_ newTile $ \t ->
+    hasWall t >>= flip unless (insert (Rel OnTile t) player)
+
+hasWall :: Entity -> System Bool
+hasWall tile = not . null <$> [q|Entity / With (Wall, OnTile -> tile)|]

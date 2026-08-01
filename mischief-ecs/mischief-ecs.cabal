@@ -88,13 +88,15 @@ library
     Mischief.ECS.Relationships.Tree
     Mischief.ECS.Resources
     Mischief.ECS.Schedules
+    Mischief.ECS.Stdin
+    Mischief.ECS.Stdout
     Mischief.ECS.Systems
     Mischief.ECS.Tables
     Mischief.ECS.Time
     Mischief.ECS.Tutorial.App
     Mischief.ECS.Tutorial.Components
-    Mischief.ECS.Tutorial.Events
     Mischief.ECS.Tutorial.Dungeon
+    Mischief.ECS.Tutorial.Events
     Mischief.ECS.Tutorial.Queries
     Mischief.ECS.Tutorial.Relationships
     Mischief.ECS.Tutorial.Systems

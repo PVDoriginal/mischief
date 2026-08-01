@@ -37,6 +37,9 @@ newtype PluginData = PluginData {inner :: Map TypeRep ErasedPlugin}
 instance Show PluginData where
   show p = show $ map fst $ Map.toList p.inner
 
+plug :: (Collectable p Plugins) => p -> Plugins
+plug = collect
+
 addErasedRec :: ErasedPlugin -> PluginData -> PluginData
 addErasedRec (ErasedPlugin (plugin :: p)) d =
   case Map.lookup (typeOf plugin) d.inner of
