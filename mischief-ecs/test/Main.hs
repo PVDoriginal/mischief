@@ -151,7 +151,7 @@ movePlayerBy :: (Int, Int) -> System ()
 movePlayerBy dir = do
   Just player <- single' E (With (C @Player))
 
-  Just [rel] <- get (R @OnTile Any) player
+  Just rel <- get (R @OnTile Any) player
   let tile = rel.target
 
   newTile <- moveBy dir tile
@@ -197,13 +197,13 @@ spawnEnemies = for_ [0 .. 4] $ const spawnEnemy
 
 moveEnemies :: System ()
 moveEnemies = do
-  Just [tile] <- single' (R @OnTile Any) (With (C @Player))
+  Just tile <- single' (R @OnTile Any) (With (C @Player))
   Just (Pos (px, py)) <- get (Val (C @Pos)) tile.target
 
   delta <- deltaTime
 
   enemies <- query' (E, R @OnTile Any, C @Cooldown) (With (C @Enemy))
-  for_ enemies $ \(enemy, [tile], cooldown) -> do
+  for_ enemies $ \(enemy, tile, cooldown) -> do
     let (timer, finished) = Timer.tick delta cooldown.timer
     set cooldown $ Cooldown timer
 

@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 module Mischief.ECS.World.Query.Queryable where
 
@@ -69,23 +70,41 @@ instance {-# OVERLAPPABLE #-} (Component c) => Queryable (C c) (Result c) where
 
 --   queryTypes _ = Set.empty
 
-instance (Component c) => Queryable (R c Any) [Result (Rel c)] where
-  runQueryEntity _ world entity = do
-    res <- tryGetEntityRelCollection @c world entity
-    return $ case res of
-      Just (Just x) -> Just x
-      _ -> Nothing
-
-  runQueryInternal _ archetypes world = tryGetRelCollections @c world archetypes
-
-  queryTypes _ = Set.singleton (typeRep $ Proxy @c, RelQ)
-
 instance Queryable E Entity where
   runQueryEntity _ _ entity = return $ Just entity
 
   runQueryInternal _ archetypes world = map (\x -> (x, x)) <$> tryGetEntities world archetypes
 
   queryTypes _ = Set.empty
+
+class RelQuery (exclusive :: Exclusivity) qd output | qd exclusive -> output where
+  relRunQueryEntity :: qd -> World -> Entity -> IO (Maybe output)
+  relRunQueryInternal :: qd -> [ArchetypeId] -> World -> IO [(Entity, output)]
+  relQueryTypes :: qd -> Set (TypeRep, TypeQuery)
+
+instance (Component c) => RelQuery Inclusive (R c Any) [Result (Rel c)] where
+  relRunQueryEntity _ world entity = do
+    res <- tryGetEntityRelCollection @c world entity
+    return $ case res of
+      Just (Just x) -> Just x
+      _ -> Nothing
+
+  relRunQueryInternal _ archetypes world = tryGetRelCollections @c world archetypes
+
+  relQueryTypes _ = Set.singleton (typeRep $ Proxy @c, RelQ)
+
+instance (Component c) => RelQuery Exclusive (R c Any) (Result (Rel c)) where
+  relRunQueryEntity _ world entity = do
+    res <- tryGetEntityRelCollection @c world entity
+    return $ case res of
+      Just (Just [x]) -> Just x
+      _ -> Nothing
+
+  relRunQueryInternal _ archetypes world = do
+    rels <- tryGetRelCollections @c world archetypes
+    return $ map (\(e, x : _) -> (e, x)) rels
+
+  relQueryTypes _ = Set.singleton (typeRep $ Proxy @c, RelQ)
 
 instance (Component c) => Queryable (R c Entity) (Result (Rel c)) where
   runQueryEntity (R target) world entity = do
@@ -97,6 +116,13 @@ instance (Component c) => Queryable (R c Entity) (Result (Rel c)) where
   runQueryInternal (R target) archetypes world = tryGetRels @c target world archetypes
 
   queryTypes (R target) = Set.singleton (typeRep $ Proxy @c, RelQ' target)
+
+instance (RelQuery (RelExclusivity c) (R c Any) out) => Queryable (R c Any) out where
+  runQueryEntity = relRunQueryEntity @(RelExclusivity c)
+
+  runQueryInternal = relRunQueryInternal @(RelExclusivity c)
+
+  queryTypes = relQueryTypes @(RelExclusivity c)
 
 instance (Component c) => Queryable (M c) (Maybe (Result c)) where
   runQueryEntity _ world entity = do
@@ -110,17 +136,6 @@ instance (Component c) => Queryable (M c) (Maybe (Result c)) where
 
   queryTypes _ = Set.empty
 
-instance (Component c) => Queryable (MR c Any) (Maybe [Result (Rel c)]) where
-  runQueryEntity _ = tryGetEntityRelCollection @c
-
-  runQueryInternal _ archetypes world = do
-    x <- tryGetRelCollections @c world archetypes
-    return $ flip map x $ \(e, x) ->
-      case x of
-        [] -> (e, Nothing)
-        x -> (e, Just x)
-  queryTypes _ = Set.empty
-
 instance (Component c) => Queryable (MR c Entity) (Maybe (Result (Rel c))) where
   runQueryEntity (MR target) world entity = do
     res <- tryGetEntityRel @c target world entity
@@ -130,6 +145,41 @@ instance (Component c) => Queryable (MR c Entity) (Maybe (Result (Rel c))) where
       Just (Just x) -> Just $ Just (Result (Rel x target, entity))
 
   runQueryInternal (MR target) archetypes world = tryGetRelsMaybe @c target world archetypes
+  queryTypes _ = Set.empty
+
+instance (Component c) => RelQuery Inclusive (MR c Any) (Maybe [Result (Rel c)]) where
+  relRunQueryEntity _ = tryGetEntityRelCollection @c
+
+  relRunQueryInternal _ archetypes world = do
+    x <- tryGetRelCollections @c world archetypes
+    return $ flip map x $ \(e, x) ->
+      case x of
+        [] -> (e, Nothing)
+        x -> (e, Just x)
+  relQueryTypes _ = Set.empty
+
+instance (Component c) => RelQuery Exclusive (MR c Any) (Maybe (Result (Rel c))) where
+  relRunQueryEntity _ world entity = do
+    res <- tryGetEntityRelCollection @c world entity
+    pure $ case res of
+      Just (Just [x]) -> Just (Just x)
+      Just (Just _) -> undefined
+      Just Nothing -> Just Nothing
+      Nothing -> Nothing
+
+  relRunQueryInternal _ archetypes world = do
+    x <- tryGetRelCollections @c world archetypes
+    return $ flip map x $ \(e, x) ->
+      case x of
+        [] -> (e, Nothing)
+        [x] -> (e, Just x)
+        _ -> undefined
+  relQueryTypes _ = Set.empty
+
+instance (RelQuery (RelExclusivity c) (MR c Any) out) => Queryable (MR c Any) out where
+  runQueryEntity = relRunQueryEntity @(RelExclusivity c)
+
+  runQueryInternal = relRunQueryInternal @(RelExclusivity c)
   queryTypes _ = Set.empty
 
 instance (Component c) => Queryable (Has c) Bool where
