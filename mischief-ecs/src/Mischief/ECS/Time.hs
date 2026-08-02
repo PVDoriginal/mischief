@@ -9,6 +9,7 @@ import Mischief.ECS.Components
 import Mischief.ECS.Resources
 import Mischief.ECS.Systems qualified as Systems
 import Mischief.ECS.Tables
+import Mischief.ECS.Utils
 import Mischief.ECS.World
 import Mischief.ECS.World.Insert
 import Mischief.ECS.World.Modify
@@ -22,9 +23,14 @@ data Time = Time
   }
   deriving (Show, Component)
 
-instance HasField "deltaSecs" Time Float where
-  getField :: Time -> Float
-  getField Time {delta} = fromIntegral delta.sec + fromIntegral delta.nsec / 1000000000
+time :: System Time
+time = unwrap <$> res @Time
+
+deltaTime :: System Float
+deltaTime = deltaSecs <$> time
+
+deltaSecs :: Time -> Float
+deltaSecs Time {delta} = fromIntegral delta.sec + fromIntegral delta.nsec / 1000000000
 
 data TimePlugin = TimePlugin deriving (Eq)
 

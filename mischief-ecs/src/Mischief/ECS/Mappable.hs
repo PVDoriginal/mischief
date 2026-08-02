@@ -2,6 +2,7 @@
 
 module Mischief.ECS.Mappable where
 
+import Mischief.ECS.Components
 import Mischief.ECS.Entities
 import Mischief.ECS.Tables
 
@@ -26,6 +27,26 @@ instance {-# OVERLAPPING #-} Mappable MapQueryVal [Result a] [a] where
   mapTuple = map value
 
 instance {-# OVERLAPPING #-} Mappable MapQueryVal (Maybe [Result a]) (Maybe [a]) where
+  mapTuple = fmap (mapTuple @MapQueryVal)
+
+data MapQueryTar
+
+instance {-# OVERLAPPABLE #-} Mappable MapQueryTar Entity Entity where
+  mapTuple = id
+
+instance {-# OVERLAPPABLE #-} Mappable MapQueryTar Bool Bool where
+  mapTuple = id
+
+instance {-# OVERLAPPABLE #-} Mappable MapQueryTar (Maybe (Result a)) (Maybe a) where
+  mapTuple = fmap (mapTuple @MapQueryVal)
+
+instance {-# OVERLAPPING #-} Mappable MapQueryTar (Result a) a where
+  mapTuple (Result (a, _)) = a
+
+instance {-# OVERLAPPING #-} Mappable MapQueryTar [Result a] [a] where
+  mapTuple = map value
+
+instance {-# OVERLAPPING #-} Mappable MapQueryTar (Maybe [Result a]) (Maybe [a]) where
   mapTuple = fmap (mapTuple @MapQueryVal)
 
 instance {-# OVERLAPPING #-} (Mappable flag a0 b0, Mappable flag a1 b1) => Mappable flag (a0, a1) (b0, b1) where

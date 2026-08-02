@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 {- HLINT ignore "Use newtype instead of data" -}
 {-# OPTIONS_GHC -Wno-unused-matches #-}
 
@@ -7,6 +8,7 @@ module Main where
 
 import Control.Monad (forever, replicateM, unless, void, when)
 import Control.Monad.IO.Class
+import Data.Default
 import Data.Foldable
 import Data.List ((!?))
 import Data.Traversable
@@ -16,7 +18,11 @@ import Mischief.ECS.Hooks qualified as Hooks
 import Mischief.ECS.Stdin qualified as Stdin
 import Mischief.ECS.Stdout
 import Mischief.ECS.Systems qualified as Systems
+import Mischief.ECS.Timer (Timer)
+import Mischief.ECS.Timer qualified as Timer
 import System.IO
+import System.Random
+import System.Random.Stateful
 import Prelude hiding (Left, Right)
 
 data Likes = Likes Int deriving (Show)
@@ -37,7 +43,9 @@ instance Plugin MainPlugin where
     Systems.add Startup (spawnGrid, spawnWalls)
     Systems.add Update printGrid
 
-  plugins _ = plug PlayerPlugin
+    insertRes =<< newGen
+
+  plugins _ = plug (PlayerPlugin, EnemyPlugin, TimePlugin)
 
 data PlayerPlugin = PlayerPlugin deriving (Eq)
 
@@ -46,9 +54,16 @@ instance Plugin PlayerPlugin where
     Systems.add Startup $ spawnPlayer `after` spawnGrid
     Systems.add Update movePlayer
 
+data EnemyPlugin = EnemyPlugin deriving (Eq)
+
+instance Plugin EnemyPlugin where
+  init _ = do
+    Systems.add Startup spawnEnemies
+    Systems.add Update moveEnemies
+
 data Tile = Tile deriving (Component)
 
-data Pos = Pos {pos :: (Int, Int)} deriving (Component)
+newtype Pos = Pos {pos :: (Int, Int)} deriving (Component, Show)
 
 data Grid = Grid [[Entity]] deriving (Component)
 
@@ -106,10 +121,11 @@ spawnWalls = do
 
 showTile :: Entity -> System Char
 showTile tile = do
-  entities <- query' (Has @Player, Has @Wall) (With (R @OnTile tile))
+  entities <- query' (Has @Player, Has @Wall, Has @Enemy) (With (R @OnTile tile))
   pure $ case entities of
-    ((True, _) : _) -> '@'
-    ((_, True) : _) -> '#'
+    ((_, _, True) : _) -> '!'
+    ((True, _, _) : _) -> '@'
+    ((_, True, _) : _) -> '#'
     _ -> '.'
 
 showGrid :: System String
@@ -145,3 +161,64 @@ movePlayerBy dir = do
 
 hasWall :: Entity -> System Bool
 hasWall tile = not . null <$> [q|Entity / With (Wall, OnTile -> tile)|]
+
+data Enemy = Enemy
+
+instance Component Enemy where
+  required = require @Cooldown
+
+data Cooldown = Cooldown {timer :: Timer} deriving (Component)
+
+instance Default Cooldown where
+  def = Cooldown $ Timer.new 0.5 Timer.Repeat
+
+data Rand = Rand (IOGenM StdGen) deriving (Component)
+
+newGen :: System Rand
+newGen = Rand <$> (newIOGenM =<< initStdGen)
+
+randomPos :: System (Int, Int)
+randomPos = do
+  Just (Rand gen) <- res @Rand
+  i <- applyIOGen (uniformR (0, gridH - 1)) gen
+  j <- applyIOGen (uniformR (0, gridW - 1)) gen
+  return (i, j)
+
+randomTile :: System Entity
+randomTile = unwrap <$> (getTile =<< randomPos)
+
+spawnEnemy :: System Entity
+spawnEnemy = do
+  tile <- randomTile
+  spawn (Enemy, Rel OnTile tile)
+
+spawnEnemies :: System ()
+spawnEnemies = for_ [0 .. 4] $ const spawnEnemy
+
+moveEnemies :: System ()
+moveEnemies = do
+  Just [tile] <- single' (R @OnTile Any) (With (C @Player))
+  Just (Pos (px, py)) <- get (Val (C @Pos)) tile.target
+
+  delta <- deltaTime
+
+  enemies <- query' (E, R @OnTile Any, C @Cooldown) (With (C @Enemy))
+  for_ enemies $ \(enemy, [tile], cooldown) -> do
+    let (timer, finished) = Timer.tick delta cooldown.timer
+    set cooldown $ Cooldown timer
+
+    when finished $ do
+      Just (Pos (x, y)) <- get (Val (C @Pos)) tile.target
+
+      let diff = case (x > px, y > py, x < px, y < py) of
+            (True, _, _, _) -> (-1, 0)
+            (_, True, _, _) -> (0, -1)
+            (_, _, True, _) -> (1, 0)
+            (_, _, _, True) -> (0, 1)
+            _ -> (0, 0)
+
+      moveBy diff tile.target
+        >>= traverse_
+          ( \t ->
+              insert (Rel OnTile t) enemy
+          )

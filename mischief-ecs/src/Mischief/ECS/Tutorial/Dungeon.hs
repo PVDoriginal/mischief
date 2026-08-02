@@ -37,10 +37,20 @@ module Mischief.ECS.Tutorial.Dungeon
 
     -- * Displaying the Grid
     -- $display
+
+    -- * Generating Random Positions
+    -- $rand
+
+    -- * Adding Enemies
+    -- $enemies
+
+    -- * Moving Enemies
+    -- $moveE
   )
 where
 
-import Control.Monad (unless, void)
+import Control.Monad (unless, void, when)
+import Data.Default (Default)
 import Data.Foldable (for_)
 import Data.List ((!?))
 import Data.Traversable (for)
@@ -486,3 +496,242 @@ import Mischief.ECS
 -- \#..................#
 -- ####################
 -- @
+
+-- $rand
+-- For some of the next sections, an ability to choose random tiles would be very useful. So let's work on that.
+--
+-- I've chosen to use the @random@ package, so just add it as a dependency to your project and import it:
+--
+-- @
+-- import System.Random
+-- import System.Random.Stateful
+-- @
+--
+-- We need some sort of mutable generator, so I'll create a resource to hold it:
+--
+-- @
+-- data Rand = Rand (IOGenM StdGen) deriving ('Component')
+--
+-- newGen :: 'System' Rand
+-- newGen = Rand \<$\> (newIOGenM =<< initStdGen)
+-- @
+--
+-- Don't forget to insert the resource!
+--
+-- @
+-- instance 'Plugin' MainPlugin where
+--   'Mischief.ECS.App.Plugins.init' _ = do
+--     [Stdin]("Mischief.ECS.Stdin").'Mischief.ECS.Stdin.init'
+--     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Startup' (spawnGrid, spawnWalls)
+--     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Update' printGrid
+--
+--     'insertRes' '=<<' newGen
+-- @
+--
+-- Now it's possible to write a system that generates a random position on the grid:
+--
+-- @
+-- randomPos :: 'System' ('Int', 'Int')
+-- randomPos = do
+--   'Just' (Rand gen) <- res @Rand
+--   i <- applyIOGen (uniformR (0, gridH - 1)) gen
+--   j <- applyIOGen (uniformR (0, gridW - 1)) gen
+--   return (i, j)
+-- @
+--
+-- And a system that uses it to get the Entity of a random tile:
+--
+-- @
+-- randomTile :: 'System' 'Entity'
+-- randomTile = 'unwrap' \<$\> getTile randomPos
+-- @
+--
+-- @unwrap@ is a utility function provided by Mischief that just grabs the value out of a @Maybe@, or panics if there is no value. But in this case,
+-- we know there will be a value since the provided position is valid.
+
+-- $enemies
+-- It would be a pretty boring game if there were no obstacles. For that reason, we're going to add some enemies.
+--
+-- Here's the marker component that will be used to identify them:
+--
+-- @
+-- data Enemy = Enemy deriving ('Component')
+-- @
+--
+-- I'll use this system to spawn an enemy, using the @randomTile@ function defined earlier:
+--
+-- @
+-- spawnEnemy :: 'System' Entity
+-- spawnEnemy = do
+--   tile <- randomTile
+--   'spawn' (Enemy, 'Rel' OnTile tile)
+-- @
+--
+-- And this as a driver to handle all enemy spawning (it just spawns 5 enemies):
+--
+-- @
+-- spawnEnemies :: 'System' ()
+-- spawnEnemies = 'for_' [0 .. 4] $ 'const' spawnEnemy
+-- @
+--
+-- I've also modified the @showTile@ system to take enemies into account:
+--
+-- @
+-- showTile :: 'Entity' -> 'System' 'Char
+-- showTile tile = do
+--   entities <- 'query'' ('Has' \@Player, 'Has' \@Wall, 'Has' \@Enemy) ('With' ('R' \@OnTile tile))
+--   'pure' $ case entities of
+--     ((True, _, _) : _) -> \'@\'
+--     ((_, True, _) : _) -> \'#\'
+--     ((_, _, True) : _) -> \'!\'
+--     _ -> '.'
+-- @
+--
+-- Finally, we need a to schedule the enemy spawning, so I've created a new @EnemyPlugin@:
+--
+-- @
+-- data EnemyPlugin = EnemyPlugin deriving ('Eq')
+--
+-- instance 'Plugin' EnemyPlugin where
+--   'Mischief.ECS.App.Plugins.init' _ = [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Startup' spawnEnemies
+-- @
+--
+-- And added it to the list of plugins added by @MainPlugin@:
+--
+-- @
+-- instance 'Plugin' MainPlugin where
+--   'Mischief.ECS.App.Plugins.init' _ = ...
+--
+--   'plugins' = 'plug' (PlayerPlugin, EnemyPlugin)
+-- @
+--
+-- You should now see something like this when running the app:
+--
+-- @
+-- ####################
+-- \#..................#
+-- \#..!...............#
+-- \#....!.!...........#
+-- \#..................#
+-- \#....\@.............#
+-- \#..................#
+-- \#..................#
+-- \#........!.!.......#
+-- ####################
+-- @
+
+-- $moveE
+-- Right now the enemies just sit there. Let's make them move! I think I've showed you pretty much everything that's needed to get this done, so I'll just paste the actual system:
+--
+-- @
+-- moveEnemies :: 'System' ()
+-- moveEnemies = do
+--   'Just' [tile] <- 'single'' ('R' \@OnTile 'Any') ('With' ('C' \@Player))
+--   'Just' (Pos (px, py)) <- 'get' ('Val' ('C' \@Pos)) tile.target
+--
+--   enemies <- 'query'' ('E', 'R' \@OnTile 'Any') ('With' ('C' \@Enemy))
+--   'for_' enemies $ \(enemy, [tile]) -> do
+--     'Just' (Pos (x, y)) <- 'get' ('Val' ('C' \@Pos)) tile.target
+--
+--     let diff = case (x > px, y > py, x < px, y < py) of
+--           (True, _, _, _) -> (-1, 0)
+--           (_, True, _, _) -> (0, -1)
+--           (_, _, True, _) -> (1, 0)
+--           (_, _, _, True) -> (0, -1)
+--           _ -> (0, 0)
+--
+--     moveBy diff tile.target
+--       '>>=' 'traverse'
+--         ( \t ->
+--             'insert' ('Rel' OnTile t) enemy
+--         )
+-- @
+--
+-- It gets the player's tile and position, then it iterates through all enemies, looks at their positions, and changes their tile
+-- depending on how they're position towards the player.
+--
+-- And it also needs to be scheduled to run:
+--
+-- @
+-- instance 'Plugin' EnemyPlugin where
+--   'Mischief.ECS.App.Plugins.init' _ = do
+--     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Startup' spawnEnemies
+--     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Update' moveEnemies
+-- @
+--
+-- Except there's a small problem. If you run the app now, you may notice you don't see any enemies!
+--
+-- That's because they all already got to the player and are hiding behind it! That's because we've set @moveEnemies@
+-- to happen every frame, and our frames are happening almost instantly.
+--
+-- There are many higher-level solutions to fix this, some of them even using async systems, but instead, I'll take the opportunity to introduce you to an important notion, Time!
+--
+-- In any system you can use the @deltaTime@ function to get the number of seconds passed since the last frame.
+--
+-- Mischief also provides a hnady way of keeping track of time via the @Timer@.
+--
+-- @
+-- import "Mischief.ECS.Timer" ('Mischief.ECS.Timer.Timer')
+-- import "Mischief.ECS.Timer" qualified as [Timer]("Mischief.ECS.Timer")
+-- @
+--
+-- We can now create a @Cooldown@ component which stores a Timer.
+--
+-- @
+-- data Cooldown = Cooldown {timer :: 'Mischief.ECS.Timer'} deriving ('Component')
+-- @
+--
+-- We want this to always be on every Enemy, so we can make it a required component of the @Enemy@ component.
+--
+-- @
+-- instance 'Component' Enemy where
+--   'required' = 'require' \@Cooldown
+-- @
+--
+-- In order to have that compile, we also need to provide a @Default@ instance for @Cooldown@:
+--
+-- @
+-- instance 'Default' Cooldown where
+--   'def' = [Timer]("Mischief.ECS.Timer").'Mischief.ECS.Timer.new' 1 [Timer]("Mischief.ECS.Timer").'Mischief.ECS.Timer.Repeat'
+-- @
+--
+-- @Timer.new@ takes a Float (the duration of the timer), and a @Mode@ which is either @Repeat@ or @Once@.
+--
+-- @Cooldown@ should now automatically be on every enemy.
+--
+-- We can use the @Timer.tick@ function to advance the state of a timer. It returns the new state, along with a Bool that tells us whether the timer has just finished or not.
+--
+-- All that's left is to put all of this together:
+--
+-- @
+-- moveEnemies = do
+-- 'Just' [tile] <- 'single'' ('R' \@OnTile 'Any') ('With' ('C' \@Player))
+-- 'Just' (Pos (px, py)) <- 'get' ('Val' ('C' \@Pos)) tile.target
+--
+-- delta <- 'deltaTime'
+--
+-- enemies <- 'query'' ('E', 'R' \@OnTile 'Any', 'C' \@Cooldown) ('With' ('C' \@Enemy))
+-- 'for_' enemies $ \(enemy, [tile], cooldown) -> do
+--   let (timer, finished) = [Timer]("Mischief.ECS.Timer").'Mischief.ECS.Timer.tick' delta cooldown.timer
+--   'set' cooldown $ Cooldown timer
+--
+--   'when' finished $ do
+--     'Just' (Pos (x, y)) <- 'get' ('Val' ('C' \@Pos)) tile.target
+--
+--     let diff = case (x > px, y > py, x < px, y < py) of
+--           (True, _, _, _) -> (-1, 0)
+--           (_, True, _, _) -> (0, -1)
+--           (_, _, True, _) -> (1, 0)
+--           (_, _, _, True) -> (0, 1)
+--           _ -> (0, 0)
+--
+--     moveBy diff tile.target
+--       '>>=' 'traverse_'
+--         ( \t ->
+--             'insert' ('Rel' OnTile t) enemy
+--         )
+-- @
+--
+-- Each frame, we tick the cooldown timer of each enemy, and only move them if that timer has just finished. This means every enemy will now move only once per 0.5 seconds.
+--
+-- You can now run your app and see the enemies chasing you!

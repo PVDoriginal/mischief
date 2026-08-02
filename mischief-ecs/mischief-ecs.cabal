@@ -93,6 +93,7 @@ library
     Mischief.ECS.Systems
     Mischief.ECS.Tables
     Mischief.ECS.Time
+    Mischief.ECS.Timer
     Mischief.ECS.Tutorial.App
     Mischief.ECS.Tutorial.Components
     Mischief.ECS.Tutorial.Dungeon
@@ -212,4 +213,5 @@ test-suite mischief-test
     data-default,
     mischief-ecs,
     primitive,
+    random,
     transformers,

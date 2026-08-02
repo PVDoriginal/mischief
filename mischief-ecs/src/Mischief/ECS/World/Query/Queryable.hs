@@ -23,7 +23,7 @@ data Has a = Has
 
 data HasR a b = HasR b
 
-data Val a = Val a
+newtype Val a = Val a
 
 data E = E
 

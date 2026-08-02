@@ -51,7 +51,7 @@ createNode components = do
       )
       (Set.toList components)
 
-  debug $ "archetype " <> text id <> " = " <> text (catMaybes comps)
+  -- debug $ "archetype " <> text id <> " = " <> text (catMaybes comps)
 
   for_ components $ \component -> do
     case component.entity of
