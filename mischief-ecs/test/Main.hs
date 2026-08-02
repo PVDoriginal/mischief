@@ -98,7 +98,7 @@ data Player = Player deriving (Component)
 data OnTile = OnTile
 
 instance Component OnTile where
-  isExclusiveRel = True
+  type RelExclusivity OnTile = Exclusive
 
 spawnPlayer :: System ()
 spawnPlayer = do

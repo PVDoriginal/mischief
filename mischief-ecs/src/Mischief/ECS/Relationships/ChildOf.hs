@@ -10,7 +10,7 @@ import Mischief.ECS.World.Query.Queryable
 data ChildOf = ChildOf deriving (Show)
 
 instance Component ChildOf where
-  isExclusiveRel = True
+  type RelExclusivity ChildOf = Exclusive
 
 parent :: forall m w. (MonadSystem w m) => Entity -> m (Maybe Entity)
 parent entity = do

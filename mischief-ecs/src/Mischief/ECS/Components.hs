@@ -4,6 +4,7 @@ module Mischief.ECS.Components
   ( -- * Component
     Component (..),
     ComponentId (..),
+    Exclusivity (..),
 
     -- * Meta
     ComponentArchetypes (..),
@@ -40,6 +41,7 @@ module Mischief.ECS.Components
     ComponentRep (..),
     Tick (..),
     ErasedComponentEq (..),
+    IsExclusive (..),
   )
 where
 
@@ -58,8 +60,10 @@ import Mischief.ECS.Components.HooksDef
 import Mischief.ECS.EntityDef
 import Mischief.ECS.Utils
 
+data Exclusivity = Inclusive | Exclusive
+
 -- | The @Component@ typeclass.
-class (Typeable c) => Component c where
+class (Typeable c, IsExclusive (RelExclusivity c)) => Component c where
   -- | List of components required by this one.
   -- All required components must be 'Default'
   --
@@ -79,12 +83,20 @@ class (Typeable c) => Component c where
   required :: Set DefaultComponentType
   required = Set.empty
 
-  -- | Set to 'True' in order to make relationships containing this components @exclusive@.
-  isExclusiveRel :: Bool
-  isExclusiveRel = False
+  type RelExclusivity c :: Exclusivity
+  type RelExclusivity c = Inclusive
 
   hooks :: Hooks c
   hooks = Hooks []
+
+class IsExclusive (e :: Exclusivity) where
+  isExclusive :: Bool
+
+instance IsExclusive Inclusive where
+  isExclusive = False
+
+instance IsExclusive Exclusive where
+  isExclusive = True
 
 -- | Unique id for components and component pairs.
 data ComponentId = ComponentId

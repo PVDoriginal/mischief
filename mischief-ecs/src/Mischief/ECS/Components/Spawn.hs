@@ -11,18 +11,20 @@ import Data.Foldable
 import Data.IORef
 import Data.Kind
 import Data.Map qualified as Map
-import Data.Set qualified as Set
-import Mischief.ECS.Components
-import Mischief.ECS.Components.Bundle
-import Mischief.ECS.Components.Common
 -- import Mischief.ECS.Components.Hooks
 -- import Mischief.ECS.World.Defer
 -- import Mischief.ECS.World.Insert
 
+-- import Mischief.ECS.Events
+
+import Data.Maybe
+import Data.Set qualified as Set
+import Mischief.ECS.Components
+import Mischief.ECS.Components.Bundle
+import Mischief.ECS.Components.Common
 import Mischief.ECS.Components.HooksDef
 import Mischief.ECS.Components.Required (requireAll)
 import Mischief.ECS.Entities
--- import Mischief.ECS.Events
 import Mischief.ECS.Observer
 import Mischief.ECS.Relationships
 import Mischief.ECS.World
@@ -65,7 +67,7 @@ getOrAddComponentId (ComponentType (_ :: Proxy c)) = do
               "Meta entity for " ++ show (typeRep $ Proxy @c)
           )
 
-      when (isExclusiveRel @c) $ do
+      when (isExclusive @(RelExclusivity c)) $ do
         worldSet IsExclusiveRelationship result
 
       for_ (requireAll @c) $ \(DefaultComponentType (_ :: (Proxy other))) -> do
