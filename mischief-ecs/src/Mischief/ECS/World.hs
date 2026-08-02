@@ -38,8 +38,9 @@ import Data.IORef (IORef, modifyIORef', newIORef, readIORef)
 import Mischief.ECS.Archetypes (Archetypes, emptyArchetypes)
 import Mischief.ECS.Collectable
 import Mischief.ECS.Components
-  ( Component,
+  ( Component (RelExclusivity),
     Components,
+    Exclusivity (..),
     Rel,
     Tick (Tick),
     emptyComponents,
@@ -52,6 +53,7 @@ import Mischief.ECS.Entities
   )
 import Mischief.ECS.EventDef
 import Mischief.ECS.Hidden
+import Mischief.ECS.Mappable
 import Mischief.ECS.Tables (Tables, emptyTables)
 import Mischief.ECS.World.Prefs (WorldPrefs, newPrefs)
 
@@ -203,7 +205,7 @@ instance EraseIntoStorage (System ()) [System ()] where
 
 data SystemTools = SystemTools
   { get :: forall c m w. (Component c, MonadSystem w m) => Proxy c -> Entity -> m (Maybe c),
-    getRAny :: forall c m w. (Component c, MonadSystem w m) => Proxy c -> Entity -> m (Maybe [Rel c]),
+    getRAny :: forall c m w. (Component c, MonadSystem w m, RelExclusivity c ~ Inclusive) => Proxy c -> Entity -> m (Maybe [Rel c]),
     set :: forall c. (Bundle c) => c -> Entity -> System (),
     spawnByInsert :: forall b. (Bundle b) => Entity -> b -> System ()
   }
@@ -218,7 +220,7 @@ worldSet c e = do
   World {tools = SystemTools {set}} <- unsafeGetWorld
   set c e
 
-worldGetRAny :: forall c m w. (Component c, MonadSystem w m) => Proxy c -> Entity -> m (Maybe [Rel c])
+worldGetRAny :: forall c m w. (Component c, MonadSystem w m, RelExclusivity c ~ Inclusive) => Proxy c -> Entity -> m (Maybe [Rel c])
 worldGetRAny p e = do
   World {tools = SystemTools {getRAny}} <- unsafeGetWorld
   getRAny p e

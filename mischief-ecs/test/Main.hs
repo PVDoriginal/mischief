@@ -222,3 +222,19 @@ moveEnemies = do
           ( \t ->
               insert (Rel OnTile t) enemy
           )
+
+data R1 = R1 deriving (Component)
+
+data R2 = R2
+
+instance Component R2 where
+  type RelExclusivity R2 = Exclusive
+
+f :: System ()
+f = do
+  Just a <- [s|R1 -> *, R2 -> *|]
+
+  Just b <- single (R @R1 (Q (C @Name)))
+
+  Just x <- single (Val (C @Name, C @Name, C @Name, Val (C @Name)))
+  pure ()

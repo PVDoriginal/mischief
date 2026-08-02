@@ -14,7 +14,7 @@ import Language.Haskell.TH.Syntax
 import Mischief.ECS.Components (Component)
 import Mischief.ECS.World.Query
 import Mischief.ECS.World.Query.QueryFilter
-import Mischief.ECS.World.Query.Queryable
+import Mischief.ECS.World.Query.Queryable hiding (Q)
 import Text.Megaparsec (MonadParsec (eof, lookAhead, notFollowedBy, try), Parsec, choice, many, manyTill, noneOf, optional, parseTest, some, (<|>))
 import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer qualified as L

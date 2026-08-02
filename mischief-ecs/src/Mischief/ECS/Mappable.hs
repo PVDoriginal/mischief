@@ -9,45 +9,64 @@ import Mischief.ECS.Tables
 class Mappable flag a b | flag a -> b where
   mapTuple :: a -> b
 
+class TryMapId flag flag' c out | flag flag' c -> out where
+  tryMapId :: c -> out
+
+data RelQueryOutput out = RelQueryOutput out | InvalidRelQueryOutput
+
+type family MapIsId c where
+  MapIsId (Maybe a) = False
+  MapIsId (Result a) = False
+  MapIsId (RelQueryOutput a) = False
+  MapIsId [a] = False
+  MapIsId a = True
+
+newtype Val a = Val a
+
 data MapQueryVal
 
-instance {-# OVERLAPPABLE #-} Mappable MapQueryVal Entity Entity where
-  mapTuple = id
+instance TryMapId True MapQueryVal a a where
+  tryMapId = id
 
-instance {-# OVERLAPPABLE #-} Mappable MapQueryVal Bool Bool where
-  mapTuple = id
+instance TryMapId False MapQueryVal (Val a) a where
+  tryMapId = undefined
 
-instance {-# OVERLAPPABLE #-} Mappable MapQueryVal (Maybe (Result a)) (Maybe a) where
-  mapTuple = fmap (mapTuple @MapQueryVal)
+instance TryMapId False MapQueryVal (Result a) a where
+  tryMapId = value
 
-instance {-# OVERLAPPING #-} Mappable MapQueryVal (Result a) a where
-  mapTuple (Result (a, _)) = a
+instance (TryMapId (MapIsId a) MapQueryVal a out) => TryMapId False MapQueryVal (Maybe a) (Maybe out) where
+  tryMapId = fmap (tryMapId @(MapIsId a) @MapQueryVal)
 
-instance {-# OVERLAPPING #-} Mappable MapQueryVal [Result a] [a] where
-  mapTuple = map value
+instance (TryMapId (MapIsId a) MapQueryVal a out) => TryMapId False MapQueryVal [a] [out] where
+  tryMapId = map (tryMapId @(MapIsId a) @MapQueryVal)
 
-instance {-# OVERLAPPING #-} Mappable MapQueryVal (Maybe [Result a]) (Maybe [a]) where
-  mapTuple = fmap (mapTuple @MapQueryVal)
+instance (TryMapId (MapIsId a) MapQueryVal a out) => TryMapId False MapQueryVal (RelQueryOutput a) (RelQueryOutput out) where
+  tryMapId (RelQueryOutput a) = RelQueryOutput $ tryMapId @(MapIsId a) @MapQueryVal a
+  tryMapId InvalidRelQueryOutput = InvalidRelQueryOutput
 
-data MapQueryTar
+instance {-# OVERLAPPABLE #-} (TryMapId (MapIsId a) flag a out) => Mappable flag a out where
+  mapTuple = tryMapId @(MapIsId a) @flag
 
-instance {-# OVERLAPPABLE #-} Mappable MapQueryTar Entity Entity where
-  mapTuple = id
+data MapQueryValidity
 
-instance {-# OVERLAPPABLE #-} Mappable MapQueryTar Bool Bool where
-  mapTuple = id
+instance TryMapId True MapQueryValidity a a where
+  tryMapId = id
 
-instance {-# OVERLAPPABLE #-} Mappable MapQueryTar (Maybe (Result a)) (Maybe a) where
-  mapTuple = fmap (mapTuple @MapQueryVal)
+instance TryMapId False MapQueryValidity (Result a) (Result a) where
+  tryMapId = id
 
-instance {-# OVERLAPPING #-} Mappable MapQueryTar (Result a) a where
-  mapTuple (Result (a, _)) = a
+instance (TryMapId (MapIsId a) MapQueryValidity a out) => TryMapId False MapQueryValidity (RelQueryOutput a) a where
+  tryMapId (RelQueryOutput a) = a
+  tryMapId InvalidRelQueryOutput = undefined
 
-instance {-# OVERLAPPING #-} Mappable MapQueryTar [Result a] [a] where
-  mapTuple = map value
+instance (TryMapId (MapIsId a) MapQueryValidity a out) => TryMapId False MapQueryValidity (Maybe a) (Maybe out) where
+  tryMapId = fmap (tryMapId @(MapIsId a) @MapQueryValidity)
 
-instance {-# OVERLAPPING #-} Mappable MapQueryTar (Maybe [Result a]) (Maybe [a]) where
-  mapTuple = fmap (mapTuple @MapQueryVal)
+instance (TryMapId (MapIsId a) MapQueryValidity a out) => TryMapId False MapQueryValidity [a] [out] where
+  tryMapId = map (tryMapId @(MapIsId a) @MapQueryValidity)
+
+-- instance {-# OVERLAPPABLE #-} (TryMapId (MapIsId a) MapQueryValidity a out) => Mappable flag a out where
+--   mapTuple = tryMapId @(MapIsId a) @MapQueryValidity
 
 instance {-# OVERLAPPING #-} (Mappable flag a0 b0, Mappable flag a1 b1) => Mappable flag (a0, a1) (b0, b1) where
   mapTuple (a0, a1) = (mapTuple @flag a0, mapTuple @flag a1)

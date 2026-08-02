@@ -21,7 +21,7 @@ import Mischief.ECS.Log
 import Mischief.ECS.Utils
 import Mischief.ECS.World.Query
 import Mischief.ECS.World.Query.QueryFilter
-import Mischief.ECS.World.Query.Queryable
+import Mischief.ECS.World.Query.Queryable hiding (Q)
 import Mischief.ECS.World.Query.TH.QD
 import Mischief.ECS.World.Query.TH.QF (Qf, pCheck, pQf, quoteQf)
 import Text.Megaparsec (MonadParsec (eof), Parsec, choice, optional, parse, parseTest, runParserT, some, (<|>))

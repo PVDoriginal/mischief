@@ -12,12 +12,12 @@ import Mischief.ECS.World.Query
 import Mischief.ECS.World.Query.QueryFilter
 import Mischief.ECS.World.Query.Queryable
 
-outgoing :: forall c m w. (Component c, MonadSystem w m) => Entity -> m [Entity]
-outgoing entity = do
-  next <- get (R @c Any) entity
-  return $ case next of
-    Nothing -> []
-    Just next -> map (\x -> x.target) next
+-- outgoing :: forall c m w. (Component c, MonadSystem w m) => Entity -> m [Entity]
+-- outgoing entity = do
+--   next <- get (R @c Any) entity
+--   return $ case next of
+--     Nothing -> []
+--     Just next -> map (\x -> x.target) next
 
-ingoing :: forall c m w. (Component c, BundleTypes c, MonadSystem w m) => Entity -> m [Entity]
-ingoing entity = query' E (With (R @c entity))
+-- ingoing :: forall c m w. (Component c, BundleTypes c, MonadSystem w m) => Entity -> m [Entity]
+-- ingoing entity = query' E (With (R @c entity))

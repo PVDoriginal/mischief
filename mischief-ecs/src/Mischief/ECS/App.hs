@@ -27,6 +27,7 @@ import Mischief.ECS.Entities
 import Mischief.ECS.Events
 import Mischief.ECS.Hidden
 import Mischief.ECS.Log
+import Mischief.ECS.Mappable
 import Mischief.ECS.Relationships.Order
 import Mischief.ECS.Resources
 import Mischief.ECS.Systems qualified as Systems
@@ -136,19 +137,21 @@ registerComponent c = do
 getTools :: SystemTools
 getTools =
   SystemTools
-    { get = toolsGet,
+    { get = undefined,
       getRAny = toolsGetRAny,
       set = toolsSet,
       spawnByInsert = toolsSpawnByInsert
     }
 
 toolsGet :: forall c m w. (Component c, MonadSystem w m) => Proxy c -> Entity -> m (Maybe c)
-toolsGet _ = get (Val (C @c))
+toolsGet _ e = do
+  x <- get (Val (Val (C @c))) e
+  undefined
 
 toolsSet :: forall c. (Bundle c) => c -> Entity -> System ()
 toolsSet = insert
 
-toolsGetRAny :: forall c m w. (Component c, MonadSystem w m) => Proxy c -> Entity -> m (Maybe [Rel c])
+toolsGetRAny :: forall c m w. (Component c, MonadSystem w m, RelExclusivity c ~ Inclusive) => Proxy c -> Entity -> m (Maybe [Rel c])
 toolsGetRAny _ = get (Val (R @c Any))
 
 toolsSpawnByInsert :: forall b. (Bundle b) => Entity -> b -> System ()
