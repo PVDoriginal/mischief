@@ -39,14 +39,13 @@ data MainPlugin = MainPlugin deriving (Eq)
 
 instance Plugin MainPlugin where
   init _ = do
-    -- Stdin.init
-    -- Systems.add Startup (spawnGrid, spawnWalls)
-    -- Systems.add Update printGrid
+    Stdin.init
+    Systems.add Startup (spawnGrid, spawnWalls)
+    Systems.add Update printGrid
 
-    -- insertRes =<< newGen
-    f
+    insertRes =<< newGen
 
--- plugins _ = plug (PlayerPlugin, EnemyPlugin, TimePlugin)
+  plugins _ = plug (PlayerPlugin, EnemyPlugin, TimePlugin)
 
 data PlayerPlugin = PlayerPlugin deriving (Eq)
 
@@ -198,8 +197,10 @@ spawnEnemies = for_ [0 .. 4] $ const spawnEnemy
 
 moveEnemies :: System ()
 moveEnemies = do
-  Just tile <- single' (R @OnTile Any) (With (C @Player))
-  Just (Pos (px, py)) <- get (Val (C @Pos)) tile.target
+  -- Just tile <- single' (R @OnTile Any) (With (C @Player))
+  -- Just (Pos (px, py)) <- get (Val (C @Pos)) tile.target
+
+  Just (Pos (px, py)) <- [s|OnTile -> (*Pos) / With Player|]
 
   delta <- deltaTime
 
@@ -224,24 +225,21 @@ moveEnemies = do
               insert (Rel OnTile t) enemy
           )
 
-data R1 = R1 deriving (Component)
+-- data R1 = R1 deriving (Component)
 
-data R2 = R2
+-- data R2 = R2
 
-instance Component R2 where
-  type RelExclusivity R2 = Exclusive
+-- instance Component R2 where
+--   type RelExclusivity R2 = Exclusive
 
-data C1 = C1 deriving (Component, Show)
+-- data C1 = C1 deriving (Component, Show)
 
-f :: System ()
-f = do
-  a <- spawn (Name "A", C1)
-  b <- spawn (Name "B", C1)
-  c <- spawn (Name "C")
+-- f :: System ()
+-- f = do
+--   bob <- spawn (Name "Bob")
+--   charlie <- spawn (Name "Charlie", Rel ChildOf bob)
+--   john <- spawn (Name "John", Rel ChildOf charlie)
+--   alex <- spawn (Name "Alex", Rel ChildOf john)
 
-  d <- spawn (Rel R1 a, Rel R1 b, Rel R1 c)
-  e <- spawn (Rel R1 c)
-  f <- spawn (Rel R1 a, Rel R1 c)
-
-  x <- query (R @R1 (Q (C @C1, C @Name)))
-  info $ text x
+--   Just name <- [g|ChildOf -> (ChildOf -> (ChildOf -> (*Name)))|] alex
+--   info $ "The name of my great grandfather is " <> text name

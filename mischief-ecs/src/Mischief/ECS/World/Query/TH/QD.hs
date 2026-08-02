@@ -15,13 +15,16 @@ import Mischief.ECS.Components (Component)
 import Mischief.ECS.World.Query
 import Mischief.ECS.World.Query.QueryFilter
 import Mischief.ECS.World.Query.Queryable hiding (Q)
+import Mischief.ECS.World.Query.Queryable qualified as Queryable
 import Text.Megaparsec (MonadParsec (eof, lookAhead, notFollowedBy, try), Parsec, choice, many, manyTill, noneOf, optional, parseTest, some, (<|>))
 import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer qualified as L
 
-data Qd = Val' Qd | Tup [Qd] | Entity' | Type QdType deriving (Show)
+data Qd = Val' Qd | Tup [Qd] | Entity' | Type QdType | Trans QdTrans deriving (Show)
 
 data QdType = QdType {name :: Text, compType :: CompType, mod :: Maybe Mod} deriving (Show)
+
+data QdTrans = QdTrans {name :: Text, exp :: Qd, mod :: Maybe Mod} deriving (Show)
 
 data CompType = Single | Pair Text | PairAny deriving (Show)
 
@@ -59,7 +62,7 @@ data TestG a b = TestG deriving (Component)
 
 pSingle :: Parser Qd
 pSingle = do
-  try pEntity <|> try pVal <|> try pMaybe <|> try pHas <|> pValStar <|> pType
+  try pEntity <|> try pVal <|> try pMaybe <|> try pHas <|> try pValStar <|> try (pTrans Nothing) <|> pType Nothing
 
 pEntity :: Parser Qd
 pEntity = do
@@ -86,23 +89,33 @@ pMaybe = do
   void $ choice [string "Maybe", string "maybe", string "M", string "m"] <* notFollowedBy alphaNumChar
   whitespace
 
-  Type t <- pType
-  case t.mod of
-    Just _ -> undefined
-    Nothing -> return $ Type t {mod = Just M'}
+  try (pTrans (Just M')) <|> pType (Just M')
 
 pHas :: Parser Qd
 pHas = do
   void $ choice [string "Has", string "has", string "H", string "h"] <* notFollowedBy alphaNumChar
   whitespace
 
-  Type t <- pType
-  case t.mod of
-    Just _ -> undefined
-    Nothing -> return $ Type t {mod = Just H'}
+  try (pTrans (Just H')) <|> pType (Just H')
 
-pType :: Parser Qd
-pType = do
+pTrans :: Maybe Mod -> Parser Qd
+pTrans mod = do
+  name <- pNameTup <|> T.pack <$> some alphaNumChar
+  whitespace
+
+  void $ string "->"
+  whitespace
+
+  qd <- (char '(' *> whitespace) *> (Tup <$> pTup pEl) <* (char ')' *> whitespace)
+  return . Trans $
+    QdTrans
+      { name,
+        mod,
+        exp = qd
+      }
+
+pType :: Maybe Mod -> Parser Qd
+pType mod = do
   -- name <- pTypeGeneric <|> T.pack <$> some alphaNumChar
   name <- pNameTup <|> T.pack <$> some alphaNumChar
   whitespace
@@ -123,7 +136,7 @@ pType = do
     QdType
       { name,
         compType,
-        mod = Nothing
+        mod
       }
 
 pName :: Parser Text
@@ -160,11 +173,17 @@ quoteQd (Type QdType {name, compType = Single, mod = Just H'}) = processH name
 quoteQd (Type QdType {name, compType, mod = Nothing}) = processR name =<< relExp compType
 quoteQd (Type QdType {name, compType, mod = Just M'}) = processMR name =<< relExp compType
 quoteQd (Type QdType {name, compType, mod = Just H'}) = processHR name =<< relExp compType
+quoteQd (Trans QdTrans {name, exp, mod = Nothing}) = processR name =<< relTrans exp
+quoteQd (Trans QdTrans {name, exp, mod = Just M'}) = processMR name =<< relTrans exp
+quoteQd (Trans QdTrans {name, exp, mod = Just H'}) = processHR name =<< relTrans exp
 quoteQd (Val' qd) = processVal <$> quoteQd qd
 quoteQd (Tup []) = return $ ConE '()
 quoteQd (Tup [x]) = quoteQd x
 quoteQd (Tup t) = TupE <$> mapM (fmap Just . quoteQd) t
 quoteQd Entity' = return $ ConE 'E
+
+relTrans :: Qd -> Q Exp
+relTrans exp = AppE (ConE 'Queryable.Q) <$> quoteQd exp
 
 relExp :: CompType -> Q Exp
 relExp PairAny = return $ ConE 'Any
