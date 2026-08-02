@@ -6,6 +6,7 @@ module Mischief.ECS.World.Query where
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.Data
+import Data.Foldable
 import Data.Foldable hiding (and)
 import Data.IORef
 import Data.Map qualified as Map
@@ -52,10 +53,8 @@ runQuery query filter world =
     archetypes' <- filterM (\(components, _) -> liftIO $ (filterArchetype . preprocessFilter) archetypeFilter components world) archetypes
 
     outputs <- liftIO $ runQueryInternal query (map snd archetypes') world
-    f <- liftIO $ filterQuery @qd world (preprocessFilter otherFilter) (map snd archetypes')
-    outputs' <- liftIO $ filterM f (zip [0 ..] outputs)
-
-    return $ map (snd . snd) outputs'
+    outputs' <- filterM (\(e, b, _) -> (&& b) <$> filterQuery (preprocessFilter otherFilter) e) outputs
+    return $ map (\(_, _, o) -> o) outputs'
 
 query :: forall qd output m w. (Queryable qd output, MonadSystem w m) => qd -> m [output]
 query qd = do
@@ -69,6 +68,15 @@ entityQuery qd entity = do
 
 get :: forall qd m w out. (Queryable qd out, MonadSystem w m) => qd -> Entity -> m (Maybe out)
 get = entityQuery
+
+get' :: forall qd m w out qf. (Queryable qd out, MonadSystem w m, Collectable qf QueryFilter) => qd -> qf -> Entity -> m (Maybe out)
+get' qd qf entity = do
+  b <- filterQuery (preprocessFilter $ collect qf) entity
+  if b
+    then
+      entityQuery qd entity
+    else
+      pure Nothing
 
 query' :: forall qd m w out qf. (Queryable qd out, MonadSystem w m, Collectable qf QueryFilter) => qd -> qf -> m [out]
 query' qd filter = do
@@ -104,86 +112,87 @@ single' qd filter = do
 --   res <- query @qd
 --   parIterList res $ \chunk -> for_ chunk system
 
-filterQuery :: forall qd out. (Queryable qd out) => World -> QueryFilter -> [ArchetypeId] -> IO ((Int, (Entity, out)) -> IO Bool)
-filterQuery _ NoFilter _ = return $ const $ return True
-filterQuery world (QFWith (x, entity)) _ = do
-  component <- fmap (\x -> x {entity}) <$> getComponentId x world.components
-  case component of
-    Nothing -> return (const $ return False)
-    Just component ->
-      return $
-        \(_, (entity, _)) -> do
-          components <- findComponentsOfEntity world entity
-          case components of
-            Nothing -> return False
-            Just components ->
-              return $ component `elem` components
-filterQuery world (QFWithRelAny x) _ = do
-  component <- liftIO $ getComponentId x world.components
-  case component of
-    Nothing -> return (const $ return False)
-    Just (ComponentId {id}) -> do
-      return $
-        \(_, (entity, _)) -> do
-          components <- findComponentsOfEntity world entity
-          case components of
-            Nothing -> return False
-            Just components ->
-              return $ any (\c -> isJust c.entity && c.id == id) components
-filterQuery world (QFChanged (x, entity) f) archetypes = do
-  component <- fmap (\x -> x {entity}) <$> getComponentId x world.components
-  case component of
-    Nothing -> return $ const $ pure False
-    Just component -> do
-      res <- liftIO $ tryGetTicks component world archetypes
-      (lastSystemTick, currentSystemTick) <- getSystemTicksInternal world
-      return $
-        \(index, _) -> pure $ case res !! index of
-          Nothing -> False
-          Just res' -> f res' lastSystemTick currentSystemTick
-filterQuery world (QFChangedRelAny x f) _ = do
-  component <- liftIO $ getComponentId x world.components
-  case component of
-    Nothing -> return (const $ return False)
-    Just (ComponentId {id}) -> do
-      return $
-        \(_, (entity, _)) -> do
-          components <- findComponentsOfEntity world entity
-          case components of
-            Nothing -> return True
-            Just components' -> do
-              let components = filter (\c -> isJust c.entity && c.id == id) components'
-              ticks <- catMaybes <$> mapM (\x -> tryGetEntityTicks entity x world) components
-              (lastSystemTick, currentSystemTick) <- getSystemTicksInternal world
-              return $ any (\t -> f t lastSystemTick currentSystemTick) ticks
-filterQuery world (QFCheckRaw (x, entity, ef)) archetypes = do
-  id <- fmap (\a -> a {entity}) <$> getComponentId x world.components
-  case id of
-    Nothing -> return $ const $ return False
-    Just id ->
-      filterCheck @qd world archetypes id ef
-filterQuery world (QFCheckRawRelAny (_, ef)) archetypes = filterCheckRelAny @qd world archetypes ef
-filterQuery world (a `QFAnd` b) archetypes = do
-  res <- filterQuery @qd world a archetypes
-  res2 <- filterQuery @qd world b archetypes
-  return $
-    \x -> do
-      b1 <- res x
-      b2 <- res2 x
-      return $ b1 && b2
-filterQuery world (a `QFOr` b) archetypes = do
-  res <- filterQuery @qd world a archetypes
-  res2 <- filterQuery @qd world b archetypes
-  return $
-    \x -> do
-      b1 <- res x
-      b2 <- res2 x
-      return $ b1 || b2
-filterQuery world (QFNot a) archetypes = do
-  f <- filterQuery @qd world a archetypes
-  return $ \x -> do
-    r <- f x
-    return $ not r
+filterQuery :: (MonadSystem w m) => QueryFilter -> Entity -> m Bool
+filterQuery NoFilter _ = pure True
+filterQuery (QFWith (x, Nothing)) entity = do
+  world <- unsafeGetWorld
+  comp <- liftIO $ getComponentId x world.components
+  case comp of
+    Nothing -> return False
+    Just comp -> do
+      Just (ComponentType (_ :: Proxy a)) <- get (Val (C @ComponentType)) comp.id
+      a <- get (Has @a) entity
+      pure $ fromMaybe False a
+filterQuery (QFWith (x, Just e)) entity = do
+  world <- unsafeGetWorld
+  comp <- liftIO $ getComponentId x world.components
+  case comp of
+    Nothing -> return False
+    Just comp -> do
+      Just (ComponentType (_ :: Proxy a)) <- get (Val (C @ComponentType)) comp.id
+      a <- get (HasR @a e) entity
+      pure $ fromMaybe False a
+filterQuery (QFWithRelAny x) entity = do
+  world <- unsafeGetWorld
+  comp <- liftIO $ getComponentId x world.components
+  case comp of
+    Nothing -> return False
+    Just comp -> do
+      Just (ComponentType (_ :: Proxy a)) <- get (Val (C @ComponentType)) comp.id
+      a <- get (HasR @a Any) entity
+      pure $ fromMaybe False a
+filterQuery (QFChanged (x, Nothing) f) entity = do
+  world <- unsafeGetWorld
+  comp <- liftIO $ getComponentId x world.components
+  case comp of
+    Nothing -> return False
+    Just comp -> do
+      addedChanged' f comp entity
+filterQuery (QFChanged (x, Just e) f) entity = do
+  world <- unsafeGetWorld
+  comp <- liftIO $ getComponentId x world.components
+  case comp of
+    Nothing -> return False
+    Just comp -> do
+      addedChanged' f comp {entity = Just e} entity
+filterQuery (QFChangedRelAny x f) entity = do
+  world <- unsafeGetWorld
+  comp <- liftIO $ getComponentId x world.components
+  case comp of
+    Nothing -> return False
+    Just comp -> do
+      components <- liftIO $ findComponentsOfEntity world entity
+      case components of
+        Nothing -> return True
+        Just components' -> do
+          let components = filter (\c -> isJust c.entity && c.id == comp.id) components'
+          and <$> mapM (\c -> addedChanged' f c entity) components
+filterQuery (QFCheckRaw (_, Nothing, ErasedCheck (f :: (c -> Bool)))) entity = do
+  a <- get (C @c) entity
+  pure $ case a of
+    Nothing -> False
+    Just a -> f $ value a
+filterQuery (QFCheckRaw (_, Just e, ErasedCheck (f :: (c -> Bool)))) entity = do
+  a <- get (R @c e) entity
+  pure $ case a of
+    Nothing -> False
+    Just a -> f a.comp
+filterQuery (QFCheckRawRelAny (_, ErasedCheck (f :: (c -> Bool)))) entity = do
+  a <- get (R' @c Any) entity
+  pure $ case a of
+    Nothing -> False
+    Just a -> any (\x -> f x.comp) a
+filterQuery (a `QFAnd` b) entity = do
+  a <- filterQuery a entity
+  b <- filterQuery b entity
+  pure $ a && b
+filterQuery (a `QFOr` b) entity = do
+  a <- filterQuery a entity
+  b <- filterQuery b entity
+  pure $ a || b
+filterQuery (QFNot a) entity = do
+  a <- filterQuery a entity
+  pure $ not a
 
 filterCheckRelAny :: forall qd out. (Queryable qd out) => World -> [ArchetypeId] -> ErasedCheck -> IO ((Int, (Entity, out)) -> IO Bool)
 filterCheckRelAny world archetypes (ErasedCheck (f :: (c -> Bool))) = do
@@ -236,6 +245,16 @@ tryMetaLocal = do
 
 instance (GetResultComponentId' (IsComp c) (Result c)) => GetResultComponentId (Result c) where
   getResultComponentId = getResultComponentId' @(IsComp c)
+
+addedChanged' :: forall m w. (MonadSystem w m) => (ComponentTicks -> Tick -> Tick -> Bool) -> ComponentId -> Entity -> m Bool
+addedChanged' f id entity = do
+  world <- unsafeGetWorld
+  ticks <- liftIO $ tryGetEntityTicks entity id world
+  case ticks of
+    Nothing -> return False
+    Just ticks -> do
+      (lastSystemTick, currentSystemTick) <- liftIO $ getSystemTicksInternal world
+      return $ f ticks lastSystemTick currentSystemTick
 
 addedChanged :: forall c m w. (MonadSystem w m, GetResultComponentId (Result c)) => (ComponentTicks -> Tick -> Tick -> Bool) -> Result c -> m Bool
 addedChanged f r = do

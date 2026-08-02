@@ -49,7 +49,6 @@ newtype Schedules = Schedules {inner :: Map TypeRep ScheduleId}
 getScheduleId :: ScheduleLabel -> System ScheduleId
 getScheduleId sch = do
   Just schedules <- res @Schedules
-  warn $ text sch
   case Map.lookup sch.rep schedules.inner of
     Just x -> return x
     Nothing -> do
@@ -60,7 +59,6 @@ getScheduleId sch = do
 scheduleEntity :: (Schedule sch) => sch -> System Entity
 scheduleEntity sch = do
   ScheduleId id <- getScheduleId $ ScheduleLabel $ typeOf sch
-  warn $ text id
   return id
 
 -- runSystemsIn :: (Schedule sch) => sch -> System ()

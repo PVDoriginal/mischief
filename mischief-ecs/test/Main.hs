@@ -39,13 +39,14 @@ data MainPlugin = MainPlugin deriving (Eq)
 
 instance Plugin MainPlugin where
   init _ = do
-    Stdin.init
-    Systems.add Startup (spawnGrid, spawnWalls)
-    Systems.add Update printGrid
+    -- Stdin.init
+    -- Systems.add Startup (spawnGrid, spawnWalls)
+    -- Systems.add Update printGrid
 
-    insertRes =<< newGen
+    -- insertRes =<< newGen
+    f
 
-  plugins _ = plug (PlayerPlugin, EnemyPlugin, TimePlugin)
+-- plugins _ = plug (PlayerPlugin, EnemyPlugin, TimePlugin)
 
 data PlayerPlugin = PlayerPlugin deriving (Eq)
 
@@ -230,11 +231,17 @@ data R2 = R2
 instance Component R2 where
   type RelExclusivity R2 = Exclusive
 
+data C1 = C1 deriving (Component, Show)
+
 f :: System ()
 f = do
-  Just a <- [s|R1 -> *, R2 -> *|]
+  a <- spawn (Name "A", C1)
+  b <- spawn (Name "B", C1)
+  c <- spawn (Name "C")
 
-  Just b <- single (R @R1 (Q (C @Name)))
+  d <- spawn (Rel R1 a, Rel R1 b, Rel R1 c)
+  e <- spawn (Rel R1 c)
+  f <- spawn (Rel R1 a, Rel R1 c)
 
-  Just x <- single (Val (C @Name, C @Name, C @Name, Val (C @Name)))
-  pure ()
+  x <- query (R @R1 (Q (C @C1, C @Name)))
+  info $ text x

@@ -37,6 +37,7 @@ import Mischief.ECS.World.Defer
 import Mischief.ECS.World.Insert
 import Mischief.ECS.World.Query
 import Mischief.ECS.World.Query.QueryFilter
+import Mischief.ECS.World.Query.QueryType
 import Mischief.ECS.World.Query.Queryable
 import Mischief.ECS.World.Spawn
 
@@ -60,7 +61,6 @@ newApp plugin = do
 runApp :: App -> IO ()
 runApp app = flip runSystem app.world $ do
   startups <- orderEntities =<< query' E (With (C @StartupSchedule))
-  err $ text startups
   updates <- orderEntities =<< query' E (With (C @UpdateSchedule))
 
   liftIO $ runSchedules startups
@@ -137,16 +137,14 @@ registerComponent c = do
 getTools :: SystemTools
 getTools =
   SystemTools
-    { get = undefined,
+    { get = toolsGet,
       getRAny = toolsGetRAny,
       set = toolsSet,
       spawnByInsert = toolsSpawnByInsert
     }
 
-toolsGet :: forall c m w. (Component c, MonadSystem w m) => Proxy c -> Entity -> m (Maybe c)
-toolsGet _ e = do
-  x <- get (Val (Val (C @c))) e
-  undefined
+toolsGet :: forall c m w. (MonadSystem w m, QueryType c) => Proxy c -> Entity -> m (Maybe c)
+toolsGet _ = get (Val (C @c))
 
 toolsSet :: forall c. (Bundle c) => c -> Entity -> System ()
 toolsSet = insert

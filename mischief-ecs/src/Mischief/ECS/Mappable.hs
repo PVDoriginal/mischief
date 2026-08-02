@@ -21,15 +21,10 @@ type family MapIsId c where
   MapIsId [a] = False
   MapIsId a = True
 
-newtype Val a = Val a
-
 data MapQueryVal
 
 instance TryMapId True MapQueryVal a a where
   tryMapId = id
-
-instance TryMapId False MapQueryVal (Val a) a where
-  tryMapId = undefined
 
 instance TryMapId False MapQueryVal (Result a) a where
   tryMapId = value
