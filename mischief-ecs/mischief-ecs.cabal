@@ -75,6 +75,7 @@ library
     Mischief.ECS.Events
     Mischief.ECS.Graph
     Mischief.ECS.Hooks
+    Mischief.ECS.Interval
     Mischief.ECS.Log
     Mischief.ECS.Mappable
     Mischief.ECS.Messages
@@ -92,9 +93,7 @@ library
     Mischief.ECS.Stdout
     Mischief.ECS.Systems
     Mischief.ECS.Tables
-    Mischief.ECS.World.Query.Validation
     Mischief.ECS.Time
-    Mischief.ECS.World.Query.QueryType
     Mischief.ECS.Timer
     Mischief.ECS.Tutorial.App
     Mischief.ECS.Tutorial.Components
@@ -115,10 +114,12 @@ library
     Mischief.ECS.World.Query
     Mischief.ECS.World.Query.Queryable
     Mischief.ECS.World.Query.QueryFilter
+    Mischief.ECS.World.Query.QueryType
     Mischief.ECS.World.Query.TH
     Mischief.ECS.World.Query.TH.QD
     Mischief.ECS.World.Query.TH.QF
     Mischief.ECS.World.Query.Val
+    Mischief.ECS.World.Query.Validation
     Mischief.ECS.World.Remove
     Mischief.ECS.World.Spawn
     Mischief.ECS.World.Systems

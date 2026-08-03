@@ -2,9 +2,9 @@
 
 -- |
 -- Module: Components Tutorial
--- Description: Tutorial on using @Components@
+-- Description: Introductory Tutorial
 --
--- This module contains a more in-depth tutorial on @Mischief Components@.
+-- This module walks the user through creating a small game in the terminal.
 --
 -- [Previous Chapter: App and Plugins]("Mischief.ECS.Tutorial.App")
 --
@@ -46,6 +46,24 @@ module Mischief.ECS.Tutorial.Dungeon
 
     -- * Moving Enemies
     -- $moveE
+
+    -- * Enemy Collision
+    -- $collision
+
+    -- * Health
+    -- $health
+
+    -- * Quitting
+    -- $quit
+
+    -- * Taking Damage
+    -- $dmg
+
+    -- * Spawning Coins
+    -- $coins
+
+    -- * Collecting Coins
+    -- $collect
   )
 where
 
@@ -435,25 +453,47 @@ import Mischief.ECS
 -- $display
 -- It's finally time to actually display our game's grid in the terminal!
 --
--- First, we'll make a system which takes a single tile entity and returns a character:
+-- You may remember earlier we wrote a system which checks if there is a wall on a given tile.
+--
+-- @
+-- hasWall :: 'Entity' -> 'System' 'Bool'
+-- hasWall tile = 'not' . 'null' '<$>' ['q'|Entity / With (Wall, OnTile -\> tile)|]
+-- @
+--
+-- It'd be useful to have something similar but for any arbitrary type of entity. We can write a generic variant of it like this:
+--
+-- @
+-- tileHas :: forall c. ('QueryType' c) => 'Entity' -> 'System' 'Bool'
+-- tileHas tile = 'not' . 'null' <$> ['q'|Entity / With (c, OnTile -> tile)|]
+-- @
+--
+-- @QueryType@ is a sort of catch-all constraint that makes sure @c@ is a component and can be queried (so nothing weird like it being a tuple).
+--
+-- Make sure to add @{-# LANGUAGE AllowAmbiguousTypes #-}@ at the top of your .hs file, otherwise the type system will not like that @c@ can not be inferred from the
+-- function's signature (alternatively you can just pass a @Proxy c@ as a workaround but I personally prefer the other way).
+--
+-- We can now write @hasWall@ as just:
+--
+-- @
+-- hasWall = tileHas \@Wall
+-- @
+--
+-- Now it should be easy to write a system that receives a tile and returns a character to represent it:
 --
 -- @
 -- showTile :: 'Entity' -> 'System' 'Char'
 -- showTile tile = do
---   entities <- 'query'' ('Has' \@Player, 'Has' \@Wall) ('With' ('R' \@OnTile tile))
---   'pure' $ case entities of
---     ((True, _) : _) -> '@'
---     ((_, True) : _) -> '#'
---     _ -> '.'
+--   player <- tileHas \@Player tile
+--   wall <- tileHas \@Wall tile
+--
+--   'pure' $
+--     if
+--       | player -> \'@\'
+--       | wall -> \'#\'
+--       | otherwise -> \'.\'
 -- @
 --
--- It might seem a bit intimidating at first but the logic is really simple.
---
--- We can use @Has c@ in a query to reutrn a bool telling us whether each entity has @c@ or not.
--- So the whole query is just grabbing all entities that are on the tile, and grabbing data on whether they're players or walls.
---
--- If no such entity was found, we'll just go on the last branch of the case and return @.@ . If the list is not empty, we'll just
--- grab the first element and, if it's a player, return @\@@, otherwise @#@.
+-- This requires the @MultiWayIf@ language extension, but there are many ways to write it without it, it's just a personal preference.
 --
 -- Next, I've written a system which produces a String for the whole grid by calling the previous function on each tile:
 --
@@ -576,14 +616,19 @@ import Mischief.ECS
 -- I've also modified the @showTile@ system to take enemies into account:
 --
 -- @
--- showTile :: 'Entity' -> 'System' 'Char
+--
+-- showTile :: 'Entity' -> 'System' 'Char'
 -- showTile tile = do
---   entities <- 'query'' ('Has' \@Player, 'Has' \@Wall, 'Has' \@Enemy) ('With' ('R' \@OnTile tile))
---   'pure' $ case entities of
---     ((True, _, _) : _) -> \'@\'
---     ((_, True, _) : _) -> \'#\'
---     ((_, _, True) : _) -> \'!\'
---     _ -> '.'
+--   player <- tileHas \@Player tile
+--   enemy <- tileHas \@Enemy tile
+--   wall <- tileHas \@Wall tile
+--
+--   'pure' $
+--     if
+--       | player -> \'@\'
+--       | wall -> \'#\'
+--       | enemy -> \'!\'
+--       | otherwise -> \'.\'
 -- @
 --
 -- Finally, we need a to schedule the enemy spawning, so I've created a new @EnemyPlugin@:
@@ -671,13 +716,14 @@ import Mischief.ECS
 --
 -- @
 -- decideEnemyDir :: Pos -> Pos -> 'System' ('Int', 'Int')
--- decideEnemyDir (Pos (x, y)) (Pos (px, py)) = do
---   'pure' $ case (x > px, y > py, x < px, y < py) of
---     (True, _, _, _) -> (-1, 0)
---     (_, True, _, _) -> (0, -1)
---     (_, _, True, _) -> (1, 0)
---     (_, _, _, True) -> (0, 1)
---     _ -> (0, 0)
+-- decideEnemyDir (Pos (ex, ey)) (Pos (px, py)) = do
+--   'pure' $
+--     if
+--       | ex > px -> (-1, 0)
+--       | ey > py -> (0, -1)
+--       | ex < px -> (1, 0)
+--       | ey < py -> (0, 1)
+--       | otherwise -> (0, 0)
 -- @
 --
 -- And don't forget to schedule it:
@@ -763,3 +809,403 @@ import Mischief.ECS
 -- Don't forget to use the @set@ to pass the new timer back into the ECS! In Mischief, all variables you use are @immutable@, so you need to explicitly order mutations.
 --
 -- You can now run your app and see the enemies chasing you!
+
+-- $collision
+-- Right now the enemies just kinda overlap each other and go under the player. We can fix that by preventing them to move.
+--
+-- Now, let's write a function that tells us whether a certain tile is free to move on or not:
+--
+-- @
+-- tileIsFree :: 'Entity' -> 'System' Bool
+-- tileIsFree tile = do
+--   wall <- tileHas \@Wall tile
+--   enemy <- tileHas \@Enemy tile
+--   player <- tileHas \@Player tile
+--   pure $ not (wall || enemy || player)
+-- @
+--
+-- Plus, an extra one which takes the tile's position directly rather than the entity:
+--
+-- @
+-- tileAtPosIsFree :: ('Int', 'Int') -> 'System' 'Bool'
+-- tileAtPosIsFree pos = do
+--   tile <- getTile pos
+--   'maybe' ('pure' False) tileIsFree tile
+-- @
+--
+-- And let's integrate it into the system which decides the enemy's movement direction:
+--
+-- @
+-- decideEnemyDir :: Pos -> Pos -> 'System' ('Int', 'Int')
+-- decideEnemyDir (Pos (ex, ey)) (Pos (px, py)) = do
+--   left <- tileAtPosIsFree (ex - 1, ey)
+--   up <- tileAtPosIsFree (ex, ey - 1)
+--   right <- tileAtPosIsFree (ex + 1, ey)
+--   down <- tileAtPosIsFree (ex, ey + 1)
+--
+--   'pure' $
+--     if
+--       | ex > px && left -> (-1, 0)
+--       | ey > py && up -> (0, -1)
+--       | ex < px && right -> (1, 0)
+--       | ey < py && down -> (0, 1)
+--       | otherwise -> (0, 0)
+-- @
+--
+-- (There are definitely /much/ better ways to write this but I can't really be bothered, feel free to make it cleaner at home)
+--
+-- I've also replaced the @hasWall@ in the @movePlayerBy@ function with @tileIsFree@, so the player can collide with enemies as well
+-- (make sure to also replace the @'unless'@ with @'when'@!).
+--
+-- The game should now have fullly working collision and feel much more solid!
+
+-- $health
+-- Here's a simple one: let's add a @Health@ component to the player and have it be displayed under the grid each frame.
+--
+-- I'll also give it a @Default@ instance so it can be required by the @Player@ component.
+--
+-- @
+-- data Health = Health {hp :: 'Int'} deriving ('Component')
+--
+-- instance 'Default' Health where
+--   'def' = Health 100
+-- @
+--
+-- @
+-- instance 'Component' Player where
+--   'required' = 'require' \@Health
+-- @
+--
+-- I've written a system that returns a string for the health:
+--
+-- @
+-- showHealth :: 'System' 'String'
+-- showHealth = do
+--   'Just' health <- ['s'|Health / With Player|]
+--   'pure' $ "Health: " ++ 'show' health.hp
+-- @
+--
+-- And I added it to the printing system:
+--
+-- @
+-- printGrid :: 'System' ()
+-- printGrid = do
+--   grid <- showGrid
+--   health <- showHealth
+--   'printClear' $ health ++ \"\\n\" ++ grid
+-- @
+--
+-- In case you're thinking about it, yes, Health could just be a resource, I just decided to make it a component.
+--
+-- Your game should now print the health at the top:
+--
+-- @
+-- Health: 100
+-- ####################
+-- \#............!.....#
+-- \#.....!............#
+-- \#..................#
+-- \#..................#
+-- \#....\@!......!..!..#
+-- \#..................#
+-- \#..................#
+-- \#..................#
+-- ####################
+-- @
+
+-- $dmg
+-- Let's add behavior for enemies damaging the player. I'll also take this opportunity to introduce you to Events.
+--
+-- We can create a damage event like this:
+--
+-- @
+-- data Damage = Damage deriving ('Event')
+-- @
+--
+-- We also need an observer system for it:
+--
+-- @
+-- onDamage :: Damage -> 'System' ()
+-- onDamage dmg = do
+--   'Just' health <- ['s'|Health / With Player|]
+--   'modify' health $ \(Health x) -> Health $ 'max' (x - dmg.amount) 0
+-- @
+--
+-- In order to activate the system when the event is triggered, we need to spawn an observer for it. I'll do it in the @PlayerPlugin@:
+--
+-- @
+-- import "Mischief.ECS.Observers" as [Observers]("Mischief.ECS.Observers")
+-- @
+--
+-- @
+-- instance 'Plugin' PlayerPlugin where
+--   'Mischief.ECS.App.Plugins.init' _ = do
+--     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Startup' $ spawnPlayer '`after`' spawnGrid
+--     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Update' movePlayer
+--     'void' $ [Observers]("Mischief.ECS.Observers").'Mischief.ECS.Observers.spawn' onDamage
+-- @
+--
+-- The last thing we need is a way for enemies to trigger the event. I made a system which checks if an enemy is adjacent to the player and triggers the event:
+--
+-- @
+-- tryDamage :: 'System' ()
+-- tryDamage = do
+--   'Just' player <- ['s'|OnTile -> (*Pos) / With Player|]
+--   enemies <- ['q'|OnTile -> (*Pos) / With Enemy|]
+--
+--   'for_' enemies $ \pos -> do
+--     'when' (isAdjacent pos player) $ do
+--       'trigger' (Damage 5)
+-- @
+--
+-- With this helper function:
+--
+-- @
+-- isAdjacent :: Pos -> Pos -> 'Bool
+-- isAdjacent (Pos (x1, y1)) (Pos (x2, y2)) =
+--   let dx = abs (x1 - x2)
+--       dy = abs (y1 - y2)
+--    in (dx == 1 && dy == 0) || (dx == 0 && dy == 1)
+-- @
+--
+-- I've scheduled @tryDamage@ to happen every frame, after both the player and enemies have moved:
+--
+-- @
+-- instance 'Plugin' EnemyPlugin where
+--   'Mischief.ECS.App.Plugins.init' _ = do
+--     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Startup' spawnEnemies
+--     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Update' moveEnemies
+--     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Update' $ tryDamage '`after`' moveEnemies '`after`' movePlayer
+-- @
+--
+-- This now /technically/ works, except that the enemies almost instantly kill the player on contact. That's because they deal damage every frame,
+-- the same issue we had when they were moving each frame.
+--
+-- I'll show you a different way to solve this problem. We can add an @Invincible@ component on the player after being hit once,
+-- which causes it to not receive damage, and which is removed after a delay.
+--
+-- @
+-- data Invincible = Invincible deriving ('Component')
+-- @
+--
+-- I'll modify the @onDamage@ observer like so:
+--
+-- @
+-- onDamage :: Damage -> 'System' ()
+-- onDamage dmg = do
+--   player <- ['s'|(Entity, Health) / With Player, Without Invincible|]
+--
+--   'for_' player $ \(entity, health) -> do
+--     'modify' health $ \(Health x) -> Health $ max (x - dmg.amount) 0
+--
+--     'insert' Invincible entity
+--     'delay' 1000000 $ 'remove' ('C' \@Invincible) entity
+-- @
+--
+-- Let's analyze it.
+--
+-- This line queries the player's Entity and Health, but only if they don't have the @Invincible@ component.
+--
+-- @
+-- player <- ['s'|(Entity, Health) / With Player, Without Invincible|]
+-- @
+--
+-- If the query returned something (if the player isn't invincible), it will take damage.
+--
+-- @
+-- 'modify' health $ \(Health x) -> Health $ max (x - dmg.amount) 0
+-- @
+--
+-- Then the @Invincible@ component will be inserted on the player.
+--
+-- @
+-- 'insert' Invincible entity
+-- @
+--
+-- And finally, we use the @delay@ async function to tell Mischief to run remove the component after a delay (in miliseconds):
+--
+-- @
+-- 'delay' 1000000 $ 'remove' ('C' \@Invincible) entity
+-- @
+--
+-- Now, the player will only be able to take damage once per second!
+
+-- $quit
+-- It feels weird that the player can reach 0 health but the game just keeps running. So let's add some logic for quitting:
+--
+--
+-- @
+-- onDamage :: Damage -> 'System' ()
+-- onDamage dmg = do
+--   player <- ['s'|(Entity, Health) / With Player, Without Invincible|]
+--
+--   'for_' player $ \(entity, health) -> do
+--     'modify' health $ \(Health x) -> Health $ max (x - dmg.amount) 0
+--
+--     'insert' Invincible entity
+--     'delay' 1000000 $ 'remove' ('C' \@Invincible) entity
+--
+--     'when' (health.hp == 0) $ 'liftIO' 'exitSuccess'
+-- @
+--
+-- But you may notice, the player actually takes an extra hit before that condition is triggered. That's because the @health@ variable is immutable.
+-- When we call @modify@, we update the live value of the component, but our local variable stays as it is.
+--
+-- We can use @update@ to get the live value:
+--
+-- @
+-- 'Just' health <- 'update' health
+-- 'when' (health.hp == 0) $ 'liftIO' 'exitSuccess'
+-- @
+--
+-- The logic should now work as expected.
+
+-- $coins
+-- Now, for our last bit of logic, we should add a reason for the player to not die. Let's spawn a bunch of coins!
+--
+-- First, we need a marker component for the coins:
+--
+-- @
+-- data Coin = Coin deriving ('Component')
+-- @
+--
+-- Second, here's a system that spawns a coin on a random free tile:
+--
+-- @
+-- spawnCoin :: 'System' ()
+-- spawnCoin = do
+--   tile <- randomTile
+--   free <- tileIsFree tile
+--   if free
+--     then
+--       'void' $ 'spawn' (Coin, 'Rel' OnTile tile)
+--     else
+--       spawnCoin
+-- @
+--
+-- (If the tile is not free, it will just keep looping and generating tiles until it finds one that is).
+--
+-- Third, we can use intervals to make the system repeat every two seconds.
+--
+-- @
+-- import "Mischief.ECS.Intervals" qualified as [Intervals]("Mischief.ECS.Intervals")
+-- @
+--
+--
+-- @
+-- instance 'Plugin' MainPlugin where
+--   'Mischief.ECS.App.Plugins.init' _ = do
+--     [Stdin]("Mischief.ECS.Stdin").'Mischief.ECS.Stdin.init'
+--     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Startup' (spawnGrid, spawnWalls)
+--     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Update' printGrid
+--
+--     interval <- [Interval]("Mischief.ECS.Interval").'Mischief.ECS.Interval.start' 2000000 spawnCoin
+--
+--     'insertRes' '=<<' newGen
+-- @
+--
+-- You can also use @Interval.stop@ on the returned value to stop the interval at any point, but I won't be doing that here.
+--
+-- Finally, we should display the coins:
+--
+-- @
+-- showTile :: 'Entity' -> 'System' 'Char'
+-- showTile tile = do
+--   player <- tileHas \@Player tile
+--   enemy <- tileHas \@Enemy tile
+--   wall <- tileHas \@Wall tile
+--   coin <- tileHas \@Coin tile
+--
+--   'pure' $
+--     if
+--       | player -> \'@\'
+--       | wall -> \'#\'
+--       | enemy -> \'!\'
+--       | coin -> \'$\'
+--       | otherwise -> \'.\'
+-- @
+
+-- $collect
+-- All that's left is letting the player collect coins and keeping track of how many they got.
+--
+-- I'll do this via a resource this time.
+--
+-- @
+-- data Coins = Coins 'Int' deriving ('Component')
+-- @
+--
+-- I'll insert the resource in @MainPlugin@:
+--
+-- @
+-- instance 'Plugin' MainPlugin where
+--   'Mischief.ECS.App.Plugins.init' _ = do
+--     [Stdin]("Mischief.ECS.Stdin").'Mischief.ECS.Stdin.init'
+--     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Startup' (spawnGrid, spawnWalls)
+--     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Update' printGrid
+--
+--     interval <- [Interval]("Mischief.ECS.Interval").'Mischief.ECS.Interval.start' 2000000 spawnCoin
+--
+--     'insertRes' '=<<' newGen
+--     'insertRes' $ Coins 0
+-- @
+--
+-- And I'll update the display to also show the number of coins:
+--
+-- @
+-- showCoins :: 'System' 'String'
+-- showCoins = do
+--   'Just' (Coins c) <- 'res' \@Coins
+--   'pure' $ \"Coins: \" ++ show c
+-- @
+--
+-- @
+-- printGrid :: 'System' ()
+-- printGrid = do
+--   grid <- showGrid
+--   health <- showHealth
+--   coins <- showCoins
+--   printClear $ health ++ \"\\n\" ++ grid ++ \"\\n\" ++ coins ++ \"\\n\"
+-- @
+--
+-- And now finally, a system that checks if there are any coins on the same tile as the player, despawns them, and increments the resource:
+--
+-- @
+-- collectCoins :: 'System' ()
+-- collectCoins = do
+--   'Just' playerTile <- ['s'|OnTile -> (Entity) / With Player|]
+--   coins <- ['q'|Entity / With OnTile -> playerTile, With Coin|]
+--
+--   'Just' (Coins c) <- 'res' \@Coins
+--   'insertRes $ Coins $ c + 'length' coins
+--
+--   'for_' coins despawn
+-- @
+--
+-- And I'll schedule it:
+--
+-- @
+-- instance 'Plugin' PlayerPlugin where
+--   'Mischief.ECS.App.Plugins.init' _ = do
+--     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Startup' $ spawnPlayer '`after`' spawnGrid
+--     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Update' movePlayer
+--     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Update' $ collectCoins '`after`' movePlayer
+--
+--     'void' $ [Observers]("Mischief.ECS.Observers").'Mischief.ECS.Observers.spawn' onDamage
+-- @
+--
+-- And that's it! Out player should now be able to collect coins!
+--
+-- @
+-- Health: 5
+-- ####################
+-- \#..................#
+-- \#..................#
+-- \#$....!!!!!\@...$...#
+-- \#$.................#
+-- \#..................#
+-- \#......$...........#
+-- \#.$................#
+-- \#..................#
+-- ####################
+-- Coins: 16
+-- @

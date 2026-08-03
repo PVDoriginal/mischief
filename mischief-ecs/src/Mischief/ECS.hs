@@ -100,6 +100,7 @@ module Mischief.ECS
     module Mischief.ECS.World.Query,
     module Mischief.ECS.World.Query.Queryable,
     module Mischief.ECS.World.Query.QueryFilter,
+    module Mischief.ECS.EventDef,
     module Mischief.ECS.World.Query.TH,
     module Mischief.ECS.World.Remove,
     module Mischief.ECS.World.Spawn,
@@ -132,6 +133,7 @@ import Mischief.ECS.Components.Required
 import Mischief.ECS.Components.Runnable
 import Mischief.ECS.Components.Spawn
 import Mischief.ECS.Entities
+import Mischief.ECS.EventDef
 import Mischief.ECS.Events
 import Mischief.ECS.Graph
 import Mischief.ECS.Hooks

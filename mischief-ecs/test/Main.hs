@@ -1,29 +1,29 @@
-{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
-{- HLINT ignore "Use newtype instead of data" -}
-{-# OPTIONS_GHC -Wno-unused-matches #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE MultiWayIf #-}
 
-{- HLINT ignore "Use zipWith" -}
+{- HLINT ignore "Use newtype instead of data" -}
 
 module Main where
 
-import Control.Monad (forever, replicateM, unless, void, when)
+import Control.Monad (void, when)
 import Control.Monad.IO.Class
 import Data.Default
 import Data.Foldable
 import Data.List ((!?))
 import Data.Traversable
-import GHC.IO.Handle
 import Mischief.ECS
 import Mischief.ECS.Hooks qualified as Hooks
+import Mischief.ECS.Interval qualified as Interval
+import Mischief.ECS.Observers qualified as Observers
 import Mischief.ECS.Stdin qualified as Stdin
 import Mischief.ECS.Stdout
 import Mischief.ECS.Systems qualified as Systems
 import Mischief.ECS.Timer (Timer)
 import Mischief.ECS.Timer qualified as Timer
-import System.IO
+import Mischief.ECS.World.Query.QueryType
+import System.Exit
 import System.Random
 import System.Random.Stateful
-import Prelude hiding (Left, Right)
 
 data Likes = Likes Int deriving (Show)
 
@@ -43,7 +43,10 @@ instance Plugin MainPlugin where
     Systems.add Startup (spawnGrid, spawnWalls)
     Systems.add Update printGrid
 
+    interval <- Interval.start 2000000 spawnCoin
+
     insertRes =<< newGen
+    insertRes $ Coins 0
 
   plugins _ = plug (PlayerPlugin, EnemyPlugin, TimePlugin)
 
@@ -53,6 +56,9 @@ instance Plugin PlayerPlugin where
   init _ = do
     Systems.add Startup $ spawnPlayer `after` spawnGrid
     Systems.add Update movePlayer
+    Systems.add Update $ collectCoins `after` movePlayer
+
+    void $ Observers.spawn onDamage
 
 data EnemyPlugin = EnemyPlugin deriving (Eq)
 
@@ -60,6 +66,7 @@ instance Plugin EnemyPlugin where
   init _ = do
     Systems.add Startup spawnEnemies
     Systems.add Update moveEnemies
+    Systems.add Update $ tryDamage `after` movePlayer `after` moveEnemies
 
 data Tile = Tile deriving (Component)
 
@@ -93,7 +100,10 @@ moveBy (x, y) entity = do
   Just (Pos (x', y')) <- [g|*Pos|] entity
   getTile (x' + x, y' + y)
 
-data Player = Player deriving (Component)
+data Player = Player
+
+instance Component Player where
+  required = require @Health
 
 data OnTile = OnTile
 
@@ -121,12 +131,18 @@ spawnWalls = do
 
 showTile :: Entity -> System Char
 showTile tile = do
-  entities <- query' (Has @Player, Has @Wall, Has @Enemy) (With (R @OnTile tile))
-  pure $ case entities of
-    ((_, _, True) : _) -> '!'
-    ((True, _, _) : _) -> '@'
-    ((_, True, _) : _) -> '#'
-    _ -> '.'
+  player <- tileHas @Player tile
+  enemy <- tileHas @Enemy tile
+  wall <- tileHas @Wall tile
+  coin <- tileHas @Coin tile
+
+  pure $
+    if
+      | player -> '@'
+      | wall -> '#'
+      | enemy -> '!'
+      | coin -> '$'
+      | otherwise -> '.'
 
 showGrid :: System String
 showGrid = do
@@ -134,8 +150,22 @@ showGrid = do
   lines <- for tiles $ traverse showTile
   return $ unlines lines
 
+showHealth :: System String
+showHealth = do
+  Just health <- [s|Health / With Player|]
+  pure $ "Health: " ++ show health.hp
+
+showCoins :: System String
+showCoins = do
+  Just (Coins c) <- res @Coins
+  pure $ "Coins: " ++ show c
+
 printGrid :: System ()
-printGrid = printClear =<< showGrid
+printGrid = do
+  grid <- showGrid
+  health <- showHealth
+  coins <- showCoins
+  printClear $ health ++ "\n" ++ grid ++ "\n" ++ coins ++ "\n"
 
 movePlayer :: System ()
 movePlayer = do
@@ -151,16 +181,14 @@ movePlayerBy :: (Int, Int) -> System ()
 movePlayerBy dir = do
   Just player <- single' E (With (C @Player))
 
-  Just rel <- get (R @OnTile Any) player
-  let tile = rel.target
-
+  Just (tile, pos) <- [g|OnTile -> (Entity, *Pos)|] player
   newTile <- moveBy dir tile
 
   for_ newTile $ \t ->
-    hasWall t >>= flip unless (insert (Rel OnTile t) player)
+    tileIsFree t >>= flip when (insert (Rel OnTile t) player)
 
 hasWall :: Entity -> System Bool
-hasWall tile = not . null <$> [q|Entity / With (Wall, OnTile -> tile)|]
+hasWall = tileHas @Wall
 
 data Enemy = Enemy
 
@@ -180,8 +208,8 @@ newGen = Rand <$> (newIOGenM =<< initStdGen)
 randomPos :: System (Int, Int)
 randomPos = do
   Just (Rand gen) <- res @Rand
-  i <- applyIOGen (uniformR (0, gridH - 1)) gen
-  j <- applyIOGen (uniformR (0, gridW - 1)) gen
+  i <- applyIOGen (uniformR (1, gridH - 1)) gen
+  j <- applyIOGen (uniformR (1, gridW - 1)) gen
   return (i, j)
 
 randomTile :: System Entity
@@ -196,13 +224,19 @@ spawnEnemies :: System ()
 spawnEnemies = for_ [0 .. 4] $ const spawnEnemy
 
 decideEnemyDir :: Pos -> Pos -> System (Int, Int)
-decideEnemyDir (Pos (x, y)) (Pos (px, py)) = do
-  pure $ case (x > px, y > py, x < px, y < py) of
-    (True, _, _, _) -> (-1, 0)
-    (_, True, _, _) -> (0, -1)
-    (_, _, True, _) -> (1, 0)
-    (_, _, _, True) -> (0, 1)
-    _ -> (0, 0)
+decideEnemyDir (Pos (ex, ey)) (Pos (px, py)) = do
+  left <- tileAtPosIsFree (ex - 1, ey)
+  up <- tileAtPosIsFree (ex, ey - 1)
+  right <- tileAtPosIsFree (ex + 1, ey)
+  down <- tileAtPosIsFree (ex, ey + 1)
+
+  pure $
+    if
+      | ex > px && left -> (-1, 0)
+      | ey > py && up -> (0, -1)
+      | ex < px && right -> (1, 0)
+      | ey < py && down -> (0, 1)
+      | otherwise -> (0, 0)
 
 moveEnemies :: System ()
 moveEnemies = do
@@ -221,21 +255,78 @@ moveEnemies = do
       for_ newTile $ \t -> do
         insert (Rel OnTile t) enemy
 
--- data R1 = R1 deriving (Component)
+tileHas :: forall c. (QueryType c) => Entity -> System Bool
+tileHas tile = not . null <$> [q|Entity / With (c, OnTile -> tile)|]
 
--- data R2 = R2
+tileAtPosIsFree :: (Int, Int) -> System Bool
+tileAtPosIsFree pos = do
+  tile <- getTile pos
+  maybe (pure False) tileIsFree tile
 
--- instance Component R2 where
---   type RelExclusivity R2 = Exclusive
+tileIsFree :: Entity -> System Bool
+tileIsFree tile = do
+  wall <- tileHas @Wall tile
+  enemy <- tileHas @Enemy tile
+  player <- tileHas @Player tile
+  pure $ not (wall || enemy || player)
 
--- data C1 = C1 deriving (Component, Show)
+data Health = Health {hp :: Int} deriving (Component)
 
--- f :: System ()
--- f = do
---   bob <- spawn (Name "Bob")
---   charlie <- spawn (Name "Charlie", Rel ChildOf bob)
---   john <- spawn (Name "John", Rel ChildOf charlie)
---   alex <- spawn (Name "Alex", Rel ChildOf john)
+instance Default Health where
+  def = Health 100
 
---   Just name <- [g|ChildOf -> (ChildOf -> (ChildOf -> (*Name)))|] alex
---   info $ "The name of my great grandfather is " <> text name
+data Damage = Damage {amount :: Int} deriving (Event)
+
+onDamage :: Damage -> System ()
+onDamage dmg = do
+  player <- [s|(Entity, Health) / With Player, Without Invincible|]
+
+  for_ player $ \(entity, health) -> do
+    modify health $ \(Health x) -> Health $ max (x - dmg.amount) 0
+
+    insert Invincible entity
+    delay 1000000 $ remove (C @Invincible) entity
+
+    Just health <- update health
+    when (health.hp == 0) $ liftIO exitSuccess
+
+isAdjacent :: Pos -> Pos -> Bool
+isAdjacent (Pos (x1, y1)) (Pos (x2, y2)) =
+  let dx = abs (x1 - x2)
+      dy = abs (y1 - y2)
+   in (dx == 1 && dy == 0) || (dx == 0 && dy == 1)
+
+tryDamage :: System ()
+tryDamage = do
+  Just player <- [s|OnTile -> (*Pos) / With Player|]
+  enemies <- [q|OnTile -> (*Pos) / With Enemy|]
+
+  for_ enemies $ \pos -> do
+    when (isAdjacent pos player) $ do
+      trigger (Damage 5)
+
+data Invincible = Invincible deriving (Component)
+
+data Coin = Coin deriving (Component)
+
+spawnCoin :: System ()
+spawnCoin = do
+  tile <- randomTile
+  free <- tileIsFree tile
+  if free
+    then
+      void $ spawn (Coin, Rel OnTile tile)
+    else
+      spawnCoin
+
+data Coins = Coins Int deriving (Component)
+
+collectCoins :: System ()
+collectCoins = do
+  Just playerTile <- [s|OnTile -> (Entity) / With Player|]
+  coins <- [q|Entity / With OnTile -> playerTile, With Coin|]
+
+  Just (Coins c) <- res @Coins
+  insertRes $ Coins $ c + length coins
+
+  for_ coins despawn
