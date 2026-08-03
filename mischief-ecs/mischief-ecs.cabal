@@ -218,3 +218,28 @@ test-suite mischief-test
     primitive,
     random,
     transformers,
+
+executable example-dungeon
+  main-is: Dungeon.hs
+  hs-source-dirs: examples
+  build-depends:
+    base ^>=4.21.0.0,
+    containers,
+    data-default,
+    mischief-ecs,
+    primitive,
+    random,
+    transformers,
+
+  default-language: GHC2024
+  default-extensions:
+    DeriveAnyClass
+    DuplicateRecordFields
+    NoFieldSelectors
+    NoGeneralizedNewtypeDeriving
+    OverloadedRecordDot
+    OverloadedStrings
+    QuasiQuotes
+    RequiredTypeArguments
+    TemplateHaskell
+    TypeFamilyDependencies

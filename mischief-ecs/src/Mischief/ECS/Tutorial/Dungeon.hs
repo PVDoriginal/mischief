@@ -68,11 +68,13 @@ module Mischief.ECS.Tutorial.Dungeon
 where
 
 import Control.Monad (unless, void, when)
+import Control.Monad.IO.Class (MonadIO (liftIO))
 import Data.Default (Default)
 import Data.Foldable (for_)
 import Data.List ((!?))
 import Data.Traversable (for)
 import Mischief.ECS
+import System.Exit (exitSuccess)
 
 -- $intro
 -- This module will walk you through creating a simple terminal-based dungeon crawler in Mischief.
@@ -950,8 +952,8 @@ import Mischief.ECS
 -- @
 -- tryDamage :: 'System' ()
 -- tryDamage = do
---   'Just' player <- ['s'|OnTile -> (*Pos) / With Player|]
---   enemies <- ['q'|OnTile -> (*Pos) / With Enemy|]
+--   'Just' player \<- ['s'|OnTile -\> (*Pos) / With Player|]
+--   enemies \<- ['q'|OnTile -\> (*Pos) / With Enemy|]
 --
 --   'for_' enemies $ \pos -> do
 --     'when' (isAdjacent pos player) $ do
@@ -1013,7 +1015,7 @@ import Mischief.ECS
 -- If the query returned something (if the player isn't invincible), it will take damage.
 --
 -- @
--- 'modify' health $ \(Health x) -> Health $ max (x - dmg.amount) 0
+-- 'modify' health $ \(Health x) -\> Health $ max (x - dmg.amount) 0
 -- @
 --
 -- Then the @Invincible@ component will be inserted on the player.
@@ -1088,7 +1090,7 @@ import Mischief.ECS
 -- Third, we can use intervals to make the system repeat every two seconds.
 --
 -- @
--- import "Mischief.ECS.Intervals" qualified as [Intervals]("Mischief.ECS.Intervals")
+-- import "Mischief.ECS.Interval" qualified as [Interval]("Mischief.ECS.Interval")
 -- @
 --
 --
