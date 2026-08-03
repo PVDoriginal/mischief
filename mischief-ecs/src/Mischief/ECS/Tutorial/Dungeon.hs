@@ -318,7 +318,7 @@ import Mischief.ECS
 -- movePlayerBy dir = do
 --   'Just' player <- 'single'' E ('With' ('C' \@Player))
 --
---   'Just' [rel] <- 'get' ('R' \@OnTile 'Any') player
+--   'Just' rel <- 'get' ('R' \@OnTile 'Any') player
 --   let tile = rel.target
 --
 --   newTile <- moveBy dir tile
@@ -349,13 +349,12 @@ import Mischief.ECS
 -- Next, we get the entity of the current tile the player is on:
 --
 -- @
--- 'Just' [rel] <- 'get' ('R' \@OnTile 'Any') player
+-- 'Just' rel <- 'get' ('R' \@OnTile 'Any') player
 -- let tile = rel.target
 -- @
 --
--- Querying for @R \OnTile Any@ will give us a list of all @OnTile@ relationships of the player.
--- We know that the relationship is exclusie, and that the player /must/ be on a tile at every point, so
--- we pattern match directly to @Just [rel]@ to get the exact relationship.
+-- Querying for @R \OnTile Any@ will give us a list of all @OnTile@ relationships of the player. However, because earlier we set @OnTile@
+-- to be @Exclusive@, Mischief knows to only return a single relationship.
 --
 -- We then use @rel.target@ to get the target entity of the relationship, which, in this case, is the tile we are looking for.
 --
@@ -621,36 +620,67 @@ import Mischief.ECS
 -- @
 
 -- $moveE
--- Right now the enemies just sit there. Let's make them move! I think I've showed you pretty much everything that's needed to get this done, so I'll just paste the actual system:
+-- Right now the enemies just sit there. Let's make them move!
+--
+-- But first, I'd like to present you a new concept: @transitive queries@.
+--
+-- Up until now, if we wanted the position of the tile of the player we'd do somehing like:
+--
+-- @
+-- 'Just' tile <- 'single'' ('R' \@OnTile 'Any') ('With' ('C' \@Player))
+-- 'Just' pos <- 'get' ('Val' ('C' \@Pos)) tile.target
+-- @
+--
+-- We'd do a query to get the player's relationship to the tile, then do another query on the actual tile to get its position.
+--
+-- But this could also be written as:
+--
+-- @
+-- 'Just' pos <- 'single'' ('R' \@OnTile ('Q' ('Val' ('C' \@Pos)))) ('With' ('C' \@Player))
+-- @
+--
+-- Instead of getting all relationship, we use the @Q@ marker to run the given query on each target of the relationship. So we transitively
+-- get the position of the tile through its relationship to the player.
+--
+-- If you think this is uglier than just the two queries earlier, don't worry, the quasi notation looks much better:
+--
+-- @
+-- 'Just' pos <- ['s'|OnTile -> (*Pos) / With Player|]
+-- @
+--
+-- Don't forget to put the @()@ around @*Pos@!
+--
+-- You should now be able to understand this system that handles the movement of the enemies:
 --
 -- @
 -- moveEnemies :: 'System' ()
 -- moveEnemies = do
---   'Just' [tile] <- 'single'' ('R' \@OnTile 'Any') ('With' ('C' \@Player))
---   'Just' (Pos (px, py)) <- 'get' ('Val' ('C' \@Pos)) tile.target
+--   'Just' pos <- ['s'|OnTile -> (*Pos) / With Player|]
 --
---   enemies <- 'query'' ('E', 'R' \@OnTile 'Any') ('With' ('C' \@Enemy))
---   'for_' enemies $ \(enemy, [tile]) -> do
---     'Just' (Pos (x, y)) <- 'get' ('Val' ('C' \@Pos)) tile.target
+--   enemies <- ['q'|Entity, OnTile -> (Entity, *Pos) / With Enemy|]
+--   'for_' enemies $ \(enemy, (enemyTarget, enemyPos)) -> do
 --
---     let diff = case (x > px, y > py, x < px, y < py) of
---           (True, _, _, _) -> (-1, 0)
---           (_, True, _, _) -> (0, -1)
---           (_, _, True, _) -> (1, 0)
---           (_, _, _, True) -> (0, -1)
---           _ -> (0, 0)
+--   diff <- decideEnemyDir enemyPos pos
 --
---     moveBy diff tile.target
---       '>>=' 'traverse'
---         ( \t ->
---             'insert' ('Rel' OnTile t) enemy
---         )
+--   newTile <- moveBy diff enemyTile
+--   'for_' newTile $ \t -> do
+--     'insert' ('Rel' OnTile t) enemy
 -- @
 --
--- It gets the player's tile and position, then it iterates through all enemies, looks at their positions, and changes their tile
--- depending on how they're position towards the player.
+-- With this helper function for deciding which direction to move on, based on the player's position.
 --
--- And it also needs to be scheduled to run:
+-- @
+-- decideEnemyDir :: Pos -> Pos -> 'System' ('Int', 'Int')
+-- decideEnemyDir (Pos (x, y)) (Pos (px, py)) = do
+--   'pure' $ case (x > px, y > py, x < px, y < py) of
+--     (True, _, _, _) -> (-1, 0)
+--     (_, True, _, _) -> (0, -1)
+--     (_, _, True, _) -> (1, 0)
+--     (_, _, _, True) -> (0, 1)
+--     _ -> (0, 0)
+-- @
+--
+-- And don't forget to schedule it:
 --
 -- @
 -- instance 'Plugin' EnemyPlugin where
@@ -661,10 +691,16 @@ import Mischief.ECS
 --
 -- Except there's a small problem. If you run the app now, you may notice you don't see any enemies!
 --
--- That's because they all already got to the player and are hiding behind it! That's because we've set @moveEnemies@
--- to happen every frame, and our frames are happening almost instantly.
+-- That's because they all already got to the player and are hiding behind it! We've set @moveEnemies@
+-- to happen every frame, and our frames are happening almost instantly. So we need to add some sort of timing to the enemy's movement.
 --
--- There are many higher-level solutions to fix this, some of them even using async systems, but instead, I'll take the opportunity to introduce you to an important notion, Time!
+-- There are many cleaner high-level solutions to fix this, some of them even using async systems, but instead, I'll take the opportunity to introduce you to an important notion, Time!
+--
+-- In order to use @Time@ utilities, you need to add the @'TimePlugin'@ to your app, so I'll add it to our @MainPlugin@:
+--
+-- @
+-- 'plugins' = 'plug' (PlayerPlugin, EnemyPlugin, TimePlugin)
+-- @
 --
 -- In any system you can use the @deltaTime@ function to get the number of seconds passed since the last frame.
 --
@@ -704,34 +740,26 @@ import Mischief.ECS
 -- All that's left is to put all of this together:
 --
 -- @
+-- moveEnemies :: 'System' ()
 -- moveEnemies = do
--- 'Just' [tile] <- 'single'' ('R' \@OnTile 'Any') ('With' ('C' \@Player))
--- 'Just' (Pos (px, py)) <- 'get' ('Val' ('C' \@Pos)) tile.target
+--   'Just' pos <- ['s'|OnTile -> (*Pos) / With Player|]
+--   delta <- 'deltaTime'
 --
--- delta <- 'deltaTime'
+--   enemies <- ['q'|Entity, OnTile -> (Entity, *Pos), Cooldown / With Enemy|]
+--   'for_' enemies $ \(enemy, (enemyTile, enemyPos), cooldown) -> do
+--     let (timer, finished) = [Timer]("Mischief.ECS.Timer").'Mischief.ECS.Timer.tick' delta cooldown.timer
+--     'set' cooldown $ Cooldown timer
 --
--- enemies <- 'query'' ('E', 'R' \@OnTile 'Any', 'C' \@Cooldown) ('With' ('C' \@Enemy))
--- 'for_' enemies $ \(enemy, [tile], cooldown) -> do
---   let (timer, finished) = [Timer]("Mischief.ECS.Timer").'Mischief.ECS.Timer.tick' delta cooldown.timer
---   'set' cooldown $ Cooldown timer
+--     'when' finished $ do
+--       diff <- decideEnemyDir enemyPos pos
 --
---   'when' finished $ do
---     'Just' (Pos (x, y)) <- 'get' ('Val' ('C' \@Pos)) tile.target
---
---     let diff = case (x > px, y > py, x < px, y < py) of
---           (True, _, _, _) -> (-1, 0)
---           (_, True, _, _) -> (0, -1)
---           (_, _, True, _) -> (1, 0)
---           (_, _, _, True) -> (0, 1)
---           _ -> (0, 0)
---
---     moveBy diff tile.target
---       '>>=' 'traverse_'
---         ( \t ->
---             'insert' ('Rel' OnTile t) enemy
---         )
+--       newTile <- moveBy diff enemyTile
+--       'for_ newTile $ \t -> do
+--         'insert' ('Rel' OnTile t) enemy
 -- @
 --
 -- Each frame, we tick the cooldown timer of each enemy, and only move them if that timer has just finished. This means every enemy will now move only once per 0.5 seconds.
+--
+-- Don't forget to use the @set@ to pass the new timer back into the ECS! In Mischief, all variables you use are @immutable@, so you need to explicitly order mutations.
 --
 -- You can now run your app and see the enemies chasing you!

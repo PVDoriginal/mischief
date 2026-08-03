@@ -195,35 +195,31 @@ spawnEnemy = do
 spawnEnemies :: System ()
 spawnEnemies = for_ [0 .. 4] $ const spawnEnemy
 
+decideEnemyDir :: Pos -> Pos -> System (Int, Int)
+decideEnemyDir (Pos (x, y)) (Pos (px, py)) = do
+  pure $ case (x > px, y > py, x < px, y < py) of
+    (True, _, _, _) -> (-1, 0)
+    (_, True, _, _) -> (0, -1)
+    (_, _, True, _) -> (1, 0)
+    (_, _, _, True) -> (0, 1)
+    _ -> (0, 0)
+
 moveEnemies :: System ()
 moveEnemies = do
-  -- Just tile <- single' (R @OnTile Any) (With (C @Player))
-  -- Just (Pos (px, py)) <- get (Val (C @Pos)) tile.target
-
-  Just (Pos (px, py)) <- [s|OnTile -> (*Pos) / With Player|]
-
+  Just pos <- [s|OnTile -> (*Pos) / With Player|]
   delta <- deltaTime
 
-  enemies <- query' (E, R @OnTile Any, C @Cooldown) (With (C @Enemy))
-  for_ enemies $ \(enemy, tile, cooldown) -> do
+  enemies <- [q|Entity, OnTile -> (Entity, *Pos), Cooldown / With Enemy|]
+  for_ enemies $ \(enemy, (enemyTile, enemyPos), cooldown) -> do
     let (timer, finished) = Timer.tick delta cooldown.timer
     set cooldown $ Cooldown timer
 
     when finished $ do
-      Just (Pos (x, y)) <- get (Val (C @Pos)) tile.target
+      diff <- decideEnemyDir enemyPos pos
 
-      let diff = case (x > px, y > py, x < px, y < py) of
-            (True, _, _, _) -> (-1, 0)
-            (_, True, _, _) -> (0, -1)
-            (_, _, True, _) -> (1, 0)
-            (_, _, _, True) -> (0, 1)
-            _ -> (0, 0)
-
-      moveBy diff tile.target
-        >>= traverse_
-          ( \t ->
-              insert (Rel OnTile t) enemy
-          )
+      newTile <- moveBy diff enemyTile
+      for_ newTile $ \t -> do
+        insert (Rel OnTile t) enemy
 
 -- data R1 = R1 deriving (Component)
 

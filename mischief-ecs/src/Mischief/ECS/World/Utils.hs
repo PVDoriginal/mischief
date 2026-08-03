@@ -140,7 +140,7 @@ tryGetEntityComponent world entity =
         do
           componentId <- getComponentId (typeRep $ Proxy @c) world.components
           case componentId of
-            Nothing -> return Nothing
+            Nothing -> return $ Just Nothing
             Just componentId -> do
               pointer <- readIORef pointer
               res <- tryGetComponentFromTables world.tables pointer componentId
@@ -199,7 +199,9 @@ tryGetRelsMaybe target world archetypes =
   do
     componentId <- getComponentId (typeRep $ Proxy @c) world.components
     case componentId of
-      Nothing -> return []
+      Nothing -> do
+        e <- tryGetEntities world archetypes
+        return $ map (,Nothing) e
       Just componentId -> do
         res <- tryGetComponentsFromTablesMaybe world.tables archetypes componentId {entity = Just target}
         return $
@@ -214,7 +216,9 @@ tryGetComponentsMaybe world archetypes =
   do
     componentId <- getComponentId (typeRep $ Proxy @c) world.components
     case componentId of
-      Nothing -> return []
+      Nothing -> do
+        e <- tryGetEntities world archetypes
+        return $ map (,Nothing) e
       Just componentId ->
         tryGetComponentsFromTablesMaybe world.tables archetypes componentId
 
