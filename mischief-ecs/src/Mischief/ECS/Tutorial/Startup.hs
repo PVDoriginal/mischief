@@ -1,0 +1,326 @@
+{-# OPTIONS_GHC -Wno-unused-imports #-}
+
+-- |
+-- Module: Components Tutorial
+-- Description: Introductory Tutorial
+--
+-- This module walks the user through setting up Mischief and creating a simple app.
+--
+-- [Next Chapter: Coding a Dungeon Game]("Mischief.ECS.Tutorial.Dungeon")
+--
+-- [Main Page]("Mischief.ECS")
+module Mischief.ECS.Tutorial.Startup
+  ( -- * Learn You an ECS for Great Mischief! - 1. Startup Guide
+
+    -- * What do I need to know?
+    -- $know
+
+    -- * Setup
+    -- $setup
+
+    -- * The App
+    -- $app
+
+    -- * The ECS
+    -- $ecs
+
+    -- * Your First System
+    -- $firstSystem
+
+    -- * Your First Component
+    -- $firstComp
+
+    -- * Your First Query
+    -- $firstQuery
+
+    -- * Your First Mutation
+    -- $firstMut
+
+    -- * Your First Resource
+    -- $res
+
+    -- * [Next Chapter: Coding a Dungeon Game]("Mischief.ECS.Tutorial.Dungeon")
+  )
+where
+
+import Control.Monad (when)
+import Data.Foldable (for_)
+import Mischief.ECS
+
+-- $know
+-- This book doesn't assume any knowledge of other game engines or programming paradigms, but it does expact some Haskell knowledge.
+--
+-- While it is possible to read this book and get a pretty good idea of what Mischief is and how it works, you'll have a much better time
+-- if you have at least a very basic understanding of Haskell syntax.
+
+-- $setup
+-- In order to use Mischief, you'll first need to install @GHC@ and @cabal@. You can follow [this](https://www.haskell.org/cabal/) quick-start guide in order to do that.
+--
+-- After you have a new project set up, you need to install @mischief-ecs@:
+--
+-- @
+-- cabal install mischief-ecs
+-- @
+--
+-- We recommend using @GHC2024@ as the language standard (set in your @.cabal@ file).
+--
+-- == Language Extensions
+-- We generally recommend using the following language extensions in a Mischief project:
+--
+-- @
+-- DeriveAnyClass
+-- DuplicateRecordFields
+-- NoFieldSelectors
+-- DerivingStrategies
+-- OverloadedRecordDot
+-- OverloadedStrings
+-- QuasiQuotes
+-- RequiredTypeArguments
+-- TypeFamilyDependencies
+-- @
+--
+-- @QuasiQuotes@ and @OverloadedStrings@ are especially important because some Mischief features are not available without them (namely quasi-queries and logging).
+-- The rest of the extensions are highly optional.
+--
+-- You can paste these extensions in the @default-extensions@ field of your @.cabal@ file.
+
+-- $app
+-- A Mischief program usually starts with an app and a plugin.
+--
+-- @
+-- import "Mischief.ECS.Prelude"
+--
+-- main :: 'IO' ()
+-- main = do
+--   app <- 'newApp' MyPlugin
+--   'runApp' app
+--
+-- data MyPlugin = MyPlugin deriving ('Eq', 'Plugin')
+-- @
+--
+-- If you copy this code into your project and run it using @cabal run@, your app will start! Although we haven't told it to do anything yet.
+--
+-- The @App@ is a wrapper around our @World@, which is the structure containing all data stored by the ECS. It allows us to add
+-- initializition instructions and to plug additional logic into our game through @Plugins@.
+
+-- $ecs
+-- Mischief's ECS logic is designed to be very approachable and simple to write.
+--
+-- @Components@ are just types deriving the @Component@ typeclass.
+--
+-- @
+-- data Position = Position {x :: 'Float', y :: 'Float'} deriving ('Component')
+-- @
+--
+-- @Systems@ are functions in the @System@ monad.
+--
+-- @
+-- printPositions :: 'System' ()
+-- printPositions = do
+--   'info' . 'text' =<< 'query' ('C' \@Position)
+-- @
+--
+-- @Entities@ are ids used to represent and manipulate data.
+--
+-- @
+-- data Entity = Entity 'Int'
+-- @
+
+-- $firstSystem
+-- Paste the following function into your module:
+--
+-- @
+-- helloWorld :: 'System' ()
+-- helloWorld = 'info' "Hello World!"
+-- @
+--
+-- This will be our first system. The only remaining step is to schedule it to run!
+--
+-- @
+-- import "Mischief.ECS.Systems" qualified as [Systems]("Mischief.ECS.Systems")
+-- @
+--
+-- @
+-- instance 'Plugin' MyPlugin where
+--
+--   'Mischief.ECS.App.Plugins.init' :: MyPlugin -> 'System' ()
+--   'Mischief.ECS.App.Plugins.init' _ = do
+--     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Update' helloWorld
+-- @
+--
+-- The @Systems.add@ function adds the system to your App's @Update@ schedule, making it run once per frame. If you run your app again,
+-- you will see \"Hello World!\" printed to your terminal many, many times.
+--
+-- As you may have noticed, the @init@ we give to the Plugin is, in itself, a system! There's nothing differentiating
+-- the logic you write here from the logic ran at any point in your app's runtime. @init@ is just a convenient way of
+-- adding some initialization that happens before anything else, but we'll get into that later.
+
+-- $firstComp
+-- Let's do a little more than greeting the whole world, let's greet some individual people!
+--
+-- In ECS, you would generally model people as entities with a set of components that define them. Let's start with a simple @Person@ component:
+--
+-- @
+-- data Person = Person deriving ('Component')
+-- @
+--
+-- So how can we give people names? In a more traditional design you could just add a @name :: String@ field to @Person@. But the ECS makes you think of it differently!
+-- A @Name@ is just a piece of data that can be attached to anything. A dog could also have a name. So why not just make a @Name@ component?
+--
+-- @
+-- data Name = Name 'String' deriving ('Component')
+-- @
+--
+-- No need to do it though, since this exact @Name@ is already defined internally by Mischief, you can just use it directly.
+--
+-- Now that we can represent people with names, let's make a system that spawns some:
+--
+-- @
+-- addPeople :: 'System' ()
+-- addPeople = do
+--   spawn (Person, Name \"Kim\")
+--   spawn (Person, Name \"Nicholas\")
+--   spawn (Person, Name \"Florian\")
+-- @
+--
+-- You can register it to run on the app's startup like this:
+--
+-- @
+-- 'Mischief.ECS.App.Plugins.init' _ = do
+--   [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Startup' addPeople
+--   [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Update' helloWorld
+-- @
+
+-- $firstQuery
+-- If you run your app, the people will be spawned but we aren't doing anything to them yet! Let's make a system that greets them:
+--
+-- @
+-- greetPeople :: 'System' ()
+-- greetPeople = do
+--   people <- 'query' ('C' \@Name, 'C' \@Person)
+--   'for_' people $ \(name, _) ->
+--     'info' $ \"Hello \" <> 'text' name
+-- @
+--
+-- The above query will grab the @Name@ and @Person@ of every entity. Then it iterates over them  in order to greet them.
+--
+-- The @Person@ component however, is only queried to ensure we are querying the right entities. We don't care about its value at all! So we can instead write it
+-- as a filter to limit the types of entities selected by the query and save us the trouble of carrying an extra variable around.
+--
+-- @
+-- greetPeople :: 'System' ()
+-- greetPeople = do
+--   people <- 'query'' ('C' \@Name) ('With' ('C' \@Person))
+--   'for_' people $ \name ->
+--     'info' $ \"Hello \" <> 'text' name
+-- @
+--
+-- Do note the use of @query'@ here instad of @query@. The former is a variant of the same function but which also expects a filter.
+--
+-- Mischief has two equivalent ways of writing queries. The normal way that you've seen above, and the quasi way:
+--
+-- @
+-- people <- ['q'|Name / With Person|]
+-- @
+--
+-- Query-queries are macros meant to simplify writing queries. They'll become especially helpful once we start dealing
+-- with relationships and transitive queries.
+--
+-- Now we can schedule this system to also run:
+--
+-- @
+-- 'Mischief.ECS.App.Plugins.init' _ = do
+--   [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Startup' addPeople
+--   [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Update' (helloWorld, greetPeople)
+-- @
+--
+-- Running our app will result in the following output:
+--
+-- @
+-- [INFO] Hello World!
+-- [INFO] Hello Kim
+-- [INFO] Hello Nicholas
+-- [INFO] Hello Florian
+-- @
+--
+-- Note that \"Hello World\" might show above or beneath the other people, since systems in the same schedule can run in any order unless they are explicitly ordered.
+
+-- $firstMut
+-- If we want to change the name of some people (perhaps they transitioned!) we can apply a mutation to a value obtained from the query:
+--
+-- @
+-- updateFlo :: 'System'
+-- updateFlo = do
+--   people <- ['q'|Name / With Person|]
+--   'for_' people $ \name -> do
+--     'when' (name == Name \"Florian\") $
+--       'set' name (Name \"Flo\")
+-- @
+--
+-- Although.. that feels awfully imperative doesn't it? We can also write the same system as:
+--
+-- @
+-- updateFlo = do
+--   florians <- ['q'|Name / With Person, Check (== Name \"Florian\")|]
+--   'for_' florians $ '`set`' Name \"Flo\"
+-- @
+--
+-- The above query can also be written like this:
+--
+-- @
+-- florians <- 'query'' ('C' \@Name) ('With' ('C' \@Person), 'Check (== Name \"Florian\"))
+-- @
+--
+-- Let's add the new system to a schedule:
+--
+-- @
+-- 'Mischief.ECS.App.Plugins.init' _ = do
+--   [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Startup' addPeople
+--   [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Update' (helloWorld, greetPeople)
+--   [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Update' $ updateFlo '`before`' greetPeople
+-- @
+--
+-- Note that we have explicitly ordered @updateFlo@ to happen before @greetPeople@. We want to only greet Flo after their name has changed!
+
+-- $res
+-- Resources are a great way to store global information that can be easily written to and read in any system.
+--
+-- Let's say we want to have a custom greeting that we can change at runtime. We could store that in a resource:
+--
+-- @
+-- data Greeting = Greeting 'String' deriving ('Component')
+-- @
+--
+-- Yes, resources are just normal components! Any component can be stored and retrieved as a resource by using @insertRes@ and @res@.
+--
+-- Let's insert a greeting from our init system:
+--
+-- @
+-- 'Mischief.ECS.App.Plugins.init' _ = do
+--   [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Startup' addPeople
+--   [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Update' (helloWorld, greetPeople)
+--   [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Update' $ updateFlo '`before`' greetPeople
+--
+--   'insertRes' (Greeting \"Hey\")
+-- @
+--
+-- And let's modify @greetPeople@ so that it uses the current greeting from the resource:
+--
+-- @
+-- greetPeople :: 'System' ()
+-- greetPeople = do
+--   'Just' (Greeting greeting) <- 'res' \@Greeting
+--
+--   people <- ['q'|Name / With Person]
+--   'for_' people $ \name ->
+--     'info' $ 'text' greeting <> \" \" <> 'text' name
+-- @
+--
+-- You should now see this when running the app:
+--
+-- @
+-- [INFO] Hello World!
+-- [INFO] Hey Kim
+-- [INFO] Hey Nicholas
+-- [INFO] Hey Flo
+-- @

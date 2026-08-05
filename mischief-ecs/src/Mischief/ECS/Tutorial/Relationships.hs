@@ -12,7 +12,7 @@
 --
 -- [Main Page]("Mischief.ECS")
 module Mischief.ECS.Tutorial.Relationships
-  ( -- * Learn You an ECS for Great Mischief! - 3. Relationships
+  ( -- * Learn You an ECS for Great Mischief! - 5. Relationships
 
     -- * Introduction
     -- $intro

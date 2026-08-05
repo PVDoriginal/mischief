@@ -12,7 +12,7 @@
 --
 -- [Main Page]("Mischief.ECS")
 module Mischief.ECS.Tutorial.Components
-  ( -- * Learn You an ECS for Great Mischief! - 2. Components
+  ( -- * Learn You an ECS for Great Mischief! - 4. Components
 
     -- * Introduction
     -- $introduction
@@ -104,11 +104,6 @@ import Mischief.ECS
 -- >> [INFO] Just \"Foo\"
 -- >> [INFO] Just \"Bar\"
 -- @
---
--- === Don't know what =<< is?
---
--- @=<<@ is just an operator which takes the result of a monadic action on the right, and applies it
--- to the monadic action on the left. It's equivalent to writing:
 --
 -- @
 -- printName e = do

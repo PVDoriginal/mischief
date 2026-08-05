@@ -6,9 +6,9 @@
 --
 -- This module walks the user through creating a small game in the terminal.
 --
--- [Previous Chapter: App and Plugins]("Mischief.ECS.Tutorial.App")
+-- [Previous Chapter: Startup Guide]("Mischief.ECS.Tutorial.Startup")
 --
--- [Next Chapter: Relationships]("Mischief.ECS.Tutorial.Relationships")
+-- [Next Chapter: App and Plugins]("Mischief.ECS.Tutorial.App")
 --
 -- [Main Page]("Mischief.ECS")
 module Mischief.ECS.Tutorial.Dungeon
@@ -64,6 +64,11 @@ module Mischief.ECS.Tutorial.Dungeon
 
     -- * Collecting Coins
     -- $collect
+
+    -- * Next Steps
+    -- $next
+
+    -- * [Next Chapter: App and Plugins]("Mischief.ECS.Tutorial.App")
   )
 where
 
@@ -137,8 +142,10 @@ import System.Exit (exitSuccess)
 -- @
 -- spawnGrid :: 'System' ()
 -- spawnGrid = do
---   tiles \<- 'for' [0 .. gridH - 1] $ \\i -\> 'for' [0 .. gridW - 1] $ \\j -\>
---     'spawn' (Tile, Pos (i, j))
+--   tiles \<-
+--     'for' [0 .. gridH - 1] $ \\i -\>
+--       'for' [0 .. gridW - 1] $ \\j -\>
+--         'spawn' (Tile, Pos (i, j))
 --
 --   'insertRes' $ Grid tiles
 -- @
@@ -231,12 +238,12 @@ import System.Exit (exitSuccess)
 -- spawnPlayer = do
 --   'Just' tile <- getTile (5, 5)
 --   _ <- 'spawn' (Player, 'Rel' OnTile tile)
---   'return' ()
+--   'pure' ()
 -- @
 --
 -- @Rel OnTile tile@ inserts the @(OnTile, tile)@ relationship on the player.
 --
--- We can avoid the @return@ by just using @void@ to consume the value of @spawn@:
+-- We can avoid the @pure@ by just using @void@ to consume the value of @spawn@:
 --
 -- @
 -- spawnPlayer = do
@@ -244,7 +251,7 @@ import System.Exit (exitSuccess)
 --   'void' $ 'spawn' (Player, 'Rel' OnTile tile)
 -- @
 --
--- Now we can add the player spawning lgoic to @Startup@:
+-- Now we can add the player spawning logic to @Startup@:
 --
 -- @
 -- instance 'Plugin' MainPlugin where
@@ -297,7 +304,7 @@ import System.Exit (exitSuccess)
 -- @
 -- instance 'Plugin' MainPlugin where
 --   'Mischief.ECS.App.Plugins.init' _ = do
---     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Startup' spawnPlayer
+--     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Startup' spawnPlayer '`after`' spawnGrid
 --     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Startup' (spawnGrid, spawnWalls)
 -- @
 --
@@ -430,9 +437,10 @@ import System.Exit (exitSuccess)
 --     _ -> 'pure' ()
 -- @
 --
--- In case you're confused by it, the @for_@ just /'iterates/' over the @Maybe@, applying the function if it has a value, and doing nothing otherwise.
+-- The @for_@ just /'iterates/' over the @Maybe@, applying the function if it has a value, and doing nothing otherwise.
 --
--- For scheduling the movement, I have decided to create a new @PlayerPlugin@ which handles all the player logic, and make it a dependency of @MainPlugin@:
+-- At this point the codebase is starting to grow, so I have decided to create a new @PlayerPlugin@ which handles all the player logic (including the new movement system),
+-- and make it a dependency of @MainPlugin@:
 --
 -- @
 -- data MainPlugin = MainPlugin deriving ('Eq')
@@ -1211,3 +1219,7 @@ import System.Exit (exitSuccess)
 -- ####################
 -- Coins: 16
 -- @
+
+-- $next
+-- Don't worry if there are different details you haven't understood yet. The next chapters will go into details over the many aspects of the ECS. This chapter was just meant
+-- to give you a general idea of working with Mischief.

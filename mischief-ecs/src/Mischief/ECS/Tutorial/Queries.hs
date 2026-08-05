@@ -12,7 +12,7 @@
 --
 -- [Main Page]("Mischief.ECS")
 module Mischief.ECS.Tutorial.Queries
-  ( -- * Learn You an ECS for Great Mischief! - 4. Queries
+  ( -- * Learn You an ECS for Great Mischief! - 6. Queries
 
     -- * Introduction
     -- $intro

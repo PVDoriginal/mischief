@@ -101,6 +101,7 @@ library
     Mischief.ECS.Tutorial.Events
     Mischief.ECS.Tutorial.Queries
     Mischief.ECS.Tutorial.Relationships
+    Mischief.ECS.Tutorial.Startup
     Mischief.ECS.Tutorial.Systems
     Mischief.ECS.Utils
     Mischief.ECS.Vec
@@ -198,7 +199,6 @@ test-suite mischief-test
     OverloadedStrings
     QuasiQuotes
     RequiredTypeArguments
-    TemplateHaskell
     TypeFamilyDependencies
 
   -- other-extensions:

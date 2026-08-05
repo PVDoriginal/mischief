@@ -12,7 +12,7 @@
 --
 -- [Main Page]("Mischief.ECS")
 module Mischief.ECS.Tutorial.App
-  ( -- * Learn You an ECS for Great Mischief! - 1. App and Plugins
+  ( -- * Learn You an ECS for Great Mischief! - 3. App and Plugins
 
     -- * Introduction
     -- $intro

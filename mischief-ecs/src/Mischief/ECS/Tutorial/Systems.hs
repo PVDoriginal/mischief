@@ -12,7 +12,7 @@
 --
 -- [Main Page]("Mischief.ECS")
 module Mischief.ECS.Tutorial.Systems
-  ( -- * Learn You an ECS for Great Mischief! - 5. Systems
+  ( -- * Learn You an ECS for Great Mischief! - 7. Systems
 
     -- * Introduction
     -- $intro
@@ -31,6 +31,8 @@ module Mischief.ECS.Tutorial.Systems
 
     -- * Asynchronicity
     -- $async
+
+    -- * [Next Chapter: Events and Messages]("Mischief.ECS.Tutorial.Events")
   )
 where
 
