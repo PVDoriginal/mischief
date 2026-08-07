@@ -243,3 +243,29 @@ executable example-dungeon
     RequiredTypeArguments
     TemplateHaskell
     TypeFamilyDependencies
+
+benchmark bench-foo
+  type: exitcode-stdio-1.0
+  main-is: bench-spawn.hs
+  hs-source-dirs: benchmarks
+  build-depends:
+    base,
+    containers,
+    criterion,
+    deepseq,
+    mischief-ecs,
+    primitive,
+    time,
+    transformers,
+
+  default-extensions:
+    DeriveAnyClass
+    DuplicateRecordFields
+    NoFieldSelectors
+    NoGeneralizedNewtypeDeriving
+    OverloadedRecordDot
+    OverloadedStrings
+    QuasiQuotes
+    RequiredTypeArguments
+    TemplateHaskell
+    TypeFamilyDependencies
