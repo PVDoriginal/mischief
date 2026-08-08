@@ -13,6 +13,7 @@ module Mischief.ECS.Entities
     getNewEntity,
     removeEntity,
     insertPointer,
+    getNewEntityComp,
     emptyEntities,
   )
 where
@@ -71,6 +72,13 @@ getNewEntity entities = atomically $ do
     (Entity (# id, gen #) : xs) -> do
       writeTVar entities.counter EntityCounter {counter = counter, free = xs}
       return $ Entity (# id, plusWord# gen 1## #)
+
+getNewEntityComp :: Entities -> IO Entity
+getNewEntityComp entities = atomically $ do
+  EntityCounter {counter, free} <- readTVar entities.counter
+  let e = Entity (# counter, 0## #)
+  writeTVar entities.counter EntityCounter {counter = plusWord# counter 1##, free}
+  pure e
 
 -- | Remove an entity from storage.
 removeEntity :: Entity -> Entities -> IO ()
