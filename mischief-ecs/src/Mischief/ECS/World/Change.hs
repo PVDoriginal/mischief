@@ -6,6 +6,7 @@ import Data.IORef
 import Data.Map qualified as Map
 import Data.Maybe
 import Data.Set qualified as Set
+import GHC.Base (Int (..))
 import GHC.Stack (HasCallStack)
 import Mischief.ECS.App.SystemDef
 import Mischief.ECS.Archetypes
@@ -33,12 +34,12 @@ changeArchetype entity newArchetype insertedBundle = do
   reqAdded <- liftIO $ newIORef []
 
   Just pointer <- liftIO $ getPointer entity world.entities
-  pointer' <- liftIO $ readIORef pointer
+  (EntityPointer (# archetypeId', rowIndex' #)) <- liftIO $ readIORef pointer
 
   tables <- liftIO $ readIORef world.tables.inner
-  let table = fromMaybe undefined $ Map.lookup pointer'.archetypeId tables
+  let table = fromMaybe undefined $ Map.lookup (ArchetypeId $ I# archetypeId') tables
 
-  collected <- liftIO $ takeComponentsFromTable pointer' table
+  collected <- liftIO $ takeComponentsFromTable (EntityPointer (# archetypeId', rowIndex' #)) table
 
   newElements'' <-
     mapM

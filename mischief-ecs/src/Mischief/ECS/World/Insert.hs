@@ -15,6 +15,7 @@ import Data.Map qualified as Map
 import Data.Maybe (fromMaybe)
 import Data.Set qualified as Set
 import Data.Text qualified as Text
+import GHC.Base (Int (..))
 import GHC.Stack
 import Mischief.ECS.Archetypes
 import Mischief.ECS.Archetypes.Graph
@@ -58,21 +59,21 @@ insert bundle entity =
         bundleData <- liftIO $ processBundleElements world ComponentTicks {changed = currentTick, added = currentTick} elements
         let newComponents = sort $ map (\x -> x.id) bundleData.elements
 
-        currentPointerInternal <- liftIO $ readIORef currentPointer
+        (EntityPointer (# archetypeId, rowIndex #)) <- liftIO $ readIORef currentPointer
 
         let Tables tables = world.tables
         tables <- liftIO $ readIORef tables
 
-        case Map.lookup currentPointerInternal.archetypeId tables of
+        case Map.lookup (ArchetypeId $ I# archetypeId) tables of
           Nothing -> undefined
           Just currentTable -> do
             -- Simple case, no archetype change.
             if newComponents `isSubsequenceOf` currentTable.components
               then
-                liftIO $ replaceComponentsIntoTable bundleData (Just currentTick) currentPointerInternal currentTable
+                liftIO $ replaceComponentsIntoTable bundleData (Just currentTick) (EntityPointer (# archetypeId, rowIndex #)) currentTable
               -- Complex case, archetype change.
               else do
-                newArchetype <- getArchetypeOnInsert currentPointerInternal.archetypeId newComponents
+                newArchetype <- getArchetypeOnInsert (ArchetypeId $ I# archetypeId) newComponents
                 ChangeResult {requiredComponentsAdded} <- changeArchetype entity newArchetype (Just bundleData)
 
                 unless world.prefs.supressEvents $
@@ -108,18 +109,18 @@ insertNew bundle entity =
 
         bundleData <- liftIO $ processBundleElements world ComponentTicks {changed = currentTick, added = currentTick} elements
 
-        currentPointerInternal <- liftIO $ readIORef currentPointer
+        (EntityPointer (# archetypeId, _ #)) <- liftIO $ readIORef currentPointer
 
         let Tables tables = world.tables
         tables <- liftIO $ readIORef tables
 
-        case Map.lookup currentPointerInternal.archetypeId tables of
+        case Map.lookup (ArchetypeId $ I# archetypeId) tables of
           Nothing -> undefined
           Just currentTable -> do
             let newComponents = ProcessedBundleData $ filter (\c -> c.id `notElem` currentTable.components) bundleData.elements
 
             unless (null newComponents.elements) $ do
-              newArchetype <- getArchetypeOnInsert currentPointerInternal.archetypeId $ map (\x -> x.id) newComponents.elements
+              newArchetype <- getArchetypeOnInsert (ArchetypeId $ I# archetypeId) $ map (\x -> x.id) newComponents.elements
               ChangeResult {requiredComponentsAdded} <- changeArchetype entity newArchetype (Just bundleData)
 
               unless world.prefs.supressEvents $

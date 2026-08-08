@@ -8,6 +8,7 @@ import Data.IORef
 import Data.Map qualified as Map
 import Data.Maybe
 import Data.Set qualified as Set
+import GHC.Base (Int (..))
 import GHC.Stack
 import Mischief.ECS.Archetypes.Graph (getArchetypeOnSpawn)
 import Mischief.ECS.Components
@@ -57,7 +58,7 @@ spawnEntity entity bundle = do
 
   archetype <- getArchetypeOnSpawn $ map (\x -> x.id) bundleD.elements
 
-  entityPointer <- liftIO $ newIORef EntityPointer {archetypeId = ArchetypeId 0, rowIndex = 0}
+  entityPointer <- liftIO $ newIORef $ EntityPointer (# 0#, 0# #)
 
   liftIO $ insertEntityIntoTables (ProcessedBundleData {elements = []}) world.tables (ArchetypeId 0) (entity, entityPointer)
 
@@ -74,7 +75,7 @@ spawnEntityByInsert :: (Bundle b) => Entity -> b -> System ()
 spawnEntityByInsert entity bundle = do
   world <- unsafeGetWorld
 
-  entityPointer <- liftIO $ newIORef EntityPointer {archetypeId = ArchetypeId 0, rowIndex = 0}
+  entityPointer <- liftIO $ newIORef $ EntityPointer (# 0#, 0# #)
 
   liftIO $ insertEntityIntoTables (ProcessedBundleData {elements = []}) world.tables (ArchetypeId 0) (entity, entityPointer)
 
@@ -112,19 +113,19 @@ despawn entity =
         let Tables tables = world.tables
 
         tables' <- liftIO $ readIORef tables
-        currentPointer <- liftIO $ readIORef pointer
+        (EntityPointer (# archetypeId, _ #)) <- liftIO $ readIORef pointer
 
-        case Map.lookup currentPointer.archetypeId tables' of
+        case Map.lookup (ArchetypeId $ I# archetypeId) tables' of
           Nothing -> undefined
           Just table -> do
             c <- liftIO $ collectComponentIdsFromTable table
             triggerRemoveEvent c entity
 
         tables' <- liftIO $ readIORef tables
-        newPointer <- liftIO $ readIORef pointer
+        (EntityPointer (# newArchetypeId, newRowIndex #)) <- liftIO $ readIORef pointer
 
-        case Map.lookup newPointer.archetypeId tables' of
+        case Map.lookup (ArchetypeId $ I# newArchetypeId) tables' of
           Nothing -> undefined
           Just table -> do
-            void $ liftIO $ takeComponentsFromTable newPointer table
+            void $ liftIO $ takeComponentsFromTable (EntityPointer (# newArchetypeId, newRowIndex #)) table
             liftIO $ removeEntity entity world.entities

@@ -12,6 +12,7 @@ import Data.IORef
 import Data.Map qualified as Map
 import Data.Maybe
 import Data.Set qualified as Set
+import GHC.Base (Int (..))
 import Mischief.ECS.App.SystemDef
 import Mischief.ECS.Archetypes.Graph
 import Mischief.ECS.Collectable
@@ -219,9 +220,9 @@ findComponentsOfEntity world entity = do
   case pointer of
     Nothing -> return Nothing
     Just x -> do
-      pointer <- liftIO $ readIORef x
+      (EntityPointer (# archetypeId, _ #)) <- liftIO $ readIORef x
 
-      return $ case Map.lookup pointer.archetypeId tables of
+      return $ case Map.lookup (ArchetypeId $ I# archetypeId) tables of
         Nothing -> Nothing
         Just x -> Just x.components
 

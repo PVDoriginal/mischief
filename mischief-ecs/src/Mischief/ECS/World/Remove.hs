@@ -11,6 +11,7 @@ import Data.Map qualified as Map
 import Data.Maybe
 import Data.Set (Set)
 import Data.Set qualified as Set
+import GHC.Base (Int (..))
 import Mischief.ECS.Archetypes
 import Mischief.ECS.Archetypes.Graph
 import Mischief.ECS.Collectable
@@ -99,9 +100,9 @@ removeFromEntity components entity = do
   case pointer of
     Nothing -> warn $ "Removal failed: Entity " <> text entity <> " is not alive."
     Just pointer -> do
-      currentPointer <- liftIO $ readIORef pointer
+      (EntityPointer (# archetypeId, rowIndex #)) <- liftIO $ readIORef pointer
 
-      (newArchetype, removedComponents) <- getArchetypeOnRemove currentPointer.archetypeId components
+      (newArchetype, removedComponents) <- getArchetypeOnRemove (ArchetypeId $ I# archetypeId) components
       triggerRemoveEvent removedComponents entity
 
       void $ changeArchetype entity newArchetype Nothing

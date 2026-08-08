@@ -13,6 +13,7 @@ import Data.Maybe (catMaybes, fromMaybe, isJust, isNothing)
 import Data.Traversable (for)
 import Data.Typeable (Proxy (Proxy), eqT, typeRep, type (:~:) (Refl))
 import Data.Vector qualified as Vector
+import GHC.Base (Int (..))
 import GHC.Records
 import GHC.TypeLits
 import Mischief.ECS.Components
@@ -91,14 +92,14 @@ replaceComponentsIntoMap ::
   EntityPointer ->
   Map ComponentId Column ->
   IO ()
-replaceComponentsIntoMap bundle tick pointer tableMap = do
+replaceComponentsIntoMap bundle tick (EntityPointer (# archetypeId, rowIndex #)) tableMap = do
   for_ bundle.elements $ \el ->
     tapMap tableMap el.id $ \(Column col) ->
       case tick of
         Just tick ->
-          Vec.modify_ col pointer.rowIndex (\ComponentData {value, ticks = ComponentTicks {changed, added}} -> ComponentData {value = el.component.value, ticks = ComponentTicks {changed = tick, added}})
+          Vec.modify_ col (I# rowIndex) (\ComponentData {value, ticks = ComponentTicks {changed, added}} -> ComponentData {value = el.component.value, ticks = ComponentTicks {changed = tick, added}})
         Nothing ->
-          Vec.modify_ col pointer.rowIndex (\ComponentData {value, ticks} -> ComponentData {value = el.component.value, ticks})
+          Vec.modify_ col (I# rowIndex) (\ComponentData {value, ticks} -> ComponentData {value = el.component.value, ticks})
 
 --   foldl' modifyMap tableMap bundle.elements
 --  where
@@ -119,13 +120,13 @@ replaceComponentsIntoTable bundle tick pointer table = do
   replaceComponentsIntoMap bundle tick pointer cols
 
 takeFromColumn :: EntityPointer -> Column -> IO ComponentData
-takeFromColumn pointer (Column col) = Vec.takeSwap col pointer.rowIndex
+takeFromColumn (EntityPointer (# _, rowIndex #)) (Column col) = Vec.takeSwap col (I# rowIndex)
 
 takeComponentsFromTable :: EntityPointer -> Table -> IO ProcessedBundleData
-takeComponentsFromTable pointer table = do
+takeComponentsFromTable (EntityPointer (# archetypeId, rowIndex #)) table = do
   cols <- readIORef table.columns
-  newColumns <- for cols $ takeFromColumn pointer
-  removeEntityFromTable pointer.rowIndex table
+  newColumns <- for cols $ takeFromColumn (EntityPointer (# archetypeId, rowIndex #))
+  removeEntityFromTable (I# rowIndex) table
   let elements = map (uncurry ProcessedBundleElement) $ Map.toList newColumns
   pure ProcessedBundleData {elements}
 
@@ -138,7 +139,7 @@ collectComponentIdsFromTable table = do
 -- return ProcessedBundleData{elements}
 
 removeComponentFromColumn :: EntityPointer -> Column -> IO ()
-removeComponentFromColumn pointer (Column col) = Vec.removeSwap col pointer.rowIndex
+removeComponentFromColumn (EntityPointer (# _, rowIndex #)) (Column col) = Vec.removeSwap col (I# rowIndex)
 
 removeComponentsFromMap :: EntityPointer -> Map ComponentId Column -> IO ()
 removeComponentsFromMap pointer columnMap =
@@ -147,10 +148,10 @@ removeComponentsFromMap pointer columnMap =
 -- map (\(id, column) -> (id, removeComponentFromColumn pointer column)) (Map.toList columnMap)
 
 removeComponentsFromTable :: EntityPointer -> Table -> IO ()
-removeComponentsFromTable pointer table = do
+removeComponentsFromTable (EntityPointer (# archetypeId, rowIndex #)) table = do
   cols <- readIORef table.columns
-  removeComponentsFromMap pointer cols
-  removeEntityFromTable pointer.rowIndex table
+  removeComponentsFromMap (EntityPointer (# archetypeId, rowIndex #)) cols
+  removeEntityFromTable (I# rowIndex) table
 
 removeRow :: Int -> IOVec (Entity, IORef EntityPointer) -> IO ()
 removeRow row_idx vec = do
@@ -158,8 +159,9 @@ removeRow row_idx vec = do
   Vec.removeSwap vec row_idx
   when (row_idx < len - 1) $ do
     Vec.tap vec row_idx $ \(_, ptr) ->
-      modifyIORef' ptr $ \EntityPointer {archetypeId, rowIndex} ->
-        EntityPointer {archetypeId, rowIndex = row_idx}
+      modifyIORef' ptr $ \(EntityPointer (# archetypeId, _ #)) ->
+        let !(I# id) = row_idx
+         in EntityPointer (# archetypeId, id #)
 
 removeEntityFromTable :: Int -> Table -> IO ()
 removeEntityFromTable row table = removeRow row table.entities
@@ -176,7 +178,9 @@ insertResourceIntoTables bundle tick (Tables tables) archetype (entity, pointerR
     rowIndex <- Vec.length table.entities
     Vec.pushBack table.entities (entity, pointerRef)
 
-    writeIORef pointerRef $ EntityPointer {archetypeId = archetype, rowIndex}
+    let !(I# archetype') = archetype.id
+    let !(I# rowIndex') = rowIndex
+    writeIORef pointerRef $ EntityPointer (# archetype', rowIndex' #)
 
     insertComponentsIntoTable bundle table
 
@@ -197,13 +201,15 @@ insertEntityIntoTables bundle (Tables tables) archetype pointerRef =
     rowIndex <- Vec.length table.entities
     Vec.pushBack table.entities pointerRef
 
-    writeIORef (snd pointerRef) $ EntityPointer {archetypeId = archetype, rowIndex}
+    let !(I# archetype') = archetype.id
+    let !(I# rowIndex') = rowIndex
+    writeIORef (snd pointerRef) $ EntityPointer (# archetype', rowIndex' #)
 
     insertComponentsIntoTable bundle table
 
 tryGetComponentFromColumn :: forall c. (Component c) => Column -> EntityPointer -> IO (Maybe c)
-tryGetComponentFromColumn (Column components) pointer = do
-  element <- Vec.read components pointer.rowIndex
+tryGetComponentFromColumn (Column components) (EntityPointer (# _, rowIndex #)) = do
+  element <- Vec.read components (I# rowIndex)
   pure $ tryGetComponent element.value
 
 tryGetRelCollectionFromTable :: forall c. (Component c) => Table -> Entity -> EntityPointer -> ComponentId -> IO (Maybe [Result (Rel c)])
@@ -239,24 +245,24 @@ tryGetComponentFromTable table pointer componentId =
       Just column -> tryGetComponentFromColumn column pointer
 
 tryGetRelCollectionFromTables :: forall c. (Component c) => Tables -> Entity -> EntityPointer -> ComponentId -> IO (Maybe ([Result (Rel c)]))
-tryGetRelCollectionFromTables (Tables tables) entity pointer componentId =
+tryGetRelCollectionFromTables (Tables tables) entity (EntityPointer (# archetypeId, rowIndex #)) componentId =
   do
     tables <- readIORef tables
-    let table = Map.lookup pointer.archetypeId tables
+    let table = Map.lookup (ArchetypeId $ I# archetypeId) tables
 
     case table of
       Nothing -> return Nothing
-      Just table -> tryGetRelCollectionFromTable table entity pointer componentId
+      Just table -> tryGetRelCollectionFromTable table entity (EntityPointer (# archetypeId, rowIndex #)) componentId
 
 tryGetComponentFromTables :: forall c. (Component c) => Tables -> EntityPointer -> ComponentId -> IO (Maybe c)
-tryGetComponentFromTables (Tables tables) pointer componentId =
+tryGetComponentFromTables (Tables tables) (EntityPointer (# archetypeId, rowIndex #)) componentId =
   do
     tables <- readIORef tables
-    let table = Map.lookup pointer.archetypeId tables
+    let table = Map.lookup (ArchetypeId $ I# archetypeId) tables
 
     case table of
       Nothing -> return Nothing
-      Just table -> tryGetComponentFromTable table pointer componentId
+      Just table -> tryGetComponentFromTable table (EntityPointer (# archetypeId, rowIndex #)) componentId
 
 tryGetTicksFromColumn :: Column -> IO [ComponentTicks]
 tryGetTicksFromColumn (Column components) = do
@@ -265,7 +271,7 @@ tryGetTicksFromColumn (Column components) = do
   return $ Vector.toList x
 
 tryGetEntityTicksFromColumn :: Column -> EntityPointer -> IO ComponentTicks
-tryGetEntityTicksFromColumn (Column components) pointer = (\x -> x.ticks) <$> Vec.read components pointer.rowIndex
+tryGetEntityTicksFromColumn (Column components) (EntityPointer (# _, rowIndex #)) = (\x -> x.ticks) <$> Vec.read components (I# rowIndex)
 
 tryGetTicksFromTable :: Table -> ComponentId -> IO [Maybe ComponentTicks]
 tryGetTicksFromTable table componentId =
@@ -306,10 +312,10 @@ tryGetTicksFromTables (Tables tables) archetypes componentId =
     return $ concat results
 
 tryGetEntityTicksFromTables :: Tables -> EntityPointer -> ComponentId -> IO (Maybe ComponentTicks)
-tryGetEntityTicksFromTables (Tables tables) pointer componentId =
+tryGetEntityTicksFromTables (Tables tables) (EntityPointer (# archetypeId, rowIndex #)) componentId =
   do
     tables <- readIORef tables
-    tryGetEntityTicksFromArchetype pointer.archetypeId tables pointer componentId
+    tryGetEntityTicksFromArchetype (ArchetypeId $ I# archetypeId) tables (EntityPointer (# archetypeId, rowIndex #)) componentId
 
 tryGetComponentsFromColumn :: forall c. (Component c) => Column -> IO [c]
 tryGetComponentsFromColumn (Column components) = do

@@ -28,11 +28,14 @@ import Mischief.ECS.Components
 import Mischief.ECS.EntityDef
 
 -- | A pointer to the exact table and row that an entity is in.
-data EntityPointer = EntityPointer
-  { archetypeId :: ArchetypeId,
-    rowIndex :: Int
-  }
-  deriving (Show)
+--
+-- The first @Int#@ is the id of its archetype. The second is the index of the row it's in.
+data EntityPointer = EntityPointer (# Int#, Int# #)
+
+-- { archetypeId :: ArchetypeId,
+--   rowIndex :: Int
+-- }
+-- deriving (Show)
 
 -- | A storage for entity ids and pointers.
 data Entities = Entities
