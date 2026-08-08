@@ -6,13 +6,21 @@ module Main where
 import Control.DeepSeq
 import Control.Monad
 import Criterion.Main
+import Criterion.Types
 import Data.Foldable
 import GHC.Generics (Generic, type (:.:) (Comp1))
 import Mischief.ECS
 
+flame :: IO ()
+flame = do
+  app <- newApp P
+  runSystem (spawnEntities 100000 2 5) app.world
+
 main :: IO ()
 main =
-  defaultMain
+  -- flame
+  defaultMainWith
+    defaultConfig {reportFile = Just "/home/pvd/GameRepos/mischief/benches/spawn.html"}
     [ bgroup
         "Spawn"
         [ benchSpawnEntities 10,
@@ -24,7 +32,7 @@ main =
     ]
 
 benchSpawnEntities :: Int -> Benchmark
-benchSpawnEntities a = bgroup (show a ++ " Entities") $ [benchSpawnComponents a b | b <- [2, 3, 5]]
+benchSpawnEntities a = bgroup (show a ++ " Entities") $ [benchSpawnComponents a b | b <- [2, 5]]
 
 benchSpawnComponents :: Int -> Int -> Benchmark
 benchSpawnComponents a b = bgroup (show b ++ " Components") $ [env mkWorld (benchSpawnArchetypes a b c) | c <- [1, 2, 4, 5]]
@@ -129,6 +137,7 @@ spawn' _ _ = undefined
 
 spawnEntities :: Int -> Int -> Int -> System ()
 spawnEntities ne nc na =
+  -- forkPrefs (supressEvents True) $
   for_ [1 .. na] $ \a ->
     replicateM_ (ne `div` na) $
       spawn' nc a

@@ -244,10 +244,65 @@ executable example-dungeon
     TemplateHaskell
     TypeFamilyDependencies
 
-benchmark bench-foo
+benchmark bench-spawn
   type: exitcode-stdio-1.0
   main-is: bench-spawn.hs
   hs-source-dirs: benchmarks
+  default-language: GHC2024
+  build-depends:
+    base,
+    containers,
+    criterion,
+    deepseq,
+    mischief-ecs,
+    primitive,
+    time,
+    transformers,
+
+  default-extensions:
+    DeriveAnyClass
+    DuplicateRecordFields
+    NoFieldSelectors
+    NoGeneralizedNewtypeDeriving
+    OverloadedRecordDot
+    OverloadedStrings
+    QuasiQuotes
+    RequiredTypeArguments
+    TemplateHaskell
+    TypeFamilyDependencies
+
+benchmark bench-insert
+  type: exitcode-stdio-1.0
+  main-is: bench-insert.hs
+  hs-source-dirs: benchmarks
+  default-language: GHC2024
+  build-depends:
+    base,
+    containers,
+    criterion,
+    deepseq,
+    mischief-ecs,
+    primitive,
+    time,
+    transformers,
+
+  default-extensions:
+    DeriveAnyClass
+    DuplicateRecordFields
+    NoFieldSelectors
+    NoGeneralizedNewtypeDeriving
+    OverloadedRecordDot
+    OverloadedStrings
+    QuasiQuotes
+    RequiredTypeArguments
+    TemplateHaskell
+    TypeFamilyDependencies
+
+benchmark bench-update
+  type: exitcode-stdio-1.0
+  main-is: bench-update.hs
+  hs-source-dirs: benchmarks
+  default-language: GHC2024
   build-depends:
     base,
     containers,
