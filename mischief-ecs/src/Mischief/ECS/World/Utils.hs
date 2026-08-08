@@ -25,6 +25,7 @@ import Mischief.ECS.Components
 import Mischief.ECS.Components.Bundle
 import Mischief.ECS.Components.Spawn
 import Mischief.ECS.Entities
+import Mischief.ECS.EntityDef
 import Mischief.ECS.EventDef
 import Mischief.ECS.Hidden
 import Mischief.ECS.Log
@@ -158,9 +159,9 @@ tryGetEntityRel target world entity =
           componentId <- getComponentId (typeRep $ Proxy @c) world.components
           case componentId of
             Nothing -> return Nothing
-            Just componentId -> do
+            Just (ComponentId (# id, _ #)) -> do
               pointer <- readIORef pointer
-              res <- tryGetComponentFromTables world.tables pointer componentId {entity = Just target}
+              res <- tryGetComponentFromTables world.tables pointer (ComponentId (# id, Just target #))
               return $ Just res
 
 tryGetRelCollections :: forall c. (Component c) => World -> [ArchetypeId] -> IO [(Entity, [Result (Rel c)])]
@@ -191,7 +192,7 @@ tryGetRels target world archetypes =
     case componentId of
       Nothing -> return []
       Just componentId -> do
-        res <- tryGetComponentsFromTables world.tables archetypes componentId {entity = Just target}
+        res <- tryGetComponentsFromTables world.tables archetypes componentId -- {entity = Just target}
         return $ map (\(e, res) -> (e, Result (Rel (value res) target, entityOf res))) res
 
 tryGetRelsMaybe :: forall c. (Component c) => Entity -> World -> [ArchetypeId] -> IO [(Entity, Maybe (Result (Rel c)))]
@@ -203,7 +204,7 @@ tryGetRelsMaybe target world archetypes =
         e <- tryGetEntities world archetypes
         return $ map (,Nothing) e
       Just componentId -> do
-        res <- tryGetComponentsFromTablesMaybe world.tables archetypes componentId {entity = Just target}
+        res <- tryGetComponentsFromTablesMaybe world.tables archetypes componentId -- {entity = Just target}
         return $
           map
             ( Data.Bifunctor.second

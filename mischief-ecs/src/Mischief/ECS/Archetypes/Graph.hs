@@ -13,9 +13,11 @@ import Data.Map qualified as Map
 import Data.Maybe
 import Data.Set (Set)
 import Data.Set qualified as Set
+import GHC.Base (eqWord#, isTrue#)
 import Mischief.ECS.Archetypes
 import Mischief.ECS.Components
 import Mischief.ECS.Entities
+import Mischief.ECS.EntityDef
 import Mischief.ECS.Log
 import Mischief.ECS.Relationships
 import Mischief.ECS.Tables
@@ -45,28 +47,28 @@ createNode components = do
 
   comps <-
     mapM
-      ( \c -> do
-          t <- worldGet (Proxy @ComponentType) c.id
+      ( \(ComponentId (# id, _ #)) -> do
+          t <- worldGet (Proxy @ComponentType) (liftEntity id)
           return $ fmap getRep t
       )
       (Set.toList components)
 
   -- debug $ "archetype " <> text id <> " = " <> text (catMaybes comps)
 
-  for_ components $ \component -> do
-    case component.entity of
+  for_ components $ \(ComponentId (# id', target' #)) -> do
+    case target' of
       -- Component isn't a pair.
       Nothing -> do
-        set <- worldGet (Proxy @ComponentArchetypes) component.id
+        set <- worldGet (Proxy @ComponentArchetypes) (liftEntity id')
         for_ set $ \set -> do
-          worldSet (ComponentArchetypes {inner = Set.insert (ArchetypeId id) set.inner}) component.id
+          worldSet (ComponentArchetypes {inner = Set.insert (ArchetypeId id) set.inner}) (liftEntity id')
       -- modify set $ \ComponentArchetypes {inner} -> ComponentArchetypes {inner = Set.insert (ArchetypeId id) inner}
       -- Component is a pair.
-      Just entity -> do
-        set <- worldGet (Proxy @ComponentPairs) component.id
+      Just e -> do
+        set <- worldGet (Proxy @ComponentPairs) (liftEntity id')
         for_ set $ \set -> do
           let ComponentPairs {any, pairs} = set
-          flip worldSet component.id $
+          flip worldSet (liftEntity id') $
             ComponentPairs
               { any = Set.insert (ArchetypeId id) any,
                 pairs =
@@ -75,7 +77,7 @@ createNode components = do
                         Nothing -> Just $ Set.singleton $ ArchetypeId id
                         Just s -> Just $ Set.insert (ArchetypeId id) s
                     )
-                    entity
+                    e
                     pairs
               }
 
@@ -147,11 +149,13 @@ getArchetypeOnInsertSingle (ArchetypeId id) component = do
       components <- do
         let components = node.archetype.components
 
-        isExclusiveRel <- isJust <$> worldGet (Proxy @IsExclusiveRelationship) component.id
+        let !(ComponentId (# id, _ #)) = component
+
+        isExclusiveRel <- isJust <$> worldGet (Proxy @IsExclusiveRelationship) (liftEntity id)
 
         case isExclusiveRel of
           True ->
-            return $ Set.filter (\c -> c.id /= component.id || isNothing c.entity) components
+            return $ Set.filter (\(ComponentId (# id', a #)) -> not (eqEntity# id' id) || isNothing a) components
           _ ->
             return components
 
@@ -214,29 +218,29 @@ getArchetypeOnSpawn components =
     return nodeData.archetype
 
 getRequirements :: ComponentId -> System (Set ComponentId)
-getRequirements component = do
-  x <- worldGetRAny (Proxy @Requires) component.id
+getRequirements (ComponentId (# id, _ #)) = do
+  x <- worldGetRAny (Proxy @Requires) (liftEntity id)
   return $ case x of
     Nothing -> Set.empty
-    Just x -> Set.fromList $ map ((\x -> ComponentId {id = x, entity = Nothing}) . (\x -> x.target)) x
+    Just x -> Set.fromList $ map ((\x -> ComponentId (# unliftEntity x, Nothing #)) . (\x -> x.target)) x
 
 data ComponentQuery = ComponentQuery | RelationshipQueryAny | RelationshipQuery
 
 findMatchingArchetypes :: forall m w. (MonadSystem w m) => [(ComponentId, ComponentQuery)] -> Archetypes -> m [([ComponentId], ArchetypeId)]
 findMatchingArchetypes [] _ = allArchetypes
 findMatchingArchetypes components Archetypes {graph} = do
-  archetypes'' <- forM components $ \(component, q) -> do
+  archetypes'' <- forM components $ \(ComponentId (# id, target #), q) -> do
     case q of
       ComponentQuery -> do
-        Just x <- worldGet (Proxy @ComponentArchetypes) component.id
+        Just x <- worldGet (Proxy @ComponentArchetypes) (liftEntity id)
         return x.inner
       RelationshipQueryAny -> do
-        Just x <- worldGet (Proxy @ComponentPairs) component.id
+        Just x <- worldGet (Proxy @ComponentPairs) (liftEntity id)
         return x.any
       RelationshipQuery -> do
-        let target = fromMaybe undefined component.entity
-        Just x <- worldGet (Proxy @ComponentPairs) component.id
-        return $ fromMaybe undefined $ Map.lookup target x.pairs
+        let (Just target') = target
+        Just x <- worldGet (Proxy @ComponentPairs) (liftEntity id)
+        return $ fromMaybe undefined $ Map.lookup target' x.pairs
 
   case map Set.toList archetypes'' of
     [] -> return []

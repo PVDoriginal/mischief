@@ -11,7 +11,7 @@ import Data.Map qualified as Map
 import Data.Maybe
 import Data.Set (Set)
 import Data.Set qualified as Set
-import GHC.Base (Int (..))
+import GHC.Base (Int (..), eqWord#, isTrue#)
 import Mischief.ECS.Archetypes
 import Mischief.ECS.Archetypes.Graph
 import Mischief.ECS.Collectable
@@ -19,6 +19,7 @@ import Mischief.ECS.Components
 import Mischief.ECS.Components.Common
 import Mischief.ECS.Components.Spawn
 import Mischief.ECS.Entities
+import Mischief.ECS.EntityDef
 import Mischief.ECS.EventDef
 import Mischief.ECS.Events
 import Mischief.ECS.Log
@@ -87,9 +88,9 @@ removeRelationshipsFromEntity :: ComponentType -> Entity -> System ()
 removeRelationshipsFromEntity x entity = do
   world <- unsafeGetWorld
   ids <- liftIO $ findComponentsOfEntity world entity
-  comp <- getOrAddComponentId x
+  (ComponentId (# id, _ #)) <- getOrAddComponentId x
   for_ ids $ \ids' -> do
-    let ids = filter (\x -> x.id == comp.id) ids'
+    let ids = filter (\(ComponentId (# id', _ #)) -> eqEntity# id id') ids'
     removeFromEntity ids entity
 
 removeFromEntity :: [ComponentId] -> Entity -> System ()
@@ -100,7 +101,7 @@ removeFromEntity components entity = do
   case pointer of
     Nothing -> warn $ "Removal failed: Entity " <> text entity <> " is not alive."
     Just pointer -> do
-      (EntityPointer (# archetypeId, rowIndex #)) <- liftIO $ readIORef pointer
+      (EntityPointer (# archetypeId, _ #)) <- liftIO $ readIORef pointer
 
       (newArchetype, removedComponents) <- getArchetypeOnRemove (ArchetypeId $ I# archetypeId) components
       triggerRemoveEvent removedComponents entity
@@ -109,9 +110,9 @@ removeFromEntity components entity = do
 
 triggerRemoveEvent :: [ComponentId] -> Entity -> System ()
 triggerRemoveEvent components entity = do
-  for_ components $ \component -> do
-    Just t <- get (C @ComponentType) component.id
-    case component.entity of
+  for_ components $ \(ComponentId (# id, target #)) -> do
+    Just t <- get (C @ComponentType) (liftEntity id)
+    case target of
       Nothing -> triggerRemoveEventC (value t) entity
       Just target -> triggerRemoveEventR (value t) target entity
 

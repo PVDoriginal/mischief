@@ -42,6 +42,8 @@ module Mischief.ECS.Components
     Tick (..),
     ErasedComponentEq (..),
     IsExclusive (..),
+    isPair,
+    setCompIdTarget,
   )
 where
 
@@ -99,13 +101,33 @@ instance IsExclusive Exclusive where
   isExclusive = True
 
 -- | Unique id for components and component pairs.
-data ComponentId = ComponentId
-  { -- | The component's entity.
-    id :: Entity,
-    -- | Optional target entity in case this is a pair / relationship.
-    entity :: Maybe Entity
-  }
-  deriving (Show, Eq, Ord)
+data ComponentId = ComponentId (# Entity#, Maybe Entity #)
+
+instance Eq ComponentId where
+  (==) :: ComponentId -> ComponentId -> Bool
+  (==) (ComponentId (# a, b #)) (ComponentId (# x, y #)) = eqEntity# a x && b == y
+
+instance Ord ComponentId where
+  compare :: ComponentId -> ComponentId -> Ordering
+  compare (ComponentId (# a, b #)) ((ComponentId (# x, y #))) =
+    case compareEntity# a x of
+      EQ -> compare b y
+      x -> x
+
+-- { -- | The component's entity.
+--   id :: Entity,
+--   -- | Optional target entity in case this is a pair / relationship.
+--   entity :: Maybe Entity
+-- }
+-- deriving (Show, Eq, Ord)
+
+isPair :: ComponentId -> Bool
+isPair (ComponentId (# _, Just _ #)) = True
+isPair _ = False
+
+setCompIdTarget :: Maybe Entity -> ComponentId -> ComponentId
+setCompIdTarget Nothing (ComponentId (# a, _ #)) = ComponentId (# a, Nothing #)
+setCompIdTarget (Just e) (ComponentId (# a, _ #)) = ComponentId (# a, Just e #)
 
 newtype Pair = Pair (ComponentType, Entity)
 
@@ -143,7 +165,7 @@ getComponentId t Components {components} = do
   innerMap <- readIORef components
   return $ case Map.lookup t innerMap of
     Nothing -> Nothing
-    Just t -> Just ComponentId {id = t, entity = Nothing}
+    Just t -> Just $ ComponentId (# unliftEntity t, Nothing #)
 
 -- | Try to get the inner data of a 'ErasedComponent'.
 tryGetComponent :: forall c. (Component c) => ErasedComponent -> Maybe c

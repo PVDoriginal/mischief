@@ -24,6 +24,7 @@ import Mischief.ECS.Archetypes.Graph
 import Mischief.ECS.Components
 import Mischief.ECS.Components.Bundle
 import Mischief.ECS.Entities
+import Mischief.ECS.EntityDef
 import Mischief.ECS.EventDef
 import Mischief.ECS.Events
 import Mischief.ECS.Log
@@ -218,7 +219,8 @@ update = updateInner
 triggerInsertEvent :: ProcessedBundleData -> Entity -> System ()
 triggerInsertEvent bundle entity =
   for_ bundle.elements $ \x -> do
-    case x.id.entity of
+    let !(ComponentId (# id, target #)) = x.id
+    case target of
       Nothing ->
         triggerInsertEventC x.component.value entity
       Just target ->

@@ -19,6 +19,7 @@ import GHC.TypeLits
 import Mischief.ECS.Components
 import Mischief.ECS.Components.Bundle
 import Mischief.ECS.Entities
+import Mischief.ECS.EntityDef (Entity# (Entity#), eqEntity#, liftEntity)
 import Mischief.ECS.Utils
 import Mischief.ECS.Vec (IOVec)
 import Mischief.ECS.Vec qualified as Vec
@@ -213,19 +214,19 @@ tryGetComponentFromColumn (Column components) (EntityPointer (# _, rowIndex #)) 
   pure $ tryGetComponent element.value
 
 tryGetRelCollectionFromTable :: forall c. (Component c) => Table -> Entity -> EntityPointer -> ComponentId -> IO (Maybe [Result (Rel c)])
-tryGetRelCollectionFromTable table entity pointer componentId =
+tryGetRelCollectionFromTable table entity pointer (ComponentId (# id, target #)) =
   do
     columns <- readIORef table.columns
     -- TODO: improve lookup performance for partial tuples
 
-    components' <- forM (Map.toList columns) $ \(componentId', column) -> do
-      if componentId'.id == componentId.id
+    components' <- forM (Map.toList columns) $ \(ComponentId (# id', target' #), column) -> do
+      if eqEntity# id id'
         then do
-          case componentId'.entity of
-            Just entity -> do
+          case target' of
+            Nothing -> return Nothing
+            _ -> do
               component <- tryGetComponentFromColumn @c column pointer
               return $ fmap (,entity) component
-            Nothing -> return Nothing
         else return Nothing
 
     if null $ catMaybes components'
@@ -324,20 +325,20 @@ tryGetComponentsFromColumn (Column components) = do
   pure $ maybe [] Vector.toList x
 
 tryGetRelCollectionsFromTable :: forall c. (Component c) => Table -> ComponentId -> IO [(Entity, [Result (Rel c)])]
-tryGetRelCollectionsFromTable table componentId =
+tryGetRelCollectionsFromTable table (ComponentId (# id, target #)) =
   do
     -- let Just entity = componentId.entity
     columns <- readIORef table.columns
     -- TODO: improve lookup performance for partial tuples
 
-    components' :: [Maybe [(c, Entity)]] <- forM (Map.toList columns) $ \(componentId', column) -> do
-      if componentId.id == componentId'.id
+    components' :: [Maybe [(c, Entity)]] <- forM (Map.toList columns) $ \(ComponentId (# id', target' #), column) -> do
+      if eqEntity# id id'
         then do
-          case componentId'.entity of
+          case target' of
+            Nothing -> return Nothing
             Just entity -> do
               components <- tryGetComponentsFromColumn @c column
               return $ Just $ map (,entity) components
-            Nothing -> return Nothing
         else return Nothing
 
     entities <- Vec.toList table.entities

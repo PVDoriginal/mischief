@@ -12,7 +12,7 @@ import Data.IORef
 import Data.Map qualified as Map
 import Data.Maybe
 import Data.Set qualified as Set
-import GHC.Base (Int (..))
+import GHC.Base (Int (..), eqWord#, isTrue#)
 import Mischief.ECS.App.SystemDef
 import Mischief.ECS.Archetypes.Graph
 import Mischief.ECS.Collectable
@@ -20,6 +20,7 @@ import Mischief.ECS.Components
 import Mischief.ECS.Components.BundleTypes
 import Mischief.ECS.Components.Common
 import Mischief.ECS.Entities
+import Mischief.ECS.EntityDef
 import Mischief.ECS.Log
 import Mischief.ECS.Tables
 import Mischief.ECS.World
@@ -43,7 +44,7 @@ runQuery query filter world =
                       case t of
                         CompQ -> (c, ComponentQuery)
                         RelQ -> (c, RelationshipQueryAny)
-                        RelQ' entity -> (c {entity = Just entity}, RelationshipQuery)
+                        RelQ' entity -> (setCompIdTarget (Just entity) c, RelationshipQuery)
                   )
                   c
           )
@@ -120,8 +121,8 @@ filterQuery (QFWith (x, Nothing)) entity = do
   comp <- liftIO $ getComponentId x world.components
   case comp of
     Nothing -> return False
-    Just comp -> do
-      Just (ComponentType (_ :: Proxy a)) <- get (Val (C @ComponentType)) comp.id
+    Just (ComponentId (# id, _ #)) -> do
+      Just (ComponentType (_ :: Proxy a)) <- get (Val (C @ComponentType)) (liftEntity id)
       a <- get (Has @a) entity
       pure $ fromMaybe False a
 filterQuery (QFWith (x, Just e)) entity = do
@@ -129,8 +130,8 @@ filterQuery (QFWith (x, Just e)) entity = do
   comp <- liftIO $ getComponentId x world.components
   case comp of
     Nothing -> return False
-    Just comp -> do
-      Just (ComponentType (_ :: Proxy a)) <- get (Val (C @ComponentType)) comp.id
+    Just (ComponentId (# id, _ #)) -> do
+      Just (ComponentType (_ :: Proxy a)) <- get (Val (C @ComponentType)) (liftEntity id)
       a <- get (HasR @a e) entity
       pure $ fromMaybe False a
 filterQuery (QFWithRelAny x) entity = do
@@ -138,8 +139,8 @@ filterQuery (QFWithRelAny x) entity = do
   comp <- liftIO $ getComponentId x world.components
   case comp of
     Nothing -> return False
-    Just comp -> do
-      Just (ComponentType (_ :: Proxy a)) <- get (Val (C @ComponentType)) comp.id
+    Just (ComponentId (# id, _ #)) -> do
+      Just (ComponentType (_ :: Proxy a)) <- get (Val (C @ComponentType)) (liftEntity id)
       a <- get (HasR @a Any) entity
       pure $ fromMaybe False a
 filterQuery (QFChanged (x, Nothing) f) entity = do
@@ -155,18 +156,18 @@ filterQuery (QFChanged (x, Just e) f) entity = do
   case comp of
     Nothing -> return False
     Just comp -> do
-      addedChanged' f comp {entity = Just e} entity
+      addedChanged' f (setCompIdTarget (Just e) comp) entity
 filterQuery (QFChangedRelAny x f) entity = do
   world <- unsafeGetWorld
   comp <- liftIO $ getComponentId x world.components
   case comp of
     Nothing -> return False
-    Just comp -> do
+    Just (ComponentId (# id, _ #)) -> do
       components <- liftIO $ findComponentsOfEntity world entity
       case components of
         Nothing -> return True
         Just components' -> do
-          let components = filter (\c -> isJust c.entity && c.id == comp.id) components'
+          let components = filter (\(ComponentId (# id', a #)) -> isJust a && eqEntity# id id') components'
           and <$> mapM (\c -> addedChanged' f c entity) components
 filterQuery (QFCheckRaw (_, Nothing, ErasedCheck (f :: (c -> Bool)))) entity = do
   a <- get (C @c) entity
@@ -233,16 +234,16 @@ class GetResultComponentId' flag c where
   getResultComponentId' :: (MonadSystem w m) => c -> m (Maybe ComponentId)
 
 instance (Component c) => GetResultComponentId' True (Result c) where
-  getResultComponentId' _ = fmap (`ComponentId` Nothing) <$> tryMetaLocal @c
+  getResultComponentId' _ = fmap (\id -> ComponentId (# unliftEntity id, Nothing #)) <$> tryMetaLocal @c
 
 instance (Component c) => GetResultComponentId' False (Result (Rel c)) where
-  getResultComponentId' r = fmap (`ComponentId` Just r.target) <$> tryMetaLocal @c
+  getResultComponentId' r = fmap (\id -> ComponentId (# unliftEntity id, Just r.target #)) <$> tryMetaLocal @c
 
 tryMetaLocal :: forall c m w. (Component c, MonadSystem w m) => m (Maybe Entity)
 tryMetaLocal = do
   world <- unsafeGetWorld
   component <- liftIO $ getComponentId (typeRep $ Proxy @c) world.components
-  return $ fmap (\x -> x.id) component
+  return $ fmap (\(ComponentId (# id, _ #)) -> liftEntity id) component
 
 instance (GetResultComponentId' (IsComp c) (Result c)) => GetResultComponentId (Result c) where
   getResultComponentId = getResultComponentId' @(IsComp c)

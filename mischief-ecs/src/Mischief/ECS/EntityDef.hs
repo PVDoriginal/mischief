@@ -25,3 +25,20 @@ instance Ord Entity where
     case compareWord# id1 id2 of
       EQ -> compareWord# gen1 gen2
       x -> x
+
+newtype Entity# = Entity# (# Word#, Word# #)
+
+liftEntity :: Entity# -> Entity
+liftEntity (Entity# a) = Entity a
+
+unliftEntity :: Entity -> Entity#
+unliftEntity (Entity a) = Entity# a
+
+eqEntity# :: Entity# -> Entity# -> Bool
+eqEntity# (Entity# (# id1, gen1 #)) (Entity# (# id2, gen2 #)) = isTrue# (eqWord# id1 id2) && isTrue# (eqWord# gen1 gen2)
+
+compareEntity# :: Entity# -> Entity# -> Ordering
+compareEntity# (Entity# (# id1, gen1 #)) (Entity# (# id2, gen2 #)) =
+  case compareWord# id1 id2 of
+    EQ -> compareWord# gen1 gen2
+    x -> x

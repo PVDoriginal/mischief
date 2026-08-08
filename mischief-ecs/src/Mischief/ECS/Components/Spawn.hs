@@ -25,6 +25,7 @@ import Mischief.ECS.Components.Common
 import Mischief.ECS.Components.HooksDef
 import Mischief.ECS.Components.Required (requireAll)
 import Mischief.ECS.Entities
+import Mischief.ECS.EntityDef
 import Mischief.ECS.Observer
 import Mischief.ECS.Relationships
 import Mischief.ECS.World
@@ -35,8 +36,8 @@ import Mischief.ECS.World.Prefs
 -- | Get the id of a component - entity pair. In case the component isn't registered, it will give it a new id.
 getOrAddPairId :: Pair -> System ComponentId
 getOrAddPairId (Pair (t, entity)) = do
-  component <- getOrAddComponentId t
-  return $ ComponentId {id = component.id, entity = Just entity}
+  (ComponentId (# id, _ #)) <- getOrAddComponentId t
+  return $ ComponentId (# id, Just entity #)
 
 -- | Get the id of a component. In case the component isn't registered, it will give it a new id.
 getOrAddComponentId :: ComponentType -> System ComponentId
@@ -46,7 +47,7 @@ getOrAddComponentId (ComponentType (_ :: Proxy c)) = do
   innerMap <- liftIO $ readIORef comp.components
 
   case Map.lookup (typeRep $ Proxy @c) innerMap of
-    Just t -> return $ ComponentId {id = t, entity = Nothing}
+    Just t -> return $ ComponentId (# unliftEntity t, Nothing #)
     Nothing -> do
       result <- liftIO $ getNewEntity world.entities
 
@@ -71,28 +72,29 @@ getOrAddComponentId (ComponentType (_ :: Proxy c)) = do
         worldSet IsExclusiveRelationship result
 
       for_ (requireAll @c) $ \(DefaultComponentType (_ :: (Proxy other))) -> do
-        other <- getOrAddComponentId (ComponentType $ Proxy @other)
-        worldSet (Rel RequiredBy result) other.id
-        worldSet (Rel Requires other.id) result
-        worldSet (DefaultValue $ ErasedComponent $ def @other) other.id
+        (ComponentId (# otherId', _ #)) <- getOrAddComponentId (ComponentType $ Proxy @other)
+        let otherId = liftEntity otherId'
+        worldSet (Rel RequiredBy result) otherId
+        worldSet (Rel Requires otherId) result
+        worldSet (DefaultValue $ ErasedComponent $ def @other) otherId
 
       registerHooks $ hooks @c
 
-      return $ ComponentId {id = result, entity = Nothing}
+      return $ ComponentId (# unliftEntity result, Nothing #)
 
 -- l <- liftIO $ newIORef Set.empty
 -- liftIO $ modifyIORef' archetypes $ Map.insert id l
 
 meta :: forall c. (Component c) => System Entity
 meta = do
-  component <- getOrAddComponentId (ComponentType $ Proxy @c)
-  return component.id
+  (ComponentId (# id, _ #)) <- getOrAddComponentId (ComponentType $ Proxy @c)
+  return $ liftEntity id
 
 tryMeta :: forall c m w. (Component c, MonadSystem w m) => m (Maybe Entity)
 tryMeta = do
   world <- unsafeGetWorld
   component <- liftIO $ getComponentId (typeRep $ Proxy @c) world.components
-  return $ fmap (\x -> x.id) component
+  return $ fmap (\(ComponentId (# id, _ #)) -> liftEntity id) component
 
 registerHooks :: Hooks c -> System ()
 registerHooks (Hooks h) = for_ h registerHook

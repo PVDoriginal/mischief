@@ -5,10 +5,12 @@ module Mischief.ECS.World.Query.QueryFilter where
 import Data.Data
 import Data.Maybe
 import Data.Set qualified as Set
+import GHC.Base (eqWord#, isTrue#, (/=#))
 import Mischief.ECS.Collectable
 import Mischief.ECS.Components
 import Mischief.ECS.Components.BundleTypes
 import Mischief.ECS.Entities
+import Mischief.ECS.EntityDef
 import Mischief.ECS.World
 import Mischief.ECS.World.Query.Queryable
 
@@ -55,7 +57,7 @@ and' x = foldr QFAnd NoFilter x
 filterArchetype :: QueryFilter -> [ComponentId] -> World -> IO Bool
 filterArchetype NoFilter _ _ = return True
 filterArchetype (QFWith (x, entity)) components world = do
-  component <- fmap (\x -> x {entity}) <$> getComponentId x world.components
+  component <- fmap (setCompIdTarget entity) <$> getComponentId x world.components
   return $ case component of
     Nothing -> False
     Just component -> component `elem` components
@@ -63,8 +65,8 @@ filterArchetype (QFWithRelAny x) components world = do
   component <- getComponentId x world.components
   case component of
     Nothing -> pure False
-    Just (ComponentId {id}) -> do
-      return $ any (\c -> isJust c.entity && c.id == id) components
+    Just (ComponentId (# id, _ #)) -> do
+      return $ any (\(ComponentId (# id', a #)) -> isJust a && eqEntity# id' id) components
 filterArchetype (a `QFAnd` b) c w = do
   x <- filterArchetype a c w
   y <- filterArchetype b c w

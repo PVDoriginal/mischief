@@ -13,6 +13,7 @@ import Mischief.ECS.Archetypes
 import Mischief.ECS.Components
 import Mischief.ECS.Components.Bundle
 import Mischief.ECS.Entities
+import Mischief.ECS.EntityDef
 import Mischief.ECS.Events
 import Mischief.ECS.Log
 import Mischief.ECS.Tables
@@ -71,10 +72,10 @@ changeArchetype entity newArchetype insertedBundle = do
   return ChangeResult {requiredComponentsAdded}
 
 getDefault :: ComponentId -> System ProcessedBundleElement
-getDefault component = do
+getDefault (ComponentId (# id, e #)) = do
   world <- unsafeGetWorld
 
-  Just x <- get (C @DefaultValue) component.id
+  Just x <- get (C @DefaultValue) (liftEntity id)
   let dv = value x
   let (DefaultValue value) = dv
 
@@ -83,7 +84,7 @@ getDefault component = do
 
   return
     ProcessedBundleElement
-      { id = component,
+      { id = ComponentId (# id, e #),
         component =
           ComponentData
             { value,
