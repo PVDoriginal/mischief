@@ -8,15 +8,16 @@ import Control.Monad.Reader
 import Data.Data
 import Data.Default
 import Data.Foldable
-import Data.IORef
-import Data.Kind
-import Data.Map qualified as Map
 -- import Mischief.ECS.Components.Hooks
 -- import Mischief.ECS.World.Defer
 -- import Mischief.ECS.World.Insert
 
 -- import Mischief.ECS.Events
 
+import Data.HashTable.IO qualified as H
+import Data.IORef
+import Data.Kind
+import Data.Map qualified as Map
 import Data.Maybe
 import Data.Set qualified as Set
 import GHC.Base (Word (..))
@@ -45,15 +46,16 @@ getOrAddComponentId :: ComponentType -> System ComponentId
 getOrAddComponentId (ComponentType (_ :: Proxy c)) = do
   world <- unsafeGetWorld
   let comp = world.components
-  innerMap <- liftIO $ readIORef comp.components
+  w <- liftIO $ H.lookup comp.components (typeRep $ Proxy @c)
 
-  case Map.lookup (typeRep $ Proxy @c) innerMap of
+  case w of
     Just (W# t) -> return $ ComponentId (# t, Nothing #)
     Nothing -> do
       result <- liftIO $ getNewEntityComp world.entities
       let !(Entity (# id, _ #)) = result
 
-      liftIO $ modifyIORef' comp.components $ Map.insert (typeRep $ Proxy @c) (W# id)
+      liftIO $ H.insert comp.components (typeRep $ Proxy @c) (W# id)
+      -- liftIO $ modifyIORef' comp.components $ Map.insert (typeRep $ Proxy @c) (W# id)
 
       -- l <- liftIO $ newIORef Set.empty
       -- liftIO $ modifyIORef' comp.archetypes $ Map.insert result l

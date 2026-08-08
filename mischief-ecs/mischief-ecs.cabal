@@ -164,6 +164,7 @@ library
     co-log,
     containers,
     data-default,
+    hashtables,
     haskell-src-meta,
     megaparsec,
     mtl,

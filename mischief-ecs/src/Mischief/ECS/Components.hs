@@ -48,6 +48,7 @@ module Mischief.ECS.Components
 where
 
 import Data.Default
+import Data.HashTable.IO qualified as H
 import Data.IORef
 import Data.Kind
 import Data.List qualified as List
@@ -132,10 +133,12 @@ setCompIdTarget (Just e) (ComponentId (# a, _ #)) = ComponentId (# a, Just e #)
 
 newtype Pair = Pair (ComponentType, Entity)
 
+type HashMap k v = H.BasicHashTable k v
+
 -- | Contains data and methods for assigning 'ComponentId's to new components (via their 'TypeRep').
 newtype Components = Components
   { -- | Maps 'TypeRep's to Ints, to be used as the first half of a 'ComponentId'.
-    components :: IORef (Map TypeRep Word)
+    components :: HashMap TypeRep Word
   }
 
 -- | @Meta@ component with a set of all archetypes that a components is part of.
@@ -156,15 +159,13 @@ data ComponentPairs = ComponentPairs
 
 -- | Construct an empty 'Components'.
 emptyComponents :: IO Components
-emptyComponents = do
-  components <- newIORef Map.empty
-  return $ Components components
+emptyComponents = Components <$> H.new
 
 -- | Get the id of a component through IO.
 getComponentId :: TypeRep -> Components -> IO (Maybe ComponentId)
 getComponentId t Components {components} = do
-  innerMap <- readIORef components
-  return $ case Map.lookup t innerMap of
+  comp <- H.lookup components t
+  return $ case comp of
     Nothing -> Nothing
     Just (W# t) -> Just $ ComponentId (# t, Nothing #)
 
