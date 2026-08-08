@@ -13,7 +13,7 @@ import Data.Maybe (catMaybes, fromMaybe, isJust, isNothing)
 import Data.Traversable (for)
 import Data.Typeable (Proxy (Proxy), eqT, typeRep, type (:~:) (Refl))
 import Data.Vector qualified as Vector
-import GHC.Base (Int (..))
+import GHC.Base (Int (..), eqWord#, isTrue#)
 import GHC.Records
 import GHC.TypeLits
 import Mischief.ECS.Components
@@ -220,7 +220,7 @@ tryGetRelCollectionFromTable table entity pointer (ComponentId (# id, target #))
     -- TODO: improve lookup performance for partial tuples
 
     components' <- forM (Map.toList columns) $ \(ComponentId (# id', target' #), column) -> do
-      if eqEntity# id id'
+      if isTrue# $ eqWord# id id'
         then do
           case target' of
             Nothing -> return Nothing
@@ -332,7 +332,7 @@ tryGetRelCollectionsFromTable table (ComponentId (# id, target #)) =
     -- TODO: improve lookup performance for partial tuples
 
     components' :: [Maybe [(c, Entity)]] <- forM (Map.toList columns) $ \(ComponentId (# id', target' #), column) -> do
-      if eqEntity# id id'
+      if isTrue# $ eqWord# id id'
         then do
           case target' of
             Nothing -> return Nothing

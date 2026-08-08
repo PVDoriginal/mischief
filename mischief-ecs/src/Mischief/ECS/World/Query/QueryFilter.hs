@@ -66,7 +66,7 @@ filterArchetype (QFWithRelAny x) components world = do
   case component of
     Nothing -> pure False
     Just (ComponentId (# id, _ #)) -> do
-      return $ any (\(ComponentId (# id', a #)) -> isJust a && eqEntity# id' id) components
+      return $ any (\(ComponentId (# id', a #)) -> isJust a && isTrue# (eqWord# id' id)) components
 filterArchetype (a `QFAnd` b) c w = do
   x <- filterArchetype a c w
   y <- filterArchetype b c w

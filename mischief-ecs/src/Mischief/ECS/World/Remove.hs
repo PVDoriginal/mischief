@@ -90,7 +90,7 @@ removeRelationshipsFromEntity x entity = do
   ids <- liftIO $ findComponentsOfEntity world entity
   (ComponentId (# id, _ #)) <- getOrAddComponentId x
   for_ ids $ \ids' -> do
-    let ids = filter (\(ComponentId (# id', _ #)) -> eqEntity# id id') ids'
+    let ids = filter (\(ComponentId (# id', _ #)) -> isTrue# $ eqWord# id id') ids'
     removeFromEntity ids entity
 
 removeFromEntity :: [ComponentId] -> Entity -> System ()
@@ -111,7 +111,7 @@ removeFromEntity components entity = do
 triggerRemoveEvent :: [ComponentId] -> Entity -> System ()
 triggerRemoveEvent components entity = do
   for_ components $ \(ComponentId (# id, target #)) -> do
-    Just t <- get (C @ComponentType) (liftEntity id)
+    Just t <- get (C @ComponentType) (Entity (# id, 0## #))
     case target of
       Nothing -> triggerRemoveEventC (value t) entity
       Just target -> triggerRemoveEventR (value t) target entity

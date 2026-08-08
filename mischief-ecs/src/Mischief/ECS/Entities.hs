@@ -73,6 +73,7 @@ getNewEntity entities = atomically $ do
       writeTVar entities.counter EntityCounter {counter = counter, free = xs}
       return $ Entity (# id, plusWord# gen 1## #)
 
+-- | Creates a new entity using a fresh id, never incrementing the generation of a previous one.
 getNewEntityComp :: Entities -> IO Entity
 getNewEntityComp entities = atomically $ do
   EntityCounter {counter, free} <- readTVar entities.counter

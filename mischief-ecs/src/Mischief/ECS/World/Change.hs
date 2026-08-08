@@ -75,7 +75,7 @@ getDefault :: ComponentId -> System ProcessedBundleElement
 getDefault (ComponentId (# id, e #)) = do
   world <- unsafeGetWorld
 
-  Just x <- get (C @DefaultValue) (liftEntity id)
+  Just x <- get (C @DefaultValue) (Entity (# id, 0## #))
   let dv = value x
   let (DefaultValue value) = dv
 

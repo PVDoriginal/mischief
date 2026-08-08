@@ -56,6 +56,7 @@ import Data.Map qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Typeable
+import GHC.Base (Word (W#), Word#, compareWord#, eqWord#, isTrue#)
 import GHC.Generics
 import Mischief.ECS.Collectable
 import Mischief.ECS.Components.HooksDef
@@ -101,16 +102,16 @@ instance IsExclusive Exclusive where
   isExclusive = True
 
 -- | Unique id for components and component pairs.
-data ComponentId = ComponentId (# Entity#, Maybe Entity #)
+data ComponentId = ComponentId (# Word#, Maybe Entity #)
 
 instance Eq ComponentId where
   (==) :: ComponentId -> ComponentId -> Bool
-  (==) (ComponentId (# a, b #)) (ComponentId (# x, y #)) = eqEntity# a x && b == y
+  (==) (ComponentId (# a, b #)) (ComponentId (# x, y #)) = isTrue# (eqWord# a x) && b == y
 
 instance Ord ComponentId where
   compare :: ComponentId -> ComponentId -> Ordering
   compare (ComponentId (# a, b #)) ((ComponentId (# x, y #))) =
-    case compareEntity# a x of
+    case compareWord# a x of
       EQ -> compare b y
       x -> x
 
@@ -134,7 +135,7 @@ newtype Pair = Pair (ComponentType, Entity)
 -- | Contains data and methods for assigning 'ComponentId's to new components (via their 'TypeRep').
 newtype Components = Components
   { -- | Maps 'TypeRep's to Ints, to be used as the first half of a 'ComponentId'.
-    components :: IORef (Map TypeRep Entity)
+    components :: IORef (Map TypeRep Word)
   }
 
 -- | @Meta@ component with a set of all archetypes that a components is part of.
@@ -165,7 +166,7 @@ getComponentId t Components {components} = do
   innerMap <- readIORef components
   return $ case Map.lookup t innerMap of
     Nothing -> Nothing
-    Just t -> Just $ ComponentId (# unliftEntity t, Nothing #)
+    Just (W# t) -> Just $ ComponentId (# t, Nothing #)
 
 -- | Try to get the inner data of a 'ErasedComponent'.
 tryGetComponent :: forall c. (Component c) => ErasedComponent -> Maybe c

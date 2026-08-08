@@ -19,6 +19,7 @@ import Data.Map qualified as Map
 
 import Data.Maybe
 import Data.Set qualified as Set
+import GHC.Base (Word (..))
 import Mischief.ECS.Components
 import Mischief.ECS.Components.Bundle
 import Mischief.ECS.Components.Common
@@ -47,11 +48,12 @@ getOrAddComponentId (ComponentType (_ :: Proxy c)) = do
   innerMap <- liftIO $ readIORef comp.components
 
   case Map.lookup (typeRep $ Proxy @c) innerMap of
-    Just t -> return $ ComponentId (# unliftEntity t, Nothing #)
+    Just (W# t) -> return $ ComponentId (# t, Nothing #)
     Nothing -> do
-      result <- liftIO $ getNewEntity world.entities
+      result <- liftIO $ getNewEntityComp world.entities
+      let !(Entity (# id, _ #)) = result
 
-      liftIO $ modifyIORef' comp.components $ Map.insert (typeRep $ Proxy @c) result
+      liftIO $ modifyIORef' comp.components $ Map.insert (typeRep $ Proxy @c) (W# id)
 
       -- l <- liftIO $ newIORef Set.empty
       -- liftIO $ modifyIORef' comp.archetypes $ Map.insert result l
@@ -73,14 +75,14 @@ getOrAddComponentId (ComponentType (_ :: Proxy c)) = do
 
       for_ (requireAll @c) $ \(DefaultComponentType (_ :: (Proxy other))) -> do
         (ComponentId (# otherId', _ #)) <- getOrAddComponentId (ComponentType $ Proxy @other)
-        let otherId = liftEntity otherId'
+        let otherId = Entity (# otherId', 0## #)
         worldSet (Rel RequiredBy result) otherId
         worldSet (Rel Requires otherId) result
         worldSet (DefaultValue $ ErasedComponent $ def @other) otherId
 
       registerHooks $ hooks @c
 
-      return $ ComponentId (# unliftEntity result, Nothing #)
+      return $ ComponentId (# id, Nothing #)
 
 -- l <- liftIO $ newIORef Set.empty
 -- liftIO $ modifyIORef' archetypes $ Map.insert id l
@@ -88,13 +90,13 @@ getOrAddComponentId (ComponentType (_ :: Proxy c)) = do
 meta :: forall c. (Component c) => System Entity
 meta = do
   (ComponentId (# id, _ #)) <- getOrAddComponentId (ComponentType $ Proxy @c)
-  return $ liftEntity id
+  return $ Entity (# id, 0## #)
 
 tryMeta :: forall c m w. (Component c, MonadSystem w m) => m (Maybe Entity)
 tryMeta = do
   world <- unsafeGetWorld
   component <- liftIO $ getComponentId (typeRep $ Proxy @c) world.components
-  return $ fmap (\(ComponentId (# id, _ #)) -> liftEntity id) component
+  return $ fmap (\(ComponentId (# id, _ #)) -> Entity (# id, 0## #)) component
 
 registerHooks :: Hooks c -> System ()
 registerHooks (Hooks h) = for_ h registerHook
