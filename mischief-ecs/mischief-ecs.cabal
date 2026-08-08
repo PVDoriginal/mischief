@@ -146,7 +146,11 @@ library
     RequiredTypeArguments
     TemplateHaskell
     TypeFamilyDependencies
+    UnboxedSums
+    UnboxedTuples
     UndecidableInstances
+    UnliftedDatatypes
+    UnliftedNewtypes
 
   -- other-extensions:
   -- Other library packages from which modules are imported.

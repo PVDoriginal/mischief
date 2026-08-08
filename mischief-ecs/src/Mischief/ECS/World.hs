@@ -118,7 +118,7 @@ newWorld tools = do
         deferred,
         deferredAsync,
         tick,
-        systemId = SystemId (Entity 0 0),
+        systemId = SystemId (Entity (# 0##, 0## #)),
         frame,
         prefs,
         logger,

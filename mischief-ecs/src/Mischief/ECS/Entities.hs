@@ -22,6 +22,7 @@ import Data.IORef
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Maybe (isJust)
+import GHC.Base
 import GHC.Conc
 import Mischief.ECS.Components
 import Mischief.ECS.EntityDef
@@ -43,7 +44,7 @@ data Entities = Entities
   }
 
 -- | A counter and a list for recycling entities.
-data EntityCounter = EntityCounter {counter :: Int, free :: [Entity]}
+data EntityCounter = EntityCounter {counter :: Word#, free :: [Entity]}
 
 -- | Associate an Entity with a new pointer.
 insertPointer :: Entity -> IORef EntityPointer -> Entities -> IO ()
@@ -62,11 +63,11 @@ getNewEntity entities = atomically $ do
   EntityCounter {counter, free} <- readTVar entities.counter
   case free of
     [] -> do
-      writeTVar entities.counter EntityCounter {counter = counter + 1, free}
-      return $ Entity {id = counter, gen = 1}
-    (Entity {id, gen} : xs) -> do
+      writeTVar entities.counter EntityCounter {counter = plusWord# counter 1##, free}
+      return $ Entity (# counter, 1## #)
+    (Entity (# id, gen #) : xs) -> do
       writeTVar entities.counter EntityCounter {counter = counter, free = xs}
-      return $ Entity {id, gen = gen + 1}
+      return $ Entity (# id, plusWord# gen 1## #)
 
 -- | Remove an entity from storage.
 removeEntity :: Entity -> Entities -> IO ()
@@ -80,7 +81,7 @@ removeEntity entity entities = do
 emptyEntities :: IO Entities
 emptyEntities = do
   map <- newIORef Map.empty
-  counter <- newTVarIO EntityCounter {counter = 1, free = []}
+  counter <- newTVarIO EntityCounter {counter = 1##, free = []}
   return $ Entities map counter
 
 -- | Check if an Entity is alive through IO.

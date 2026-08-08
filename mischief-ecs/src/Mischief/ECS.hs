@@ -126,9 +126,6 @@ import Mischief.ECS.World.Utils
 
 data TestTest = TestTest
 
-e :: Entity
-e = Entity 0 0
-
 -- x = quoteD
 
 -- x = $quoteE
