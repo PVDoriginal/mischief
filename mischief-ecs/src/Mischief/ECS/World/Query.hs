@@ -23,6 +23,7 @@ import Mischief.ECS.Entities
 import Mischief.ECS.EntityDef
 import Mischief.ECS.Log
 import Mischief.ECS.Tables
+import Mischief.ECS.Vec qualified as Vec
 import Mischief.ECS.World
 import Mischief.ECS.World.Query.QueryFilter
 import Mischief.ECS.World.Query.Queryable
@@ -215,17 +216,14 @@ findComponentsOfEntity :: World -> Entity -> IO (Maybe [ComponentId])
 findComponentsOfEntity world entity = do
   pointer <- liftIO $ getPointer entity world.entities
 
-  let Tables t = world.tables
-  tables <- liftIO $ readIORef t
-
   case pointer of
     Nothing -> return Nothing
     Just x -> do
       (EntityPointer (# archetypeId, _ #)) <- liftIO $ readIORef x
 
-      return $ case Map.lookup (ArchetypeId $ I# archetypeId) tables of
-        Nothing -> Nothing
-        Just x -> Just x.components
+      x <- Vec.read world.tables.inner (I# archetypeId)
+
+      pure $ Just x.components
 
 class GetResultComponentId c where
   getResultComponentId :: (MonadSystem w m) => c -> m (Maybe ComponentId)

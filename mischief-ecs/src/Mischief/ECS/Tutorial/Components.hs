@@ -104,18 +104,6 @@ import Mischief.ECS
 -- >> [INFO] Just \"Foo\"
 -- >> [INFO] Just \"Bar\"
 -- @
---
--- @
--- printName e = do
---   x <- 'get' ('C' \@'Name') e
---   'info' $ 'text' x
--- @
---
--- There is also the @>>=@ operator whcih does the same but in the opposite direction.
---
--- @
--- printName e = 'get' ('C' \@'Name') e '>>=' 'info' . 'text'
--- @
 
 -- $ops
 --
@@ -145,7 +133,9 @@ import Mischief.ECS
 -- 'despawn' player
 -- @
 --
--- Additionally, @'insertNew'@ is a variant of @insert@ that only inserts components that aren't already on the entity.
+-- Additionally, @insert@ has a couple of variants:
+-- * @'insertNew'@ only inserts components that aren't already on the entity.
+-- * @'insertIfNeq'@ only insert components if they aren't on the entity of if their value differs from the current one.
 
 -- $results
 -- A @'Result' c@ is a wrapper around the component @c@ that's produced by a query. We will discuss querying itself more in the [Query Chapter]("Mischief.ECS.Tutorial.Queries").
@@ -262,7 +252,7 @@ import Mischief.ECS
 -- $resources
 -- @Resources@ are singleton components that can be easily accessed and modified from any system.
 --
--- A resource can be any component.
+-- Any component can be used as a resource.
 --
 -- @
 -- data MyRes = MyRes 'Int' deriving ('Component')
@@ -328,7 +318,7 @@ import Mischief.ECS
 --
 -- Queries are also smart about components; if you query or filter for a component hasn't been registered yet, they will just
 -- assume that component can't be be on any Entity. Queries can't perform registration themselves, because they're not allowed to mutate
--- the world in any way. (TODO par link).
+-- the world in any way
 --
 -- However, there may be /extremely/ niche situations where you want to register components earlier than normal, which is where manual registration comes in:
 --
@@ -342,10 +332,12 @@ import Mischief.ECS
 -- $change
 -- @Change detection@ can be done in two ways: @Observers@ and @Filters@.
 --
+-- === Observers
+--
 -- Observers can listen to the @'OnInsert'@ and @'OnRemove'@ event:
 --
 -- * @OnInsert c@ is triggered each time @c@ is inserted on an entity. This event is also triggered when a
--- compoenent is re-inserted / changed, meaning this isn't a reliable way to determine if a component was just added.
+-- component is re-inserted / changed, meaning this isn't a reliable way to determine if a component was just added.
 --
 -- @
 -- onNameInsert :: 'OnInsert' 'Name' -> 'System' ()
@@ -359,6 +351,11 @@ import Mischief.ECS
 --
 -- Both events have a @.entity@ field you can use to obtain the entity which it happened on.
 --
+-- @
+-- onNameRemove :: 'OnRemove' 'Name' -> 'System' ()
+-- onNameRemove event = 'info' $ show event.entity <> \" has their name removed!\"
+-- @
+--
 -- Don't forget to spawn an Observer to listen to each event.
 --
 -- @
@@ -369,12 +366,14 @@ import Mischief.ECS
 -- @OnInsert@ is always triggered /after/ a component has been inserted, while @OnRemove@ is triggered /before/. This
 -- allows you to query for the component and get its value.
 --
+-- == Filters
+--
 -- Now for the other way of doing change detection: the @'Changed'@ and @'Added'@ query filters.
 --
 -- With the following query:
 --
 -- @
--- 'query' ('C' \@'Name') ('Added' \@Player)
+-- 'query' ('C' \@'Name') ('Added' ('C' \@Player))
 -- @
 --
 -- You will only obtain the name of entities which had the @Player@ component added to them since the current (scheduled) system last ran.
@@ -383,16 +382,18 @@ import Mischief.ECS
 -- If you wish to query for entities that have had a component changed but it wasn't just added, you can do:
 --
 -- @
--- 'query' ('C' \@'Name') ('Changed' \@Player, 'Not' ('Added' \@Player))
+-- 'query' ('C' \@'Name') ('Changed' ('C' \@Player), 'Not' ('Added' ('C' \@Player)))
 -- @
 --
--- One essential detail to be aware of here is that insertion (@OnInsert@ or @Changed@) doesn't necessarily mean a component has been changed.
+-- == Note on listening to changes
+--
+-- One essential detail to be aware of here is that insertion (@OnInsert@ or @Changed@) doesn't necessarily mean a component's value has been changed!
 --
 -- The following @insert@ /will/ trigger change detection:
 --
 -- @
--- p <- 'spawn' Player
--- 'insert' Player p
+-- p <- 'spawn' (Health 100)
+-- 'insert' (Health 100) p
 -- @
 --
 -- To avoid this, you can derive 'Eq' on your components and use @'insertIfNeq'@ and @'setIfNeq'@, which will only perform insertion if the value of the component is different

@@ -46,15 +46,18 @@ createNode components = do
   liftIO $ modifyIORef' graph.lookup $ Map.insert components id
   Vec.pushBack graph.nodes ArchetypeNode {archetype = ArchetypeData {id = ArchetypeId id, components}, insert = Map.empty, remove = Map.empty}
 
-  comps <-
-    mapM
-      ( \(ComponentId (# id, _ #)) -> do
-          t <- worldGet (Proxy @ComponentType) (Entity (# id, 0## #))
-          return $ fmap getRep t
-      )
-      (Set.toList components)
+  -- comps <-
+  --   mapM
+  --     ( \(ComponentId (# id, _ #)) -> do
+  --         t <- worldGet (Proxy @ComponentType) (Entity (# id, 0## #))
+  --         return $ fmap getRep t
+  --     )
+  --     (Set.toList components)
 
   -- debug $ "archetype " <> text id <> " = " <> text (catMaybes comps)
+
+  let Tables tables = world.tables
+  Vec.pushBack tables =<< liftIO (newTable $ Set.toList components)
 
   for_ components $ \(ComponentId (# id', target' #)) -> do
     case target' of

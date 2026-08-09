@@ -29,6 +29,7 @@ import Mischief.ECS.EventDef
 import Mischief.ECS.Events
 import Mischief.ECS.Log
 import Mischief.ECS.Tables
+import Mischief.ECS.Vec qualified as Vec
 import Mischief.ECS.World
 import Mischief.ECS.World.Change
 import Mischief.ECS.World.Prefs
@@ -62,23 +63,19 @@ insert bundle entity =
 
         (EntityPointer (# archetypeId, rowIndex #)) <- liftIO $ readIORef currentPointer
 
-        let Tables tables = world.tables
-        tables <- liftIO $ readIORef tables
+        currentTable <- Vec.read world.tables.inner (I# archetypeId)
 
-        case Map.lookup (ArchetypeId $ I# archetypeId) tables of
-          Nothing -> undefined
-          Just currentTable -> do
-            -- Simple case, no archetype change.
-            if newComponents `isSubsequenceOf` currentTable.components
-              then
-                liftIO $ replaceComponentsIntoTable bundleData (Just currentTick) (EntityPointer (# archetypeId, rowIndex #)) currentTable
-              -- Complex case, archetype change.
-              else do
-                newArchetype <- getArchetypeOnInsert (ArchetypeId $ I# archetypeId) newComponents
-                ChangeResult {requiredComponentsAdded} <- changeArchetype entity newArchetype (Just bundleData)
+        -- Simple case, no archetype change.
+        if newComponents `isSubsequenceOf` currentTable.components
+          then
+            liftIO $ replaceComponentsIntoTable bundleData (Just currentTick) (EntityPointer (# archetypeId, rowIndex #)) currentTable
+          -- Complex case, archetype change.
+          else do
+            newArchetype <- getArchetypeOnInsert (ArchetypeId $ I# archetypeId) newComponents
+            ChangeResult {requiredComponentsAdded} <- changeArchetype entity newArchetype (Just bundleData)
 
-                unless world.prefs.supressEvents $
-                  triggerInsertEvent (ProcessedBundleData requiredComponentsAdded) entity
+            unless world.prefs.supressEvents $
+              triggerInsertEvent (ProcessedBundleData requiredComponentsAdded) entity
 
         unless world.prefs.supressEvents $
           triggerInsertEvent bundleData entity
@@ -112,23 +109,19 @@ insertNew bundle entity =
 
         (EntityPointer (# archetypeId, _ #)) <- liftIO $ readIORef currentPointer
 
-        let Tables tables = world.tables
-        tables <- liftIO $ readIORef tables
+        currentTable <- Vec.read world.tables.inner (I# archetypeId)
 
-        case Map.lookup (ArchetypeId $ I# archetypeId) tables of
-          Nothing -> undefined
-          Just currentTable -> do
-            let newComponents = ProcessedBundleData $ filter (\c -> c.id `notElem` currentTable.components) bundleData.elements
+        let newComponents = ProcessedBundleData $ filter (\c -> c.id `notElem` currentTable.components) bundleData.elements
 
-            unless (null newComponents.elements) $ do
-              newArchetype <- getArchetypeOnInsert (ArchetypeId $ I# archetypeId) $ map (\x -> x.id) newComponents.elements
-              ChangeResult {requiredComponentsAdded} <- changeArchetype entity newArchetype (Just bundleData)
+        unless (null newComponents.elements) $ do
+          newArchetype <- getArchetypeOnInsert (ArchetypeId $ I# archetypeId) $ map (\x -> x.id) newComponents.elements
+          ChangeResult {requiredComponentsAdded} <- changeArchetype entity newArchetype (Just bundleData)
 
-              unless world.prefs.supressEvents $
-                triggerInsertEvent (ProcessedBundleData requiredComponentsAdded) entity
+          unless world.prefs.supressEvents $
+            triggerInsertEvent (ProcessedBundleData requiredComponentsAdded) entity
 
-            unless world.prefs.supressEvents $
-              triggerInsertEvent newComponents entity
+          unless world.prefs.supressEvents $
+            triggerInsertEvent newComponents entity
 
 insertIfNeq :: (BundleEq b) => b -> Entity -> System ()
 insertIfNeq b entity = do

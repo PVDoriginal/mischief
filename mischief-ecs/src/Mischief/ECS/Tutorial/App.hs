@@ -8,6 +8,8 @@
 --
 -- It isn't as technically interesting as the other chapters of the tutorial, focusing more on organization and high-level logic.
 --
+-- [Previous Chapter: Coding a Dungeon Game]("Mischief.ECS.Tutorial.Dungeon")
+--
 -- [Next Chapter: Components]("Mischief.ECS.Tutorial.Components")
 --
 -- [Main Page]("Mischief.ECS")
@@ -51,11 +53,11 @@ import Mischief.ECS
 --   'Msichief.ECS.App.Plugins.init' _ = 'info' \"Hello!\"
 -- @
 --
--- From that initial plugin you could add other plugins, each adding new features to your game.
+-- From that initial plugin you can add other plugins, each adding new features to your game.
 --
 -- A @Plugin p@ instance has two optional functions:
 --
--- 1. An initialization system that will be ran at the very very beginning of the app.
+-- 1. An initialization system that will be ran at the very beginning of the app.
 --
 -- @
 -- 'Mischief.ECS.App.Plugins.init' :: p -> 'System' ()
@@ -67,13 +69,11 @@ import Mischief.ECS
 -- 'plugins' :: p -> 'Plugins'
 -- @
 --
--- @Plugins@ is backed by a generic typeclass meant to collect elements of a tuple into a shared storage.
+-- The collection of plugins can be created using @plug@.
 --
 -- @
--- 'plugins' _ = 'collect' (FooPlugin, BarPlugin, BazPlugin)
+-- 'plugins' _ = 'plug' (FooPlugin, BarPlugin, BazPlugin)
 -- @
---
--- You don't need to understand what @collect@ does internally, just be aware of it because it will be used a couple more times in this tutorial.
 
 -- $modular_features
 -- Mischief is intended to let you cleanly separate and organize your logic.
@@ -82,13 +82,11 @@ import Mischief.ECS
 --
 -- @
 -- instance 'Plugin' MainPlugin where
---   'plugins' _ = 'collect' (PhysicsPlugin, RenderPlugin, LevelPlugin)
+--   'plugins' _ = 'plug' (PhysicsPlugin, RenderPlugin, LevelPlugin)
 -- @
 --
 -- Ideally, each of these plugins would add their own independent features. So, if you were to remove @physicsPlugin@, your entities simply wouldn't
 -- move and collide anymore, but the rest of the app would work just fine.
---
--- This also lets the various packages of @Mischief@ to be modular, and makes it easy for third party library developers to create plugins that you just plug into your app with ease!
 --
 -- Note that, internally, @PhsyicsPlugin@ could also be subdivided into its own plugins with separate roles:
 --
@@ -98,6 +96,8 @@ import Mischief.ECS
 -- instance 'Plugin' PhysicsPlugin where
 --   'plugins' _ = 'collect' (CollisionPlugin, MovePlugin)
 -- @
+--
+--  This also lets the various packages of @Mischief@ be modular, and makes it easy for third party library developers to create plugins that you just plug into your app with ease!
 
 -- $init
 -- So what exactly can you do within the @init@ function of a @Plugin@?
@@ -117,6 +117,8 @@ import Mischief.ECS
 --
 -- Note that the initialization systems are guaranteed to run before everything else in the app, /but/ there is no guarantee of order between them.
 -- So, a Plugin should /never/ depend on another Plugin being added before it.
+--
+-- Additionally, everything that can be done in @init@ can be done the same in a normal system. There's nothing making it unique!
 
 -- $resolution
 -- Have you noticed that the 'Plugin' typeclass requires the type to also derive 'Eq'? Let's dig into that.
@@ -138,12 +140,12 @@ import Mischief.ECS
 -- data InputPlugin = InputPlugin deriving ('Eq')
 --
 -- instance 'Plugin' InputPlugin where
---   'plugins' _ = 'collect' SDLPlugin
+--   'plugins' _ = 'plug' SDLPlugin
 --
 -- data RenderPlugin = RenderPlugin deriving ('Eq')
 --
 -- instance 'Plugin' RenderPlugin where
---   'plugins' _ = 'collect' SDLPlugin
+--   'plugins' _ = 'plug' SDLPlugin
 -- @
 --
 -- So it's a handy feature to have multiple plugins depend on the same plugin. But what if @SDLPlugin@ looked like this:
@@ -161,12 +163,12 @@ import Mischief.ECS
 -- data InputPlugin = InputPlugin deriving ('Eq')
 --
 -- instance 'Plugin' InputPlugin where
---   'plugins' _ = 'collect' (SDLPlugin (300, 300))
+--   'plugins' _ = 'plug' (SDLPlugin (300, 300))
 --
 -- data RenderPlugin = RenderPlugin deriving ('Eq')
 --
 -- instance 'Plugin' RenderPlugin where
---   'plugins' _ = 'collect' (SDLPlugin (500, 500))
+--   'plugins' _ = 'plug' (SDLPlugin (500, 500))
 -- @
 --
 -- What if you were to add both @InputPlugin@ and @RenderPlugin@ to your app? Which variant of @SDLPlugin@ would it pick?
@@ -174,4 +176,4 @@ import Mischief.ECS
 -- This conflict is why the @Plugin@ typeclass requires @Eq@. When the same plugin is added into the app twice,
 -- their two values will be compared and, if equal, the plugin will be added, otherwise the app will crash.
 --
--- This ensures a level of control over how plugins do their initialization, without requiring that a plugin is only added once.
+-- This ensures a level of control over how plugins do their initialization, without forcing a plugin to only be added from one source.

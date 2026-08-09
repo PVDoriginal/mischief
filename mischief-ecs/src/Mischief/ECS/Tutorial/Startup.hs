@@ -178,7 +178,7 @@ import Mischief.ECS
 -- @
 -- addPeople :: 'System' ()
 -- addPeople = do
---   spawn (Person, Name \"Kim\")
+--   spawn (Person, Name \"Kimberly\")
 --   spawn (Person, Name \"Nicholas\")
 --   spawn (Person, Name \"Florian\")
 -- @
@@ -238,7 +238,7 @@ import Mischief.ECS
 --
 -- @
 -- [INFO] Hello World!
--- [INFO] Hello Kim
+-- [INFO] Hello Kimberly
 -- [INFO] Hello Nicholas
 -- [INFO] Hello Florian
 -- @
@@ -246,7 +246,7 @@ import Mischief.ECS
 -- Note that \"Hello World\" might show above or beneath the other people, since systems in the same schedule can run in any order unless they are explicitly ordered.
 
 -- $firstMut
--- If we want to change the name of some people (perhaps they transitioned!) we can apply a mutation to a value obtained from the query:
+-- If we want to change the name of some people, we can apply a mutation to a value obtained from the query:
 --
 -- @
 -- updateFlo :: 'System'
@@ -254,7 +254,7 @@ import Mischief.ECS
 --   people <- ['q'|Name / With Person|]
 --   'for_' people $ \name -> do
 --     'when' (name == Name \"Florian\") $
---       'set' name (Name \"Flo\")
+--       'set' name (Name \"Florianne\")
 -- @
 --
 -- Although.. that feels awfully imperative doesn't it? We can also write the same system as:
@@ -262,7 +262,7 @@ import Mischief.ECS
 -- @
 -- updateFlo = do
 --   florians <- ['q'|Name / With Person, Check (== Name \"Florian\")|]
---   'for_' florians $ '`set`' Name \"Flo\"
+--   'for_' florians $ '`set`' Name \"Florianne\"
 -- @
 --
 -- The above query can also be written like this:
@@ -320,7 +320,7 @@ import Mischief.ECS
 --
 -- @
 -- [INFO] Hello World!
--- [INFO] Hey Kim
+-- [INFO] Hey Kimberly
 -- [INFO] Hey Nicholas
--- [INFO] Hey Flo
+-- [INFO] Hey Florianne
 -- @

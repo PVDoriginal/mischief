@@ -17,6 +17,7 @@ import Mischief.ECS.EntityDef
 import Mischief.ECS.Events
 import Mischief.ECS.Log
 import Mischief.ECS.Tables
+import Mischief.ECS.Vec qualified as Vec
 import Mischief.ECS.World
 import Mischief.ECS.World.Query
 import Mischief.ECS.World.Query.Queryable
@@ -37,8 +38,7 @@ changeArchetype entity newArchetype insertedBundle = do
   Just pointer <- liftIO $ getPointer entity world.entities
   (EntityPointer (# archetypeId', rowIndex' #)) <- liftIO $ readIORef pointer
 
-  tables <- liftIO $ readIORef world.tables.inner
-  let table = fromMaybe undefined $ Map.lookup (ArchetypeId $ I# archetypeId') tables
+  table <- Vec.read world.tables.inner (I# archetypeId')
 
   collected <- liftIO $ takeComponentsFromTable (EntityPointer (# archetypeId', rowIndex' #)) table
 

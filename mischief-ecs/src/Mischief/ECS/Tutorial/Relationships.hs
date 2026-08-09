@@ -26,6 +26,9 @@ module Mischief.ECS.Tutorial.Relationships
     -- * Querying
     -- $query
 
+    -- * Transitive Querying
+    -- $trans
+
     -- * Hooks
     -- $hooks
 
@@ -116,6 +119,12 @@ import Mischief.ECS
 -- x :: ['Result' ('Rel' Likes)]
 -- @
 --
+-- In quasi-queries, this becomes:
+--
+-- @
+-- x \<- ['q'|Likes -\> alice|]
+-- @
+--
 -- @Result (Rel c)@ is the return type of @R \@c e@. It can be used in most Result-based operation discussed in the previous chapter, such as @'set'@ and @'delete'@.
 --
 -- Querying can also be done using the @Any@ wildcard:
@@ -128,7 +137,14 @@ import Mischief.ECS
 -- x :: [['Result' ('Rel' Likes)]]
 -- @
 --
--- As you can see, the return type of @'R' \@c Any@ is @[Result (Rel c)]@. It's returning a list of relationships, rather than a single relationship.
+-- In quasi-queries, @Any@ is symbolized by @*@:
+--
+-- @
+-- x \<- ['q'|Likes -\> *|]
+-- @
+--
+-- As you can see, the return type of @'R' \@c Any@ is @[Result (Rel c)]@. It's returning a list of relationships, rather than a single relationship (unless the
+-- relationship is exclusive, but more on that in a bit).
 --
 -- Remember that the fields of the inner type of a Result are inherited by the Result itself. So we can just use @.comp@ and @.target@ to get the component and target of a @Result (Rel c)@.
 --
@@ -144,13 +160,27 @@ import Mischief.ECS
 -- In the case of querying for @R c Any@, the query will only match entities that have at least one such relationship. The resulting @[Result (Rel c)]@ should never be empty.
 --
 -- If you wish to also include entities that do not have those relationships, you can use @`MR`@ (short for @Maybe Relationships@), the relational equivalent of @'M'@.
+--
+-- @
+-- x <- 'query' ('MR' \@Likes alice)
+-- @
+--
+-- @
+-- x :: ['Maybe' ('Result' ('Rel' c))]
+-- @
+--
+-- Which is this in quasi form:
+--
+-- @
+-- x <- ['q'|Maybe Likes -> alice|]
+-- @
 
 -- $exclusive
--- A relationship can be made exclusive by setting the following Bool on the Component instance:
+-- A relationship can be made exclusive by setting the following associated type on its component instance:
 --
 -- @
 -- instance 'Component' FooRel where
---   'isExclusiveRel' = 'True'
+--   type 'RelExclusivity' FooRel = 'Exclusive'
 -- @
 --
 -- This will make it so only one instance of a relationship can exist on an entity at once.
@@ -161,6 +191,47 @@ import Mischief.ECS
 -- @
 --
 -- Will result in just @Rel (FooRel, b)@ being on @c@.
+--
+-- It also changes the result of @R \@FooRel Any@ queries to be of the form:
+--
+-- @
+-- 'Result ('Rel' FooRel)
+-- @
+--
+-- Instead of:
+--
+-- @
+-- ['Result ('Rel' FooRel)]
+-- @
+
+-- $trans
+-- Transitive queries are a powerful primitive which allow us to easily query components based on relational connections.
+--
+-- For instance, this is how we can get the name of each entity, along with the names of all entities they like:
+--
+-- @
+-- x <- 'query' ('C' \@Name, 'R' \@Likes ('Q' ('C' \@Name)))
+-- @
+--
+-- @
+-- x :: [(Result Name, [Result Name])]
+-- @
+--
+-- They /tend/ to look much better when written as quasi-queries (don't forget the @()@!):
+--
+-- @
+-- x \<- ['q'|Name, Likes -\> (Name)]
+-- @
+--
+-- Note that transitive queries can be nested as much as you want:
+--
+-- @
+-- x \<- ['q'|Name, Likes -\> (Name, Likes -\> (Name))|]
+-- @
+--
+-- @
+-- x :: [(Result Name, [(Result Name, [Result Name])])]
+-- @
 
 -- $hooks
 -- There are a number of predefined hooks that are useful when working with relationships, which can be found in "Mischief.ECS.Hooks".
@@ -180,13 +251,21 @@ import Mischief.ECS
 --   'hooks' = 'relComplementary' ('const' Before)
 -- @
 --
--- Now, when we do
+-- Now, when we do:
 --
 -- @
 -- 'insert' ('Rel' Before a) b
 -- @
 --
--- A @Rel After b@ will be inserted automatically on a.
+-- A @Rel After b@ will be inserted automatically on @a@.
+--
+-- And when we do:
+--
+-- @
+-- 'remove' ('R' \@Before) b
+-- @
+--
+-- @Rel After b@ will be removed from @a@.
 --
 -- And vice versa.
 --

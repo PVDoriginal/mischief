@@ -3,7 +3,7 @@
 module Mischief.ECS.Tables where
 
 import Control.Monad (forM, when)
-import Data.Foldable (find, for_)
+import Data.Foldable (Foldable (toList), find, for_)
 import Data.IORef
 import Data.Kind
 import Data.List (transpose)
@@ -24,7 +24,7 @@ import Mischief.ECS.Utils
 import Mischief.ECS.Vec (IOVec)
 import Mischief.ECS.Vec qualified as Vec
 
-newtype Tables = Tables {inner :: IORef (Map ArchetypeId Table)}
+newtype Tables = Tables {inner :: IOVec Table}
 
 data Table = Table
   { columns :: IORef (Map ComponentId Column),
@@ -35,33 +35,33 @@ data Table = Table
 newtype Column = Column (IOVec ComponentData)
 
 baseline_entities_cap :: Int
-baseline_entities_cap = 256
+baseline_entities_cap = 64
 
 emptyTables :: IO Tables
-emptyTables =
-  Tables <$> newIORef Map.empty
+emptyTables = do
+  v <- Vec.new 128
+  Vec.pushBack v =<< newTable []
+  pure $ Tables v
 
-newTable :: ProcessedBundleData -> IO Table
+newTable :: [ComponentId] -> IO Table
 newTable components = do
   cols <-
-    for components.elements $ \x -> do
-      empty_vec <- Vec.new 10
-      pure (x.id, Column empty_vec)
+    for components $ \x -> do
+      empty_vec <- Vec.new baseline_entities_cap
+      pure (x, Column empty_vec)
 
-  columns <- newIORef $ Map.fromList cols
+  columns <- newIORef $ Map.fromList (toList cols)
   entities <- Vec.new baseline_entities_cap
 
-  let componentIds = map (\x -> x.id) components.elements
-
-  return $ Table {columns = columns, components = componentIds, entities}
+  return $ Table {columns = columns, components, entities}
 
 tableIsEmpty :: Table -> IO Bool
 tableIsEmpty table = Vec.null table.entities
 
-removeTable :: ArchetypeId -> Tables -> IO ()
-removeTable archetype tables = do
-  let Tables tables' = tables
-  modifyIORef' tables' $ Map.filterWithKey (\archetype' _ -> archetype' /= archetype)
+-- removeTable :: ArchetypeId -> Tables -> IO ()
+-- removeTable archetype tables = do
+--   let Tables tables' = tables
+--   modifyIORef' tables' $ Map.filterWithKey (\archetype' _ -> archetype' /= archetype)
 
 -- |
 --  runs the specified monadic action with the value of the given map key as input, if the key exists.
@@ -167,37 +167,28 @@ removeRow row_idx vec = do
 removeEntityFromTable :: Int -> Table -> IO ()
 removeEntityFromTable row table = removeRow row table.entities
 
-insertResourceIntoTables :: ProcessedBundleData -> Tick -> Tables -> ArchetypeId -> (Entity, IORef EntityPointer) -> IO ()
-insertResourceIntoTables bundle tick (Tables tables) archetype (entity, pointerRef) =
-  do
-    innerTables <- readIORef tables
+-- insertResourceIntoTables :: ProcessedBundleData -> Tick -> Tables -> ArchetypeId -> (Entity, IORef EntityPointer) -> IO ()
+-- insertResourceIntoTables bundle tick (Tables tables) archetype (entity, pointerRef) =
+--   do
+--     innerTables <- readIORef tables
 
-    table <- newTable bundle
-    let newTables = Map.insert archetype table innerTables
-    writeIORef tables newTables
+--     table <- newTable bundle
+--     let newTables = Map.insert archetype table innerTables
+--     writeIORef tables newTables
 
-    rowIndex <- Vec.length table.entities
-    Vec.pushBack table.entities (entity, pointerRef)
+--     rowIndex <- Vec.length table.entities
+--     Vec.pushBack table.entities (entity, pointerRef)
 
-    let !(I# archetype') = archetype.id
-    let !(I# rowIndex') = rowIndex
-    writeIORef pointerRef $ EntityPointer (# archetype', rowIndex' #)
+--     let !(I# archetype') = archetype.id
+--     let !(I# rowIndex') = rowIndex
+--     writeIORef pointerRef $ EntityPointer (# archetype', rowIndex' #)
 
-    insertComponentsIntoTable bundle table
+--     insertComponentsIntoTable bundle table
 
 insertEntityIntoTables :: ProcessedBundleData -> Tables -> ArchetypeId -> (Entity, IORef EntityPointer) -> IO ()
 insertEntityIntoTables bundle (Tables tables) archetype pointerRef =
   do
-    innerTables <- readIORef tables
-
-    -- gets the correct table (or crates another one and returns it)
-    table <- case Map.lookup archetype innerTables of
-      Just table -> pure table
-      Nothing -> do
-        table <- newTable bundle
-        let newTables = Map.insert archetype table innerTables
-        writeIORef tables newTables
-        return table
+    table <- Vec.unsafeRead tables archetype.id
 
     rowIndex <- Vec.length table.entities
     Vec.pushBack table.entities pointerRef
@@ -210,7 +201,7 @@ insertEntityIntoTables bundle (Tables tables) archetype pointerRef =
 
 tryGetComponentFromColumn :: forall c. (Component c) => Column -> EntityPointer -> IO (Maybe c)
 tryGetComponentFromColumn (Column components) (EntityPointer (# _, rowIndex #)) = do
-  element <- Vec.read components (I# rowIndex)
+  element <- Vec.unsafeRead components (I# rowIndex)
   pure $ tryGetComponent element.value
 
 tryGetRelCollectionFromTable :: forall c. (Component c) => Table -> Entity -> EntityPointer -> ComponentId -> IO (Maybe [Result (Rel c)])
@@ -247,22 +238,14 @@ tryGetComponentFromTable table pointer componentId =
 tryGetRelCollectionFromTables :: forall c. (Component c) => Tables -> Entity -> EntityPointer -> ComponentId -> IO (Maybe ([Result (Rel c)]))
 tryGetRelCollectionFromTables (Tables tables) entity (EntityPointer (# archetypeId, rowIndex #)) componentId =
   do
-    tables <- readIORef tables
-    let table = Map.lookup (ArchetypeId $ I# archetypeId) tables
-
-    case table of
-      Nothing -> return Nothing
-      Just table -> tryGetRelCollectionFromTable table entity (EntityPointer (# archetypeId, rowIndex #)) componentId
+    table <- Vec.unsafeRead tables (I# archetypeId)
+    tryGetRelCollectionFromTable table entity (EntityPointer (# archetypeId, rowIndex #)) componentId
 
 tryGetComponentFromTables :: forall c. (Component c) => Tables -> EntityPointer -> ComponentId -> IO (Maybe c)
 tryGetComponentFromTables (Tables tables) (EntityPointer (# archetypeId, rowIndex #)) componentId =
   do
-    tables <- readIORef tables
-    let table = Map.lookup (ArchetypeId $ I# archetypeId) tables
-
-    case table of
-      Nothing -> return Nothing
-      Just table -> tryGetComponentFromTable table (EntityPointer (# archetypeId, rowIndex #)) componentId
+    table <- Vec.unsafeRead tables (I# archetypeId)
+    tryGetComponentFromTable table (EntityPointer (# archetypeId, rowIndex #)) componentId
 
 tryGetTicksFromColumn :: Column -> IO [ComponentTicks]
 tryGetTicksFromColumn (Column components) = do
@@ -271,7 +254,7 @@ tryGetTicksFromColumn (Column components) = do
   return $ Vector.toList x
 
 tryGetEntityTicksFromColumn :: Column -> EntityPointer -> IO ComponentTicks
-tryGetEntityTicksFromColumn (Column components) (EntityPointer (# _, rowIndex #)) = (\x -> x.ticks) <$> Vec.read components (I# rowIndex)
+tryGetEntityTicksFromColumn (Column components) (EntityPointer (# _, rowIndex #)) = (\x -> x.ticks) <$> Vec.unsafeRead components (I# rowIndex)
 
 tryGetTicksFromTable :: Table -> ComponentId -> IO [Maybe ComponentTicks]
 tryGetTicksFromTable table componentId =
@@ -292,29 +275,25 @@ tryGetEntityTicksFromTable table pointer componentId =
       Nothing -> return Nothing
       Just column -> Just <$> tryGetEntityTicksFromColumn column pointer
 
-tryGetTicksFromArchetype :: ArchetypeId -> Map ArchetypeId Table -> ComponentId -> IO [Maybe ComponentTicks]
+tryGetTicksFromArchetype :: ArchetypeId -> IOVec Table -> ComponentId -> IO [Maybe ComponentTicks]
 tryGetTicksFromArchetype archetype tables componentId = do
-  case Map.lookup archetype tables of
-    Nothing -> return []
-    Just table -> tryGetTicksFromTable table componentId
+  table <- Vec.unsafeRead tables archetype.id
+  tryGetTicksFromTable table componentId
 
-tryGetEntityTicksFromArchetype :: ArchetypeId -> Map ArchetypeId Table -> EntityPointer -> ComponentId -> IO (Maybe ComponentTicks)
+tryGetEntityTicksFromArchetype :: ArchetypeId -> IOVec Table -> EntityPointer -> ComponentId -> IO (Maybe ComponentTicks)
 tryGetEntityTicksFromArchetype archetype tables pointer componentId = do
-  case Map.lookup archetype tables of
-    Nothing -> return Nothing
-    Just table -> tryGetEntityTicksFromTable table pointer componentId
+  table <- Vec.unsafeRead tables archetype.id
+  tryGetEntityTicksFromTable table pointer componentId
 
 tryGetTicksFromTables :: Tables -> [ArchetypeId] -> ComponentId -> IO [Maybe ComponentTicks]
 tryGetTicksFromTables (Tables tables) archetypes componentId =
   do
-    tables <- readIORef tables
     results <- mapM (\archetype -> tryGetTicksFromArchetype archetype tables componentId) archetypes
     return $ concat results
 
 tryGetEntityTicksFromTables :: Tables -> EntityPointer -> ComponentId -> IO (Maybe ComponentTicks)
 tryGetEntityTicksFromTables (Tables tables) (EntityPointer (# archetypeId, rowIndex #)) componentId =
   do
-    tables <- readIORef tables
     tryGetEntityTicksFromArchetype (ArchetypeId $ I# archetypeId) tables (EntityPointer (# archetypeId, rowIndex #)) componentId
 
 tryGetComponentsFromColumn :: forall c. (Component c) => Column -> IO [c]
@@ -378,55 +357,47 @@ tryGetComponentsFromTableMaybe table componentId =
         entities <- Vec.toList table.entities
         return $ zipWith (\x e -> (e, Just $ Result (x, e))) results (map fst entities)
 
-tryGetRelCollectionsFromArchetype :: forall c. (Component c) => ArchetypeId -> Map ArchetypeId Table -> ComponentId -> IO [(Entity, [Result (Rel c)])]
-tryGetRelCollectionsFromArchetype archetype tables componentId =
-  case Map.lookup archetype tables of
-    Nothing -> return []
-    Just table -> tryGetRelCollectionsFromTable table componentId
+tryGetRelCollectionsFromArchetype :: forall c. (Component c) => ArchetypeId -> IOVec Table -> ComponentId -> IO [(Entity, [Result (Rel c)])]
+tryGetRelCollectionsFromArchetype archetype tables componentId = do
+  table <- Vec.unsafeRead tables archetype.id
+  tryGetRelCollectionsFromTable table componentId
 
-tryGetComponentsFromArchetype :: forall c. (Component c) => ArchetypeId -> Map ArchetypeId Table -> ComponentId -> IO [(Entity, Result c)]
+tryGetComponentsFromArchetype :: forall c. (Component c) => ArchetypeId -> IOVec Table -> ComponentId -> IO [(Entity, Result c)]
 tryGetComponentsFromArchetype archetype tables componentId = do
-  case Map.lookup archetype tables of
-    Nothing -> return []
-    Just table -> tryGetComponentsFromTable table componentId
+  table <- Vec.unsafeRead tables archetype.id
+  tryGetComponentsFromTable table componentId
 
-tryGetEntitiesFromArchetype :: ArchetypeId -> Map ArchetypeId Table -> IO [Entity]
+tryGetEntitiesFromArchetype :: ArchetypeId -> IOVec Table -> IO [Entity]
 tryGetEntitiesFromArchetype archetype tables = do
-  case Map.lookup archetype tables of
-    Nothing -> return []
-    Just table -> tryGetEntitiesFromTable table
+  table <- Vec.unsafeRead tables archetype.id
+  tryGetEntitiesFromTable table
 
-tryGetComponentsFromArchetypeMaybe :: forall c. (Component c) => ArchetypeId -> Map ArchetypeId Table -> ComponentId -> IO [(Entity, Maybe (Result c))]
-tryGetComponentsFromArchetypeMaybe archetype tables componentId =
-  case Map.lookup archetype tables of
-    Nothing -> return []
-    Just table -> tryGetComponentsFromTableMaybe table componentId
+tryGetComponentsFromArchetypeMaybe :: forall c. (Component c) => ArchetypeId -> IOVec Table -> ComponentId -> IO [(Entity, Maybe (Result c))]
+tryGetComponentsFromArchetypeMaybe archetype tables componentId = do
+  table <- Vec.unsafeRead tables archetype.id
+  tryGetComponentsFromTableMaybe table componentId
 
 tryGetRelCollectionsFromTables :: forall c. (Component c) => Tables -> [ArchetypeId] -> ComponentId -> IO [(Entity, [Result (Rel c)])]
 tryGetRelCollectionsFromTables (Tables tables) archetypes componentId =
   do
-    tables <- readIORef tables
     results <- mapM (\archetype -> tryGetRelCollectionsFromArchetype archetype tables componentId) archetypes
     return $ concat results
 
 tryGetComponentsFromTables :: forall c. (Component c) => Tables -> [ArchetypeId] -> ComponentId -> IO [(Entity, Result c)]
 tryGetComponentsFromTables (Tables tables) archetypes componentId =
   do
-    tables <- readIORef tables
     results <- mapM (\archetype -> tryGetComponentsFromArchetype archetype tables componentId) archetypes
     return $ concat results
 
 tryGetEntitiesFromTables :: Tables -> [ArchetypeId] -> IO [Entity]
 tryGetEntitiesFromTables (Tables tables) archetypes =
   do
-    tables <- readIORef tables
     results <- mapM (`tryGetEntitiesFromArchetype` tables) archetypes
     return $ concat results
 
 tryGetComponentsFromTablesMaybe :: forall c. (Component c) => Tables -> [ArchetypeId] -> ComponentId -> IO [(Entity, Maybe (Result c))]
 tryGetComponentsFromTablesMaybe (Tables tables) archetypes componentId =
   do
-    tables <- readIORef tables
     results <- mapM (\archetype -> tryGetComponentsFromArchetypeMaybe archetype tables componentId) archetypes
     return $ concat results
 

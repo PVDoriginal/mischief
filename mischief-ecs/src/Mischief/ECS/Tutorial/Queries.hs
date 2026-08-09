@@ -123,6 +123,15 @@ import Mischief.ECS
 -- * @'MR' c 'Any'@ -> @'Maybe' ['Result' ('Rel' c)@
 -- * @'HasR' c e@ -> @'Bool'@
 -- * @'HasR' c 'Any'@ -> @'Bool'@
+--
+-- Transitive:
+--
+-- * @'R' c ('Q' q)@ -> @[Result of q]@
+-- * @'MR' c ('Q' q)@ -> @'Maybe' [Result of q]@
+-- * @'HasR' c ('Q' q)@ -> @'Bool'@
+--
+-- Note that the relational queries using @Any@ and the transitive ones will return a single element
+-- instead of a list, in the case of that relation being exclusive.
 
 -- $filters
 -- Filters can be passed to @'@ variants of query functions, such as @'query''@ and @'single''@.
@@ -199,6 +208,18 @@ import Mischief.ECS
 -- @
 --
 -- @'R' \@c a@ is translated to @c -> a@, and @Any@ becomes @*@.
+--
+-- == Transitive
+--
+-- Transitive queries are written the same as relationship ones, but with @()@ around their target:
+--
+-- @
+-- 'query' ('R' \@Foo ('Q' ('C' \@Bar)))
+-- @
+--
+-- @
+-- ['q'|Foo -> (Bar)]
+-- @
 --
 -- === Modifiers
 --

@@ -20,6 +20,7 @@ import Mischief.ECS.Hidden
 import Mischief.ECS.Log
 import Mischief.ECS.Observer
 import Mischief.ECS.Tables
+import Mischief.ECS.Vec qualified as Vec
 import Mischief.ECS.World
 import Mischief.ECS.World.Change
 import Mischief.ECS.World.Defer
@@ -112,20 +113,15 @@ despawn entity =
       Just pointer -> do
         let Tables tables = world.tables
 
-        tables' <- liftIO $ readIORef tables
         (EntityPointer (# archetypeId, _ #)) <- liftIO $ readIORef pointer
 
-        case Map.lookup (ArchetypeId $ I# archetypeId) tables' of
-          Nothing -> undefined
-          Just table -> do
-            c <- liftIO $ collectComponentIdsFromTable table
-            triggerRemoveEvent c entity
+        table <- Vec.read tables (I# archetypeId)
 
-        tables' <- liftIO $ readIORef tables
+        c <- liftIO $ collectComponentIdsFromTable table
+        triggerRemoveEvent c entity
+
         (EntityPointer (# newArchetypeId, newRowIndex #)) <- liftIO $ readIORef pointer
 
-        case Map.lookup (ArchetypeId $ I# newArchetypeId) tables' of
-          Nothing -> undefined
-          Just table -> do
-            void $ liftIO $ takeComponentsFromTable (EntityPointer (# newArchetypeId, newRowIndex #)) table
-            liftIO $ removeEntity entity world.entities
+        table <- Vec.read tables (I# newArchetypeId)
+        void $ liftIO $ takeComponentsFromTable (EntityPointer (# newArchetypeId, newRowIndex #)) table
+        liftIO $ removeEntity entity world.entities

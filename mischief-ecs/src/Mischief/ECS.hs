@@ -7,7 +7,10 @@
 --
 -- This library contains the ECS used by the Mischief Game Engine.
 module Mischief.ECS
-  ( -- * What is Mischief?
+  ( -- * Pre-Release
+    -- $pre
+
+    -- * What is Mischief?
     -- $mischief
 
     -- * Learn You an ECS for Great Mischief!
@@ -134,6 +137,9 @@ qq :: System ()
 qq = do
   -- x <- $(quoteC ''ChildOf)
   undefined
+
+-- $pre
+-- This version of Mischief isn't meant for public use. It's just a pre-release published mostly to showcase the documentation.
 
 -- $mischief
 -- Mischief has various meanings. It can be a group of rats. Or it can refer to being naughty and playful.
