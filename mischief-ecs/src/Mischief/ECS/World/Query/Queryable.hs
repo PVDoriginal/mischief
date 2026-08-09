@@ -113,18 +113,18 @@ instance (Component c, Queryable q out) => RelQuery Inclusive (R c (Q q)) [out] 
       Nothing -> pure Nothing
       Just x -> do
         x <- x
-        pure $ case x of
+        pure $ case catMaybes x of
           [] -> Nothing
-          x -> Just $ catMaybes x
+          x -> Just x
 
   relRunQueryInternal (R (Q q)) archetypes world = do
     res <- relRunQueryInternal @Inclusive (R @c Any) archetypes world
-    for res $ \(e, _, rels) -> do
+    for res $ \(e, b, rels) -> do
       a <- catMaybes <$> (traverse $ \r -> runQueryEntity q world r.target) rels
 
       pure $ case a of
         [] -> (e, False, undefined)
-        x -> (e, True, x)
+        x -> (e, b, x)
 
   relQueryTypes _ = Set.singleton (typeRep $ Proxy @c, RelQ)
 
@@ -137,11 +137,11 @@ instance (Component c, Queryable q out) => RelQuery Exclusive (R c (Q q)) out wh
       Just x -> x
   relRunQueryInternal (R (Q q)) archetypes world = do
     res <- relRunQueryInternal @Exclusive (R @c Any) archetypes world
-    for res $ \(e, _, rels) -> do
+    for res $ \(e, b, rels) -> do
       r <- (\r -> runQueryEntity q world r.target) rels
       pure $ case r of
         Nothing -> (e, False, undefined)
-        Just x -> (e, True, x)
+        Just x -> (e, b, x)
 
   relQueryTypes _ = Set.singleton (typeRep $ Proxy @c, RelQ)
 
@@ -227,7 +227,59 @@ instance (Component c) => RelQuery Exclusive (MR c Any) (Maybe (Result (Rel c)))
         _ -> undefined
   relQueryTypes _ = Set.empty
 
+instance (Component c, Queryable q out) => RelQuery Inclusive (MR c (Q q)) (Maybe [out]) where
+  relRunQueryEntity (MR (Q q)) world entity = do
+    res <- relRunQueryEntity @Inclusive (MR @c Any) world entity
+    case res of
+      Nothing -> pure Nothing
+      Just Nothing -> pure $ Just Nothing
+      Just (Just r) ->
+        Just <$> do
+          let targets = map (\x -> x.target) r
+          results <- catMaybes <$> for targets (runQueryEntity q world)
+          case results of
+            [] -> pure Nothing
+            x -> pure $ Just x
+
+  relRunQueryInternal (MR (Q q)) archetypes world = do
+    res <- relRunQueryInternal @Inclusive (MR @c Any) archetypes world
+    for res $ \(e, b, r) -> do
+      case r of
+        Nothing -> pure (e, b, Nothing)
+        Just r -> do
+          rs <- for r (\x -> runQueryEntity q world x.target)
+          case catMaybes rs of
+            [] -> pure (e, b, Nothing)
+            x -> pure (e, b, Just x)
+
+  relQueryTypes _ = Set.empty
+
+instance (Component c, Queryable q out) => RelQuery Exclusive (MR c (Q q)) (Maybe out) where
+  relRunQueryEntity (MR (Q q)) world entity = do
+    res <- relRunQueryEntity @Exclusive (MR @c Any) world entity
+    case res of
+      Nothing -> pure Nothing
+      Just Nothing -> pure $ Just Nothing
+      Just (Just x) -> Just <$> runQueryEntity q world x.target
+
+  relRunQueryInternal (MR (Q q)) archetypes world = do
+    res <- relRunQueryInternal @Exclusive (MR @c Any) archetypes world
+    for res $ \(e, b, r) -> do
+      case r of
+        Nothing -> pure (e, b, Nothing)
+        Just r -> do
+          res <- runQueryEntity q world r.target
+          pure (e, b, res)
+
+  relQueryTypes _ = Set.empty
+
 instance (RelQuery (RelExclusivity c) (MR c Any) out) => Queryable (MR c Any) out where
+  runQueryEntity = relRunQueryEntity @(RelExclusivity c)
+
+  runQueryInternal = relRunQueryInternal @(RelExclusivity c)
+  queryTypes _ = Set.empty
+
+instance (RelQuery (RelExclusivity c) (MR c (Q q)) out) => Queryable (MR c (Q q)) out where
   runQueryEntity = relRunQueryEntity @(RelExclusivity c)
 
   runQueryInternal = relRunQueryInternal @(RelExclusivity c)
@@ -271,6 +323,31 @@ instance (Component c) => Queryable (HasR c Entity) Bool where
   runQueryInternal (HasR target) archetypes world = do
     res <- runQueryInternal (MR @c target) archetypes world
     return $ map (Data.Bifunctor.second isNothing) res
+
+  queryTypes _ = Set.empty
+
+instance (Component c, Queryable q out) => Queryable (HasR c (Q q)) Bool where
+  runQueryEntity (HasR (Q q)) world entity = do
+    res <- tryGetEntityRelCollection @c world entity
+    case res of
+      Nothing -> pure Nothing
+      Just Nothing -> pure $ Just False
+      Just (Just r) -> do
+        res <- catMaybes <$> for r (\r -> runQueryEntity q world r.target)
+        case res of
+          [] -> pure $ Just False
+          _ -> pure $ Just True
+
+  runQueryInternal (HasR (Q q)) archetypes world = do
+    res <- relRunQueryInternal @Inclusive (MR @c Any) archetypes world
+    for res $ \(e, b, r) -> do
+      case r of
+        Nothing -> pure (e, b, False)
+        Just r -> do
+          res <- catMaybes <$> for r (\r -> runQueryEntity q world r.target)
+          case res of
+            [] -> pure (e, b, False)
+            _ -> pure (e, b, True)
 
   queryTypes _ = Set.empty
 
