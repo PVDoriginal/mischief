@@ -28,6 +28,7 @@ import Mischief.ECS.Components.HooksDef
 import Mischief.ECS.Components.Required (requireAll)
 import Mischief.ECS.Entities
 import Mischief.ECS.EntityDef
+import Mischief.ECS.Log
 import Mischief.ECS.Observer
 import Mischief.ECS.Relationships
 import Mischief.ECS.World
@@ -77,6 +78,7 @@ getOrAddComponentId (ComponentType (_ :: Proxy c)) = do
 
       for_ (requireAll @c) $ \(DefaultComponentType (_ :: (Proxy other))) -> do
         (ComponentId (# otherId', _ #)) <- getOrAddComponentId (ComponentType $ Proxy @other)
+
         let otherId = Entity (# otherId', 0## #)
         worldSet (Rel RequiredBy result) otherId
         worldSet (Rel Requires otherId) result

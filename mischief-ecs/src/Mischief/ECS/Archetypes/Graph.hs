@@ -16,6 +16,7 @@ import Data.Set qualified as Set
 import GHC.Base (eqWord#, isTrue#)
 import Mischief.ECS.Archetypes
 import Mischief.ECS.Components
+import Mischief.ECS.Components.Common
 import Mischief.ECS.Entities
 import Mischief.ECS.EntityDef
 import Mischief.ECS.Log
@@ -210,6 +211,7 @@ getArchetypeOnSpawn components =
     let Archetypes {graph} = world.archetypes
 
     regs <- mapM getRequirements components
+
     let allComps = foldr' (flip Set.union) (Set.fromList components) regs
     node <- getOrCreateNode allComps
 

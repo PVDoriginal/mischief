@@ -192,7 +192,7 @@ tryGetRels target world archetypes =
     case componentId of
       Nothing -> return []
       Just componentId -> do
-        res <- tryGetComponentsFromTables world.tables archetypes componentId -- {entity = Just target}
+        res <- tryGetComponentsFromTables world.tables archetypes (setCompIdTarget (Just target) componentId) -- {entity = Just target}
         return $ map (\(e, res) -> (e, Result (Rel (value res) target, entityOf res))) res
 
 tryGetRelsMaybe :: forall c. (Component c) => Entity -> World -> [ArchetypeId] -> IO [(Entity, Maybe (Result (Rel c)))]
@@ -204,7 +204,7 @@ tryGetRelsMaybe target world archetypes =
         e <- tryGetEntities world archetypes
         return $ map (,Nothing) e
       Just componentId -> do
-        res <- tryGetComponentsFromTablesMaybe world.tables archetypes componentId -- {entity = Just target}
+        res <- tryGetComponentsFromTablesMaybe world.tables archetypes (setCompIdTarget (Just target) componentId) -- {entity = Just target}
         return $
           map
             ( Data.Bifunctor.second

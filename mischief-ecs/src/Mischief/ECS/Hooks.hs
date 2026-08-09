@@ -53,7 +53,7 @@ relComplementary f = collect (insertComplementary f, removeComplementary @b @a)
 
 insertComplementary :: forall (a :: Type) b. (Component b, Component a) => (a -> b) -> OnInsertRel a -> System ()
 insertComplementary f event = do
-  warn $ text event.target
+  -- warn $ text event.target
   Just val <- get (R @a event.target) event.entity
   insert (Rel (f val.comp) event.entity) event.target
 

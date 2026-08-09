@@ -13,7 +13,7 @@ import Data.Maybe (catMaybes, fromMaybe, isJust, isNothing)
 import Data.Traversable (for)
 import Data.Typeable (Proxy (Proxy), eqT, typeRep, type (:~:) (Refl))
 import Data.Vector qualified as Vector
-import GHC.Base (Int (..), eqWord#, isTrue#)
+import GHC.Base (Int (..), Word (W#), eqWord#, isTrue#)
 import GHC.Records
 import GHC.TypeLits
 import Mischief.ECS.Components
@@ -224,7 +224,7 @@ tryGetRelCollectionFromTable table entity pointer (ComponentId (# id, target #))
         then do
           case target' of
             Nothing -> return Nothing
-            _ -> do
+            Just entity -> do
               component <- tryGetComponentFromColumn @c column pointer
               return $ fmap (,entity) component
         else return Nothing
@@ -232,7 +232,7 @@ tryGetRelCollectionFromTable table entity pointer (ComponentId (# id, target #))
     if null $ catMaybes components'
       then
         return Nothing
-      else
+      else do
         return $ Just $ map (\(value, target) -> Result (Rel value target, entity)) $ catMaybes components'
 
 tryGetComponentFromTable :: forall c. (Component c) => Table -> EntityPointer -> ComponentId -> IO (Maybe c)
@@ -240,7 +240,6 @@ tryGetComponentFromTable table pointer componentId =
   do
     columns <- readIORef table.columns
     let column = Map.lookup componentId columns
-
     case column of
       Nothing -> return Nothing
       Just column -> tryGetComponentFromColumn column pointer
