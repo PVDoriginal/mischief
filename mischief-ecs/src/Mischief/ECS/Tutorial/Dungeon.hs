@@ -186,7 +186,7 @@ import System.Exit (exitSuccess)
 --   getTile (x' + x, y' + y)
 -- @
 --
--- Queries will be explain in-depth later, but what happens essentially is that, our query returns a @Result Pos@ for the given entity, and
+-- Queries will be explained in-depth later, but what happens essentially is that, our query returns a @Result Pos@ for the given entity, and
 -- we get and unwrap the inner @Pos@ value using the @'value'@ function.
 --
 -- We can completely bypass this by just using the @Val@ query transformer which unwraps the @Result@ for us:
