@@ -160,10 +160,24 @@ qq = do
 --
 -- There are the main design goals of Mischief:
 --
--- * __Ergonomics__. Mischief's main purpose is to provide a very clean, intuitive, high-level API. This is the main way we differentiate ourselves from other ECS's.
--- * __Functional__. While the core logic of Mischief is highly mutable and dynamic for the sake of performance, the high-level API is tailored to be immutable and
--- encourage the functional programming paradigm.
--- * __Modularity__. Mischief is meant to be modular, allowing you to plug packages in and out, whether they are made by us or a third party.
+-- * __Ergonomic and Accessible__. Mischief's main purpose is to provide a very clean, intuitive, inherently opinionated, high-level API. This is the main way we differentiate ourselves from other ECS's.
+-- Learning to use Mischief should be a painless and intuitive process.
+-- * __Functional and Data Driven__. We strive to find a balance between functional programming and data-driven design. These are two concepts that don't
+-- interact very often, but that both stand at the core of Msichief.
+-- * __Modular__. Mischief is meant to be modular, allowing you to plug packages in and out, whether they are made by us or a third party.
+--
+-- == Highlights
+--
+-- Here are some highlights of Mischief:
+--
+-- * __Highly Dynamic__ . Want to disable a system? Despawn it!
+-- * __Fancy Queries__. Querying is expressive and flexible, complete with transitive queries and filters. There is even a whole query scripting language via quasi-queries.
+-- * __Very Fancy Systems__. Monadic Systems? Yes please.
+-- * __Book__. Mischief has its very own book! See below.
+-- * __Relationships__. Bob Likes Charlie.
+-- * __Events__.
+-- * And much much more..
+--
 --
 -- == Performance
 --

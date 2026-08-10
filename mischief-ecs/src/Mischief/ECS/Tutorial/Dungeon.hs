@@ -700,7 +700,7 @@ import System.Exit (exitSuccess)
 -- If you think this is uglier than just the two queries earlier, don't worry, the quasi notation looks much better:
 --
 -- @
--- 'Just' pos <- ['s'|OnTile -> (*Pos) / With Player|]
+-- 'Just' pos \<- ['s'|OnTile -\> (*Pos) / With Player|]
 -- @
 --
 -- Don't forget to put the @()@ around @*Pos@!
@@ -710,9 +710,9 @@ import System.Exit (exitSuccess)
 -- @
 -- moveEnemies :: 'System' ()
 -- moveEnemies = do
---   'Just' pos <- ['s'|OnTile -> (*Pos) / With Player|]
+--   'Just' pos \<- ['s'|OnTile -\> (*Pos) / With Player|]
 --
---   enemies <- ['q'|Entity, OnTile -> (Entity, *Pos) / With Enemy|]
+--   enemies \<- ['q'|Entity, OnTile -\> (Entity, *Pos) / With Enemy|]
 --   'for_' enemies $ \(enemy, (enemyTarget, enemyPos)) -> do
 --
 --   diff <- decideEnemyDir enemyPos pos
@@ -798,10 +798,10 @@ import System.Exit (exitSuccess)
 -- @
 -- moveEnemies :: 'System' ()
 -- moveEnemies = do
---   'Just' pos <- ['s'|OnTile -> (*Pos) / With Player|]
+--   'Just' pos \<- ['s'|OnTile -\> (*Pos) / With Player|]
 --   delta <- 'deltaTime'
 --
---   enemies <- ['q'|Entity, OnTile -> (Entity, *Pos), Cooldown / With Enemy|]
+--   enemies \<- ['q'|Entity, OnTile -\> (Entity, *Pos), Cooldown / With Enemy|]
 --   'for_' enemies $ \(enemy, (enemyTile, enemyPos), cooldown) -> do
 --     let (timer, finished) = [Timer]("Mischief.ECS.Timer").'Mischief.ECS.Timer.tick' delta cooldown.timer
 --     'set' cooldown $ Cooldown timer
@@ -810,7 +810,7 @@ import System.Exit (exitSuccess)
 --       diff <- decideEnemyDir enemyPos pos
 --
 --       newTile <- moveBy diff enemyTile
---       'for_ newTile $ \t -> do
+--       'for_' newTile $ \t -> do
 --         'insert' ('Rel' OnTile t) enemy
 -- @
 --
@@ -855,10 +855,10 @@ import System.Exit (exitSuccess)
 --
 --   'pure' $
 --     if
---       | ex > px && left -> (-1, 0)
---       | ey > py && up -> (0, -1)
---       | ex < px && right -> (1, 0)
---       | ey < py && down -> (0, 1)
+--       | ex \> px && left -\> (-1, 0)
+--       | ey \> py && up -\> (0, -1)
+--       | ex \< px && right -\> (1, 0)
+--       | ey \< py && down -\> (0, 1)
 --       | otherwise -> (0, 0)
 -- @
 --

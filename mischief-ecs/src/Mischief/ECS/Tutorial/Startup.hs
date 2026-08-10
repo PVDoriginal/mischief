@@ -48,7 +48,7 @@ import Data.Foldable (for_)
 import Mischief.ECS
 
 -- $know
--- This book doesn't assume any knowledge of other game engines or programming paradigms, but it does expact some Haskell knowledge.
+-- This book doesn't assume any knowledge of other game engines or programming paradigms, but it does expect some Haskell knowledge.
 --
 -- While it is possible to read this book and get a pretty good idea of what Mischief is and how it works, you'll have a much better time
 -- if you have at least a very basic understanding of Haskell syntax.
@@ -59,7 +59,7 @@ import Mischief.ECS
 -- After you have a new project set up, you need to install @mischief-ecs@:
 --
 -- @
--- cabal install mischief-ecs
+-- cabal add mischief-ecs
 -- @
 --
 -- We recommend using @GHC2024@ as the language standard (set in your @.cabal@ file).
@@ -268,7 +268,7 @@ import Mischief.ECS
 -- The above query can also be written like this:
 --
 -- @
--- florians <- 'query'' ('C' \@Name) ('With' ('C' \@Person), 'Check (== Name \"Florian\"))
+-- florians <- 'query'' ('C' \@Name) ('With' ('C' \@Person), 'Check' (== Name \"Florian\"))
 -- @
 --
 -- Let's add the new system to a schedule:
