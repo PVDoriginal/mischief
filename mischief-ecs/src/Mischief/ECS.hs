@@ -158,7 +158,7 @@ qq = do
 --
 -- == Design Goals
 --
--- There are the main design goals of Mischief:
+-- These are the main design goals of Mischief:
 --
 -- * __Ergonomic and Accessible__. Mischief's main purpose is to provide a very clean, intuitive, inherently opinionated, high-level API. This is the main way we differentiate ourselves from other ECS's.
 -- Learning to use Mischief should be a painless and intuitive process.
