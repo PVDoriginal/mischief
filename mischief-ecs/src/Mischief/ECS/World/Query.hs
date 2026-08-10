@@ -25,6 +25,7 @@ import Mischief.ECS.Log
 import Mischief.ECS.Tables
 import Mischief.ECS.Vec qualified as Vec
 import Mischief.ECS.World
+import Mischief.ECS.World.Query.Markers
 import Mischief.ECS.World.Query.QueryFilter
 import Mischief.ECS.World.Query.Queryable
 import Mischief.ECS.World.Query.Val
@@ -115,116 +116,6 @@ single' qd filter = do
 --   res <- query @qd
 --   parIterList res $ \chunk -> for_ chunk system
 
-filterQuery :: (MonadSystem w m) => QueryFilter -> Entity -> m Bool
-filterQuery NoFilter _ = pure True
-filterQuery (QFWith (x, Nothing)) entity = do
-  world <- unsafeGetWorld
-  comp <- liftIO $ getComponentId x world.components
-  case comp of
-    Nothing -> return False
-    Just (ComponentId (# id, _ #)) -> do
-      Just (ComponentType (_ :: Proxy a)) <- get (Val (C @ComponentType)) (Entity (# id, 0## #))
-      a <- get (Has @a) entity
-      pure $ fromMaybe False a
-filterQuery (QFWith (x, Just e)) entity = do
-  world <- unsafeGetWorld
-  comp <- liftIO $ getComponentId x world.components
-  case comp of
-    Nothing -> return False
-    Just (ComponentId (# id, _ #)) -> do
-      Just (ComponentType (_ :: Proxy a)) <- get (Val (C @ComponentType)) (Entity (# id, 0## #))
-      a <- get (HasR @a e) entity
-      pure $ fromMaybe False a
-filterQuery (QFWithRelAny x) entity = do
-  world <- unsafeGetWorld
-  comp <- liftIO $ getComponentId x world.components
-  case comp of
-    Nothing -> return False
-    Just (ComponentId (# id, _ #)) -> do
-      Just (ComponentType (_ :: Proxy a)) <- get (Val (C @ComponentType)) (Entity (# id, 0## #))
-      a <- get (HasR @a Any) entity
-      pure $ fromMaybe False a
-filterQuery (QFChanged (x, Nothing) f) entity = do
-  world <- unsafeGetWorld
-  comp <- liftIO $ getComponentId x world.components
-  case comp of
-    Nothing -> return False
-    Just comp -> do
-      addedChanged' f comp entity
-filterQuery (QFChanged (x, Just e) f) entity = do
-  world <- unsafeGetWorld
-  comp <- liftIO $ getComponentId x world.components
-  case comp of
-    Nothing -> return False
-    Just comp -> do
-      addedChanged' f (setCompIdTarget (Just e) comp) entity
-filterQuery (QFChangedRelAny x f) entity = do
-  world <- unsafeGetWorld
-  comp <- liftIO $ getComponentId x world.components
-  case comp of
-    Nothing -> return False
-    Just (ComponentId (# id, _ #)) -> do
-      components <- liftIO $ findComponentsOfEntity world entity
-      case components of
-        Nothing -> return True
-        Just components' -> do
-          let components = filter (\(ComponentId (# id', a #)) -> isJust a && isTrue# (eqWord# id id')) components'
-          and <$> mapM (\c -> addedChanged' f c entity) components
-filterQuery (QFCheckRaw (_, Nothing, ErasedCheck (f :: (c -> Bool)))) entity = do
-  a <- get (C @c) entity
-  pure $ case a of
-    Nothing -> False
-    Just a -> f $ value a
-filterQuery (QFCheckRaw (_, Just e, ErasedCheck (f :: (c -> Bool)))) entity = do
-  a <- get (R @c e) entity
-  pure $ case a of
-    Nothing -> False
-    Just a -> f a.comp
-filterQuery (QFCheckRawRelAny (_, ErasedCheck (f :: (c -> Bool)))) entity = do
-  a <- get (R' @c Any) entity
-  pure $ case a of
-    Nothing -> False
-    Just a -> any (\x -> f x.comp) a
-filterQuery (a `QFAnd` b) entity = do
-  a <- filterQuery a entity
-  b <- filterQuery b entity
-  pure $ a && b
-filterQuery (a `QFOr` b) entity = do
-  a <- filterQuery a entity
-  b <- filterQuery b entity
-  pure $ a || b
-filterQuery (QFNot a) entity = do
-  a <- filterQuery a entity
-  pure $ not a
-
-filterCheckRelAny :: forall qd out. (Queryable qd out) => World -> [ArchetypeId] -> ErasedCheck -> IO ((Int, (Entity, out)) -> IO Bool)
-filterCheckRelAny world archetypes (ErasedCheck (f :: (c -> Bool))) = do
-  components <- tryGetRelCollections @c world archetypes
-
-  return $
-    \(index, _) -> do
-      pure $ any (f . (\x -> x.comp)) (snd $ components !! index)
-
-filterCheck :: forall qd out. (Queryable qd out) => World -> [ArchetypeId] -> ComponentId -> ErasedCheck -> IO ((Int, (Entity, out)) -> IO Bool)
-filterCheck world archetypes id (ErasedCheck (f :: (c -> Bool))) = do
-  components <- tryGetComponentsFromTables @c world.tables archetypes id
-  return $
-    \(index, _) ->
-      pure $ f (value . snd $ components !! index)
-
-findComponentsOfEntity :: World -> Entity -> IO (Maybe [ComponentId])
-findComponentsOfEntity world entity = do
-  pointer <- liftIO $ getPointer entity world.entities
-
-  case pointer of
-    Nothing -> return Nothing
-    Just x -> do
-      (EntityPointer (# archetypeId, _ #)) <- liftIO $ readIORef x
-
-      x <- Vec.read world.tables.inner (I# archetypeId)
-
-      pure $ Just x.components
-
 class GetResultComponentId c where
   getResultComponentId :: (MonadSystem w m) => c -> m (Maybe ComponentId)
 
@@ -246,16 +137,6 @@ tryMetaLocal = do
 instance (GetResultComponentId' (IsComp c) (Result c)) => GetResultComponentId (Result c) where
   getResultComponentId = getResultComponentId' @(IsComp c)
 
-addedChanged' :: forall m w. (MonadSystem w m) => (ComponentTicks -> Tick -> Tick -> Bool) -> ComponentId -> Entity -> m Bool
-addedChanged' f id entity = do
-  world <- unsafeGetWorld
-  ticks <- liftIO $ tryGetEntityTicks entity id world
-  case ticks of
-    Nothing -> return False
-    Just ticks -> do
-      (lastSystemTick, currentSystemTick) <- liftIO $ getSystemTicksInternal world
-      return $ f ticks lastSystemTick currentSystemTick
-
 addedChanged :: forall c m w. (MonadSystem w m, GetResultComponentId (Result c)) => (ComponentTicks -> Tick -> Tick -> Bool) -> Result c -> m Bool
 addedChanged f r = do
   id <- getResultComponentId r
@@ -275,13 +156,3 @@ added = addedChanged qfAddedF
 
 changed :: forall c m w. (MonadSystem w m, GetResultComponentId (Result c)) => Result c -> m Bool
 changed = addedChanged qfChangedF
-
-getSystemTicksInternal :: World -> IO (Tick, Tick)
-getSystemTicksInternal world = do
-  let (SystemId sys) = world.systemId
-  runSystem
-    ( do
-        Just (a, b) <- get (C @LastSystemTick, C @SystemTick) sys
-        return (a.inner, b.inner)
-    )
-    world

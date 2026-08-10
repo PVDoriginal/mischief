@@ -26,6 +26,7 @@ import Mischief.ECS.Utils
 import Mischief.ECS.World
 import Mischief.ECS.World.Insert
 import Mischief.ECS.World.Query
+import Mischief.ECS.World.Query.Markers
 import Mischief.ECS.World.Query.Queryable
 import Mischief.ECS.World.Spawn
 

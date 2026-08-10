@@ -4,13 +4,15 @@ import Data.Maybe
 import Mischief.ECS.Components
 import Mischief.ECS.Components.Bundle
 import Mischief.ECS.Components.Common
+import Mischief.ECS.Entities
 import Mischief.ECS.Log
-import Mischief.ECS.Prelude
 import Mischief.ECS.Tables
 import Mischief.ECS.World
 import Mischief.ECS.World.Insert
 import Mischief.ECS.World.Query
+import Mischief.ECS.World.Query.Markers
 import Mischief.ECS.World.Query.Queryable
+import Mischief.ECS.World.Remove
 
 -- | Modifies the value of the component with the given function.
 --

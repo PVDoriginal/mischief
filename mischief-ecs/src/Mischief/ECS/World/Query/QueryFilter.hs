@@ -12,7 +12,9 @@ import Mischief.ECS.Components.BundleTypes
 import Mischief.ECS.Entities
 import Mischief.ECS.EntityDef
 import Mischief.ECS.World
-import Mischief.ECS.World.Query.Queryable
+import Mischief.ECS.World.Query.Markers
+
+-- import Mischief.ECS.World.Query.Queryable
 
 -- newtype QueryFilters = QueryFilters [QueryFilter] deriving newtype (Semigroup)
 

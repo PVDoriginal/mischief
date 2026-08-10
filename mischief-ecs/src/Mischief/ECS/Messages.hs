@@ -27,6 +27,7 @@ import Mischief.ECS.World
 import Mischief.ECS.World.Insert
 import Mischief.ECS.World.Modify
 import Mischief.ECS.World.Query (get)
+import Mischief.ECS.World.Query.Markers
 import Mischief.ECS.World.Query.Queryable
 import Prelude hiding (read)
 

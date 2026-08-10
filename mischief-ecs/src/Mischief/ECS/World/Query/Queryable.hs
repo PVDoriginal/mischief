@@ -4,46 +4,33 @@
 module Mischief.ECS.World.Query.Queryable where
 
 import Control.Applicative
+import Control.Monad.IO.Class
 import Data.Bifunctor qualified
 import Data.Data
+import Data.IORef
 import Data.Maybe
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Traversable
+import GHC.Base (Int (I#), eqWord#, isTrue#)
+import Mischief.ECS.App.SystemDef
+import Mischief.ECS.Collectable
 import Mischief.ECS.Components
 import Mischief.ECS.Entities
 import Mischief.ECS.Mappable
 import Mischief.ECS.Tables
+import Mischief.ECS.Vec qualified as Vec
 import Mischief.ECS.World
+import Mischief.ECS.World.Query.Markers
+import Mischief.ECS.World.Query.QueryFilter
 import Mischief.ECS.World.Utils
 
 data TypeQuery = CompQ | RelQ | RelQ' Entity deriving (Eq, Ord, Show)
 
-newtype MR a b = MR b
-
-data Has a = Has
-
-newtype HasR a b = HasR b
-
-data E = E
-
-data C a = C
-
-newtype R a b = R b
-
-newtype R' a b = R' b
-
-data Any = Any
-
 data RelTarget = AnyTarget | RelTargets [Entities]
 
-data M a = M
-
-newtype Q a = Q a
-
-newtype MQ a = MQ a
-
-newtype Val a = Val a
+filterQueryIO :: QueryFilter -> World -> Entity -> IO Bool
+filterQueryIO a w e = runSystem (filterQuery a e) w
 
 class Queryable qd output | qd -> output where
   runQueryEntity :: qd -> World -> Entity -> IO (Maybe output)
@@ -128,6 +115,48 @@ instance (Component c, Queryable q out) => RelQuery Inclusive (R c (Q q)) [out] 
 
   relQueryTypes _ = Set.singleton (typeRep $ Proxy @c, RelQ)
 
+instance (Component c, Queryable q out, Collectable f QueryFilter) => RelQuery Inclusive (R c (Q' q f)) [out] where
+  relRunQueryEntity (R (Q' q f')) world entity = do
+    let f :: QueryFilter = collect f'
+    res <- relRunQueryEntity @Inclusive (R @c Any) world entity
+
+    case fmap
+      ( traverse $ \r -> do
+          t <- filterQueryIO f world r.target
+          if t
+            then
+              runQueryEntity q world r.target
+            else pure Nothing
+      )
+      res of
+      Nothing -> pure Nothing
+      Just x -> do
+        x <- x
+        pure $ case catMaybes x of
+          [] -> Nothing
+          x -> Just x
+
+  relRunQueryInternal (R (Q' q f')) archetypes world = do
+    let f :: QueryFilter = collect f'
+    res <- relRunQueryInternal @Inclusive (R @c Any) archetypes world
+    for res $ \(e, b, rels) -> do
+      a <-
+        catMaybes
+          <$> ( traverse $ \r -> do
+                  t <- filterQueryIO f world r.target
+                  if t
+                    then
+                      runQueryEntity q world r.target
+                    else pure Nothing
+              )
+            rels
+
+      pure $ case a of
+        [] -> (e, False, undefined)
+        x -> (e, b, x)
+
+  relQueryTypes _ = Set.singleton (typeRep $ Proxy @c, RelQ)
+
 instance (Component c, Queryable q out) => RelQuery Exclusive (R c (Q q)) out where
   relRunQueryEntity (R (Q q)) world entity = do
     res <- relRunQueryEntity @Exclusive (R @c Any) world entity
@@ -139,6 +168,41 @@ instance (Component c, Queryable q out) => RelQuery Exclusive (R c (Q q)) out wh
     res <- relRunQueryInternal @Exclusive (R @c Any) archetypes world
     for res $ \(e, b, rels) -> do
       r <- (\r -> runQueryEntity q world r.target) rels
+      pure $ case r of
+        Nothing -> (e, False, undefined)
+        Just x -> (e, b, x)
+
+  relQueryTypes _ = Set.singleton (typeRep $ Proxy @c, RelQ)
+
+instance (Component c, Queryable q out, Collectable f QueryFilter) => RelQuery Exclusive (R c (Q' q f)) out where
+  relRunQueryEntity (R (Q' q f')) world entity = do
+    let f :: QueryFilter = collect f'
+    res <- relRunQueryEntity @Exclusive (R @c Any) world entity
+
+    case fmap
+      ( \r -> do
+          t <- filterQueryIO f world r.target
+          if t
+            then
+              runQueryEntity q world r.target
+            else pure Nothing
+      )
+      res of
+      Nothing -> pure Nothing
+      Just x -> x
+  relRunQueryInternal (R (Q' q f')) archetypes world = do
+    let f :: QueryFilter = collect f'
+    res <- relRunQueryInternal @Exclusive (R @c Any) archetypes world
+    for res $ \(e, b, rels) -> do
+      r <-
+        ( \r -> do
+            t <- filterQueryIO f world r.target
+            if t
+              then
+                runQueryEntity q world r.target
+              else pure Nothing
+        )
+          rels
       pure $ case r of
         Nothing -> (e, False, undefined)
         Just x -> (e, b, x)
@@ -164,6 +228,13 @@ instance (RelQuery (RelExclusivity c) (R c Any) out) => Queryable (R c Any) out 
   queryTypes = relQueryTypes @(RelExclusivity c)
 
 instance (RelQuery (RelExclusivity c) (R c (Q q)) out) => Queryable (R c (Q q)) out where
+  runQueryEntity = relRunQueryEntity @(RelExclusivity c)
+
+  runQueryInternal = relRunQueryInternal @(RelExclusivity c)
+
+  queryTypes = relQueryTypes @(RelExclusivity c)
+
+instance (RelQuery (RelExclusivity c) (R c (Q' q f)) out) => Queryable (R c (Q' q f)) out where
   runQueryEntity = relRunQueryEntity @(RelExclusivity c)
 
   runQueryInternal = relRunQueryInternal @(RelExclusivity c)
@@ -254,6 +325,55 @@ instance (Component c, Queryable q out) => RelQuery Inclusive (MR c (Q q)) (Mayb
 
   relQueryTypes _ = Set.empty
 
+instance (Component c, Queryable q out, Collectable f QueryFilter) => RelQuery Inclusive (MR c (Q' q f)) (Maybe [out]) where
+  relRunQueryEntity (MR (Q' q f')) world entity = do
+    let f :: QueryFilter = collect f'
+    res <- relRunQueryEntity @Inclusive (MR @c Any) world entity
+    case res of
+      Nothing -> pure Nothing
+      Just Nothing -> pure $ Just Nothing
+      Just (Just r) ->
+        Just <$> do
+          let targets = map (\x -> x.target) r
+          results <-
+            catMaybes
+              <$> for
+                targets
+                ( \t -> do
+                    b <- filterQueryIO f world t
+                    if b
+                      then
+                        runQueryEntity q world t
+                      else
+                        pure Nothing
+                )
+          case results of
+            [] -> pure Nothing
+            x -> pure $ Just x
+
+  relRunQueryInternal (MR (Q' q f')) archetypes world = do
+    let f :: QueryFilter = collect f'
+    res <- relRunQueryInternal @Inclusive (MR @c Any) archetypes world
+    for res $ \(e, b, r) -> do
+      case r of
+        Nothing -> pure (e, b, Nothing)
+        Just r -> do
+          rs <-
+            for
+              r
+              ( \x -> do
+                  t <- filterQueryIO f world x.target
+                  if t
+                    then
+                      runQueryEntity q world x.target
+                    else pure Nothing
+              )
+          case catMaybes rs of
+            [] -> pure (e, b, Nothing)
+            x -> pure (e, b, Just x)
+
+  relQueryTypes _ = Set.empty
+
 instance (Component c, Queryable q out) => RelQuery Exclusive (MR c (Q q)) (Maybe out) where
   relRunQueryEntity (MR (Q q)) world entity = do
     res <- relRunQueryEntity @Exclusive (MR @c Any) world entity
@@ -273,6 +393,37 @@ instance (Component c, Queryable q out) => RelQuery Exclusive (MR c (Q q)) (Mayb
 
   relQueryTypes _ = Set.empty
 
+instance (Component c, Queryable q out, Collectable f QueryFilter) => RelQuery Exclusive (MR c (Q' q f)) (Maybe out) where
+  relRunQueryEntity (MR (Q' q f')) world entity = do
+    let f :: QueryFilter = collect f'
+    res <- relRunQueryEntity @Exclusive (MR @c Any) world entity
+    case res of
+      Nothing -> pure Nothing
+      Just Nothing -> pure $ Just Nothing
+      Just (Just x) -> do
+        t <- filterQueryIO f world x.target
+        if t
+          then
+            Just <$> runQueryEntity q world x.target
+          else pure (Just Nothing)
+
+  relRunQueryInternal (MR (Q' q f')) archetypes world = do
+    let f :: QueryFilter = collect f'
+    res <- relRunQueryInternal @Exclusive (MR @c Any) archetypes world
+    for res $ \(e, b, r) -> do
+      case r of
+        Nothing -> pure (e, b, Nothing)
+        Just r -> do
+          res <- do
+            t <- filterQueryIO f world r.target
+            if t
+              then
+                runQueryEntity q world r.target
+              else pure Nothing
+          pure (e, b, res)
+
+  relQueryTypes _ = Set.empty
+
 instance (RelQuery (RelExclusivity c) (MR c Any) out) => Queryable (MR c Any) out where
   runQueryEntity = relRunQueryEntity @(RelExclusivity c)
 
@@ -280,6 +431,12 @@ instance (RelQuery (RelExclusivity c) (MR c Any) out) => Queryable (MR c Any) ou
   queryTypes _ = Set.empty
 
 instance (RelQuery (RelExclusivity c) (MR c (Q q)) out) => Queryable (MR c (Q q)) out where
+  runQueryEntity = relRunQueryEntity @(RelExclusivity c)
+
+  runQueryInternal = relRunQueryInternal @(RelExclusivity c)
+  queryTypes _ = Set.empty
+
+instance (RelQuery (RelExclusivity c) (MR c (Q' q f)) out) => Queryable (MR c (Q' q f)) out where
   runQueryEntity = relRunQueryEntity @(RelExclusivity c)
 
   runQueryInternal = relRunQueryInternal @(RelExclusivity c)
@@ -351,6 +508,53 @@ instance (Component c, Queryable q out) => Queryable (HasR c (Q q)) Bool where
 
   queryTypes _ = Set.empty
 
+instance (Component c, Queryable q out, Collectable f QueryFilter) => Queryable (HasR c (Q' q f)) Bool where
+  runQueryEntity (HasR (Q' q f')) world entity = do
+    let f :: QueryFilter = collect f'
+    res <- tryGetEntityRelCollection @c world entity
+    case res of
+      Nothing -> pure Nothing
+      Just Nothing -> pure $ Just False
+      Just (Just r) -> do
+        res <-
+          catMaybes
+            <$> for
+              r
+              ( \r -> do
+                  t <- filterQueryIO f world r.target
+                  if t
+                    then
+                      runQueryEntity q world r.target
+                    else pure Nothing
+              )
+        case res of
+          [] -> pure $ Just False
+          _ -> pure $ Just True
+
+  runQueryInternal (HasR (Q' q f')) archetypes world = do
+    let f :: QueryFilter = collect f'
+    res <- relRunQueryInternal @Inclusive (MR @c Any) archetypes world
+    for res $ \(e, b, r) -> do
+      case r of
+        Nothing -> pure (e, b, False)
+        Just r -> do
+          res <-
+            catMaybes
+              <$> for
+                r
+                ( \r -> do
+                    t <- filterQueryIO f world r.target
+                    if t
+                      then
+                        runQueryEntity q world r.target
+                      else pure Nothing
+                )
+          case res of
+            [] -> pure (e, b, False)
+            _ -> pure (e, b, True)
+
+  queryTypes _ = Set.empty
+
 instance (Queryable qd out, Mappable MapQueryVal out out') => Queryable (Val qd) out' where
   runQueryEntity (Val qd) b c = do
     x <- runQueryEntity qd b c
@@ -360,6 +564,121 @@ instance (Queryable qd out, Mappable MapQueryVal out out') => Queryable (Val qd)
     return $ map (\(a, b, c) -> (a, b, mapTuple @MapQueryVal c)) x
 
   queryTypes (Val qd) = queryTypes qd
+
+filterQuery :: (MonadSystem w m) => QueryFilter -> Entity -> m Bool
+filterQuery NoFilter _ = pure True
+filterQuery (QFWith (x, Nothing)) entity = do
+  world <- unsafeGetWorld
+  comp <- liftIO $ getComponentId x world.components
+  case comp of
+    Nothing -> return False
+    Just (ComponentId (# id, _ #)) -> do
+      Just (ComponentType (_ :: Proxy a)) <- liftIO $ runQueryEntity (Val (C @ComponentType)) world (Entity (# id, 0## #))
+      a <- liftIO $ runQueryEntity (Has @a) world entity
+      pure $ fromMaybe False a
+filterQuery (QFWith (x, Just e)) entity = do
+  world <- unsafeGetWorld
+  comp <- liftIO $ getComponentId x world.components
+  case comp of
+    Nothing -> return False
+    Just (ComponentId (# id, _ #)) -> do
+      Just (ComponentType (_ :: Proxy a)) <- liftIO $ runQueryEntity (Val (C @ComponentType)) world (Entity (# id, 0## #))
+      a <- liftIO $ runQueryEntity (HasR @a e) world entity
+      pure $ fromMaybe False a
+filterQuery (QFWithRelAny x) entity = do
+  world <- unsafeGetWorld
+  comp <- liftIO $ getComponentId x world.components
+  case comp of
+    Nothing -> return False
+    Just (ComponentId (# id, _ #)) -> do
+      Just (ComponentType (_ :: Proxy a)) <- liftIO $ runQueryEntity (Val (C @ComponentType)) world (Entity (# id, 0## #))
+      a <- liftIO $ runQueryEntity (HasR @a Any) world entity
+      pure $ fromMaybe False a
+filterQuery (QFChanged (x, Nothing) f) entity = do
+  world <- unsafeGetWorld
+  comp <- liftIO $ getComponentId x world.components
+  case comp of
+    Nothing -> return False
+    Just comp -> do
+      addedChanged' f comp entity
+filterQuery (QFChanged (x, Just e) f) entity = do
+  world <- unsafeGetWorld
+  comp <- liftIO $ getComponentId x world.components
+  case comp of
+    Nothing -> return False
+    Just comp -> do
+      addedChanged' f (setCompIdTarget (Just e) comp) entity
+filterQuery (QFChangedRelAny x f) entity = do
+  world <- unsafeGetWorld
+  comp <- liftIO $ getComponentId x world.components
+  case comp of
+    Nothing -> return False
+    Just (ComponentId (# id, _ #)) -> do
+      components <- liftIO $ findComponentsOfEntity world entity
+      case components of
+        Nothing -> return True
+        Just components' -> do
+          let components = filter (\(ComponentId (# id', a #)) -> isJust a && isTrue# (eqWord# id id')) components'
+          and <$> mapM (\c -> addedChanged' f c entity) components
+filterQuery (QFCheckRaw (_, Nothing, ErasedCheck (f :: (c -> Bool)))) entity = do
+  w <- unsafeGetWorld
+  a <- liftIO $ runQueryEntity (C @c) w entity
+  pure $ case a of
+    Nothing -> False
+    Just a -> f $ value a
+filterQuery (QFCheckRaw (_, Just e, ErasedCheck (f :: (c -> Bool)))) entity = do
+  world <- unsafeGetWorld
+  a <- liftIO $ runQueryEntity (R @c e) world entity
+  pure $ case a of
+    Nothing -> False
+    Just a -> f a.comp
+filterQuery (QFCheckRawRelAny (_, ErasedCheck (f :: (c -> Bool)))) entity = do
+  world <- unsafeGetWorld
+  a <- liftIO $ runQueryEntity (R' @c Any) world entity
+  pure $ case a of
+    Nothing -> False
+    Just a -> any (\x -> f x.comp) a
+filterQuery (a `QFAnd` b) entity = do
+  a <- filterQuery a entity
+  b <- filterQuery b entity
+  pure $ a && b
+filterQuery (a `QFOr` b) entity = do
+  a <- filterQuery a entity
+  b <- filterQuery b entity
+  pure $ a || b
+filterQuery (QFNot a) entity = do
+  a <- filterQuery a entity
+  pure $ not a
+
+findComponentsOfEntity :: World -> Entity -> IO (Maybe [ComponentId])
+findComponentsOfEntity world entity = do
+  pointer <- getPointer entity world.entities
+
+  case pointer of
+    Nothing -> return Nothing
+    Just x -> do
+      (EntityPointer (# archetypeId, _ #)) <- readIORef x
+
+      x <- Vec.read world.tables.inner (I# archetypeId)
+
+      pure $ Just x.components
+
+addedChanged' :: forall m w. (MonadSystem w m) => (ComponentTicks -> Tick -> Tick -> Bool) -> ComponentId -> Entity -> m Bool
+addedChanged' f id entity = do
+  world <- unsafeGetWorld
+  ticks <- liftIO $ tryGetEntityTicks entity id world
+  case ticks of
+    Nothing -> return False
+    Just ticks -> do
+      (lastSystemTick, currentSystemTick) <- liftIO $ getSystemTicksInternal world
+      return $ f ticks lastSystemTick currentSystemTick
+
+getSystemTicksInternal :: World -> IO (Tick, Tick)
+getSystemTicksInternal world = do
+  let (SystemId sys) = world.systemId
+  Just a <- runQueryEntity (C @LastSystemTick) world sys
+  Just b <- runQueryEntity (C @SystemTick) world sys
+  return (a.inner, b.inner)
 
 instance {-# OVERLAPPING #-} (Queryable q0 o0, Queryable q1 o1) => Queryable (q0, q1) (o0, o1) where
   runQueryEntity (q0, q1) world entity = do

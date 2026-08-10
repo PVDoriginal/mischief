@@ -14,6 +14,7 @@ import Language.Haskell.TH.Quote
 import Language.Haskell.TH.Syntax
 import Mischief.ECS.Components (Component)
 import Mischief.ECS.World.Query
+import Mischief.ECS.World.Query.Markers hiding (Q)
 import Mischief.ECS.World.Query.QueryFilter
 import Mischief.ECS.World.Query.Queryable hiding (Q)
 import Mischief.ECS.World.Query.TH.QD (CompType (..), Parser, pTup, whitespace)

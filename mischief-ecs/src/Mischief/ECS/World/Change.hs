@@ -20,6 +20,7 @@ import Mischief.ECS.Tables
 import Mischief.ECS.Vec qualified as Vec
 import Mischief.ECS.World
 import Mischief.ECS.World.Query
+import Mischief.ECS.World.Query.Markers
 import Mischief.ECS.World.Query.Queryable
 import Mischief.ECS.World.Utils
 

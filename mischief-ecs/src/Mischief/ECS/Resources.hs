@@ -7,6 +7,7 @@ import Mischief.ECS.Tables
 import Mischief.ECS.World
 import Mischief.ECS.World.Insert
 import Mischief.ECS.World.Query
+import Mischief.ECS.World.Query.Markers
 import Mischief.ECS.World.Query.QueryType
 import Mischief.ECS.World.Query.Queryable
 

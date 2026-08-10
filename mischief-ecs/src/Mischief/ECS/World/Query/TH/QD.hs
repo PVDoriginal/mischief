@@ -13,8 +13,10 @@ import Language.Haskell.TH.Quote
 import Language.Haskell.TH.Syntax
 import Mischief.ECS.Components (Component)
 import Mischief.ECS.World.Query
+import Mischief.ECS.World.Query.Markers hiding (Q)
+import Mischief.ECS.World.Query.Markers qualified as Markers
 import Mischief.ECS.World.Query.QueryFilter
-import Mischief.ECS.World.Query.Queryable hiding (Q)
+import Mischief.ECS.World.Query.Queryable
 import Mischief.ECS.World.Query.Queryable qualified as Queryable
 import Text.Megaparsec (MonadParsec (eof, lookAhead, notFollowedBy, try), Parsec, choice, many, manyTill, noneOf, optional, parseTest, some, (<|>))
 import Text.Megaparsec.Char
@@ -183,7 +185,7 @@ quoteQd (Tup t) = TupE <$> mapM (fmap Just . quoteQd) t
 quoteQd Entity' = return $ ConE 'E
 
 relTrans :: Qd -> Q Exp
-relTrans exp = AppE (ConE 'Queryable.Q) <$> quoteQd exp
+relTrans exp = AppE (ConE 'Markers.Q) <$> quoteQd exp
 
 relExp :: CompType -> Q Exp
 relExp PairAny = return $ ConE 'Any

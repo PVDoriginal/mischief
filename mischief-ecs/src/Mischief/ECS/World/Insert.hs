@@ -34,6 +34,7 @@ import Mischief.ECS.World
 import Mischief.ECS.World.Change
 import Mischief.ECS.World.Prefs
 import Mischief.ECS.World.Query
+import Mischief.ECS.World.Query.Markers
 import Mischief.ECS.World.Query.Queryable
 import Mischief.ECS.World.Utils
 

@@ -11,11 +11,10 @@ import Data.Default
 import Data.Foldable
 import Data.List ((!?))
 import Data.Traversable
-import Mischief.ECS
-import Mischief.ECS.App qualified as App
 import Mischief.ECS.Hooks qualified as Hooks
 import Mischief.ECS.Interval qualified as Interval
 import Mischief.ECS.Observers qualified as Observers
+import Mischief.ECS.Prelude
 import Mischief.ECS.Stdin qualified as Stdin
 import Mischief.ECS.Stdout
 import Mischief.ECS.Systems qualified as Systems
