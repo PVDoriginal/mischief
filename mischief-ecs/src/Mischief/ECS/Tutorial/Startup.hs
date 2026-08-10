@@ -148,7 +148,7 @@ import Mischief.ECS
 --     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Update' helloWorld
 -- @
 --
--- The @Systems.add@ function adds the system to your App's @Update@ schedule, making it run once per frame. If you run your app again,
+-- The @Systems.add@ function adds the system to your App's update schedule, making it run once per frame. If you run your app again,
 -- you will see \"Hello World!\" printed to your terminal many, many times.
 --
 -- As you may have noticed, the @init@ we give to the Plugin is, in itself, a system! There's nothing differentiating
@@ -171,16 +171,16 @@ import Mischief.ECS
 -- data Name = Name 'String' deriving ('Component')
 -- @
 --
--- No need to do it though, since this exact @Name@ is already defined internally by Mischief, you can just use it directly.
+-- No need to define it though, since this exact @Name@ is already defined internally by Mischief, you can just use it directly.
 --
 -- Now that we can represent people with names, let's make a system that spawns some:
 --
 -- @
 -- addPeople :: 'System' ()
 -- addPeople = do
---   spawn (Person, Name \"Kimberly\")
---   spawn (Person, Name \"Nicholas\")
---   spawn (Person, Name \"Florian\")
+--   'spawn' (Person, Name \"Kimberly\")
+--   'spawn' (Person, Name \"Nicholas\")
+--   'spawn' (Person, Name \"Florian\")
 -- @
 --
 -- You can register it to run on the app's startup like this:
@@ -192,7 +192,7 @@ import Mischief.ECS
 -- @
 
 -- $firstQuery
--- If you run your app, the people will be spawned but we aren't doing anything to them yet! Let's make a system that greets them:
+-- If you run your app, the people will be spawned but we aren't doing anything with them yet! Let's make a system that greets them:
 --
 -- @
 -- greetPeople :: 'System' ()

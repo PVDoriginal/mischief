@@ -84,7 +84,7 @@ import System.Exit (exitSuccess)
 -- $intro
 -- This module will walk you through creating a simple terminal-based dungeon crawler in Mischief.
 -- The goal is to have a player which we can freely move on a 2D grid, as well as various objects placed on tiles,
--- such as enemies, weapons, obstacles, etc.
+-- such as enemies, coins, obstacles, etc.
 
 -- $creation
 -- Let's start by creating our App and a Main Plugin which will serve as the starting point of all our logic.
@@ -474,7 +474,7 @@ import System.Exit (exitSuccess)
 --
 -- @
 -- tileHas :: forall c. ('QueryType' c) => 'Entity' -> 'System' 'Bool'
--- tileHas tile = 'not' . 'null' <$> ['q'|Entity / With (c, OnTile -> tile)|]
+-- tileHas tile = 'not' . 'null' '<$>' ['q'|Entity / With (c, OnTile -> tile)|]
 -- @
 --
 -- @QueryType@ is a sort of catch-all constraint that makes sure @c@ is a component and can be queried (so nothing weird like it being a tuple).
@@ -902,7 +902,7 @@ import System.Exit (exitSuccess)
 -- printGrid = do
 --   grid <- showGrid
 --   health <- showHealth
---   'printClear' $ health ++ \"\\n\" ++ grid
+--   'Mischief.ECS.Stdout.printClear' $ health ++ \"\\n\" ++ grid
 -- @
 --
 -- In case you're thinking about it, yes, Health could just be a resource, I just decided to make it a component.
@@ -1174,7 +1174,7 @@ import System.Exit (exitSuccess)
 --   grid <- showGrid
 --   health <- showHealth
 --   coins <- showCoins
---   printClear $ health ++ \"\\n\" ++ grid ++ \"\\n\" ++ coins ++ \"\\n\"
+--   'Mischief.ECS.Stdout.printClear' $ health ++ \"\\n\" ++ grid ++ \"\\n\" ++ coins ++ \"\\n\"
 -- @
 --
 -- And now finally, a system that checks if there are any coins on the same tile as the player, despawns them, and increments the resource:
@@ -1186,7 +1186,7 @@ import System.Exit (exitSuccess)
 --   coins <- ['q'|Entity / With OnTile -> playerTile, With Coin|]
 --
 --   'Just' (Coins c) <- 'res' \@Coins
---   'insertRes $ Coins $ c + 'length' coins
+--   'insertRes' $ Coins $ c + 'length' coins
 --
 --   'for_' coins despawn
 -- @
@@ -1220,6 +1220,6 @@ import System.Exit (exitSuccess)
 -- Coins: 16
 -- @
 
--- $next
--- Don't worry if there are different details you haven't understood yet. The next chapters will go into details over the many aspects of the ECS. This chapter was just meant
--- to give you a general idea of working with Mischief.
+-- $nextf
+-- Don't worry if there are various details that you haven't fully understood yet. The next chapters will go into detail over the many aspects of the ECS. This chapter was just meant
+-- to give you a general idea of working with Mischief. You can find the whole code for this example [here](https://github.com/PVDoriginal/mischief/blob/main/mischief-ecs/examples/Dungeon.hs).
