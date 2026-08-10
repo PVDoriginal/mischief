@@ -23,6 +23,7 @@ module Mischief.ECS.Prelude
     module Mischief.ECS.Utils,
     module Mischief.ECS.World.Utils,
     module Mischief.ECS.Events,
+    module Mischief.ECS.World.Query.QueryType,
   )
 where
 
@@ -46,6 +47,7 @@ import Mischief.ECS.World.Modify (modify, modify')
 import Mischief.ECS.World.Query (get, get', query, query', single, single')
 import Mischief.ECS.World.Query.Markers (C (..), E (..), Has (..), HasR (..), M (..), MR (..), Q (..), R (..), Val (..))
 import Mischief.ECS.World.Query.QueryFilter (Added (..), Changed (..), Check (..), CheckR (..), Not (..), With (..), Without (..), (|.))
+import Mischief.ECS.World.Query.QueryType (QueryType)
 import Mischief.ECS.World.Query.Queryable ()
 import Mischief.ECS.World.Query.TH (g, q, s)
 import Mischief.ECS.World.Remove (remove)

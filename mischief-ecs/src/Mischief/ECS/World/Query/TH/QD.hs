@@ -197,7 +197,6 @@ processVal = AppE (ConE 'Val)
 
 processC :: Text -> Q Exp
 processC name = do
-  -- name <- getTypeName name
   let t = M.parseType (T.unpack name)
   case t of
     Left e -> error e

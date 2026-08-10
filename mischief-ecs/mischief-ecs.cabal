@@ -58,7 +58,6 @@ library
     Mischief.ECS
     Mischief.ECS.App
     Mischief.ECS.App.Plugins
-    Mischief.ECS.App.Scheduler
     Mischief.ECS.App.Schedules
     Mischief.ECS.App.SystemConfig
     Mischief.ECS.App.SystemDef
@@ -70,7 +69,6 @@ library
     Mischief.ECS.Components.Bundle
     Mischief.ECS.Components.BundleTypes
     Mischief.ECS.Components.Common
-    Mischief.ECS.Components.Hooks
     Mischief.ECS.Components.HooksDef
     Mischief.ECS.Components.Required
     Mischief.ECS.Components.Runnable
@@ -126,8 +124,6 @@ library
     Mischief.ECS.World.Query.TH
     Mischief.ECS.World.Query.TH.QD
     Mischief.ECS.World.Query.TH.QF
-    Mischief.ECS.World.Query.Val
-    Mischief.ECS.World.Query.Validation
     Mischief.ECS.World.Remove
     Mischief.ECS.World.Spawn
     Mischief.ECS.World.Systems

@@ -20,7 +20,6 @@ import Mischief.ECS.Stdout
 import Mischief.ECS.Systems qualified as Systems
 import Mischief.ECS.Timer (Timer)
 import Mischief.ECS.Timer qualified as Timer
-import Mischief.ECS.World.Query.QueryType
 import System.Exit
 import System.Random
 import System.Random.Stateful

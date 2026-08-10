@@ -28,7 +28,6 @@ import Mischief.ECS.World
 import Mischief.ECS.World.Query.Markers
 import Mischief.ECS.World.Query.QueryFilter
 import Mischief.ECS.World.Query.Queryable
-import Mischief.ECS.World.Query.Val
 import Mischief.ECS.World.Utils
 import Prelude hiding (and)
 
