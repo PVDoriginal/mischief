@@ -22,6 +22,7 @@ import Mischief.ECS.Utils
 import Mischief.ECS.World.Query
 import Mischief.ECS.World.Query.QueryFilter
 import Mischief.ECS.World.Query.Queryable hiding (Q)
+import Mischief.ECS.World.Query.TH.Common
 import Mischief.ECS.World.Query.TH.QD
 import Mischief.ECS.World.Query.TH.QF (Qf, pCheck, pQf, quoteQf)
 import Text.Megaparsec (MonadParsec (eof), Parsec, choice, optional, parse, parseTest, runParserT, some, (<|>))
@@ -86,7 +87,7 @@ g :: QuasiQuoter
 g =
   QuasiQuoter
     { quoteExp = \str -> do
-        let x = parse (whitespace *> pGet <* eof) "inline_input" (T.pack str)
+        let x = parse (whitespace *> pQuery <* eof) "inline_input" (T.pack str)
         case x of
           Left f -> error (show f)
           Right x -> quoteGet x,
@@ -95,10 +96,9 @@ g =
       quoteDec = undefined
     }
 
-pGet :: Parser Query
-pGet = do
-  qd <- pQd
-  pure $ Query qd Nothing
-
 quoteGet :: Query -> Q Exp
-quoteGet (Query qd _) = AppE (VarE 'get) <$> quoteQd qd
+quoteGet (Query qd Nothing) = AppE (VarE 'get) <$> quoteQd qd
+quoteGet (Query qd (Just qf)) = do
+  qd <- quoteQd qd
+  qf <- quoteQf qf
+  return $ AppE (AppE (VarE 'get') qd) qf

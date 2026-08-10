@@ -18,6 +18,8 @@ import Mischief.ECS.World.Query.Markers qualified as Markers
 import Mischief.ECS.World.Query.QueryFilter
 import Mischief.ECS.World.Query.Queryable
 import Mischief.ECS.World.Query.Queryable qualified as Queryable
+import Mischief.ECS.World.Query.TH.Common
+import Mischief.ECS.World.Query.TH.QF qualified as QF
 import Text.Megaparsec (MonadParsec (eof, lookAhead, notFollowedBy, try), Parsec, choice, many, manyTill, noneOf, optional, parseTest, some, (<|>))
 import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer qualified as L
@@ -26,13 +28,9 @@ data Qd = Val' Qd | Tup [Qd] | Entity' | Type QdType | Trans QdTrans deriving (S
 
 data QdType = QdType {name :: Text, compType :: CompType, mod :: Maybe Mod} deriving (Show)
 
-data QdTrans = QdTrans {name :: Text, exp :: Qd, mod :: Maybe Mod} deriving (Show)
-
-data CompType = Single | Pair Text | PairAny deriving (Show)
+data QdTrans = QdTrans {name :: Text, exp :: Qd, filter :: Maybe QF.Qf, mod :: Maybe Mod} deriving (Show)
 
 data Mod = M' | H' deriving (Show)
-
-type Parser = Parsec Void Text
 
 pQd :: Parser Qd
 pQd = do
@@ -44,21 +42,6 @@ pEl = try ((char '(' *> whitespace) *> (Tup <$> pTup pEl) <* (char ')' *> whites
 -- case bracket of
 --   Nothing -> pSingle
 --   Just _ -> Tup <$> pTup pEl
-
-pTup :: Parser a -> Parser [a]
-pTup p = do
-  r <- optional p
-  whitespace
-
-  comma <- optional $ string ","
-  whitespace
-
-  case r of
-    Nothing -> return []
-    Just r -> do
-      case comma of
-        (Just _) -> ([r] ++) <$> pTup p
-        _ -> return [r]
 
 data TestG a b = TestG deriving (Component)
 
@@ -108,11 +91,22 @@ pTrans mod = do
   void $ string "->"
   whitespace
 
-  qd <- (char '(' *> whitespace) *> (Tup <$> pTup pEl) <* (char ')' *> whitespace)
+  qd <- (char '(' *> whitespace) *> (Tup <$> pTup pEl) <* whitespace
+
+  qf <- optional $ do
+    void $ char '/'
+    whitespace
+    QF.pQf
+
+  whitespace
+  void $ char ')'
+  whitespace
+
   return . Trans $
     QdTrans
       { name,
         mod,
+        filter = qf,
         exp = qd
       }
 
@@ -144,29 +138,8 @@ pType mod = do
 pName :: Parser Text
 pName = T.pack <$> some alphaNumChar <|> pNameTup
 
-pNameTup :: Parser Text
-pNameTup = (char '(' *> whitespace) *> pNameRec <* (char ')' *> whitespace)
-
-pNameRec :: Parser Text
-pNameRec = do
-  s <- T.pack <$> many (alphaNumChar <|> (' ' <$ space1) <|> char ',')
-  o <- optional $ (char '(' *> whitespace) *> pNameRec <* (char ')' *> whitespace)
-
-  case o of
-    Nothing -> return s
-    Just o -> do
-      n <- pNameRec
-      return $ s <> "(" <> o <> ")" <> n
-
 pTypeGeneric :: Parser Text
 pTypeGeneric = T.pack <$> (char '{' *> manyTill L.charLiteral (char '}'))
-
-whitespace :: Parser ()
-whitespace =
-  L.space
-    space1
-    (L.skipLineComment "//")
-    (L.skipBlockComment "/*" "*/")
 
 quoteQd :: Qd -> Q Exp
 quoteQd (Type QdType {name, compType = Single, mod = Nothing}) = processC name
@@ -175,42 +148,30 @@ quoteQd (Type QdType {name, compType = Single, mod = Just H'}) = processH name
 quoteQd (Type QdType {name, compType, mod = Nothing}) = processR name =<< relExp compType
 quoteQd (Type QdType {name, compType, mod = Just M'}) = processMR name =<< relExp compType
 quoteQd (Type QdType {name, compType, mod = Just H'}) = processHR name =<< relExp compType
-quoteQd (Trans QdTrans {name, exp, mod = Nothing}) = processR name =<< relTrans exp
-quoteQd (Trans QdTrans {name, exp, mod = Just M'}) = processMR name =<< relTrans exp
-quoteQd (Trans QdTrans {name, exp, mod = Just H'}) = processHR name =<< relTrans exp
+quoteQd (Trans QdTrans {name, exp, mod = Nothing, filter}) = processR name =<< relTrans exp filter
+quoteQd (Trans QdTrans {name, exp, mod = Just M', filter}) = processMR name =<< relTrans exp filter
+quoteQd (Trans QdTrans {name, exp, mod = Just H', filter}) = processHR name =<< relTrans exp filter
 quoteQd (Val' qd) = processVal <$> quoteQd qd
 quoteQd (Tup []) = return $ ConE '()
 quoteQd (Tup [x]) = quoteQd x
 quoteQd (Tup t) = TupE <$> mapM (fmap Just . quoteQd) t
 quoteQd Entity' = return $ ConE 'E
 
-relTrans :: Qd -> Q Exp
-relTrans exp = AppE (ConE 'Markers.Q) <$> quoteQd exp
+relTrans :: Qd -> Maybe QF.Qf -> Q Exp
+relTrans exp Nothing = AppE (ConE 'Markers.Q) <$> quoteQd exp
+relTrans exp (Just f) = do
+  qd <- quoteQd exp
+  qf <- QF.quoteQf f
 
-relExp :: CompType -> Q Exp
-relExp PairAny = return $ ConE 'Any
-relExp (Pair x) = VarE <$> getValueName x
-relExp _ = undefined
+  pure $ AppE (AppE (ConE 'Markers.Q') qd) qf
 
 processVal :: Exp -> Exp
 processVal = AppE (ConE 'Val)
-
-processC :: Text -> Q Exp
-processC name = do
-  let t = M.parseType (T.unpack name)
-  case t of
-    Left e -> error e
-    Right t -> return $ AppTypeE (ConE 'C) t
 
 processM :: Text -> Q Exp
 processM name = do
   name <- getTypeName name
   return $ AppTypeE (ConE 'M) (ConT name)
-
-processR :: Text -> Exp -> Q Exp
-processR name e = do
-  name <- getTypeName name
-  return $ AppE (AppTypeE (ConE 'R) (ConT name)) e
 
 processMR :: Text -> Exp -> Q Exp
 processMR name e = do
@@ -226,13 +187,3 @@ processHR :: Text -> Exp -> Q Exp
 processHR name e = do
   name <- getTypeName name
   return $ AppE (AppTypeE (ConE 'HasR) (ConT name)) e
-
-getTypeName :: Text -> Q Name
-getTypeName name = do
-  t <- lookupTypeName $ T.unpack name
-  return $ fromMaybe (error $ "Invalid type: " ++ T.unpack name ++ ".") t
-
-getValueName :: Text -> Q Name
-getValueName name = do
-  t <- lookupValueName $ T.unpack name
-  return $ fromMaybe (error $ "Invalid value: " ++ T.unpack name ++ ".") t

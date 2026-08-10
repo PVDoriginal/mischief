@@ -122,6 +122,7 @@ library
     Mischief.ECS.World.Query.QueryFilter
     Mischief.ECS.World.Query.QueryType
     Mischief.ECS.World.Query.TH
+    Mischief.ECS.World.Query.TH.Common
     Mischief.ECS.World.Query.TH.QD
     Mischief.ECS.World.Query.TH.QF
     Mischief.ECS.World.Remove

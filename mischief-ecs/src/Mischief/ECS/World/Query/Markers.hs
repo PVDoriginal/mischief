@@ -199,7 +199,7 @@ newtype R a b = R b
 -- For instance:
 --
 -- @
--- x <- [q|Maybe Likes -> *|]
+-- x \<- [q|Maybe Likes -\> *|]
 -- @
 newtype MR a b = MR b
 
@@ -221,7 +221,7 @@ newtype MR a b = MR b
 -- For instance:
 --
 -- @
--- x <- [q|Has Likes -> *|]
+-- x \<- [q|Has Likes -\> *|]
 -- @
 newtype HasR a b = HasR b
 
@@ -266,7 +266,7 @@ data Q' a b = Q' a b
 -- @
 --
 -- @
--- x <- [q|*(Name, Likes -> *)|]
+-- x \<- [q|*(Name, Likes -\> *)|]
 -- @
 newtype Val a = Val a
 

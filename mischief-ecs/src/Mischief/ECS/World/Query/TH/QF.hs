@@ -17,8 +17,9 @@ import Mischief.ECS.World.Query
 import Mischief.ECS.World.Query.Markers hiding (Q)
 import Mischief.ECS.World.Query.QueryFilter
 import Mischief.ECS.World.Query.Queryable hiding (Q)
-import Mischief.ECS.World.Query.TH.QD (CompType (..), Parser, pTup, whitespace)
-import Mischief.ECS.World.Query.TH.QD qualified as QD
+import Mischief.ECS.World.Query.TH.Common
+-- import Mischief.ECS.World.Query.TH.QD (CompType (..), Parser, pTup, whitespace)
+-- import Mischief.ECS.World.Query.TH.QD qualified as QD
 import Text.Megaparsec (MonadParsec (eof, lookAhead, notFollowedBy, try), Parsec, choice, many, manyTill, noneOf, optional, parseTest, satisfy, some, (<|>))
 import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer qualified as L
@@ -117,7 +118,7 @@ pTypes = try ((char '(' *> whitespace) *> (concat <$> pTup pTypes) <* (char ')' 
 
 pType :: Parser QfType
 pType = do
-  name <- QD.pNameTup <|> T.pack <$> some alphaNumChar
+  name <- pNameTup <|> T.pack <$> some alphaNumChar
   whitespace
 
   target <- optional $ do
@@ -155,7 +156,7 @@ quoteQf (Check' c f) = case parseExp (T.unpack f) of
 processCheck :: CompType -> Exp -> Q Exp
 processCheck Single f = return $ AppE (ConE 'Check) f
 processCheck (Pair e') f = do
-  e <- QD.getValueName e'
+  e <- getValueName e'
   return $ AppE (AppE (ConE 'CheckR) (VarE e)) f
 processCheck PairAny f = return $ AppE (AppE (ConE 'CheckR) (ConE 'Any)) f
 
@@ -168,5 +169,5 @@ processTypes [x] = processType x
 processTypes t = TupE . map Just <$> forM t processType
 
 processType :: QfType -> Q Exp
-processType (QfType {name, compType = Single}) = QD.processC name
-processType (QfType {name, compType}) = QD.processR name =<< QD.relExp compType
+processType (QfType {name, compType = Single}) = processC name
+processType (QfType {name, compType}) = processR name =<< relExp compType

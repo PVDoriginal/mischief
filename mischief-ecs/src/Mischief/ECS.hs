@@ -56,6 +56,7 @@ module Mischief.ECS
     module Mischief.ECS.World.Query,
     module Mischief.ECS.World.Query.Queryable,
     module Mischief.ECS.World.Query.QueryFilter,
+    module Mischief.ECS.World.Query.Markers,
     module Mischief.ECS.EventDef,
     module Mischief.ECS.World.Query.TH,
     module Mischief.ECS.World.Remove,
@@ -114,6 +115,7 @@ import Mischief.ECS.World.Modify
 import Mischief.ECS.World.Par
 import Mischief.ECS.World.Prefs
 import Mischief.ECS.World.Query
+import Mischief.ECS.World.Query.Markers
 import Mischief.ECS.World.Query.QueryFilter
 import Mischief.ECS.World.Query.Queryable
 import Mischief.ECS.World.Query.TH

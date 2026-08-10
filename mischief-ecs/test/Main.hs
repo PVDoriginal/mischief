@@ -329,6 +329,3 @@ collectCoins = do
   insertRes $ Coins $ c + length coins
 
   for_ coins despawn
-
-a :: System ()
-a = traverse_ (`set` Name "Flo") =<< [q|Name|]
