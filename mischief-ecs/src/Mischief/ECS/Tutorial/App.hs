@@ -15,8 +15,6 @@
 -- [Main Page]("Mischief.ECS")
 module Mischief.ECS.Tutorial.App
   ( -- * Learn You an ECS for Great Mischief! - 3. App and Plugins
-
-    -- * Introduction
     -- $intro
 
     -- * Modular Features
@@ -25,7 +23,7 @@ module Mischief.ECS.Tutorial.App
     -- * Initialization
     -- $init
 
-    -- ** Plugin Resolution
+    -- * Plugin Resolution
     -- $resolution
 
     -- * [Next chapter: Components]("Mischief.ECS.Tutorial.Components")
@@ -69,11 +67,13 @@ import Mischief.ECS
 -- 'plugins' :: p -> 'Plugins'
 -- @
 --
--- The collection of plugins can be created using @plug@.
+-- The collection of plugins can be created using the @plug@ helper function.
 --
 -- @
 -- 'plugins' _ = 'plug' (FooPlugin, BarPlugin, BazPlugin)
 -- @
+--
+-- Additionally, each @Plugin@ also requires an @Eq@ instance, which we'll talk about later.
 
 -- $modular_features
 -- Mischief is intended to let you cleanly separate and organize your logic.
@@ -97,7 +97,7 @@ import Mischief.ECS
 --   'plugins' _ = 'collect' (CollisionPlugin, MovePlugin)
 -- @
 --
---  This also lets the various packages of @Mischief@ be modular, and makes it easy for third party library developers to create plugins that you just plug into your app with ease!
+-- This also lets the various packages of @Mischief@ be modular, and makes it easy for third party library developers to create plugins that you just plug into your app with ease!
 
 -- $init
 -- So what exactly can you do within the @init@ function of a @Plugin@?
@@ -174,6 +174,6 @@ import Mischief.ECS
 -- What if you were to add both @InputPlugin@ and @RenderPlugin@ to your app? Which variant of @SDLPlugin@ would it pick?
 --
 -- This conflict is why the @Plugin@ typeclass requires @Eq@. When the same plugin is added into the app twice,
--- their two values will be compared and, if equal, the plugin will be added, otherwise the app will crash.
+-- their two values will be compared and, if equal, the plugin will be added, otherwise the app will panic.
 --
 -- This ensures a level of control over how plugins do their initialization, without forcing a plugin to only be added from one source.

@@ -13,8 +13,6 @@
 -- [Main Page]("Mischief.ECS")
 module Mischief.ECS.Tutorial.Dungeon
   ( -- * Learn You an ECS for Great Mischief! - 2. Coding a Dungeon Game
-
-    -- * Introduction
     -- $intro
 
     -- * Creating an App
@@ -85,6 +83,12 @@ import System.Exit (exitSuccess)
 -- This module will walk you through creating a simple terminal-based dungeon crawler in Mischief.
 -- The goal is to have a player which we can freely move on a 2D grid, as well as various objects placed on tiles,
 -- such as enemies, coins, obstacles, etc.
+--
+-- If you'd rather go straight to learning about particular features rather than learning by example, feel free to skip to the next chapters.
+-- You can always come back to this one once you have a better understanding of things.
+--
+-- Each section in this chapter adds its own isolated mechanics to the game, so there's no harm in reading up to a point and taking a break or
+-- starting another chapter.
 
 -- $creation
 -- Let's start by creating our App and a Main Plugin which will serve as the starting point of all our logic.

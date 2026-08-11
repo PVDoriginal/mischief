@@ -7,10 +7,7 @@
 --
 -- This library contains the ECS used by the Mischief Game Engine.
 module Mischief.ECS
-  ( -- * Pre-Release
-    -- $pre
-
-    -- * What is Mischief?
+  ( -- * What is Mischief?
     -- $mischief
 
     -- * Learn You an ECS for Great Mischief!
@@ -171,8 +168,9 @@ qq = do
 -- Here are some highlights of Mischief:
 --
 -- * __Highly Dynamic__ . Want to disable a system? Despawn it!
--- * __Fancy Queries__. Querying is expressive and flexible, complete with transitive queries and filters. There is even a whole query scripting language via quasi-queries.
--- * __Very Fancy Systems__. Monadic Systems? Yes please.
+-- * __Fancy Queries__. Complete with transitive queries and filters.
+-- * __Quasi-Queries__. Scripting language for writing queries.
+-- * __Rich Systems__. Monadic Systems? Yes please.
 -- * __Book__. Mischief has its very own book! See below.
 -- * __Relationships__. Bob Likes Charlie.
 -- * __Events__.

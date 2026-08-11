@@ -45,6 +45,9 @@ module Mischief.ECS.Tutorial.Startup
     -- * Your First Transitive Query
     -- $trans
 
+    -- * What's Next?
+    -- $next
+
     -- * [Next Chapter: Coding a Dungeon Game]("Mischief.ECS.Tutorial.Dungeon")
   )
 where
@@ -417,3 +420,12 @@ import Mischief.ECS
 -- [INFO] \"Florianne\" likes [\"Kimberly\"]
 -- [INFO] \"Kimberly\"  likes [\"Nicholas\", \"Florianne\"]
 -- @
+
+-- $next
+-- What you learn next is up to you.
+--
+-- The next chapter will have you working on a little dungeon game in the terminal and introduce you to more notions. If you prefer to learn by example it's recommended to
+-- go check that out.
+--
+-- After that, the next chapters go into detail on various topics (Components, Queries, Systems, etc.), so you may choose to just read those directly, and maybe come
+-- back to the game later.

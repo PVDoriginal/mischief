@@ -13,8 +13,6 @@
 -- [Main Page]("Mischief.ECS")
 module Mischief.ECS.Tutorial.Systems
   ( -- * Learn You an ECS for Great Mischief! - 7. Systems
-
-    -- * Introduction
     -- $intro
 
     -- * Scheduling
@@ -353,7 +351,11 @@ import Mischief.ECS
 -- These primtiives should only be used in performance which are at the risk of bottlenecking performance.
 
 -- $async
--- Async in Mischief can be achieved using the @runAfter@ primtitive.
+-- Mischief has a couple of primitived that allow running systems asynchronously.
+--
+-- === runAfter
+--
+-- Asynchonicity in Mischief can be achieved using the @runAfter@ primtitive.
 -- You provide it an 'IO' action that returns an @a@, and a system which consumes that @a@.
 --
 -- The 'IO' will be ran fully asychrnously and then will add the system to a special async-friendly deferred list that
@@ -369,4 +371,27 @@ import Mischief.ECS
 --
 -- @
 -- 'delay' 500 $ 'insert' (Health 100) player
+-- @
+--
+-- === Intervals
+--
+-- Intervals are another way of running async systems.
+--
+-- @
+-- import "Mischief.ECS.Interval" qualified as [Interval]("Mischief.ECS.Interval")
+-- @
+--
+-- This allows you to set a system to repeatedly run on a fixed interval:
+--
+--
+-- This will print \"Hello!\" once per second:
+--
+-- @
+-- hello <- [Interval]("Mischief.ECS.Interval").'Mischief.ECS.Interval.start' 1000 ('info' \"Hello!\")
+-- @
+--
+-- The interval can be stopped at any time by calling @Interval.stop@ on the returned object:
+--
+-- @
+-- [Interval]("Mischief.ECS.Interval").'Mischief.ECS.Interval.stop' hello
 -- @

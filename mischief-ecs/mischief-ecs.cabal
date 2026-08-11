@@ -18,7 +18,7 @@ name: mischief-ecs
 -- PVP summary:     +-+------- breaking API changes
 --                  | | +----- non-breaking API additions
 --                  | | | +--- code changes with no API change
-version: 0.0.0.0
+version: 0.1.0.0
 -- A short (one-line) description of the package.
 synopsis: An opinionated archetype ECS engine built in Haskell.
 -- A longer description of the package.
@@ -29,6 +29,7 @@ description:
 
   The high-level API is quite opinionated compared to other Haskell libraries.
 
+category: Game Engine, ECS, Game, Control, Data, Framework
 -- The license under which the package is released.
 license: BSD-3-Clause
 -- The file containing the license text.

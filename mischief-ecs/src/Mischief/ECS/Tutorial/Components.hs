@@ -13,8 +13,6 @@
 -- [Main Page]("Mischief.ECS")
 module Mischief.ECS.Tutorial.Components
   ( -- * Learn You an ECS for Great Mischief! - 4. Components
-
-    -- * Introduction
     -- $introduction
 
     -- * The Name Component
@@ -56,7 +54,7 @@ import GHC.Records (HasField)
 import Mischief.ECS
 
 -- $introduction
--- A component is any type which derives the 'Component' typeclass. They can be both carriers of data or marker components used for querying (@Tags@ from @Flecs@):
+-- A component is any type which derives the 'Component' typeclass. They can be both carriers of data or marker components used for querying (Tags from Flecs):
 --
 -- Component that carries data.
 --
@@ -72,7 +70,7 @@ import Mischief.ECS
 -- @
 
 -- $name
--- @'Name'@ is a special component provided by Mischief that is internally added to every spawned entity, based on its @Entity@ index,
+-- @Name@ is a special component provided by Mischief that is internally added to every spawned entity, based on its @Entity@ index,
 -- if none is provided on spawn. It can be, of course, changed at any time.
 --
 -- @
@@ -134,11 +132,12 @@ import Mischief.ECS
 -- @
 --
 -- Additionally, @insert@ has a couple of variants:
+--
 -- * @'insertNew'@ only inserts components that aren't already on the entity.
 -- * @'insertIfNeq'@ only insert components if they aren't on the entity of if their value differs from the current one.
 
 -- $results
--- A @'Result' c@ is a wrapper around the component @c@ that's produced by a query. We will discuss querying itself more in the [Query Chapter]("Mischief.ECS.Tutorial.Queries").
+-- A @Result c@ is a wrapper around the component @c@ that's produced by a query. We will discuss querying itself more in the [Query Chapter]("Mischief.ECS.Tutorial.Queries").
 --
 -- @
 -- health <- 'get' ('C' \@Health) player
@@ -182,7 +181,7 @@ import Mischief.ECS
 -- @
 -- health <- 'query' ('C' \@Health, 'E')
 --
--- 'for_' health $ \((Health x), entity) -> do
+-- 'for_' health $ \((Health x), entity) -> dox
 --   'insert' (Health (x + 1)) entity
 -- @
 --
@@ -192,7 +191,7 @@ import Mischief.ECS
 -- 'query' ('C' \@Health) '>>=' 'traverse_' ('`modify`' (\(Health x) -> Health (x + 1)))
 -- @
 --
--- You can use the @value@ function to obtain the inner value of a @Result@.
+-- You can use the @value@ function to obtain the inner value of a Result.
 --
 -- @
 -- 'value' :: 'Result' c -> c
@@ -201,13 +200,23 @@ import Mischief.ECS
 -- For instance:
 --
 -- @
--- 'Just' name <- 'get' (C \@'Name') e
+-- 'Just' name <- 'get' ('C' \@Name) e
 -- let name' = 'value' name
 -- @
 --
 -- @
--- name  :: 'Result' 'Name'
--- name' :: 'Name'
+-- name  :: 'Result' Name
+-- name' :: Name
+-- @
+--
+-- You can also use @Val@ to automatically unwrap the value of a Result:
+--
+-- @
+-- 'Just' name <- 'get' ('C' \@Name) e
+-- @
+--
+-- @
+-- name :: Name
 -- @
 --
 -- If the component has record fields, every field will be inherited by the 'Result' (via a 'HasField' instance)
@@ -228,10 +237,14 @@ import Mischief.ECS
 -- y   :: 'Float'
 -- @
 --
--- Some typeclasses, namely 'Show', 'Eq', 'Ord' are also implemented for a @'Result' c@ if they are for the underlying @c@.
+-- Some typeclasses, namely 'Show', 'Eq', 'Ord' are also implemented for a @Result c@ if they are for the underlying @c@.
 --
--- Note that the value of a 'Result' is the value gotten at the time of querying. It could be outdated, in case the live value
--- was changed after querying.
+-- Note that the value of a @Result@ is the value gotten at the time of querying. It could be outdated, in case the live value
+-- was changed after querying. You can use @update@ to get the live value for a Result:
+--
+-- @
+-- name <- 'update' name
+-- @
 
 -- $meta
 -- Each component has a corresponding entity in the World.
@@ -246,7 +259,7 @@ import Mischief.ECS
 -- y <- 'meta' \@Player
 -- @
 --
--- Most users should avoid tinkering with @Meta Components@ unless they have a good reason to,
+-- Most users should avoid tinkering with Meta Components unless they have a good reason to,
 -- and should absolutely never remove or change any components added to them by the @ECS@.
 
 -- $resources
@@ -272,7 +285,7 @@ import Mischief.ECS
 --
 -- @res r@ returns a @'Maybe' r@ because it's possible for the resource to not have been inserted yet.
 --
--- Resources are implemented by inserting a component into its own meta entity.
+-- Resources are implemented by inserting a component's value on its own meta entity.
 --
 -- @'res' \@MyRes@ is the same as doing:
 --
@@ -293,7 +306,7 @@ import Mischief.ECS
 --
 -- This means that each time @Player@ is added to an entity, a /default/ @Position@ and @Health@ will also be inserted, if they aren't already present.
 --
--- In order for a component to be required by another, it must instance the @'Default'@ typeclass, either through a @Generic@ derive or a custom instance.
+-- In order for a component to be required by another, it must instance the @Default@ typeclass, either through a @Generic@ derive or a custom instance.
 --
 -- @
 -- data Position = Position 'Int' 'Int' deriving ('Component', 'Generic', 'Default')
@@ -359,14 +372,20 @@ import Mischief.ECS
 -- Don't forget to spawn an Observer to listen to each event.
 --
 -- @
--- 'void' $ 'spawn' ('Observer' onNameInsert)
--- 'void' $ 'spawn' ('Observer' onNameRemove)
+-- import "Mischief.ECS.Observers" qualified as [Observers]("Mischief.ECS.Observers")
+-- @
+--
+-- @
+-- 'void' $ [Observers]("Mischief.ECS.Observers").'Mischief.ECS.Observers.spawn' onNameInsert
+-- 'void' $ [Observers]("Mischief.ECS.Observers").'Mischief.ECS.Observers.spawn' onNameRemove
 -- @
 --
 -- @OnInsert@ is always triggered /after/ a component has been inserted, while @OnRemove@ is triggered /before/. This
 -- allows you to query for the component and get its value.
 --
--- == Filters
+-- You can find more details on Observers and Events in the corresponding [Chapter]("Mischief.ECS.Tutorial.Events")
+--
+-- === Filters
 --
 -- Now for the other way of doing change detection: the @'Changed'@ and @'Added'@ query filters.
 --
@@ -385,7 +404,7 @@ import Mischief.ECS
 -- 'query' ('C' \@'Name') ('Changed' ('C' \@Player), 'Not' ('Added' ('C' \@Player)))
 -- @
 --
--- == Note on listening to changes
+-- === Note on listening to changes
 --
 -- One essential detail to be aware of here is that insertion (@OnInsert@ or @Changed@) doesn't necessarily mean a component's value has been changed!
 --
@@ -526,6 +545,7 @@ import Mischief.ECS
 --
 -- @
 -- import "Mischief.ECS.Systems" qualified as [Systems]("Mischief.ECS.Systems")
+-- import "Mischief.ECS.Observers" qualified as [Observers]("Mischief.ECS.Observers")
 --
 -- data Player = Player deriving ('Component')
 --
@@ -540,7 +560,7 @@ import Mischief.ECS
 --   'Mischief.ECS.App.Plugins.init' _ = do
 --     'insertRes' $ PlayerCount 0
 --     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Update' (updateCount, spawnPlayers)
---     'void' . 'spawn' $ 'Observer' handlePlayerRemove
+--     'void' $ [Observers]("Mischief.ECS.Observers").'Mischief.ECS.Observers.spawn' handlePlayerRemove
 -- @
 --
 -- Running it will result in:
@@ -551,6 +571,3 @@ import Mischief.ECS
 -- [INFO] Just (PlayerCount 4)
 -- ...
 -- @
-
--- $next
--- "Mischief.ECS.Tutorial.Relationships"

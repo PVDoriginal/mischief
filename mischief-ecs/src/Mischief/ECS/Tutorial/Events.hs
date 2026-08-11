@@ -11,8 +11,6 @@
 -- [Main Page]("Mischief.ECS")
 module Mischief.ECS.Tutorial.Events
   ( -- * Learn You an ECS for Great Mischief! - 8. Events and Messages
-
-    -- * Introduction
     -- $intro
 
     -- * Events
