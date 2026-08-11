@@ -39,12 +39,19 @@ module Mischief.ECS.Tutorial.Startup
     -- * Your First Resource
     -- $res
 
+    -- * Your First Relationship
+    -- $rel
+
+    -- * Your First Transitive Query
+    -- $trans
+
     -- * [Next Chapter: Coding a Dungeon Game]("Mischief.ECS.Tutorial.Dungeon")
   )
 where
 
 import Control.Monad (when)
 import Data.Foldable (for_)
+import Data.Traversable (for)
 import Mischief.ECS
 
 -- $know
@@ -178,9 +185,10 @@ import Mischief.ECS
 -- @
 -- addPeople :: 'System' ()
 -- addPeople = do
---   'spawn' (Person, Name \"Kimberly\")
---   'spawn' (Person, Name \"Nicholas\")
---   'spawn' (Person, Name \"Florian\")
+--   kim <- 'spawn' (Person, Name \"Kimberly\")
+--   nick <- 'spawn' (Person, Name \"Nicholas\")
+--   flo <- 'spawn' (Person, Name \"Florian\")
+--   'pure' ()
 -- @
 --
 -- You can register it to run on the app's startup like this:
@@ -265,7 +273,7 @@ import Mischief.ECS
 --   'for_' florians $ '`set`' Name \"Florianne\"
 -- @
 --
--- The above query can also be written like this:
+-- The above query can also be written like this, in non-quasi notation:
 --
 -- @
 -- florians <- 'query'' ('C' \@Name) ('With' ('C' \@Person), 'Check' (== Name \"Florian\"))
@@ -323,4 +331,89 @@ import Mischief.ECS
 -- [INFO] Hey Kimberly
 -- [INFO] Hey Nicholas
 -- [INFO] Hey Florianne
+-- @
+
+-- $rel
+-- Relationships in Mischief are pairs made up of a Component and an Entity. Let's implement a simple relationship between our entities that says which like which.
+--
+-- We'll start by defining a component:
+--
+-- @
+-- data Likes = Likes deriving ('Component')
+-- @
+--
+-- Let's now modify our spawning system to also insert relationships between our three entities. We can insert a relationship using the @Rel@ keyword.
+--
+-- @
+-- addPeople :: 'System' ()
+-- addPeople = do
+--   kim <- 'spawn' (Person, Name \"Kimberly\")
+--   nick <- 'spawn' (Person, Name \"Nicholas\")
+--   flo <- 'spawn' (Person, Name \"Florian\")
+--
+--   'insert' ('Rel' Likes kim) flo
+--   'insert' ('Rel' Likes nick, 'Rel' Likes flo) kim
+-- @
+--
+-- We've now made @flo@ like @kim@, and we've made @kim@ like both @nick@ and @flo@!.
+
+-- $trans
+-- We now have relationships but we aren't doing much with them. What about having a system that displays the name of each entity, along with the name of all entities they like?
+--
+-- There are a few different ways to get the names of entities that a given entity likes, for instance we could do:
+--
+-- @
+-- people <- 'query' ('C' \@Name, 'R' \@Likes Any)
+--
+-- 'for_' people $ \(name, likes) -> do
+--   names \<- 'for' likes $ \\l -\> 'get' ('C' \@Name) l.target
+--   'info' $ 'text' name <> " likes " <>  'text' names
+-- @
+--
+-- We get the name of each entity, along with all their @Likes@ relationships (using the @R@ marker). Then, for each entity, we iterate over all their relationships and get the names of the targets.
+-- (@get@ is just like @query@ but it queries the components of a specific entity).
+--
+-- But we'll have a way easier time getting there by just using @transitive queries@!
+-- Rather than querying for the relationships themselves, Mischief allows us to query for the components of the relationship targets from within the same query:
+--
+-- @
+-- people <- 'query' ('C' \@Name, 'R' \@Likes ('Q' ('C' \@Name)))
+--
+-- 'for_' people $ \(name, names) -> do
+--   'info' $ 'text' name <> " likes " <> 'text' names
+-- @
+--
+-- There's no need for a second query to grab the names. The equivalent quasi-query looks like this:
+--
+-- @
+-- people \<- ['q'|Name, Likes -\> (Name)|]
+-- @
+--
+-- Pretty nice, huh?
+--
+-- Let's now put this logic in a proper system and schedule it to run:
+--
+-- @
+-- showLikes :: 'System' ()
+-- showLikes = do
+--   people \<- ['q'|Name, Likes -\> (Name)|]
+--
+--   'for_' people $ \(name, names) -> do
+--     'info' $ 'text' name <> " likes " <> 'text' names
+-- @
+--
+-- @
+-- 'Mischief.ECS.App.Plugins.init' _ = do
+--   [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Startup' addPeople
+--   [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Update' (helloWorld, greetPeople, showLikes)
+--   [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Update' $ updateFlo '`before`' greetPeople
+--
+--   'insertRes' (Greeting \"Hey\")
+-- @
+--
+-- We should now see these additional likes printed to the terminal:
+--
+-- @
+-- [INFO] \"Florianne\" likes [\"Kimberly\"]
+-- [INFO] \"Kimberly\"  likes [\"Nicholas\", \"Florianne\"]
 -- @

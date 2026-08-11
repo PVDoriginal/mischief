@@ -24,11 +24,6 @@ import System.Exit
 import System.Random
 import System.Random.Stateful
 
-data Likes = Likes Int deriving (Show)
-
-instance Component Likes where
-  hooks = Hooks.relCleanupRemove
-
 main :: IO ()
 main = do
   app <- newApp MainPlugin
@@ -329,3 +324,11 @@ collectCoins = do
   insertRes $ Coins $ c + length coins
 
   for_ coins despawn
+
+data Likes = Likes Int deriving (Component)
+
+a :: System ()
+a = do
+  people <- query (C @Name, R @Likes (Q (C @Name)))
+  for_ people $ \(name, names) -> do
+    info $ text name <> " likes " <> text names
