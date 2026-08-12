@@ -1224,6 +1224,6 @@ import System.Exit (exitSuccess)
 -- Coins: 16
 -- @
 
--- $nextf
+-- $next
 -- Don't worry if there are various details that you haven't fully understood yet. The next chapters will go into detail over the many aspects of the ECS. This chapter was just meant
 -- to give you a general idea of working with Mischief. You can find the whole code for this example [here](https://github.com/PVDoriginal/mischief/blob/main/mischief-ecs/examples/Dungeon.hs).

@@ -162,7 +162,7 @@ library
   build-depends:
     ansi-terminal >=1.1.5 && <1.2,
     async >=2.2.6 && <2.3,
-    base ^>=4.21.0.0,
+    base >=4.21.0.0 && <4.23,
     binary >=0.8.9 && <0.9,
     bytestring >=0.12.2 && <0.13,
     clock >=0.8.4 && <0.9,

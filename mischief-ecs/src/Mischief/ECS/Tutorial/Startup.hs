@@ -66,11 +66,7 @@ import Mischief.ECS
 -- $setup
 -- In order to use Mischief, you'll first need to install @GHC@ and @cabal@. You can follow [this](https://www.haskell.org/cabal/) quick-start guide in order to do that.
 --
--- After you have a new project set up, you need to install @mischief-ecs@:
---
--- @
--- cabal add mischief-ecs
--- @
+-- After you have a new project set up, just add @mischief-ecs@ under @build-depends@ in you @.cabal@ file.
 --
 -- We recommend using @GHC2024@ as the language standard (set in your @.cabal@ file).
 --

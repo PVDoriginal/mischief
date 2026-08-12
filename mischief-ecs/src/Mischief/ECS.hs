@@ -7,7 +7,10 @@
 --
 -- This library contains the ECS used by the Mischief Game Engine.
 module Mischief.ECS
-  ( -- * What is Mischief?
+  ( -- * LLM Disclaimer
+    -- $ai
+
+    -- * What is Mischief?
     -- $mischief
 
     -- * Learn You an ECS for Great Mischief!
@@ -135,10 +138,13 @@ qq = do
 -- $pre
 -- This version of Mischief isn't meant for public use. It's just a pre-release published mostly to showcase the documentation.
 
+-- $ai
+-- No LLM / AI was used in making Mischief. Now and forever.
+
 -- $mischief
 -- Mischief has various meanings. It can be a group of rats. Or it can refer to being naughty and playful.
 --
--- This Mischief, however, is an @ECS Game Engine@! In other words...
+-- This Mischief, however, is an open-source @ECS Game Engine@! In other words...
 --
 -- @
 -- Mischief :: Entity -> Component c => System ()
