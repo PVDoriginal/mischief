@@ -240,6 +240,7 @@ executable example-dungeon
     primitive >=0.9.1 && <0.10,
     random >=1.3.1 && <1.4,
     transformers >=0.6.1 && <0.7,
+    mischief-ecs 
 
   default-language: GHC2024
   default-extensions:

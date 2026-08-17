@@ -11,7 +11,6 @@ import Data.Default
 import Data.Foldable
 import Data.List ((!?))
 import Data.Traversable
-import Mischief.ECS.Hooks qualified as Hooks
 import Mischief.ECS.Interval qualified as Interval
 import Mischief.ECS.Observers qualified as Observers
 import Mischief.ECS.Prelude
@@ -324,11 +323,3 @@ collectCoins = do
   insertRes $ Coins $ c + length coins
 
   for_ coins despawn
-
-data Likes = Likes Int deriving (Component)
-
-a :: System ()
-a = do
-  people <- query (C @Name, R @Likes (Q (C @Name)))
-  for_ people $ \(name, names) -> do
-    info $ text name <> " likes " <> text names
