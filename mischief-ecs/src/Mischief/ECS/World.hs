@@ -19,6 +19,7 @@ module Mischief.ECS.World
     runSystem,
     MonadSystem,
     unsafeGetWorld,
+    sysUnliftIO,
 
     -- * Parallel
     ParSystem (..),
@@ -230,3 +231,8 @@ worldSpawnByInsert :: forall b. (Bundle b) => Entity -> b -> System ()
 worldSpawnByInsert e b = do
   World {tools = SystemTools {spawnByInsert}} <- unsafeGetWorld
   spawnByInsert e b
+
+sysUnliftIO :: System (System a -> IO a)
+sysUnliftIO = do
+  world <- hide <$> unsafeGetWorld
+  pure $ \(System a) -> runReaderT a world

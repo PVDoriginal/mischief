@@ -54,7 +54,7 @@ library
     MischiefMath.Mat
     MischiefMath.Quat
     MischiefMath.Transform
-    MischiefMath.Transform.Plugin 
+    MischiefMath.Transform.Plugin
     MischiefMath.Vec
     MischiefMath.Vec.Orphans.Default
     MischiefMath.Vec.Orphans.FieldAccessors
@@ -88,7 +88,6 @@ library
     mischief-ecs,
     mtl,
     primitive,
-    sdl3,
     time,
     transformers,
     vector,

@@ -85,7 +85,6 @@ library
     mtl,
     primitive,
     process,
-    sdl3,
     stm,
     store,
     temporary,

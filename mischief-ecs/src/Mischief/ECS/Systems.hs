@@ -3,6 +3,8 @@
 -- and scheduling systems.
 module Mischief.ECS.Systems where
 
+import Control.Monad.IO.Class
+import Control.Monad.Reader (runReaderT)
 import Data.Foldable
 import Data.Kind
 import GHC.Stack.Types
@@ -12,6 +14,7 @@ import Mischief.ECS.App.Systems (ScheduledIn (ScheduledIn), SystemFunction (Syst
 import Mischief.ECS.Collectable
 import Mischief.ECS.Components
 import Mischief.ECS.Entities
+import Mischief.ECS.Hidden
 import Mischief.ECS.Mappable
 import Mischief.ECS.Relationships.Order
 import Mischief.ECS.World

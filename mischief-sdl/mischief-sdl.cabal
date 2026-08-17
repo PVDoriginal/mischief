@@ -49,7 +49,7 @@ library
   import: warnings
   -- Modules exported by the library.
   exposed-modules:
-    MischiefSDL
+    Mischief.SDL
 
   -- Modules included in this library but not exported.
   -- other-modules:
@@ -77,10 +77,10 @@ library
     containers,
     data-default,
     linear,
-    mischief-ecs,
+    mischief-ecs ^>=0.1.0.0,
     mtl,
     primitive,
-    sdl3,
+    sdl3-bindgen-sys,
     time,
     transformers,
     vector,
@@ -126,5 +126,6 @@ test-suite mischief-test
     containers,
     data-default,
     mischief-ecs,
+    mischief-sdl,
     primitive,
     transformers,
