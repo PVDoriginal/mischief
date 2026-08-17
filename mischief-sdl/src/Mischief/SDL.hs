@@ -66,6 +66,7 @@ instance Plugin SDLPlugin where
     window <- liftIO initSdl
     void $ spawn (Window window)
     Systems.add First handleEvents
+    Systems.add First $ handleQuit `after` handleEvents
 
 -- addMessage @(SDLMessage SDL3.SDL_DisplayEvent)
 -- addMessage @(SDLMessage SDl3.SDL_WindowEvent)
@@ -192,32 +193,10 @@ handleEvent t e = case t of
   where
     s t a = Messages.write $ SDLMessage t a
 
--- handleEvent (SDL3.SDLEventDisplay event) = do
---   Just m <- res @(Messages (SDLMessage SDLDisplayEvent))
---   writeMessage (SDLMessage event) m
--- handleEvent (SDLEventWindow event) = do
---   Just m <- res @(Messages (SDLMessage SDLWindowEvent))
---   writeMessage (SDLMessage event) m
--- handleEvent (SDLEventKeyboard event) = do
---   Just m <- res @(Messages (SDLMessage SDLKeyboardEvent))
---   writeMessage (SDLMessage event) m
--- handleEvent (SDLEventMouseButton event) = do
---   Just m <- res @(Messages (SDLMessage SDLMouseButtonEvent))
---   writeMessage (SDLMessage event) m
--- handleEvent (SDLEventMouseMotion event) = do
---   Just m <- res @(Messages (SDLMessage SDLMouseMotionEvent))
---   writeMessage (SDLMessage event) m
--- handleEvent (SDLEventQuit event) = do
---   Just m <- res @(Messages (SDLMessage SDLQuitEvent))
---   writeMessage (SDLMessage event) m
--- handleEvent _ = pure ()
-
--- handleQuit :: System ()
--- handleQuit = do
---   Just msg <- res @(Messages (SDLMessage SDLQuitEvent))
---   messages <- readMessages msg
---   for_ messages $ \(SDLMessage _) -> do
---     liftIO exitSuccess
+handleQuit :: System ()
+handleQuit = do
+  messages <- Messages.read @(SDLMessage SDL3.SDL_QuitEvent)
+  unless (null messages) $ liftIO exitSuccess
 
 -- $intro
 -- This package provides the 'sdlPlugin' for @Mischief@, along with a few components.
