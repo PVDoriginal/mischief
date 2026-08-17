@@ -49,8 +49,8 @@ library
   import: warnings
   -- Modules exported by the library.
   exposed-modules:
-    MischiefInput
-    MischiefInput.Keyboard
+    Mischief.Input
+    Mischief.Input.Keyboard
 
   -- Modules included in this library but not exported.
   -- other-modules:
@@ -63,9 +63,11 @@ library
     FunctionalDependencies
     ImportQualifiedPost
     MagicHash
+    MultiWayIf
     NoFieldSelectors
     NoGeneralizedNewtypeDeriving
     OverloadedRecordDot
+    OverloadedStrings
     PatternSynonyms
     RequiredTypeArguments
     TemplateHaskell
@@ -82,7 +84,9 @@ library
     containers,
     data-default,
     mischief-ecs,
+    mischief-sdl,
     primitive,
+    sdl3-bindgen-sys,
     transformers,
     vector,
 
@@ -114,6 +118,7 @@ test-suite mischief-test
     NoFieldSelectors
     NoGeneralizedNewtypeDeriving
     OverloadedRecordDot
+    OverloadedStrings
     RequiredTypeArguments
     TypeFamilyDependencies
 
@@ -131,6 +136,6 @@ test-suite mischief-test
     data-default,
     mischief-ecs,
     mischief-input,
-    mischief-math,
     primitive,
+    sdl3-bindgen-sys,
     transformers,

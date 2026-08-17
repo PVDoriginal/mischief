@@ -1,4 +1,4 @@
-module MischiefInput.Keyboard where
+module Mischief.Input.Keyboard where
 
 import Control.Monad
 import Control.Monad.IO.Class
@@ -9,37 +9,36 @@ import Data.Map (Map)
 import Data.Map qualified as Map
 import GHC.Generics
 import Mischief.ECS
-import Mischief.ECS.App.Scheduler
-import SDL3
+import Mischief.ECS.Messages qualified as Messages
+import Mischief.ECS.Systems qualified as Systems
+import Mischief.SDL (SDLMessage (..), SDLPlugin (..))
+import SDL3.Sys qualified as SDL3
 
 data Keys = Keys
-  { physical :: Map SDLScancode KeyState,
-    virtual :: Map SDLKeycode KeyState
+  { physical :: Map SDL3.SDL_Scancode KeyState,
+    virtual :: Map SDL3.SDL_Keycode KeyState
   }
-  deriving (Generic, Queryable, Default)
+  deriving (Generic, Default, Component)
 
-newtype HotKeys = HotKeys [((SDLScancode, SDLKeycode), KeyState)] deriving (Generic, Queryable, Default)
+newtype HotKeys = HotKeys [((SDL3.SDL_Scancode, SDL3.SDL_Keycode), KeyState)] deriving (Generic, Default, Component)
 
-instance Component HotKeys where
-  type Storage HotKeys = ResourceStorage
-
-pressed :: SDLScancode -> Result Keys -> Bool
-pressed scancode keys = case Map.lookup scancode keys.value.physical of
+pressed :: SDL3.SDL_Scancode -> Keys -> Bool
+pressed scancode keys = case Map.lookup scancode keys.physical of
   Just Pressed -> True
   Just JustPressed -> True
   _ -> False
 
-justPressed :: SDLScancode -> Result Keys -> Bool
-justPressed scancode keys = case Map.lookup scancode keys.value.physical of
+justPressed :: SDL3.SDL_Scancode -> Keys -> Bool
+justPressed scancode keys = case Map.lookup scancode keys.physical of
   Just JustPressed -> True
   _ -> False
 
-justReleased :: SDLScancode -> Result Keys -> Bool
-justReleased scancode keys = case Map.lookup scancode keys.value.physical of
+justReleased :: SDL3.SDL_Scancode -> Result Keys -> Bool
+justReleased scancode keys = case Map.lookup scancode keys.physical of
   Just JustReleased -> True
   _ -> False
 
-getState :: SDLScancode -> IORef Keys -> IO KeyState
+getState :: SDL3.SDL_Scancode -> IORef Keys -> IO KeyState
 getState scancode keys' = do
   keys <- readIORef keys'
   case Map.lookup scancode keys.physical of
@@ -48,54 +47,53 @@ getState scancode keys' = do
       modifyIORef' keys' (\Keys {physical, virtual} -> Keys {physical = Map.insert scancode Released physical, virtual})
       return Released
 
-setState :: KeyState -> (SDLScancode, SDLKeycode) -> IORef Keys -> IO ()
+setState :: KeyState -> (SDL3.SDL_Scancode, SDL3.SDL_Keycode) -> IORef Keys -> IO ()
 setState state (scancode, keycode) keys =
   modifyIORef' keys (\Keys {physical, virtual} -> Keys {physical = Map.insert scancode state physical, virtual = Map.insert keycode state virtual})
 
-setStatePhysical :: KeyState -> SDLScancode -> IORef Keys -> IO ()
+setStatePhysical :: KeyState -> SDL3.SDL_Scancode -> IORef Keys -> IO ()
 setStatePhysical state scancode keys =
   modifyIORef' keys (\Keys {physical, virtual} -> Keys {physical = Map.insert scancode state physical, virtual})
 
-setStateVirtual :: KeyState -> SDLKeycode -> IORef Keys -> IO ()
+setStateVirtual :: KeyState -> SDL3.SDL_Keycode -> IORef Keys -> IO ()
 setStateVirtual state keycode keys =
   modifyIORef' keys (\Keys {physical, virtual} -> Keys {physical, virtual = Map.insert keycode state virtual})
-
-instance Component Keys where
-  type Storage Keys = ResourceStorage
 
 data KeyState = Pressed | JustPressed | Released | JustReleased
   deriving (Show, Eq)
 
-keyboardPlugin :: Plugin ()
-keyboardPlugin = do
-  addResource (def @Keys)
-  addResource (def @HotKeys)
-  addSystems Update readEvents
+data KeyboardPlugin = KeyboardPlugin deriving (Eq)
+
+instance Plugin KeyboardPlugin where
+  init _ = do
+    insertRes (def @Keys)
+    insertRes (def @HotKeys)
+    Systems.add Update readEvents
+
+  plugins _ = plug SDLPlugin
 
 readEvents :: System ()
 readEvents = do
-  Just msg <- single @(Messages (SDLMessage SDLKeyboardEvent))
-  messages <- readMessages msg
+  messages <- Messages.read @(SDLMessage SDL3.SDL_KeyboardEvent)
 
-  Just keys' <- single @Keys
+  Just keys <- res @Keys
 
-  keys <- liftIO $ newIORef keys'.value
+  keys <- liftIO $ newIORef keys
   hotKeys <- liftIO $ newIORef []
   processedKeys <- liftIO $ newIORef []
 
-  for_ messages $ \(SDLMessage event) -> do
-    state <- liftIO $ getState event.sdlKeyboardScancode keys
-    let state' = updateState (Just event.sdlKeyboardType) state
-    liftIO $ setState state' (event.sdlKeyboardScancode, event.sdlKeyboardKey) keys
+  for_ messages $ \(SDLMessage {eventType, event}) -> do
+    state <- liftIO $ getState event.scancode keys
+    let state' = updateState (Just eventType) state
+    liftIO $ setState state' (event.scancode, event.key) keys
 
     when (state' == JustReleased || state' == JustPressed) $
       liftIO $
-        modifyIORef' hotKeys (++ [((event.sdlKeyboardScancode, event.sdlKeyboardKey), state')])
+        modifyIORef' hotKeys (++ [((event.scancode, event.key), state')])
 
-    liftIO $ modifyIORef' processedKeys (++ [(event.sdlKeyboardScancode, event.sdlKeyboardKey)])
+    liftIO $ modifyIORef' processedKeys (++ [(event.scancode, event.key)])
 
-  Just oldHotKeys' <- single @HotKeys
-  let HotKeys oldHotKeys = oldHotKeys'.value
+  Just (HotKeys oldHotKeys) <- res @HotKeys
   processedKeys <- liftIO $ readIORef processedKeys
 
   for_ oldHotKeys $ \(key, state) -> do
@@ -104,14 +102,14 @@ readEvents = do
       liftIO $ setState state' key keys
 
   newHotKeys <- liftIO $ readIORef hotKeys
-  insertResource $ HotKeys newHotKeys
+  insertRes $ HotKeys newHotKeys
 
   newKeys <- liftIO $ readIORef keys
-  insertResource newKeys
+  insertRes newKeys
 
-updateState :: Maybe SDLEventType -> KeyState -> KeyState
-updateState (Just SDL_EVENT_KEY_DOWN) state = updateStateDown state
-updateState (Just SDL_EVENT_KEY_UP) state = updateStateUp state
+updateState :: Maybe SDL3.SDL_EventType -> KeyState -> KeyState
+updateState (Just SDL3.SDL_EVENT_KEY_DOWN) state = updateStateDown state
+updateState (Just SDL3.SDL_EVENT_KEY_UP) state = updateStateUp state
 updateState Nothing state = updateStateIdle state
 updateState _ state = state
 
