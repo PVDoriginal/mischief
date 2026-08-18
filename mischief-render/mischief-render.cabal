@@ -49,8 +49,9 @@ library
   import: warnings
   -- Modules exported by the library.
   exposed-modules:
-    MischiefRender
-    MischiefRender.Shader
+    Mischief.Render
+    Mischief.Render.Shader
+    Mischief.WGPU
 
   -- Modules included in this library but not exported.
   -- other-modules:
@@ -80,7 +81,6 @@ library
     clock,
     containers,
     data-default,
-    mischief-assets,
     mischief-ecs,
     mtl,
     primitive,
@@ -92,9 +92,15 @@ library
     transformers,
     vector,
 
+  pkgconfig-depends:
+    wgpu-native
+
   -- Directories containing source files.
   hs-source-dirs:
     src
+
+  include-dirs:
+    cbits/
 
   -- Base language which the package is written in.
   default-language:
@@ -114,6 +120,7 @@ test-suite mischief-test
   default-extensions:
     DeriveAnyClass
     DuplicateRecordFields
+    ForeignFunctionInterface
     NoFieldSelectors
     NoGeneralizedNewtypeDeriving
     OverloadedRecordDot
@@ -134,7 +141,6 @@ test-suite mischief-test
     bytestring,
     containers,
     data-default,
-    mischief-assets,
     mischief-ecs,
     mischief-render,
     primitive,
