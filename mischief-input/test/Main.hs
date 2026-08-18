@@ -7,8 +7,9 @@ import Data.Foldable hiding (and)
 import GHC.Generics hiding (C, C1)
 import Mischief.ECS.Prelude
 import Mischief.ECS.Systems qualified as Systems
-import Mischief.Input.Keyboard
-import SDL3.Sys qualified as SDL3
+import Mischief.Input
+import Mischief.Input.Keys (Keys)
+import Mischief.Input.Keys qualified as Keys
 import Prelude hiding (and)
 
 main :: IO ()
@@ -21,10 +22,10 @@ data MainPlugin = MainPlugin deriving (Eq)
 instance Plugin MainPlugin where
   init _ = do
     Systems.add Update test
-  plugins _ = plug KeyboardPlugin
+  plugins _ = plug InputPlugin
 
 test :: System ()
 test = do
   Just keys <- res @Keys
-  when (justPressed SDL3.SDL_SCANCODE_A keys) $ do
+  when (Keys.justPressed Keys.A keys) $ do
     info "AAAA"

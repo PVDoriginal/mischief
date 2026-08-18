@@ -50,7 +50,7 @@ library
   -- Modules exported by the library.
   exposed-modules:
     Mischief.Input
-    Mischief.Input.Keyboard
+    Mischief.Input.Keys
 
   -- Modules included in this library but not exported.
   -- other-modules:
