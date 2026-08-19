@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module MischiefMath.Vec.Orphans.Default where
+module Mischief.Math.Vec.Orphans.Default where
 
 import Data.Default
 import Linear

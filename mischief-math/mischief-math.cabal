@@ -49,15 +49,15 @@ library
   import: warnings
   -- Modules exported by the library.
   exposed-modules:
-    MischiefMath
-    MischiefMath.Affine
-    MischiefMath.Mat
-    MischiefMath.Quat
-    MischiefMath.Transform
-    MischiefMath.Transform.Plugin
-    MischiefMath.Vec
-    MischiefMath.Vec.Orphans.Default
-    MischiefMath.Vec.Orphans.FieldAccessors
+    Mischief.Math
+    Mischief.Math.Affine
+    Mischief.Math.Mat
+    Mischief.Math.Quat
+    Mischief.Math.Transform
+    Mischief.Math.Transform.Plugin
+    Mischief.Math.Vec
+    Mischief.Math.Vec.Orphans.Default
+    Mischief.Math.Vec.Orphans.FieldAccessors
 
   -- Modules included in this library but not exported.
   -- other-modules:
@@ -81,7 +81,7 @@ library
   -- Other library packages from which modules are imported.
   build-depends:
     async,
-    base ^>=4.21.0.0,
+    base >=4.21.0.0 && <4.22,
     containers,
     data-default,
     linear,
@@ -129,7 +129,7 @@ test-suite mischief-test
   main-is: Main.hs
   -- Test dependencies.
   build-depends:
-    base ^>=4.21.0.0,
+    base >=4.21.0.0 && <4.22,
     containers,
     data-default,
     mischief-ecs,

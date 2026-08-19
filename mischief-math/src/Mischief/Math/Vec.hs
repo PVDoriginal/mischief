@@ -1,4 +1,4 @@
-module MischiefMath.Vec
+module Mischief.Math.Vec
   ( V2,
     V3,
     Vec2,
@@ -19,11 +19,11 @@ type Vec2 = V2 Float
 
 type Vec3 = V3 Float
 
-vec2 :: (Float, Float) -> Vec2
-vec2 (x, y) = V2 x y
+vec2 :: Float -> Float -> Vec2
+vec2 = V2
 
-vec3 :: (Float, Float, Float) -> Vec3
-vec3 (x, y, z) = V3 x y z
+vec3 :: Float -> Float -> Float -> Vec3
+vec3 = V3
 
 extend :: a -> V2 a -> V3 a
 extend z (V2 x y) = V3 x y z

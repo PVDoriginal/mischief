@@ -1,4 +1,4 @@
-module MischiefMath.Mat where
+module Mischief.Math.Mat where
 
 import Linear (M33, V3 (V3))
 

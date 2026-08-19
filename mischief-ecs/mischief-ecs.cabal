@@ -163,7 +163,7 @@ library
   build-depends:
     ansi-terminal >=1.1.5 && <1.2,
     async >=2.2.6 && <2.3,
-    base >=4.21.0.0 && <4.23,
+    base >=4.21.0.0 && <4.22,
     binary >=0.8.9 && <0.9,
     bytestring >=0.12.2 && <0.13,
     clock >=0.8.4 && <0.9,
@@ -223,7 +223,7 @@ test-suite mischief-test
   other-modules: Relationships
   -- Test dependencies.
   build-depends:
-    base ^>=4.21.0.0,
+    base >=4.21.0.0 && <4.22,
     containers,
     data-default,
     mischief-ecs,
@@ -235,7 +235,7 @@ executable example-dungeon
   main-is: Dungeon.hs
   hs-source-dirs: examples
   build-depends:
-    base ^>=4.21.0.0,
+    base >=4.21.0.0 && <4.22,
     containers >=0.7 && <0.8,
     data-default >=0.8.0 && <0.9,
     mischief-ecs,
@@ -262,7 +262,7 @@ benchmark bench-spawn
   hs-source-dirs: benchmarks
   default-language: GHC2024
   build-depends:
-    base >=4.21.0 && <4.22,
+    base >=4.21.0.0 && <4.22,
     containers >=0.7 && <0.8,
     criterion >=1.6.5 && <1.7,
     deepseq >=1.5.1 && <1.6,
@@ -288,7 +288,7 @@ benchmark bench-insert
   hs-source-dirs: benchmarks
   default-language: GHC2024
   build-depends:
-    base >=4.21.0 && <4.22,
+    base >=4.21.0.0 && <4.22,
     containers >=0.7 && <0.8,
     criterion >=1.6.5 && <1.7,
     deepseq >=1.5.1 && <1.6,
@@ -314,7 +314,7 @@ benchmark bench-update
   hs-source-dirs: benchmarks
   default-language: GHC2024
   build-depends:
-    base >=4.21.0 && <4.22,
+    base >=4.21.0.0 && <4.22,
     containers >=0.7 && <0.8,
     criterion >=1.6.5 && <1.7,
     deepseq >=1.5.1 && <1.6,

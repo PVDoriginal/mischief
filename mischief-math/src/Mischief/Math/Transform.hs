@@ -1,22 +1,21 @@
 {-# OPTIONS_GHC -Wno-missing-methods #-}
 
-module MischiefMath.Transform where
+module Mischief.Math.Transform where
 
 import Data.Default (Default)
 import GHC.Generics (Generic)
-import Mischief.ECS (Component, Queryable, require)
-import Mischief.ECS.Components (Component (required))
-import MischiefMath.Quat (Quat)
-import MischiefMath.Quat qualified as Quat
-import MischiefMath.Vec
-import MischiefMath.Vec.Orphans.Default ()
+import Mischief.ECS.Prelude
+import Mischief.Math.Quat (Quat)
+import Mischief.Math.Quat qualified as Quat
+import Mischief.Math.Vec
+import Mischief.Math.Vec.Orphans.Default ()
 
 newtype GlobalTransform = GlobalTransform {transform :: Transform}
-  deriving anyclass (Component, Queryable, Default)
+  deriving anyclass (Component, Default)
   deriving stock (Generic, Show)
   deriving newtype (Num)
 
-data Transform = Transform {translation :: Vec3, rotation :: Quat, scale :: Vec3} deriving (Generic, Show, Default, Component, Queryable)
+data Transform = Transform {translation :: Vec3, rotation :: Quat, scale :: Vec3} deriving (Generic, Show, Default, Component)
 
 instance Num Transform where
   (*) :: Transform -> Transform -> Transform

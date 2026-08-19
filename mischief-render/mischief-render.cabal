@@ -52,6 +52,7 @@ library
     Mischief.Render
     Mischief.Render.Shader
     Mischief.WGPU
+    Mischief.WGPU.Types
 
   -- Modules included in this library but not exported.
   -- other-modules:
@@ -75,22 +76,27 @@ library
   -- Other library packages from which modules are imported.
   build-depends:
     async,
-    base ^>=4.21.0.0,
+    base >=4.21.0.0 && <4.22,
     binary,
     bytestring,
     clock,
     containers,
     data-default,
     mischief-ecs,
+    mischief-math,
     mtl,
     primitive,
     process,
+    sdl3-bindgen-sys,
     stm,
     store,
     temporary,
     time,
     transformers,
     vector,
+
+  build-tool-depends:
+    c2hs:c2hs
 
   pkgconfig-depends:
     wgpu-native
@@ -137,12 +143,13 @@ test-suite mischief-test
   -- Test dependencies.
   build-depends:
     async,
-    base ^>=4.21.0.0,
+    base >=4.21.0.0 && <4.22,
     bytestring,
     containers,
     data-default,
     mischief-ecs,
     mischief-render,
     primitive,
+    sdl3-bindgen-sys,
     store,
     transformers,

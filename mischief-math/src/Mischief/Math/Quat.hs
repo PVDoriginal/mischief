@@ -1,11 +1,11 @@
-module MischiefMath.Quat where
+module Mischief.Math.Quat where
 
 import Data.Default (Default (def))
 import Linear (Quaternion (Quaternion), V3 (V3), axisAngle, fromQuaternion)
-import MischiefMath.Mat (Euler (Euler, x, y, z), Mat3 (Mat3))
-import MischiefMath.Mat qualified as Mat
-import MischiefMath.Vec (Dir3 (Dir3), Vec3, vec3)
-import MischiefMath.Vec.Orphans.FieldAccessors ()
+import Mischief.Math.Mat (Euler (Euler, x, y, z), Mat3 (Mat3))
+import Mischief.Math.Mat qualified as Mat
+import Mischief.Math.Vec (Dir3 (Dir3), Vec3, vec3)
+import Mischief.Math.Vec.Orphans.FieldAccessors ()
 
 newtype Quat = Quat (Quaternion Float) deriving newtype (Show, Eq, Ord, Num)
 
@@ -40,7 +40,7 @@ fromAngles :: Vec3 -> Quat
 fromAngles vec3 = rotateX vec3.x $ rotateY vec3.y $ rotateZ vec3.z identity
 
 fromEuler :: Euler -> Quat
-fromEuler Euler {x, y, z} = fromAngles $ vec3 (x, y, z)
+fromEuler Euler {x, y, z} = fromAngles $ vec3 x y z
 
 rotateAxis :: Dir3 -> Float -> Quat -> Quat
 rotateAxis dir angle quat = quat * fromAxisAngle dir angle

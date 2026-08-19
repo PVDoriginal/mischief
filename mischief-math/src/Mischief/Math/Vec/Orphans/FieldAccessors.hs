@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module MischiefMath.Vec.Orphans.FieldAccessors where
+module Mischief.Math.Vec.Orphans.FieldAccessors where
 
 import GHC.Records
 import Linear

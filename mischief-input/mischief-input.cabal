@@ -78,7 +78,7 @@ library
   -- Other library packages from which modules are imported.
   build-depends:
     -- sdl3-hs,
-    base ^>=4.21.0.0,
+    base >=4.21.0.0 && <4.22,
     binary,
     bytestring,
     containers,
@@ -131,7 +131,7 @@ test-suite mischief-test
   main-is: Main.hs
   -- Test dependencies.
   build-depends:
-    base ^>=4.21.0.0,
+    base >=4.21.0.0 && <4.22,
     containers,
     data-default,
     mischief-ecs,
