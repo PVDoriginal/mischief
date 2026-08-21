@@ -7,3 +7,5 @@ data WGPUDevice = WGPUDevice
 data WGPUSurfaceConfiguration = WGPUSurfaceConfiguration
 
 data WGPUInstance = WGPUInstance
+
+data WGPUQueue = WGPUQueue

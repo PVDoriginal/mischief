@@ -112,15 +112,15 @@ instance Storable WGPURequestAdapterOptions where
     #{poke WGPURequestAdapterOptions, compatibleSurface} ptr compatibleSurface
 
 
-data WGPURequestAdapterCallbackInfo = WGPURequestAdapterCallbackInfo {
+data WGPURequestCallbackInfo f = WGPURequestCallbackInfo {
   nextInChain :: Ptr WGPUChainedStruct, 
   mode :: WGPUCallbackMode, 
-  callback :: FunPtr WGPURequestAdapterCallback, 
+  callback :: FunPtr f, 
   userdata1 :: Ptr (), 
   userdata2 :: Ptr ()
 }
 
-instance Storable WGPURequestAdapterCallbackInfo where 
+instance Storable (WGPURequestCallbackInfo WGPURequestAdapterCallback) where 
   alignment _ = #{alignment WGPURequestAdapterCallbackInfo}
   sizeOf _ = #{size WGPURequestAdapterCallbackInfo}
   peek ptr = do 
@@ -129,10 +129,28 @@ instance Storable WGPURequestAdapterCallbackInfo where
     callback <- #{peek WGPURequestAdapterCallbackInfo, callback} ptr 
     userdata1 <- #{peek WGPURequestAdapterCallbackInfo, userdata1} ptr 
     userdata2 <- #{peek WGPURequestAdapterCallbackInfo, userdata2} ptr 
-    return WGPURequestAdapterCallbackInfo {nextInChain, mode, callback, userdata1, userdata2}
-  poke ptr WGPURequestAdapterCallbackInfo {nextInChain, mode, callback, userdata1, userdata2} = do 
+    return WGPURequestCallbackInfo {nextInChain, mode, callback, userdata1, userdata2}
+  poke ptr WGPURequestCallbackInfo {nextInChain, mode, callback, userdata1, userdata2} = do 
     #{poke WGPURequestAdapterCallbackInfo, nextInChain} ptr nextInChain
     #{poke WGPURequestAdapterCallbackInfo, mode} ptr mode  
     #{poke WGPURequestAdapterCallbackInfo, callback} ptr callback  
     #{poke WGPURequestAdapterCallbackInfo, userdata1} ptr userdata1  
     #{poke WGPURequestAdapterCallbackInfo, userdata2} ptr userdata2  
+
+
+instance Storable (WGPURequestCallbackInfo WGPURequestDeviceCallback) where 
+  alignment _ = #{alignment WGPURequestDeviceCallbackInfo}
+  sizeOf _ = #{size WGPURequestDeviceCallbackInfo}
+  peek ptr = do 
+    nextInChain <- #{peek WGPURequestDeviceCallbackInfo, nextInChain} ptr 
+    mode <- #{peek WGPURequestDeviceCallbackInfo, mode} ptr 
+    callback <- #{peek WGPURequestDeviceCallbackInfo, callback} ptr 
+    userdata1 <- #{peek WGPURequestDeviceCallbackInfo, userdata1} ptr 
+    userdata2 <- #{peek WGPURequestDeviceCallbackInfo, userdata2} ptr 
+    return WGPURequestCallbackInfo {nextInChain, mode, callback, userdata1, userdata2}
+  poke ptr WGPURequestCallbackInfo {nextInChain, mode, callback, userdata1, userdata2} = do 
+    #{poke WGPURequestDeviceCallbackInfo, nextInChain} ptr nextInChain
+    #{poke WGPURequestDeviceCallbackInfo, mode} ptr mode  
+    #{poke WGPURequestDeviceCallbackInfo, callback} ptr callback  
+    #{poke WGPURequestDeviceCallbackInfo, userdata1} ptr userdata1  
+    #{poke WGPURequestDeviceCallbackInfo, userdata2} ptr userdata2  

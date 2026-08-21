@@ -191,3 +191,31 @@ wGPUCallbackMode_AllowSpontaneous = WGPUCallbackMode #const WGPUCallbackMode_All
 
 wGPUCallbackMode_Force32 :: WGPUCallbackMode
 wGPUCallbackMode_Force32 = WGPUCallbackMode #const WGPUCallbackMode_Force32
+
+
+newtype WGPURequestDeviceStatus = WGPURequestDeviceStatus CUInt deriving (Eq, Ord, Show)
+
+
+instance Storable WGPURequestDeviceStatus where
+  alignment _ = alignment (undefined :: CUInt)
+  sizeOf _ = sizeOf (undefined :: CUInt)
+  peek ptr = do
+    x <- peek (castPtr ptr)
+    pure $ WGPURequestDeviceStatus x
+  poke ptr (WGPURequestDeviceStatus x) = do
+    let a :: Ptr CUInt = castPtr ptr
+    poke a x
+
+
+wGPURequestDeviceStatus_Success :: WGPURequestDeviceStatus
+wGPURequestDeviceStatus_Success = WGPURequestDeviceStatus #const WGPURequestDeviceStatus_Success
+
+wGPURequestDeviceStatus_CallbackCancelled :: WGPURequestDeviceStatus
+wGPURequestDeviceStatus_CallbackCancelled = WGPURequestDeviceStatus #const WGPURequestDeviceStatus_CallbackCancelled
+
+wGPURequestDeviceStatus_Error :: WGPURequestDeviceStatus
+wGPURequestDeviceStatus_Error = WGPURequestDeviceStatus #const WGPURequestDeviceStatus_Error
+
+wGPURequestDeviceStatus_Force32 :: WGPURequestDeviceStatus
+wGPURequestDeviceStatus_Force32 = WGPURequestDeviceStatus #const WGPURequestDeviceStatus_Force32
+

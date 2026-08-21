@@ -59,26 +59,66 @@ main = do
           pure wgpuSurface
     _ -> undefined
 
-  let test :: Int = 5
-  with test $ \test -> do
-    callback <- requestAdapterCallback requestDevice
-    let callbackInfo =
-          newWGPURequestAdapterCallbackInfo
-            { callback,
-              userdata1 = castPtr test
-            }
+  adapter <- alloca @(Ptr WGPUAdapter) $ \adapterBox -> do
+    with False $ \b -> do
+      callback <- requestAdapterCallback onAdapterRequestCall
+      let callbackInfo =
+            newWGPURequestCallbackInfo
+              { callback,
+                userdata1 = castPtr adapterBox,
+                userdata2 = castPtr b
+              }
 
-    let adapterOptions = newWGPURequestAdapterOptions {compatibleSurface = surface}
+      let adapterOptions = newWGPURequestAdapterOptions {compatibleSurface = surface}
 
-    with adapterOptions $ \adapterOptions -> do
+      with adapterOptions $ \adapterOptions -> do
+        with callbackInfo $ \callbackInfo -> do
+          wgpuInstanceRequestAdapter wgpuInstance adapterOptions callbackInfo
+          waitOnBool b
+
+          peek adapterBox
+
+  when (adapter == nullPtr) $ error "Couldn't obtain WGPU adapter."
+
+  device <- alloca @(Ptr WGPUDevice) $ \deviceBox -> do
+    with False $ \b -> do
+      callback <- requestDeviceCallback onDeviceRequestCall
+      let callbackInfo =
+            newWGPURequestCallbackInfo
+              { callback,
+                userdata1 = castPtr deviceBox,
+                userdata2 = castPtr b
+              }
+
       with callbackInfo $ \callbackInfo -> do
-        wgpuInstanceRequestAdapter wgpuInstance adapterOptions callbackInfo
+        wgpuAdapterRequestDevice adapter nullPtr callbackInfo
+        waitOnBool b
+
+        peek deviceBox
+
+  when (device == nullPtr) $ error "Couldn't obtain WGPU edvice."
+
+  queue <- wgpuDeviceGetQueue device
+
+  when (queue == nullPtr) $ error "Couldn't obtain WGPU queue."
 
   print driverName
 
-requestDevice :: WGPURequestAdapterCallback
-requestDevice status _ _ _ u1 _ = do
+waitOnBool :: Ptr Bool -> IO ()
+waitOnBool p = do
+  b <- peek p
+  if b then pure () else waitOnBool p
+
+onAdapterRequestCall :: WGPURequestAdapterCallback
+onAdapterRequestCall status adapter _ _ u1 u2 = do
   when (status == wGPURequestAdapterStatus_Success) $ do
     print "Adapter ready!"
-    test :: Int <- peek (castPtr u1)
-    print test
+    poke (castPtr u1) adapter
+    poke (castPtr u2) True
+
+onDeviceRequestCall :: WGPURequestDeviceCallback
+onDeviceRequestCall status device _ _ u1 u2 = do
+  when (status == wGPURequestDeviceStatus_Success) $ do
+    print "Device ready!"
+    poke (castPtr u1) device
+    poke (castPtr u2) True
