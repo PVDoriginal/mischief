@@ -1,10 +1,15 @@
-import Control.Monad (forever, when)
+import Control.Concurrent
+import Control.Monad (forever, unless, when)
 import Data.ByteString qualified as BS
-import Foreign (Ptr, Storable (peek), nullPtr)
+import Foreign (Ptr, Storable (peek, poke), alloca, castPtr, free, malloc, nullPtr, with)
 import Foreign.C
 import Foreign.C.ConstPtr
 import Mischief.ECS.Prelude
 import Mischief.WGPU
+import Mischief.WGPU.Callbacks
+import Mischief.WGPU.Enums
+import Mischief.WGPU.Opaque
+import Mischief.WGPU.Types
 import SDL3.Sys qualified as SDL3
 
 data Demo = Demo
@@ -21,7 +26,6 @@ newDemo = Demo nullPtr nullPtr nullPtr nullPtr nullPtr
 main :: IO ()
 main = do
   !wgpuInstance <- wgpuCreateInstance
-  let demo = newDemo {wgpuInstance}
 
   window <- withCString "sdl3-raw" $ \title -> SDL3.createWindow (ConstPtr title) 640 360 0
 
@@ -30,13 +34,51 @@ main = do
   x <- unConstPtr <$> SDL3.getCurrentVideoDriver
   driverName <- peekCString x
 
-  case driverName of
+  surface <- case driverName of
     "x11" -> do
       display <- BS.useAsCString SDL3.sDL_PROP_WINDOW_X11_DISPLAY_POINTER $ \b -> SDL3.getPointerProperty windowProps (ConstPtr b) nullPtr
+      window <- BS.useAsCString SDL3.sDL_PROP_WINDOW_X11_WINDOW_NUMBER $ \b -> SDL3.getNumberProperty windowProps (ConstPtr b) (-1)
 
-      when (display == nullPtr) $ error "Can't obtain window display"
+      when (display == nullPtr || window == -1) $ error "Can't obtain x11 window."
+
+      let chain = WGPUChainedStruct {next = nullPtr, sType = wGPUSType_SurfaceSourceXlibWindow}
+      let xlib = WGPUSurfaceSourceXlibWindow {chain, display, window}
+
+      with xlib $ \xlib -> do
+        let desc =
+              WGPUSurfaceDescriptor
+                { nextInChain = castPtr xlib,
+                  label = WGPUStringView {_data = ConstPtr nullPtr, length = 0}
+                }
+        with desc $ \desc -> do
+          wgpuSurface <-
+            wgpuInstanceCreateSurface wgpuInstance (ConstPtr desc)
+
+          when (wgpuSurface == nullPtr) $ error "Couldn't create WGPU surface."
+
+          pure wgpuSurface
     _ -> undefined
+
+  let test :: Int = 5
+  with test $ \test -> do
+    callback <- requestAdapterCallback requestDevice
+    let callbackInfo =
+          newWGPURequestAdapterCallbackInfo
+            { callback,
+              userdata1 = castPtr test
+            }
+
+    let adapterOptions = newWGPURequestAdapterOptions {compatibleSurface = surface}
+
+    with adapterOptions $ \adapterOptions -> do
+      with callbackInfo $ \callbackInfo -> do
+        wgpuInstanceRequestAdapter wgpuInstance adapterOptions callbackInfo
 
   print driverName
 
--- forever $ pure ()
+requestDevice :: WGPURequestAdapterCallback
+requestDevice status _ _ _ u1 _ = do
+  when (status == wGPURequestAdapterStatus_Success) $ do
+    print "Adapter ready!"
+    test :: Int <- peek (castPtr u1)
+    print test

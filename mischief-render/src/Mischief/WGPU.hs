@@ -1,20 +1,40 @@
+{-# OPTIONS_GHC -Wno-orphans #-}
+
 module Mischief.WGPU where
 
 import Foreign
+import Foreign.C.ConstPtr
 import Foreign.C.Types
-import Mischief.WGPU.Types (WGPUSType)
+import Mischief.WGPU.Enums
+import Mischief.WGPU.Opaque
+import Mischief.WGPU.Types
 
-data WGPUInstance = WGPUInstance
-
-foreign import ccall "webgpu.h wgpuCreateInstance" c_wgpuCreateInstance :: Ptr WGPUInstance -> IO (Ptr WGPUInstance)
+foreign import ccall "webgpu.h wgpuCreateInstance" c_wgpuCreateInstance :: Ptr () -> IO (Ptr WGPUInstance)
 
 wgpuCreateInstance :: IO (Ptr WGPUInstance)
 wgpuCreateInstance = c_wgpuCreateInstance nullPtr
 
-data WGPUSurface = WGPUSurface
+foreign import ccall "webgpu.h wgpuInstanceCreateSurface" wgpuInstanceCreateSurface :: Ptr WGPUInstance -> ConstPtr WGPUSurfaceDescriptor -> IO (Ptr WGPUSurface)
 
-data WGPUAdapter = WGPUAdapter
+newWGPURequestAdapterOptions :: WGPURequestAdapterOptions
+newWGPURequestAdapterOptions =
+  WGPURequestAdapterOptions
+    { nextInChain = nullPtr,
+      featureLevel = wGPUFeatureLevel_Core,
+      powerPreference = wGPUPowerPreference_Undefined,
+      forceFallbackAdapter = WGPUBool False,
+      backendType = wGPUBackendType_Undefined,
+      compatibleSurface = nullPtr
+    }
 
-data WGPUDevice = WGPUDevice
+newWGPURequestAdapterCallbackInfo :: WGPURequestAdapterCallbackInfo
+newWGPURequestAdapterCallbackInfo =
+  WGPURequestAdapterCallbackInfo
+    { nextInChain = nullPtr,
+      mode = wGPUCallbackMode_AllowSpontaneous,
+      callback = nullFunPtr,
+      userdata1 = nullPtr,
+      userdata2 = nullPtr
+    }
 
-data WGPUSurfaceConfiguration = WGPUSurfaceConfiguration
+foreign import ccall "wrapper.h hs_wgpuInstanceRequestAdapter" wgpuInstanceRequestAdapter :: Ptr WGPUInstance -> Ptr WGPURequestAdapterOptions -> Ptr WGPURequestAdapterCallbackInfo -> IO ()

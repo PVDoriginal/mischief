@@ -52,6 +52,9 @@ library
     Mischief.Render
     Mischief.Render.Shader
     Mischief.WGPU
+    Mischief.WGPU.Callbacks
+    Mischief.WGPU.Enums
+    Mischief.WGPU.Opaque
     Mischief.WGPU.Types
 
   -- Modules included in this library but not exported.
@@ -70,7 +73,10 @@ library
     RequiredTypeArguments
     TemplateHaskell
     TypeFamilyDependencies
+    UnboxedTuples
     UndecidableInstances
+    UnliftedFFITypes
+    UnliftedNewtypes
 
   -- other-extensions:
   -- Other library packages from which modules are imported.
@@ -96,7 +102,7 @@ library
     vector,
 
   build-tool-depends:
-    c2hs:c2hs
+    hsc2hs:hsc2hs
 
   pkgconfig-depends:
     wgpu-native
@@ -107,6 +113,9 @@ library
 
   include-dirs:
     cbits/
+
+  c-sources:
+    cbits/wrapper.c
 
   -- Base language which the package is written in.
   default-language:
