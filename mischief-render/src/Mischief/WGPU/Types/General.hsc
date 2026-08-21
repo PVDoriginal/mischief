@@ -219,3 +219,52 @@ instance Storable WGPUSurfaceCapabilities where
     #{poke WGPUSurfaceCapabilities, alphaModeCount} ptr alphaModeCount
     #{poke WGPUSurfaceCapabilities, alphaModes} ptr alphaModes
   
+data WGPUMultisampleState = WGPUMultisampleState {
+  nextInChain :: Ptr WGPUChainedStruct, 
+  count :: Word32, 
+  mask :: Word32, 
+  alphaToCoverageEnabled :: WGPUBool 
+}
+
+instance Storable WGPUMultisampleState where 
+  alignment _ = #{alignment WGPUMultisampleState}
+  sizeOf _ = #{size WGPUMultisampleState}
+  peek ptr = do 
+    nextInChain <- #{peek WGPUMultisampleState, nextInChain} ptr 
+    count <- #{peek WGPUMultisampleState, count} ptr 
+    mask <- #{peek WGPUMultisampleState, mask} ptr 
+    alphaToCoverageEnabled <- #{peek WGPUMultisampleState, alphaToCoverageEnabled} ptr 
+    return WGPUMultisampleState {nextInChain, count, mask, alphaToCoverageEnabled}
+  poke ptr WGPUMultisampleState {nextInChain, count, mask, alphaToCoverageEnabled} = do 
+    #{poke WGPUMultisampleState, nextInChain} ptr nextInChain
+    #{poke WGPUMultisampleState, count} ptr count
+    #{poke WGPUMultisampleState, mask} ptr mask
+    #{poke WGPUMultisampleState, alphaToCoverageEnabled} ptr alphaToCoverageEnabled
+    
+data WGPUPrimitiveState = WGPUPrimitiveState {
+  nextInChain :: Ptr WGPUChainedStruct, 
+  topology :: WGPUPrimitiveTopology, 
+  stripIndexFormat :: WGPUIndexFormat, 
+  frontFace :: WGPUFrontFace, 
+  cullMode :: WGPUCullMode, 
+  unclippedDepth :: WGPUBool 
+}
+
+instance Storable WGPUPrimitiveState where
+  alignment _ = #{alignment WGPUPrimitiveState}
+  sizeOf _ = #{size WGPUPrimitiveState}
+  peek ptr = do
+    nextInChain <- #{peek WGPUPrimitiveState, nextInChain} ptr
+    topology <- #{peek WGPUPrimitiveState, topology} ptr
+    stripIndexFormat <- #{peek WGPUPrimitiveState, stripIndexFormat} ptr
+    frontFace <- #{peek WGPUPrimitiveState, frontFace} ptr
+    cullMode <- #{peek WGPUPrimitiveState, cullMode} ptr
+    unclippedDepth <- #{peek WGPUPrimitiveState, unclippedDepth} ptr
+    return WGPUPrimitiveState{nextInChain, topology, stripIndexFormat, frontFace, cullMode, unclippedDepth}
+  poke ptr WGPUPrimitiveState{nextInChain, topology, stripIndexFormat, frontFace, cullMode, unclippedDepth} = do
+    #{poke WGPUPrimitiveState, nextInChain} ptr nextInChain
+    #{poke WGPUPrimitiveState, topology} ptr topology
+    #{poke WGPUPrimitiveState, stripIndexFormat} ptr stripIndexFormat
+    #{poke WGPUPrimitiveState, frontFace} ptr frontFace
+    #{poke WGPUPrimitiveState, cullMode} ptr cullMode
+    #{poke WGPUPrimitiveState, unclippedDepth} ptr unclippedDepth

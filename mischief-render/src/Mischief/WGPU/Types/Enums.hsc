@@ -1135,3 +1135,138 @@ wGPUCompositeAlphaMode_Inherit = WGPUCompositeAlphaMode #const WGPUCompositeAlph
 
 wGPUCompositeAlphaMode_Force32 :: WGPUCompositeAlphaMode
 wGPUCompositeAlphaMode_Force32 = WGPUCompositeAlphaMode #const WGPUCompositeAlphaMode_Force32
+
+newtype WGPUPrimitiveTopology = WGPUPrimitiveTopology CUInt deriving (Eq, Ord, Show)
+
+instance Storable WGPUPrimitiveTopology where
+  alignment _ = alignment (undefined :: CUInt)
+  sizeOf _ = sizeOf (undefined :: CUInt)
+  peek ptr = do
+    x <- peek (castPtr ptr)
+    pure $ WGPUPrimitiveTopology x
+  poke ptr (WGPUPrimitiveTopology x) = do
+    let a :: Ptr CUInt = castPtr ptr
+    poke a x
+
+wGPUPrimitiveTopology_Undefined :: WGPUPrimitiveTopology
+wGPUPrimitiveTopology_Undefined = WGPUPrimitiveTopology #const WGPUPrimitiveTopology_Undefined
+
+wGPUPrimitiveTopology_PointList :: WGPUPrimitiveTopology
+wGPUPrimitiveTopology_PointList = WGPUPrimitiveTopology #const WGPUPrimitiveTopology_PointList
+
+wGPUPrimitiveTopology_LineList :: WGPUPrimitiveTopology
+wGPUPrimitiveTopology_LineList = WGPUPrimitiveTopology #const WGPUPrimitiveTopology_LineList
+
+wGPUPrimitiveTopology_LineStrip :: WGPUPrimitiveTopology
+wGPUPrimitiveTopology_LineStrip = WGPUPrimitiveTopology #const WGPUPrimitiveTopology_LineStrip
+
+wGPUPrimitiveTopology_TriangleList :: WGPUPrimitiveTopology
+wGPUPrimitiveTopology_TriangleList = WGPUPrimitiveTopology #const WGPUPrimitiveTopology_TriangleList
+
+wGPUPrimitiveTopology_TriangleStrip :: WGPUPrimitiveTopology
+wGPUPrimitiveTopology_TriangleStrip = WGPUPrimitiveTopology #const WGPUPrimitiveTopology_TriangleStrip
+
+wGPUPrimitiveTopology_Force32 :: WGPUPrimitiveTopology
+wGPUPrimitiveTopology_Force32 = WGPUPrimitiveTopology #const WGPUPrimitiveTopology_Force32
+
+newtype WGPUIndexFormat = WGPUIndexFormat CUInt deriving (Eq, Ord, Show)
+
+instance Storable WGPUIndexFormat where
+  alignment _ = alignment (undefined :: CUInt)
+  sizeOf _ = sizeOf (undefined :: CUInt)
+  peek ptr = do
+    x <- peek (castPtr ptr)
+    pure $ WGPUIndexFormat x
+  poke ptr (WGPUIndexFormat x) = do
+    let a :: Ptr CUInt = castPtr ptr
+    poke a x
+
+wGPUIndexFormat_Undefined :: WGPUIndexFormat
+wGPUIndexFormat_Undefined = WGPUIndexFormat #const WGPUIndexFormat_Undefined
+
+wGPUIndexFormat_Uint16 :: WGPUIndexFormat
+wGPUIndexFormat_Uint16 = WGPUIndexFormat #const WGPUIndexFormat_Uint16
+
+wGPUIndexFormat_Uint32 :: WGPUIndexFormat
+wGPUIndexFormat_Uint32 = WGPUIndexFormat #const WGPUIndexFormat_Uint32
+
+wGPUIndexFormat_Force32 :: WGPUIndexFormat
+wGPUIndexFormat_Force32 = WGPUIndexFormat #const WGPUIndexFormat_Force32
+
+
+newtype WGPUFilterMode = WGPUFilterMode CUInt deriving (Eq, Ord, Show)
+
+instance Storable WGPUFilterMode where
+  alignment _ = alignment (undefined :: CUInt)
+  sizeOf _ = sizeOf (undefined :: CUInt)
+  peek ptr = do
+    x <- peek (castPtr ptr)
+    pure $ WGPUFilterMode x
+  poke ptr (WGPUFilterMode x) = do
+    let a :: Ptr CUInt = castPtr ptr
+    poke a x
+
+wGPUFilterMode_Undefined :: WGPUFilterMode
+wGPUFilterMode_Undefined = WGPUFilterMode #const WGPUFilterMode_Undefined
+
+wGPUFilterMode_Nearest :: WGPUFilterMode
+wGPUFilterMode_Nearest = WGPUFilterMode #const WGPUFilterMode_Nearest
+
+wGPUFilterMode_Linear :: WGPUFilterMode
+wGPUFilterMode_Linear = WGPUFilterMode #const WGPUFilterMode_Linear
+
+wGPUFilterMode_Force32 :: WGPUFilterMode
+wGPUFilterMode_Force32 = WGPUFilterMode #const WGPUFilterMode_Force32
+
+
+newtype WGPUFrontFace = WGPUFrontFace CUInt deriving (Eq, Ord, Show)
+
+instance Storable WGPUFrontFace where
+  alignment _ = alignment (undefined :: CUInt)
+  sizeOf _ = sizeOf (undefined :: CUInt)
+  peek ptr = do
+    x <- peek (castPtr ptr)
+    pure $ WGPUFrontFace x
+  poke ptr (WGPUFrontFace x) = do
+    let a :: Ptr CUInt = castPtr ptr
+    poke a x
+
+wGPUFrontFace_Undefined :: WGPUFrontFace
+wGPUFrontFace_Undefined = WGPUFrontFace #const WGPUFrontFace_Undefined
+
+wGPUFrontFace_CCW :: WGPUFrontFace
+wGPUFrontFace_CCW = WGPUFrontFace #const WGPUFrontFace_CCW
+
+wGPUFrontFace_CW :: WGPUFrontFace
+wGPUFrontFace_CW = WGPUFrontFace #const WGPUFrontFace_CW
+
+wGPUFrontFace_Force32 :: WGPUFrontFace
+wGPUFrontFace_Force32 = WGPUFrontFace #const WGPUFrontFace_Force32
+
+
+newtype WGPUCullMode = WGPUCullMode CUInt deriving (Eq, Ord, Show)
+
+instance Storable WGPUCullMode where
+  alignment _ = alignment (undefined :: CUInt)
+  sizeOf _ = sizeOf (undefined :: CUInt)
+  peek ptr = do
+    x <- peek (castPtr ptr)
+    pure $ WGPUCullMode x
+  poke ptr (WGPUCullMode x) = do
+    let a :: Ptr CUInt = castPtr ptr
+    poke a x
+
+wGPUCullMode_Undefined :: WGPUCullMode
+wGPUCullMode_Undefined = WGPUCullMode #const WGPUCullMode_Undefined
+
+wGPUCullMode_None :: WGPUCullMode
+wGPUCullMode_None = WGPUCullMode #const WGPUCullMode_None
+
+wGPUCullMode_Front :: WGPUCullMode
+wGPUCullMode_Front = WGPUCullMode #const WGPUCullMode_Front
+
+wGPUCullMode_Back :: WGPUCullMode
+wGPUCullMode_Back = WGPUCullMode #const WGPUCullMode_Back
+
+wGPUCullMode_Force32 :: WGPUCullMode
+wGPUCullMode_Force32 = WGPUCullMode #const WGPUCullMode_Force32
