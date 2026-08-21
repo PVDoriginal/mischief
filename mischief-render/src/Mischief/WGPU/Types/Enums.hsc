@@ -674,7 +674,6 @@ wGPUVertexFormat_Unorm8x4BGRA = WGPUVertexFormat #const WGPUVertexFormat_Unorm8x
 wGPUVertexFormat_Force32 :: WGPUVertexFormat
 wGPUVertexFormat_Force32 = WGPUVertexFormat #const WGPUVertexFormat_Force32
 
-
 newtype WGPUVertexStepMode = WGPUVertexStepMode CUInt deriving (Eq, Ord, Show)
 
 instance Storable WGPUVertexStepMode where
@@ -1270,3 +1269,20 @@ wGPUCullMode_Back = WGPUCullMode #const WGPUCullMode_Back
 
 wGPUCullMode_Force32 :: WGPUCullMode
 wGPUCullMode_Force32 = WGPUCullMode #const WGPUCullMode_Force32
+
+newtype WGPUColorWriteMask = WGPUColorWriteMask WGPUFlags deriving newtype (Show, Eq, Storable, Num)
+
+wGPUColorWriteMask_None :: WGPUColorWriteMask
+wGPUColorWriteMask_None = WGPUColorWriteMask $ WGPUFlags #const WGPUColorWriteMask_None
+
+wGPUColorWriteMask_Red :: WGPUColorWriteMask
+wGPUColorWriteMask_Red = WGPUColorWriteMask $ WGPUFlags #const WGPUColorWriteMask_Red
+
+wGPUColorWriteMask_Green :: WGPUColorWriteMask
+wGPUColorWriteMask_Green = WGPUColorWriteMask $ WGPUFlags #const WGPUColorWriteMask_Green
+
+wGPUColorWriteMask_Blue :: WGPUColorWriteMask
+wGPUColorWriteMask_Blue = WGPUColorWriteMask $ WGPUFlags #const WGPUColorWriteMask_Blue
+
+wGPUColorWriteMask_Alpha :: WGPUColorWriteMask
+wGPUColorWriteMask_Alpha = WGPUColorWriteMask $ WGPUFlags #const WGPUColorWriteMask_Alpha

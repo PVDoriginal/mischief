@@ -55,7 +55,6 @@ library
     Mischief.WGPU.Callbacks
     Mischief.WGPU.Framework
     Mischief.WGPU.Opaque
-    Mischief.WGPU.Types.BindGroups
     Mischief.WGPU.Types.Enums
     Mischief.WGPU.Types.General
 

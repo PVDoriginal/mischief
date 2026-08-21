@@ -9,7 +9,6 @@ import Mischief.WGPU
 import Mischief.WGPU.Callbacks
 import Mischief.WGPU.Framework
 import Mischief.WGPU.Opaque
-import Mischief.WGPU.Types.BindGroups (WGPUPipelineLayoutDescriptor (WGPUPipelineLayoutDescriptor))
 import Mischief.WGPU.Types.Enums
 import Mischief.WGPU.Types.General
 import SDL3.Sys qualified as SDL3

@@ -9,7 +9,6 @@ import Foreign.C.ConstPtr
 import Foreign.C.Types
 import Mischief.WGPU.Callbacks
 import Mischief.WGPU.Opaque
-import Mischief.WGPU.Types.BindGroups
 import Mischief.WGPU.Types.Enums
 import Mischief.WGPU.Types.General
 

@@ -10,6 +10,8 @@ import Data.Void
 import Mischief.WGPU.Callbacks
 import Mischief.WGPU.Types.Enums
 
+import Mischief.WGPU.Opaque
+
 
 data WGPUSurface = WGPUSurface
 
@@ -268,3 +270,332 @@ instance Storable WGPUPrimitiveState where
     #{poke WGPUPrimitiveState, frontFace} ptr frontFace
     #{poke WGPUPrimitiveState, cullMode} ptr cullMode
     #{poke WGPUPrimitiveState, unclippedDepth} ptr unclippedDepth
+
+data WGPUConstantEntry = WGPUConstantEntry {
+  nextInChain :: Ptr WGPUChainedStruct, 
+  key :: WGPUStringView, 
+  value :: CDouble
+}
+
+instance Storable WGPUConstantEntry where 
+  alignment _ = #{alignment WGPUConstantEntry}
+  sizeOf _ = #{size WGPUConstantEntry}
+  peek ptr = do 
+    nextInChain <- #{peek WGPUConstantEntry, nextInChain} ptr 
+    key <- #{peek WGPUConstantEntry, key} ptr 
+    value <- #{peek WGPUConstantEntry, value} ptr 
+    return WGPUConstantEntry {nextInChain, key, value}
+  poke ptr WGPUConstantEntry {nextInChain, key, value} = do 
+    #{poke WGPUConstantEntry, nextInChain} ptr nextInChain 
+    #{poke WGPUConstantEntry, key} ptr key 
+    #{poke WGPUConstantEntry, value} ptr value
+
+data WGPUVertexAttribute = WGPUVertexAttribute {
+  nextInChain :: Ptr WGPUChainedStruct,
+  format :: WGPUVertexFormat, 
+  offset :: Word64, 
+  shaderLocation :: Word32
+}
+
+instance Storable WGPUVertexAttribute where
+  alignment _ = #{alignment WGPUVertexAttribute}
+  sizeOf _ = #{size WGPUVertexAttribute}
+  peek ptr = do
+    nextInChain <- #{peek WGPUVertexAttribute, nextInChain} ptr
+    format <- #{peek WGPUVertexAttribute, format} ptr
+    offset <- #{peek WGPUVertexAttribute, offset} ptr
+    shaderLocation <- #{peek WGPUVertexAttribute, shaderLocation} ptr
+    return WGPUVertexAttribute{nextInChain, format, offset, shaderLocation}
+  poke ptr WGPUVertexAttribute{nextInChain, format, offset, shaderLocation} = do
+    #{poke WGPUVertexAttribute, nextInChain} ptr nextInChain
+    #{poke WGPUVertexAttribute, format} ptr format
+    #{poke WGPUVertexAttribute, offset} ptr offset
+    #{poke WGPUVertexAttribute, shaderLocation} ptr shaderLocation
+
+
+data WGPUVertexBufferLayout = WGPUVertexBufferLayout {
+  nextInChain :: Ptr WGPUChainedStruct, 
+  stepMode :: WGPUVertexStepMode, 
+  arrayStride :: Word64, 
+  attributeCount :: Int,
+  attributes :: ConstPtr WGPUVertexAttribute
+}
+
+instance Storable WGPUVertexBufferLayout where
+  alignment _ = #{alignment WGPUVertexBufferLayout}
+  sizeOf _ = #{size WGPUVertexBufferLayout}
+  peek ptr = do
+    nextInChain <- #{peek WGPUVertexBufferLayout, nextInChain} ptr
+    stepMode <- #{peek WGPUVertexBufferLayout, stepMode} ptr
+    arrayStride <- #{peek WGPUVertexBufferLayout, arrayStride} ptr
+    attributeCount <- #{peek WGPUVertexBufferLayout, attributeCount} ptr
+    attributes <- #{peek WGPUVertexBufferLayout, attributes} ptr
+    return WGPUVertexBufferLayout{nextInChain, stepMode, arrayStride, attributeCount, attributes}
+  poke ptr WGPUVertexBufferLayout{nextInChain, stepMode, arrayStride, attributeCount, attributes} = do
+    #{poke WGPUVertexBufferLayout, nextInChain} ptr nextInChain
+    #{poke WGPUVertexBufferLayout, stepMode} ptr stepMode
+    #{poke WGPUVertexBufferLayout, arrayStride} ptr arrayStride
+    #{poke WGPUVertexBufferLayout, attributeCount} ptr attributeCount
+    #{poke WGPUVertexBufferLayout, attributes} ptr attributes
+
+data WGPUVertexState = WGPUVertexState {
+  nextInChain :: Ptr WGPUChainedStruct, 
+  _module :: Ptr WGPUShaderModule, 
+  entryPoint :: WGPUStringView, 
+  constantCount :: Int, 
+  constants :: ConstPtr WGPUConstantEntry, 
+  bufferCount :: Int, 
+  buffers :: ConstPtr WGPUVertexBufferLayout
+}
+
+instance Storable WGPUVertexState where
+  alignment _ = #{alignment WGPUVertexState}
+  sizeOf _ = #{size WGPUVertexState}
+  peek ptr = do
+    nextInChain <- #{peek WGPUVertexState, nextInChain} ptr
+    _module <- #{peek WGPUVertexState, module} ptr
+    entryPoint <- #{peek WGPUVertexState, entryPoint} ptr
+    constantCount <- #{peek WGPUVertexState, constantCount} ptr
+    constants <- #{peek WGPUVertexState, constants} ptr
+    bufferCount <- #{peek WGPUVertexState, bufferCount} ptr
+    buffers <- #{peek WGPUVertexState, buffers} ptr
+    return WGPUVertexState{nextInChain, _module, entryPoint, constantCount, constants, bufferCount, buffers}
+  poke ptr WGPUVertexState{nextInChain, _module, entryPoint, constantCount, constants, bufferCount, buffers} = do
+    #{poke WGPUVertexState, nextInChain} ptr nextInChain
+    #{poke WGPUVertexState, module} ptr _module
+    #{poke WGPUVertexState, entryPoint} ptr entryPoint
+    #{poke WGPUVertexState, constantCount} ptr constantCount
+    #{poke WGPUVertexState, constants} ptr constants
+    #{poke WGPUVertexState, bufferCount} ptr bufferCount
+    #{poke WGPUVertexState, buffers} ptr buffers
+
+
+data WGPUBufferBindingLayout = WGPUBufferBindingLayout {
+  nextInChain :: Ptr WGPUChainedStruct, 
+  _type :: WGPUBufferBindingType, 
+  hasDynamicOffset :: WGPUBool, 
+  minBindingSize :: Word64
+}
+
+instance Storable WGPUBufferBindingLayout where 
+  alignment _ = #{alignment WGPUBufferBindingLayout}
+  sizeOf _ = #{size WGPUBufferBindingLayout}
+  peek ptr = do 
+    nextInChain <- #{peek WGPUBufferBindingLayout, nextInChain} ptr 
+    _type <- #{peek WGPUBufferBindingLayout, type} ptr
+    hasDynamicOffset <- #{peek WGPUBufferBindingLayout, hasDynamicOffset} ptr 
+    minBindingSize <- #{peek WGPUBufferBindingLayout, minBindingSize} ptr 
+    return WGPUBufferBindingLayout {nextInChain, _type, hasDynamicOffset, minBindingSize} 
+  poke ptr WGPUBufferBindingLayout {nextInChain, _type, hasDynamicOffset, minBindingSize} = do 
+    #{poke WGPUBufferBindingLayout, nextInChain} ptr nextInChain 
+    #{poke WGPUBufferBindingLayout, type} ptr _type
+    #{poke WGPUBufferBindingLayout, hasDynamicOffset} ptr hasDynamicOffset
+    #{poke WGPUBufferBindingLayout, minBindingSize} ptr minBindingSize
+
+data WGPUSamplerBindingLayout = WGPUSamplerBindingLayout {
+  nextInChain :: Ptr WGPUChainedStruct,
+  _type :: WGPUBufferBindingType
+}
+
+instance Storable WGPUSamplerBindingLayout where 
+  alignment _ = #{alignment WGPUSamplerBindingLayout}
+  sizeOf _ = #{size WGPUSamplerBindingLayout}
+  peek ptr = do 
+    nextInChain <- #{peek WGPUSamplerBindingLayout, nextInChain} ptr 
+    _type <- #{peek WGPUSamplerBindingLayout, type} ptr 
+    return WGPUSamplerBindingLayout {nextInChain, _type}
+  poke ptr WGPUSamplerBindingLayout {nextInChain, _type} = do 
+    #{poke WGPUSamplerBindingLayout, nextInChain} ptr nextInChain
+    #{poke WGPUSamplerBindingLayout, type} ptr _type
+  
+data WGPUTextureBindingLayout = WGPUTextureBindingLayout {
+  nextInChain :: Ptr WGPUChainedStruct, 
+  sampleType :: WGPUTextureSampleType, 
+  viewDimension :: WGPUTextureViewDimension, 
+  multisampled :: WGPUBool
+} 
+
+instance Storable WGPUTextureBindingLayout where 
+  alignment _ = #{alignment WGPUTextureBindingLayout}
+  sizeOf _ = #{size WGPUTextureBindingLayout}
+  peek ptr = do 
+    nextInChain <- #{peek WGPUTextureBindingLayout, nextInChain} ptr 
+    sampleType <- #{peek WGPUTextureBindingLayout, sampleType} ptr
+    viewDimension <- #{peek WGPUTextureBindingLayout, viewDimension} ptr
+    multisampled <- #{peek WGPUTextureBindingLayout, multisampled} ptr
+    return WGPUTextureBindingLayout {nextInChain, sampleType, viewDimension, multisampled}
+  poke ptr WGPUTextureBindingLayout {nextInChain, sampleType, viewDimension, multisampled} = do 
+    #{poke WGPUTextureBindingLayout, nextInChain} ptr nextInChain
+    #{poke WGPUTextureBindingLayout, sampleType} ptr sampleType 
+    #{poke WGPUTextureBindingLayout, viewDimension} ptr viewDimension
+    #{poke WGPUTextureBindingLayout, multisampled} ptr multisampled
+
+data WGPUStorageTextureBindingLayout = WGPUStorageTextureBindingLayout {
+  nextInChain :: Ptr WGPUChainedStruct, 
+  access :: WGPUStorageTextureAccess, 
+  format :: WGPUTextureFormat, 
+  viewDimension :: WGPUTextureViewDimension
+}
+
+instance Storable WGPUStorageTextureBindingLayout where 
+  alignment _ = #{alignment WGPUStorageTextureBindingLayout}
+  sizeOf _ = #{size WGPUStorageTextureBindingLayout}
+  peek ptr = do 
+    nextInChain <- #{peek WGPUStorageTextureBindingLayout, nextInChain} ptr 
+    access <- #{peek WGPUStorageTextureBindingLayout, access} ptr
+    format <- #{peek WGPUStorageTextureBindingLayout, format} ptr
+    viewDimension <- #{peek WGPUStorageTextureBindingLayout, viewDimension} ptr
+    return WGPUStorageTextureBindingLayout {nextInChain, access, format, viewDimension}
+  poke ptr WGPUStorageTextureBindingLayout {nextInChain, access, format, viewDimension} = do 
+    #{poke WGPUStorageTextureBindingLayout, nextInChain} ptr nextInChain
+    #{poke WGPUStorageTextureBindingLayout, access} ptr access 
+    #{poke WGPUStorageTextureBindingLayout, format} ptr format
+    #{poke WGPUStorageTextureBindingLayout, viewDimension} ptr viewDimension
+
+data WGPUBindGroupLayoutEntry = WGPUBindGroupLayoutEntry {
+  nextInChain :: Ptr WGPUChainedStruct, 
+  binding :: Word32, 
+  visibility :: WGPUShaderStage, 
+  bindingArraySize :: Word32, 
+  buffer :: WGPUBufferBindingLayout, 
+  sampler :: WGPUSamplerBindingLayout, 
+  texture :: WGPUTextureBindingLayout, 
+  storageTexture :: WGPUStorageTextureBindingLayout
+}
+
+instance Storable WGPUBindGroupLayoutEntry where 
+  alignment _ = #{alignment WGPUStorageTextureBindingLayout}
+  sizeOf _ = #{size WGPUStorageTextureBindingLayout}
+  peek ptr = do 
+    nextInChain <- #{peek WGPUBindGroupLayoutEntry, nextInChain} ptr 
+    binding <- #{peek WGPUBindGroupLayoutEntry, binding} ptr
+    visibility <- #{peek WGPUBindGroupLayoutEntry, visibility} ptr 
+    bindingArraySize <- #{peek WGPUBindGroupLayoutEntry, bindingArraySize} ptr
+    buffer <- #{peek WGPUBindGroupLayoutEntry, buffer} ptr
+    sampler <- #{peek WGPUBindGroupLayoutEntry, sampler} ptr 
+    texture <- #{peek WGPUBindGroupLayoutEntry, texture} ptr 
+    storageTexture <- #{peek WGPUBindGroupLayoutEntry, storageTexture} ptr 
+    return WGPUBindGroupLayoutEntry {nextInChain, binding, visibility, bindingArraySize, buffer, sampler, texture, storageTexture}
+  poke ptr WGPUBindGroupLayoutEntry {nextInChain, binding, visibility, bindingArraySize, buffer, sampler, texture, storageTexture} = do
+    #{poke WGPUBindGroupLayoutEntry, nextInChain} ptr nextInChain
+    #{poke WGPUBindGroupLayoutEntry, binding} ptr binding
+    #{poke WGPUBindGroupLayoutEntry, visibility} ptr visibility
+    #{poke WGPUBindGroupLayoutEntry, bindingArraySize} ptr bindingArraySize
+    #{poke WGPUBindGroupLayoutEntry, buffer} ptr buffer
+    #{poke WGPUBindGroupLayoutEntry, sampler} ptr sampler
+    #{poke WGPUBindGroupLayoutEntry, texture} ptr texture
+    #{poke WGPUBindGroupLayoutEntry, storageTexture} ptr storageTexture
+    
+data WGPUPipelineLayoutDescriptor = WGPUPipelineLayoutDescriptor {
+  nextInChain :: Ptr WGPUChainedStruct, 
+  label :: WGPUStringView, 
+  bindGroupLayoutCount :: Word32, 
+  bindGroupLayouts :: ConstPtr WGPUBindGroupLayout,
+  immediateSize :: CUInt
+}
+
+instance Storable WGPUPipelineLayoutDescriptor where 
+  alignment _ = #{alignment WGPUStorageTextureBindingLayout}
+  sizeOf _ = #{size WGPUStorageTextureBindingLayout}
+  peek ptr = do 
+    nextInChain <- #{peek WGPUPipelineLayoutDescriptor, nextInChain} ptr
+    label <- #{peek WGPUPipelineLayoutDescriptor, label} ptr
+    bindGroupLayoutCount <- #{peek WGPUPipelineLayoutDescriptor, bindGroupLayoutCount} ptr
+    bindGroupLayouts <- #{peek WGPUPipelineLayoutDescriptor, bindGroupLayouts} ptr
+    immediateSize <- #{peek WGPUPipelineLayoutDescriptor, immediateSize} ptr
+    return WGPUPipelineLayoutDescriptor {nextInChain, label, bindGroupLayoutCount, bindGroupLayouts, immediateSize}
+  poke ptr WGPUPipelineLayoutDescriptor {nextInChain, label, bindGroupLayoutCount, bindGroupLayouts, immediateSize} = do 
+    #{poke WGPUPipelineLayoutDescriptor, nextInChain} ptr nextInChain 
+    #{poke WGPUPipelineLayoutDescriptor, label} ptr label 
+    #{poke WGPUPipelineLayoutDescriptor, bindGroupLayoutCount} ptr bindGroupLayoutCount 
+    #{poke WGPUPipelineLayoutDescriptor, bindGroupLayouts} ptr bindGroupLayouts 
+    #{poke WGPUPipelineLayoutDescriptor, immediateSize} ptr immediateSize 
+
+data WGPUBlendComponent = WGPUBlendComponent {
+  operation :: WGPUBlendOperation, 
+  srcFactor :: WGPUBlendFactor, 
+  dstFactor :: WGPUBlendFactor
+}
+
+instance Storable WGPUBlendComponent where
+  alignment _ = #{alignment WGPUBlendComponent}
+  sizeOf _ = #{size WGPUBlendComponent}
+  peek ptr = do
+    operation <- #{peek WGPUBlendComponent, operation} ptr
+    srcFactor <- #{peek WGPUBlendComponent, srcFactor} ptr
+    dstFactor <- #{peek WGPUBlendComponent, dstFactor} ptr
+    return WGPUBlendComponent{operation, srcFactor, dstFactor}
+  poke ptr WGPUBlendComponent{operation, srcFactor, dstFactor} = do
+    #{poke WGPUBlendComponent, operation} ptr operation
+    #{poke WGPUBlendComponent, srcFactor} ptr srcFactor
+    #{poke WGPUBlendComponent, dstFactor} ptr dstFactor
+
+data WGPUBlendState = WGPUBlendState {
+  color :: WGPUBlendComponent, 
+  alpha :: WGPUBlendComponent
+}
+
+instance Storable WGPUBlendState where
+  alignment _ = #{alignment WGPUBlendState}
+  sizeOf _ = #{size WGPUBlendState}
+  peek ptr = do
+    color <- #{peek WGPUBlendState, color} ptr
+    alpha <- #{peek WGPUBlendState, alpha} ptr
+    return WGPUBlendState{color, alpha}
+  poke ptr WGPUBlendState{color, alpha} = do
+    #{poke WGPUBlendState, color} ptr color
+    #{poke WGPUBlendState, alpha} ptr alpha
+
+data WGPUColorTargetState = WGPUColorTargetState {
+  nextInChain :: Ptr WGPUChainedStruct, 
+  format :: WGPUTextureFormat, 
+  blend :: ConstPtr WGPUBlendState, 
+  writeMask :: WGPUColorWriteMask
+}
+
+instance Storable WGPUColorTargetState where
+  alignment _ = #{alignment WGPUColorTargetState}
+  sizeOf _ = #{size WGPUColorTargetState}
+  peek ptr = do
+    nextInChain <- #{peek WGPUColorTargetState, nextInChain} ptr
+    format <- #{peek WGPUColorTargetState, format} ptr
+    blend <- #{peek WGPUColorTargetState, blend} ptr
+    writeMask <- #{peek WGPUColorTargetState, writeMask} ptr
+    return WGPUColorTargetState{nextInChain, format, blend, writeMask}
+  poke ptr WGPUColorTargetState{nextInChain, format, blend, writeMask} = do
+    #{poke WGPUColorTargetState, nextInChain} ptr nextInChain
+    #{poke WGPUColorTargetState, format} ptr format
+    #{poke WGPUColorTargetState, blend} ptr blend
+    #{poke WGPUColorTargetState, writeMask} ptr writeMask
+
+
+data WGPUFragmentState = WGPUFragmentState {
+  nextInChain :: Ptr WGPUChainedStruct, 
+  _module :: Ptr WGPUShaderModule, 
+  entryPoint :: WGPUStringView, 
+  constantCount :: Int, 
+  constants :: ConstPtr WGPUConstantEntry, 
+  targetCount :: Int, 
+  targets :: ConstPtr WGPUColorTargetState
+}
+
+instance Storable WGPUFragmentState where
+  alignment _ = #{alignment WGPUFragmentState}
+  sizeOf _ = #{size WGPUFragmentState}
+  peek ptr = do
+    nextInChain <- #{peek WGPUFragmentState, nextInChain} ptr
+    _module <- #{peek WGPUFragmentState, module} ptr
+    entryPoint <- #{peek WGPUFragmentState, entryPoint} ptr
+    constantCount <- #{peek WGPUFragmentState, constantCount} ptr
+    constants <- #{peek WGPUFragmentState, constants} ptr
+    targetCount <- #{peek WGPUFragmentState, targetCount} ptr
+    targets <- #{peek WGPUFragmentState, targets} ptr
+    return WGPUFragmentState{nextInChain, _module, entryPoint, constantCount, constants, targetCount, targets}
+  poke ptr WGPUFragmentState{nextInChain, _module, entryPoint, constantCount, constants, targetCount, targets} = do
+    #{poke WGPUFragmentState, nextInChain} ptr nextInChain
+    #{poke WGPUFragmentState, module} ptr _module
+    #{poke WGPUFragmentState, entryPoint} ptr entryPoint
+    #{poke WGPUFragmentState, constantCount} ptr constantCount
+    #{poke WGPUFragmentState, constants} ptr constants
+    #{poke WGPUFragmentState, targetCount} ptr targetCount
+    #{poke WGPUFragmentState, targets} ptr targets
