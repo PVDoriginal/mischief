@@ -186,3 +186,36 @@ instance Storable WGPUShaderModuleDescriptor where
   poke ptr WGPUShaderModuleDescriptor {nextInChain, label} = do 
     #{poke WGPUShaderModuleDescriptor, nextInChain} ptr nextInChain 
     #{poke WGPUShaderModuleDescriptor, label} ptr label 
+
+data WGPUSurfaceCapabilities = WGPUSurfaceCapabilities {
+  nextInChain :: Ptr WGPUChainedStruct, 
+  usages :: WGPUTextureUsage, 
+  formatCount :: Int,
+  formats :: ConstPtr WGPUTextureFormat, 
+  presentModeCount :: Int, 
+  presentModes :: ConstPtr WGPUPresentMode, 
+  alphaModeCount :: Int, 
+  alphaModes :: ConstPtr WGPUCompositeAlphaMode
+}
+
+instance Storable WGPUSurfaceCapabilities where 
+  alignment _ = #{alignment WGPUSurfaceCapabilities}
+  sizeOf _ = #{size WGPUSurfaceCapabilities}
+  peek ptr = do 
+    nextInChain <- #{peek WGPUSurfaceCapabilities, nextInChain} ptr
+    usages <- #{peek WGPUSurfaceCapabilities, usages} ptr 
+    formatCount <- #{peek WGPUSurfaceCapabilities, formatCount} ptr
+    formats <- #{peek WGPUSurfaceCapabilities, formats} ptr 
+    presentModeCount <- #{peek WGPUSurfaceCapabilities, presentModeCount} ptr 
+    alphaModeCount <- #{peek WGPUSurfaceCapabilities, alphaModeCount} ptr 
+    alphaModes <- #{peek WGPUSurfaceCapabilities, alphaModes} ptr 
+    return WGPUSurfaceCapabilities {nextInChain, usages, formatCount, formats, presentModeCount, alphaModeCount, alphaModes}
+  poke ptr WGPUSurfaceCapabilities {nextInChain, usages, formatCount, formats, presentModeCount, alphaModeCount, alphaModes} = do 
+    #{poke WGPUSurfaceCapabilities, nextInChain} ptr nextInChain 
+    #{poke WGPUSurfaceCapabilities, usages} ptr usages 
+    #{poke WGPUSurfaceCapabilities, formatCount} ptr formatCount 
+    #{poke WGPUSurfaceCapabilities, formats} ptr formats 
+    #{poke WGPUSurfaceCapabilities, presentModeCount} ptr presentModeCount
+    #{poke WGPUSurfaceCapabilities, alphaModeCount} ptr alphaModeCount
+    #{poke WGPUSurfaceCapabilities, alphaModes} ptr alphaModes
+  

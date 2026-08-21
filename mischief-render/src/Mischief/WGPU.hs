@@ -2,11 +2,14 @@
 
 module Mischief.WGPU where
 
+import Data.ByteString
+import Data.ByteString qualified as BS
 import Foreign
 import Foreign.C.ConstPtr
 import Foreign.C.Types
 import Mischief.WGPU.Callbacks
 import Mischief.WGPU.Opaque
+import Mischief.WGPU.Types.BindGroups
 import Mischief.WGPU.Types.Enums
 import Mischief.WGPU.Types.General
 
@@ -45,3 +48,20 @@ foreign import ccall "wrapper.h hs_wgpuAdapterRequestDevice" wgpuAdapterRequestD
 foreign import ccall "webgpu.h wgpuDeviceGetQueue" wgpuDeviceGetQueue :: Ptr WGPUDevice -> IO (Ptr WGPUQueue)
 
 foreign import ccall "webgpu.h wgpuDeviceCreateShaderModule" wgpuDeviceCreateShaderModule :: Ptr WGPUDevice -> Ptr WGPUShaderModuleDescriptor -> IO (Ptr WGPUShaderModule)
+
+newWGPUPipelineLayoutDescriptor :: WGPUPipelineLayoutDescriptor
+newWGPUPipelineLayoutDescriptor =
+  WGPUPipelineLayoutDescriptor
+    { nextInChain = nullPtr,
+      label = WGPUStringView {_data = ConstPtr nullPtr, length = 0},
+      bindGroupLayoutCount = 0,
+      bindGroupLayouts = ConstPtr nullPtr,
+      immediateSize = 0
+    }
+
+bsAsWGPUString :: ByteString -> (WGPUStringView -> IO a) -> IO a
+bsAsWGPUString bs f = BS.useAsCStringLen bs $ \(ptr, length) -> f WGPUStringView {_data = ConstPtr ptr, length}
+
+foreign import ccall "webgpu.h wgpuDeviceCreatePipelineLayout" wgpuDeviceCreatePipelineLayout :: Ptr WGPUDevice -> Ptr WGPUPipelineLayoutDescriptor -> IO (Ptr WGPUPipelineLayout)
+
+foreign import ccall "webgpu.h wgpuSurfaceGetCapabilities" wgpuSurfaceGetCapabilities :: Ptr WGPUSurface -> Ptr WGPUAdapter -> Ptr WGPUSurfaceCapabilities -> IO ()

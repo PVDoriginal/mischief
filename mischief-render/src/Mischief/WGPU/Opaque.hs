@@ -13,3 +13,5 @@ data WGPUQueue = WGPUQueue
 data WGPUShaderModule = WGPUShaderModule
 
 data WGPUPipelineLayout = WGPUPipelineLayout
+
+data WGPUBindGroupLayout = WGPUBindGroupLayout

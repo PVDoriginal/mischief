@@ -439,3 +439,699 @@ wGPUBufferMapState_Mapped = WGPUBufferMapState #const WGPUBufferMapState_Mapped
 
 wGPUBufferMapState_Force32 :: WGPUBufferMapState
 wGPUBufferMapState_Force32 = WGPUBufferMapState #const WGPUBufferMapState_Force32
+
+
+newtype WGPUTextureSampleType = WGPUTextureSampleType CUInt deriving (Eq, Ord, Show)
+
+instance Storable WGPUTextureSampleType where
+  alignment _ = alignment (undefined :: CUInt)
+  sizeOf _ = sizeOf (undefined :: CUInt)
+  peek ptr = do
+    x <- peek (castPtr ptr)
+    pure $ WGPUTextureSampleType x
+  poke ptr (WGPUTextureSampleType x) = do
+    let a :: Ptr CUInt = castPtr ptr
+    poke a x
+
+wGPUTextureSampleType_BindingNotUsed :: WGPUTextureSampleType
+wGPUTextureSampleType_BindingNotUsed = WGPUTextureSampleType #const WGPUTextureSampleType_BindingNotUsed
+
+wGPUTextureSampleType_Undefined :: WGPUTextureSampleType
+wGPUTextureSampleType_Undefined = WGPUTextureSampleType #const WGPUTextureSampleType_Undefined
+
+wGPUTextureSampleType_Float :: WGPUTextureSampleType
+wGPUTextureSampleType_Float = WGPUTextureSampleType #const WGPUTextureSampleType_Float
+
+wGPUTextureSampleType_UnfilterableFloat :: WGPUTextureSampleType
+wGPUTextureSampleType_UnfilterableFloat = WGPUTextureSampleType #const WGPUTextureSampleType_UnfilterableFloat
+
+wGPUTextureSampleType_Depth :: WGPUTextureSampleType
+wGPUTextureSampleType_Depth = WGPUTextureSampleType #const WGPUTextureSampleType_Depth
+
+wGPUTextureSampleType_Sint :: WGPUTextureSampleType
+wGPUTextureSampleType_Sint = WGPUTextureSampleType #const WGPUTextureSampleType_Sint
+
+wGPUTextureSampleType_Uint :: WGPUTextureSampleType
+wGPUTextureSampleType_Uint = WGPUTextureSampleType #const WGPUTextureSampleType_Uint
+
+wGPUTextureSampleType_Force32 :: WGPUTextureSampleType
+wGPUTextureSampleType_Force32 = WGPUTextureSampleType #const WGPUTextureSampleType_Force32
+
+newtype WGPUTextureViewDimension = WGPUTextureViewDimension CUInt deriving (Eq, Ord, Show)
+
+instance Storable WGPUTextureViewDimension where
+  alignment _ = alignment (undefined :: CUInt)
+  sizeOf _ = sizeOf (undefined :: CUInt)
+  peek ptr = do
+    x <- peek (castPtr ptr)
+    pure $ WGPUTextureViewDimension x
+  poke ptr (WGPUTextureViewDimension x) = do
+    let a :: Ptr CUInt = castPtr ptr
+    poke a x
+
+wGPUTextureViewDimension_Undefined :: WGPUTextureViewDimension
+wGPUTextureViewDimension_Undefined = WGPUTextureViewDimension #const WGPUTextureViewDimension_Undefined
+
+wGPUTextureViewDimension_1D :: WGPUTextureViewDimension
+wGPUTextureViewDimension_1D = WGPUTextureViewDimension #const WGPUTextureViewDimension_1D
+
+wGPUTextureViewDimension_2D :: WGPUTextureViewDimension
+wGPUTextureViewDimension_2D = WGPUTextureViewDimension #const WGPUTextureViewDimension_2D
+
+wGPUTextureViewDimension_2DArray :: WGPUTextureViewDimension
+wGPUTextureViewDimension_2DArray = WGPUTextureViewDimension #const WGPUTextureViewDimension_2DArray
+
+wGPUTextureViewDimension_Cube :: WGPUTextureViewDimension
+wGPUTextureViewDimension_Cube = WGPUTextureViewDimension #const WGPUTextureViewDimension_Cube
+
+wGPUTextureViewDimension_CubeArray :: WGPUTextureViewDimension
+wGPUTextureViewDimension_CubeArray = WGPUTextureViewDimension #const WGPUTextureViewDimension_CubeArray
+
+wGPUTextureViewDimension_3D :: WGPUTextureViewDimension
+wGPUTextureViewDimension_3D = WGPUTextureViewDimension #const WGPUTextureViewDimension_3D
+
+wGPUTextureViewDimension_Force32 :: WGPUTextureViewDimension
+wGPUTextureViewDimension_Force32 = WGPUTextureViewDimension #const WGPUTextureViewDimension_Force32
+
+
+newtype WGPUToneMappingMode = WGPUToneMappingMode CUInt deriving (Eq, Ord, Show)
+
+instance Storable WGPUToneMappingMode where
+  alignment _ = alignment (undefined :: CUInt)
+  sizeOf _ = sizeOf (undefined :: CUInt)
+  peek ptr = do
+    x <- peek (castPtr ptr)
+    pure $ WGPUToneMappingMode x
+  poke ptr (WGPUToneMappingMode x) = do
+    let a :: Ptr CUInt = castPtr ptr
+    poke a x
+
+wGPUToneMappingMode_Standard :: WGPUToneMappingMode
+wGPUToneMappingMode_Standard = WGPUToneMappingMode #const WGPUToneMappingMode_Standard
+
+wGPUToneMappingMode_Extended :: WGPUToneMappingMode
+wGPUToneMappingMode_Extended = WGPUToneMappingMode #const WGPUToneMappingMode_Extended
+
+wGPUToneMappingMode_Force32 :: WGPUToneMappingMode
+wGPUToneMappingMode_Force32 = WGPUToneMappingMode #const WGPUToneMappingMode_Force32
+
+
+newtype WGPUVertexFormat = WGPUVertexFormat CUInt deriving (Eq, Ord, Show)
+
+instance Storable WGPUVertexFormat where
+  alignment _ = alignment (undefined :: CUInt)
+  sizeOf _ = sizeOf (undefined :: CUInt)
+  peek ptr = do
+    x <- peek (castPtr ptr)
+    pure $ WGPUVertexFormat x
+  poke ptr (WGPUVertexFormat x) = do
+    let a :: Ptr CUInt = castPtr ptr
+    poke a x
+
+wGPUVertexFormat_Uint8 :: WGPUVertexFormat
+wGPUVertexFormat_Uint8 = WGPUVertexFormat #const WGPUVertexFormat_Uint8
+
+wGPUVertexFormat_Uint8x2 :: WGPUVertexFormat
+wGPUVertexFormat_Uint8x2 = WGPUVertexFormat #const WGPUVertexFormat_Uint8x2
+
+wGPUVertexFormat_Uint8x4 :: WGPUVertexFormat
+wGPUVertexFormat_Uint8x4 = WGPUVertexFormat #const WGPUVertexFormat_Uint8x4
+
+wGPUVertexFormat_Sint8 :: WGPUVertexFormat
+wGPUVertexFormat_Sint8 = WGPUVertexFormat #const WGPUVertexFormat_Sint8
+
+wGPUVertexFormat_Sint8x2 :: WGPUVertexFormat
+wGPUVertexFormat_Sint8x2 = WGPUVertexFormat #const WGPUVertexFormat_Sint8x2
+
+wGPUVertexFormat_Sint8x4 :: WGPUVertexFormat
+wGPUVertexFormat_Sint8x4 = WGPUVertexFormat #const WGPUVertexFormat_Sint8x4
+
+wGPUVertexFormat_Unorm8 :: WGPUVertexFormat
+wGPUVertexFormat_Unorm8 = WGPUVertexFormat #const WGPUVertexFormat_Unorm8
+
+wGPUVertexFormat_Unorm8x2 :: WGPUVertexFormat
+wGPUVertexFormat_Unorm8x2 = WGPUVertexFormat #const WGPUVertexFormat_Unorm8x2
+
+wGPUVertexFormat_Unorm8x4 :: WGPUVertexFormat
+wGPUVertexFormat_Unorm8x4 = WGPUVertexFormat #const WGPUVertexFormat_Unorm8x4
+
+wGPUVertexFormat_Snorm8 :: WGPUVertexFormat
+wGPUVertexFormat_Snorm8 = WGPUVertexFormat #const WGPUVertexFormat_Snorm8
+
+wGPUVertexFormat_Snorm8x2 :: WGPUVertexFormat
+wGPUVertexFormat_Snorm8x2 = WGPUVertexFormat #const WGPUVertexFormat_Snorm8x2
+
+wGPUVertexFormat_Snorm8x4 :: WGPUVertexFormat
+wGPUVertexFormat_Snorm8x4 = WGPUVertexFormat #const WGPUVertexFormat_Snorm8x4
+
+wGPUVertexFormat_Uint16 :: WGPUVertexFormat
+wGPUVertexFormat_Uint16 = WGPUVertexFormat #const WGPUVertexFormat_Uint16
+
+wGPUVertexFormat_Uint16x2 :: WGPUVertexFormat
+wGPUVertexFormat_Uint16x2 = WGPUVertexFormat #const WGPUVertexFormat_Uint16x2
+
+wGPUVertexFormat_Uint16x4 :: WGPUVertexFormat
+wGPUVertexFormat_Uint16x4 = WGPUVertexFormat #const WGPUVertexFormat_Uint16x4
+
+wGPUVertexFormat_Sint16 :: WGPUVertexFormat
+wGPUVertexFormat_Sint16 = WGPUVertexFormat #const WGPUVertexFormat_Sint16
+
+wGPUVertexFormat_Sint16x2 :: WGPUVertexFormat
+wGPUVertexFormat_Sint16x2 = WGPUVertexFormat #const WGPUVertexFormat_Sint16x2
+
+wGPUVertexFormat_Sint16x4 :: WGPUVertexFormat
+wGPUVertexFormat_Sint16x4 = WGPUVertexFormat #const WGPUVertexFormat_Sint16x4
+
+wGPUVertexFormat_Unorm16 :: WGPUVertexFormat
+wGPUVertexFormat_Unorm16 = WGPUVertexFormat #const WGPUVertexFormat_Unorm16
+
+wGPUVertexFormat_Unorm16x2 :: WGPUVertexFormat
+wGPUVertexFormat_Unorm16x2 = WGPUVertexFormat #const WGPUVertexFormat_Unorm16x2
+
+wGPUVertexFormat_Unorm16x4 :: WGPUVertexFormat
+wGPUVertexFormat_Unorm16x4 = WGPUVertexFormat #const WGPUVertexFormat_Unorm16x4
+
+wGPUVertexFormat_Snorm16 :: WGPUVertexFormat
+wGPUVertexFormat_Snorm16 = WGPUVertexFormat #const WGPUVertexFormat_Snorm16
+
+wGPUVertexFormat_Snorm16x2 :: WGPUVertexFormat
+wGPUVertexFormat_Snorm16x2 = WGPUVertexFormat #const WGPUVertexFormat_Snorm16x2
+
+wGPUVertexFormat_Snorm16x4 :: WGPUVertexFormat
+wGPUVertexFormat_Snorm16x4 = WGPUVertexFormat #const WGPUVertexFormat_Snorm16x4
+
+wGPUVertexFormat_Float16 :: WGPUVertexFormat
+wGPUVertexFormat_Float16 = WGPUVertexFormat #const WGPUVertexFormat_Float16
+
+wGPUVertexFormat_Float16x2 :: WGPUVertexFormat
+wGPUVertexFormat_Float16x2 = WGPUVertexFormat #const WGPUVertexFormat_Float16x2
+
+wGPUVertexFormat_Float16x4 :: WGPUVertexFormat
+wGPUVertexFormat_Float16x4 = WGPUVertexFormat #const WGPUVertexFormat_Float16x4
+
+wGPUVertexFormat_Float32 :: WGPUVertexFormat
+wGPUVertexFormat_Float32 = WGPUVertexFormat #const WGPUVertexFormat_Float32
+
+wGPUVertexFormat_Float32x2 :: WGPUVertexFormat
+wGPUVertexFormat_Float32x2 = WGPUVertexFormat #const WGPUVertexFormat_Float32x2
+
+wGPUVertexFormat_Float32x3 :: WGPUVertexFormat
+wGPUVertexFormat_Float32x3 = WGPUVertexFormat #const WGPUVertexFormat_Float32x3
+
+wGPUVertexFormat_Float32x4 :: WGPUVertexFormat
+wGPUVertexFormat_Float32x4 = WGPUVertexFormat #const WGPUVertexFormat_Float32x4
+
+wGPUVertexFormat_Uint32 :: WGPUVertexFormat
+wGPUVertexFormat_Uint32 = WGPUVertexFormat #const WGPUVertexFormat_Uint32
+
+wGPUVertexFormat_Uint32x2 :: WGPUVertexFormat
+wGPUVertexFormat_Uint32x2 = WGPUVertexFormat #const WGPUVertexFormat_Uint32x2
+
+wGPUVertexFormat_Uint32x3 :: WGPUVertexFormat
+wGPUVertexFormat_Uint32x3 = WGPUVertexFormat #const WGPUVertexFormat_Uint32x3
+
+wGPUVertexFormat_Uint32x4 :: WGPUVertexFormat
+wGPUVertexFormat_Uint32x4 = WGPUVertexFormat #const WGPUVertexFormat_Uint32x4
+
+wGPUVertexFormat_Sint32 :: WGPUVertexFormat
+wGPUVertexFormat_Sint32 = WGPUVertexFormat #const WGPUVertexFormat_Sint32
+
+wGPUVertexFormat_Sint32x2 :: WGPUVertexFormat
+wGPUVertexFormat_Sint32x2 = WGPUVertexFormat #const WGPUVertexFormat_Sint32x2
+
+wGPUVertexFormat_Sint32x3 :: WGPUVertexFormat
+wGPUVertexFormat_Sint32x3 = WGPUVertexFormat #const WGPUVertexFormat_Sint32x3
+
+wGPUVertexFormat_Sint32x4 :: WGPUVertexFormat
+wGPUVertexFormat_Sint32x4 = WGPUVertexFormat #const WGPUVertexFormat_Sint32x4
+
+wGPUVertexFormat_Unorm10_10_10_2 :: WGPUVertexFormat
+wGPUVertexFormat_Unorm10_10_10_2 = WGPUVertexFormat #const WGPUVertexFormat_Unorm10_10_10_2
+
+wGPUVertexFormat_Unorm8x4BGRA :: WGPUVertexFormat
+wGPUVertexFormat_Unorm8x4BGRA = WGPUVertexFormat #const WGPUVertexFormat_Unorm8x4BGRA
+
+wGPUVertexFormat_Force32 :: WGPUVertexFormat
+wGPUVertexFormat_Force32 = WGPUVertexFormat #const WGPUVertexFormat_Force32
+
+
+newtype WGPUVertexStepMode = WGPUVertexStepMode CUInt deriving (Eq, Ord, Show)
+
+instance Storable WGPUVertexStepMode where
+  alignment _ = alignment (undefined :: CUInt)
+  sizeOf _ = sizeOf (undefined :: CUInt)
+  peek ptr = do
+    x <- peek (castPtr ptr)
+    pure $ WGPUVertexStepMode x
+  poke ptr (WGPUVertexStepMode x) = do
+    let a :: Ptr CUInt = castPtr ptr
+    poke a x
+
+wGPUVertexStepMode_Undefined :: WGPUVertexStepMode
+wGPUVertexStepMode_Undefined = WGPUVertexStepMode #const WGPUVertexStepMode_Undefined
+
+wGPUVertexStepMode_Vertex :: WGPUVertexStepMode
+wGPUVertexStepMode_Vertex = WGPUVertexStepMode #const WGPUVertexStepMode_Vertex
+
+wGPUVertexStepMode_Instance :: WGPUVertexStepMode
+wGPUVertexStepMode_Instance = WGPUVertexStepMode #const WGPUVertexStepMode_Instance
+
+wGPUVertexStepMode_Force32 :: WGPUVertexStepMode
+wGPUVertexStepMode_Force32 = WGPUVertexStepMode #const WGPUVertexStepMode_Force32
+
+newtype WGPUStorageTextureAccess = WGPUStorageTextureAccess CUInt deriving (Eq, Ord, Show)
+
+instance Storable WGPUStorageTextureAccess where
+  alignment _ = alignment (undefined :: CUInt)
+  sizeOf _ = sizeOf (undefined :: CUInt)
+  peek ptr = do
+    x <- peek (castPtr ptr)
+    pure $ WGPUStorageTextureAccess x
+  poke ptr (WGPUStorageTextureAccess x) = do
+    let a :: Ptr CUInt = castPtr ptr
+    poke a x
+
+wGPUStorageTextureAccess_BindingNotUsed :: WGPUStorageTextureAccess
+wGPUStorageTextureAccess_BindingNotUsed = WGPUStorageTextureAccess #const WGPUStorageTextureAccess_BindingNotUsed
+
+wGPUStorageTextureAccess_Undefined :: WGPUStorageTextureAccess
+wGPUStorageTextureAccess_Undefined = WGPUStorageTextureAccess #const WGPUStorageTextureAccess_Undefined
+
+wGPUStorageTextureAccess_WriteOnly :: WGPUStorageTextureAccess
+wGPUStorageTextureAccess_WriteOnly = WGPUStorageTextureAccess #const WGPUStorageTextureAccess_WriteOnly
+
+wGPUStorageTextureAccess_ReadOnly :: WGPUStorageTextureAccess
+wGPUStorageTextureAccess_ReadOnly = WGPUStorageTextureAccess #const WGPUStorageTextureAccess_ReadOnly
+
+wGPUStorageTextureAccess_ReadWrite :: WGPUStorageTextureAccess
+wGPUStorageTextureAccess_ReadWrite = WGPUStorageTextureAccess #const WGPUStorageTextureAccess_ReadWrite
+
+wGPUStorageTextureAccess_Force32 :: WGPUStorageTextureAccess
+wGPUStorageTextureAccess_Force32 = WGPUStorageTextureAccess #const WGPUStorageTextureAccess_Force32
+
+
+newtype WGPUTextureFormat = WGPUTextureFormat CUInt deriving (Eq, Ord, Show)
+
+instance Storable WGPUTextureFormat where
+  alignment _ = alignment (undefined :: CUInt)
+  sizeOf _ = sizeOf (undefined :: CUInt)
+  peek ptr = do
+    x <- peek (castPtr ptr)
+    pure $ WGPUTextureFormat x
+  poke ptr (WGPUTextureFormat x) = do
+    let a :: Ptr CUInt = castPtr ptr
+    poke a x
+
+wGPUTextureFormat_Undefined :: WGPUTextureFormat
+wGPUTextureFormat_Undefined = WGPUTextureFormat #const WGPUTextureFormat_Undefined
+
+wGPUTextureFormat_R8Unorm :: WGPUTextureFormat
+wGPUTextureFormat_R8Unorm = WGPUTextureFormat #const WGPUTextureFormat_R8Unorm
+
+wGPUTextureFormat_R8Snorm :: WGPUTextureFormat
+wGPUTextureFormat_R8Snorm = WGPUTextureFormat #const WGPUTextureFormat_R8Snorm
+
+wGPUTextureFormat_R8Uint :: WGPUTextureFormat
+wGPUTextureFormat_R8Uint = WGPUTextureFormat #const WGPUTextureFormat_R8Uint
+
+wGPUTextureFormat_R8Sint :: WGPUTextureFormat
+wGPUTextureFormat_R8Sint = WGPUTextureFormat #const WGPUTextureFormat_R8Sint
+
+wGPUTextureFormat_R16Unorm :: WGPUTextureFormat
+wGPUTextureFormat_R16Unorm = WGPUTextureFormat #const WGPUTextureFormat_R16Unorm
+
+wGPUTextureFormat_R16Snorm :: WGPUTextureFormat
+wGPUTextureFormat_R16Snorm = WGPUTextureFormat #const WGPUTextureFormat_R16Snorm
+
+wGPUTextureFormat_R16Uint :: WGPUTextureFormat
+wGPUTextureFormat_R16Uint = WGPUTextureFormat #const WGPUTextureFormat_R16Uint
+
+wGPUTextureFormat_R16Sint :: WGPUTextureFormat
+wGPUTextureFormat_R16Sint = WGPUTextureFormat #const WGPUTextureFormat_R16Sint
+
+wGPUTextureFormat_R16Float :: WGPUTextureFormat
+wGPUTextureFormat_R16Float = WGPUTextureFormat #const WGPUTextureFormat_R16Float
+
+wGPUTextureFormat_RG8Unorm :: WGPUTextureFormat
+wGPUTextureFormat_RG8Unorm = WGPUTextureFormat #const WGPUTextureFormat_RG8Unorm
+
+wGPUTextureFormat_RG8Snorm :: WGPUTextureFormat
+wGPUTextureFormat_RG8Snorm = WGPUTextureFormat #const WGPUTextureFormat_RG8Snorm
+
+wGPUTextureFormat_RG8Uint :: WGPUTextureFormat
+wGPUTextureFormat_RG8Uint = WGPUTextureFormat #const WGPUTextureFormat_RG8Uint
+
+wGPUTextureFormat_RG8Sint :: WGPUTextureFormat
+wGPUTextureFormat_RG8Sint = WGPUTextureFormat #const WGPUTextureFormat_RG8Sint
+
+wGPUTextureFormat_R32Float :: WGPUTextureFormat
+wGPUTextureFormat_R32Float = WGPUTextureFormat #const WGPUTextureFormat_R32Float
+
+wGPUTextureFormat_R32Uint :: WGPUTextureFormat
+wGPUTextureFormat_R32Uint = WGPUTextureFormat #const WGPUTextureFormat_R32Uint
+
+wGPUTextureFormat_R32Sint :: WGPUTextureFormat
+wGPUTextureFormat_R32Sint = WGPUTextureFormat #const WGPUTextureFormat_R32Sint
+
+wGPUTextureFormat_RG16Unorm :: WGPUTextureFormat
+wGPUTextureFormat_RG16Unorm = WGPUTextureFormat #const WGPUTextureFormat_RG16Unorm
+
+wGPUTextureFormat_RG16Snorm :: WGPUTextureFormat
+wGPUTextureFormat_RG16Snorm = WGPUTextureFormat #const WGPUTextureFormat_RG16Snorm
+
+wGPUTextureFormat_RG16Uint :: WGPUTextureFormat
+wGPUTextureFormat_RG16Uint = WGPUTextureFormat #const WGPUTextureFormat_RG16Uint
+
+wGPUTextureFormat_RG16Sint :: WGPUTextureFormat
+wGPUTextureFormat_RG16Sint = WGPUTextureFormat #const WGPUTextureFormat_RG16Sint
+
+wGPUTextureFormat_RG16Float :: WGPUTextureFormat
+wGPUTextureFormat_RG16Float = WGPUTextureFormat #const WGPUTextureFormat_RG16Float
+
+wGPUTextureFormat_RGBA8Unorm :: WGPUTextureFormat
+wGPUTextureFormat_RGBA8Unorm = WGPUTextureFormat #const WGPUTextureFormat_RGBA8Unorm
+
+wGPUTextureFormat_RGBA8UnormSrgb :: WGPUTextureFormat
+wGPUTextureFormat_RGBA8UnormSrgb = WGPUTextureFormat #const WGPUTextureFormat_RGBA8UnormSrgb
+
+wGPUTextureFormat_RGBA8Snorm :: WGPUTextureFormat
+wGPUTextureFormat_RGBA8Snorm = WGPUTextureFormat #const WGPUTextureFormat_RGBA8Snorm
+
+wGPUTextureFormat_RGBA8Uint :: WGPUTextureFormat
+wGPUTextureFormat_RGBA8Uint = WGPUTextureFormat #const WGPUTextureFormat_RGBA8Uint
+
+wGPUTextureFormat_RGBA8Sint :: WGPUTextureFormat
+wGPUTextureFormat_RGBA8Sint = WGPUTextureFormat #const WGPUTextureFormat_RGBA8Sint
+
+wGPUTextureFormat_BGRA8Unorm :: WGPUTextureFormat
+wGPUTextureFormat_BGRA8Unorm = WGPUTextureFormat #const WGPUTextureFormat_BGRA8Unorm
+
+wGPUTextureFormat_BGRA8UnormSrgb :: WGPUTextureFormat
+wGPUTextureFormat_BGRA8UnormSrgb = WGPUTextureFormat #const WGPUTextureFormat_BGRA8UnormSrgb
+
+wGPUTextureFormat_RGB10A2Uint :: WGPUTextureFormat
+wGPUTextureFormat_RGB10A2Uint = WGPUTextureFormat #const WGPUTextureFormat_RGB10A2Uint
+
+wGPUTextureFormat_RGB10A2Unorm :: WGPUTextureFormat
+wGPUTextureFormat_RGB10A2Unorm = WGPUTextureFormat #const WGPUTextureFormat_RGB10A2Unorm
+
+wGPUTextureFormat_RG11B10Ufloat :: WGPUTextureFormat
+wGPUTextureFormat_RG11B10Ufloat = WGPUTextureFormat #const WGPUTextureFormat_RG11B10Ufloat
+
+wGPUTextureFormat_RGB9E5Ufloat :: WGPUTextureFormat
+wGPUTextureFormat_RGB9E5Ufloat = WGPUTextureFormat #const WGPUTextureFormat_RGB9E5Ufloat
+
+wGPUTextureFormat_RG32Float :: WGPUTextureFormat
+wGPUTextureFormat_RG32Float = WGPUTextureFormat #const WGPUTextureFormat_RG32Float
+
+wGPUTextureFormat_RG32Uint :: WGPUTextureFormat
+wGPUTextureFormat_RG32Uint = WGPUTextureFormat #const WGPUTextureFormat_RG32Uint
+
+wGPUTextureFormat_RG32Sint :: WGPUTextureFormat
+wGPUTextureFormat_RG32Sint = WGPUTextureFormat #const WGPUTextureFormat_RG32Sint
+
+wGPUTextureFormat_RGBA16Unorm :: WGPUTextureFormat
+wGPUTextureFormat_RGBA16Unorm = WGPUTextureFormat #const WGPUTextureFormat_RGBA16Unorm
+
+wGPUTextureFormat_RGBA16Snorm :: WGPUTextureFormat
+wGPUTextureFormat_RGBA16Snorm = WGPUTextureFormat #const WGPUTextureFormat_RGBA16Snorm
+
+wGPUTextureFormat_RGBA16Uint :: WGPUTextureFormat
+wGPUTextureFormat_RGBA16Uint = WGPUTextureFormat #const WGPUTextureFormat_RGBA16Uint
+
+wGPUTextureFormat_RGBA16Sint :: WGPUTextureFormat
+wGPUTextureFormat_RGBA16Sint = WGPUTextureFormat #const WGPUTextureFormat_RGBA16Sint
+
+wGPUTextureFormat_RGBA16Float :: WGPUTextureFormat
+wGPUTextureFormat_RGBA16Float = WGPUTextureFormat #const WGPUTextureFormat_RGBA16Float
+
+wGPUTextureFormat_RGBA32Float :: WGPUTextureFormat
+wGPUTextureFormat_RGBA32Float = WGPUTextureFormat #const WGPUTextureFormat_RGBA32Float
+
+wGPUTextureFormat_RGBA32Uint :: WGPUTextureFormat
+wGPUTextureFormat_RGBA32Uint = WGPUTextureFormat #const WGPUTextureFormat_RGBA32Uint
+
+wGPUTextureFormat_RGBA32Sint :: WGPUTextureFormat
+wGPUTextureFormat_RGBA32Sint = WGPUTextureFormat #const WGPUTextureFormat_RGBA32Sint
+
+wGPUTextureFormat_Stencil8 :: WGPUTextureFormat
+wGPUTextureFormat_Stencil8 = WGPUTextureFormat #const WGPUTextureFormat_Stencil8
+
+wGPUTextureFormat_Depth16Unorm :: WGPUTextureFormat
+wGPUTextureFormat_Depth16Unorm = WGPUTextureFormat #const WGPUTextureFormat_Depth16Unorm
+
+wGPUTextureFormat_Depth24Plus :: WGPUTextureFormat
+wGPUTextureFormat_Depth24Plus = WGPUTextureFormat #const WGPUTextureFormat_Depth24Plus
+
+wGPUTextureFormat_Depth24PlusStencil8 :: WGPUTextureFormat
+wGPUTextureFormat_Depth24PlusStencil8 = WGPUTextureFormat #const WGPUTextureFormat_Depth24PlusStencil8
+
+wGPUTextureFormat_Depth32Float :: WGPUTextureFormat
+wGPUTextureFormat_Depth32Float = WGPUTextureFormat #const WGPUTextureFormat_Depth32Float
+
+wGPUTextureFormat_Depth32FloatStencil8 :: WGPUTextureFormat
+wGPUTextureFormat_Depth32FloatStencil8 = WGPUTextureFormat #const WGPUTextureFormat_Depth32FloatStencil8
+
+wGPUTextureFormat_BC1RGBAUnorm :: WGPUTextureFormat
+wGPUTextureFormat_BC1RGBAUnorm = WGPUTextureFormat #const WGPUTextureFormat_BC1RGBAUnorm
+
+wGPUTextureFormat_BC1RGBAUnormSrgb :: WGPUTextureFormat
+wGPUTextureFormat_BC1RGBAUnormSrgb = WGPUTextureFormat #const WGPUTextureFormat_BC1RGBAUnormSrgb
+
+wGPUTextureFormat_BC2RGBAUnorm :: WGPUTextureFormat
+wGPUTextureFormat_BC2RGBAUnorm = WGPUTextureFormat #const WGPUTextureFormat_BC2RGBAUnorm
+
+wGPUTextureFormat_BC2RGBAUnormSrgb :: WGPUTextureFormat
+wGPUTextureFormat_BC2RGBAUnormSrgb = WGPUTextureFormat #const WGPUTextureFormat_BC2RGBAUnormSrgb
+
+wGPUTextureFormat_BC3RGBAUnorm :: WGPUTextureFormat
+wGPUTextureFormat_BC3RGBAUnorm = WGPUTextureFormat #const WGPUTextureFormat_BC3RGBAUnorm
+
+wGPUTextureFormat_BC3RGBAUnormSrgb :: WGPUTextureFormat
+wGPUTextureFormat_BC3RGBAUnormSrgb = WGPUTextureFormat #const WGPUTextureFormat_BC3RGBAUnormSrgb
+
+wGPUTextureFormat_BC4RUnorm :: WGPUTextureFormat
+wGPUTextureFormat_BC4RUnorm = WGPUTextureFormat #const WGPUTextureFormat_BC4RUnorm
+
+wGPUTextureFormat_BC4RSnorm :: WGPUTextureFormat
+wGPUTextureFormat_BC4RSnorm = WGPUTextureFormat #const WGPUTextureFormat_BC4RSnorm
+
+wGPUTextureFormat_BC5RGUnorm :: WGPUTextureFormat
+wGPUTextureFormat_BC5RGUnorm = WGPUTextureFormat #const WGPUTextureFormat_BC5RGUnorm
+
+wGPUTextureFormat_BC5RGSnorm :: WGPUTextureFormat
+wGPUTextureFormat_BC5RGSnorm = WGPUTextureFormat #const WGPUTextureFormat_BC5RGSnorm
+
+wGPUTextureFormat_BC6HRGBUfloat :: WGPUTextureFormat
+wGPUTextureFormat_BC6HRGBUfloat = WGPUTextureFormat #const WGPUTextureFormat_BC6HRGBUfloat
+
+wGPUTextureFormat_BC6HRGBFloat :: WGPUTextureFormat
+wGPUTextureFormat_BC6HRGBFloat = WGPUTextureFormat #const WGPUTextureFormat_BC6HRGBFloat
+
+wGPUTextureFormat_BC7RGBAUnorm :: WGPUTextureFormat
+wGPUTextureFormat_BC7RGBAUnorm = WGPUTextureFormat #const WGPUTextureFormat_BC7RGBAUnorm
+
+wGPUTextureFormat_BC7RGBAUnormSrgb :: WGPUTextureFormat
+wGPUTextureFormat_BC7RGBAUnormSrgb = WGPUTextureFormat #const WGPUTextureFormat_BC7RGBAUnormSrgb
+
+wGPUTextureFormat_ETC2RGB8Unorm :: WGPUTextureFormat
+wGPUTextureFormat_ETC2RGB8Unorm = WGPUTextureFormat #const WGPUTextureFormat_ETC2RGB8Unorm
+
+wGPUTextureFormat_ETC2RGB8UnormSrgb :: WGPUTextureFormat
+wGPUTextureFormat_ETC2RGB8UnormSrgb = WGPUTextureFormat #const WGPUTextureFormat_ETC2RGB8UnormSrgb
+
+wGPUTextureFormat_ETC2RGB8A1Unorm :: WGPUTextureFormat
+wGPUTextureFormat_ETC2RGB8A1Unorm = WGPUTextureFormat #const WGPUTextureFormat_ETC2RGB8A1Unorm
+
+wGPUTextureFormat_ETC2RGB8A1UnormSrgb :: WGPUTextureFormat
+wGPUTextureFormat_ETC2RGB8A1UnormSrgb = WGPUTextureFormat #const WGPUTextureFormat_ETC2RGB8A1UnormSrgb
+
+wGPUTextureFormat_ETC2RGBA8Unorm :: WGPUTextureFormat
+wGPUTextureFormat_ETC2RGBA8Unorm = WGPUTextureFormat #const WGPUTextureFormat_ETC2RGBA8Unorm
+
+wGPUTextureFormat_ETC2RGBA8UnormSrgb :: WGPUTextureFormat
+wGPUTextureFormat_ETC2RGBA8UnormSrgb = WGPUTextureFormat #const WGPUTextureFormat_ETC2RGBA8UnormSrgb
+
+wGPUTextureFormat_EACR11Unorm :: WGPUTextureFormat
+wGPUTextureFormat_EACR11Unorm = WGPUTextureFormat #const WGPUTextureFormat_EACR11Unorm
+
+wGPUTextureFormat_EACR11Snorm :: WGPUTextureFormat
+wGPUTextureFormat_EACR11Snorm = WGPUTextureFormat #const WGPUTextureFormat_EACR11Snorm
+
+wGPUTextureFormat_EACRG11Unorm :: WGPUTextureFormat
+wGPUTextureFormat_EACRG11Unorm = WGPUTextureFormat #const WGPUTextureFormat_EACRG11Unorm
+
+wGPUTextureFormat_EACRG11Snorm :: WGPUTextureFormat
+wGPUTextureFormat_EACRG11Snorm = WGPUTextureFormat #const WGPUTextureFormat_EACRG11Snorm
+
+wGPUTextureFormat_ASTC4x4Unorm :: WGPUTextureFormat
+wGPUTextureFormat_ASTC4x4Unorm = WGPUTextureFormat #const WGPUTextureFormat_ASTC4x4Unorm
+
+wGPUTextureFormat_ASTC4x4UnormSrgb :: WGPUTextureFormat
+wGPUTextureFormat_ASTC4x4UnormSrgb = WGPUTextureFormat #const WGPUTextureFormat_ASTC4x4UnormSrgb
+
+wGPUTextureFormat_ASTC5x4Unorm :: WGPUTextureFormat
+wGPUTextureFormat_ASTC5x4Unorm = WGPUTextureFormat #const WGPUTextureFormat_ASTC5x4Unorm
+
+wGPUTextureFormat_ASTC5x4UnormSrgb :: WGPUTextureFormat
+wGPUTextureFormat_ASTC5x4UnormSrgb = WGPUTextureFormat #const WGPUTextureFormat_ASTC5x4UnormSrgb
+
+wGPUTextureFormat_ASTC5x5Unorm :: WGPUTextureFormat
+wGPUTextureFormat_ASTC5x5Unorm = WGPUTextureFormat #const WGPUTextureFormat_ASTC5x5Unorm
+
+wGPUTextureFormat_ASTC5x5UnormSrgb :: WGPUTextureFormat
+wGPUTextureFormat_ASTC5x5UnormSrgb = WGPUTextureFormat #const WGPUTextureFormat_ASTC5x5UnormSrgb
+
+wGPUTextureFormat_ASTC6x5Unorm :: WGPUTextureFormat
+wGPUTextureFormat_ASTC6x5Unorm = WGPUTextureFormat #const WGPUTextureFormat_ASTC6x5Unorm
+
+wGPUTextureFormat_ASTC6x5UnormSrgb :: WGPUTextureFormat
+wGPUTextureFormat_ASTC6x5UnormSrgb = WGPUTextureFormat #const WGPUTextureFormat_ASTC6x5UnormSrgb
+
+wGPUTextureFormat_ASTC6x6Unorm :: WGPUTextureFormat
+wGPUTextureFormat_ASTC6x6Unorm = WGPUTextureFormat #const WGPUTextureFormat_ASTC6x6Unorm
+
+wGPUTextureFormat_ASTC6x6UnormSrgb :: WGPUTextureFormat
+wGPUTextureFormat_ASTC6x6UnormSrgb = WGPUTextureFormat #const WGPUTextureFormat_ASTC6x6UnormSrgb
+
+wGPUTextureFormat_ASTC8x5Unorm :: WGPUTextureFormat
+wGPUTextureFormat_ASTC8x5Unorm = WGPUTextureFormat #const WGPUTextureFormat_ASTC8x5Unorm
+
+wGPUTextureFormat_ASTC8x5UnormSrgb :: WGPUTextureFormat
+wGPUTextureFormat_ASTC8x5UnormSrgb = WGPUTextureFormat #const WGPUTextureFormat_ASTC8x5UnormSrgb
+
+wGPUTextureFormat_ASTC8x6Unorm :: WGPUTextureFormat
+wGPUTextureFormat_ASTC8x6Unorm = WGPUTextureFormat #const WGPUTextureFormat_ASTC8x6Unorm
+
+wGPUTextureFormat_ASTC8x6UnormSrgb :: WGPUTextureFormat
+wGPUTextureFormat_ASTC8x6UnormSrgb = WGPUTextureFormat #const WGPUTextureFormat_ASTC8x6UnormSrgb
+
+wGPUTextureFormat_ASTC8x8Unorm :: WGPUTextureFormat
+wGPUTextureFormat_ASTC8x8Unorm = WGPUTextureFormat #const WGPUTextureFormat_ASTC8x8Unorm
+
+wGPUTextureFormat_ASTC8x8UnormSrgb :: WGPUTextureFormat
+wGPUTextureFormat_ASTC8x8UnormSrgb = WGPUTextureFormat #const WGPUTextureFormat_ASTC8x8UnormSrgb
+
+wGPUTextureFormat_ASTC10x5Unorm :: WGPUTextureFormat
+wGPUTextureFormat_ASTC10x5Unorm = WGPUTextureFormat #const WGPUTextureFormat_ASTC10x5Unorm
+
+wGPUTextureFormat_ASTC10x5UnormSrgb :: WGPUTextureFormat
+wGPUTextureFormat_ASTC10x5UnormSrgb = WGPUTextureFormat #const WGPUTextureFormat_ASTC10x5UnormSrgb
+
+wGPUTextureFormat_ASTC10x6Unorm :: WGPUTextureFormat
+wGPUTextureFormat_ASTC10x6Unorm = WGPUTextureFormat #const WGPUTextureFormat_ASTC10x6Unorm
+
+wGPUTextureFormat_ASTC10x6UnormSrgb :: WGPUTextureFormat
+wGPUTextureFormat_ASTC10x6UnormSrgb = WGPUTextureFormat #const WGPUTextureFormat_ASTC10x6UnormSrgb
+
+wGPUTextureFormat_ASTC10x8Unorm :: WGPUTextureFormat
+wGPUTextureFormat_ASTC10x8Unorm = WGPUTextureFormat #const WGPUTextureFormat_ASTC10x8Unorm
+
+wGPUTextureFormat_ASTC10x8UnormSrgb :: WGPUTextureFormat
+wGPUTextureFormat_ASTC10x8UnormSrgb = WGPUTextureFormat #const WGPUTextureFormat_ASTC10x8UnormSrgb
+
+wGPUTextureFormat_ASTC10x10Unorm :: WGPUTextureFormat
+wGPUTextureFormat_ASTC10x10Unorm = WGPUTextureFormat #const WGPUTextureFormat_ASTC10x10Unorm
+
+wGPUTextureFormat_ASTC10x10UnormSrgb :: WGPUTextureFormat
+wGPUTextureFormat_ASTC10x10UnormSrgb = WGPUTextureFormat #const WGPUTextureFormat_ASTC10x10UnormSrgb
+
+wGPUTextureFormat_ASTC12x10Unorm :: WGPUTextureFormat
+wGPUTextureFormat_ASTC12x10Unorm = WGPUTextureFormat #const WGPUTextureFormat_ASTC12x10Unorm
+
+wGPUTextureFormat_ASTC12x10UnormSrgb :: WGPUTextureFormat
+wGPUTextureFormat_ASTC12x10UnormSrgb = WGPUTextureFormat #const WGPUTextureFormat_ASTC12x10UnormSrgb
+
+wGPUTextureFormat_ASTC12x12Unorm :: WGPUTextureFormat
+wGPUTextureFormat_ASTC12x12Unorm = WGPUTextureFormat #const WGPUTextureFormat_ASTC12x12Unorm
+
+wGPUTextureFormat_ASTC12x12UnormSrgb :: WGPUTextureFormat
+wGPUTextureFormat_ASTC12x12UnormSrgb = WGPUTextureFormat #const WGPUTextureFormat_ASTC12x12UnormSrgb
+
+wGPUTextureFormat_Force32 :: WGPUTextureFormat
+wGPUTextureFormat_Force32 = WGPUTextureFormat #const WGPUTextureFormat_Force32
+
+newtype WGPUTextureUsage = WGPUTextureUsage WGPUFlags deriving newtype (Show, Eq, Storable, Num)
+
+wGPUTextureUsage_None :: WGPUTextureUsage
+wGPUTextureUsage_None =  WGPUTextureUsage $ WGPUFlags #const WGPUTextureUsage_None
+
+wGPUTextureUsage_CopySrc :: WGPUTextureUsage
+wGPUTextureUsage_CopySrc =  WGPUTextureUsage $ WGPUFlags #const WGPUTextureUsage_CopySrc
+
+wGPUTextureUsage_CopyDst :: WGPUTextureUsage
+wGPUTextureUsage_CopyDst =  WGPUTextureUsage $ WGPUFlags #const WGPUTextureUsage_CopyDst
+
+wGPUTextureUsage_TextureBinding :: WGPUTextureUsage
+wGPUTextureUsage_TextureBinding =  WGPUTextureUsage $ WGPUFlags #const WGPUTextureUsage_TextureBinding
+
+wGPUTextureUsage_StorageBinding :: WGPUTextureUsage
+wGPUTextureUsage_StorageBinding =  WGPUTextureUsage $ WGPUFlags #const WGPUTextureUsage_StorageBinding
+
+wGPUTextureUsage_RenderAttachment :: WGPUTextureUsage
+wGPUTextureUsage_RenderAttachment =  WGPUTextureUsage $ WGPUFlags #const WGPUTextureUsage_RenderAttachment
+
+wGPUTextureUsage_TransientAttachment :: WGPUTextureUsage
+wGPUTextureUsage_TransientAttachment =  WGPUTextureUsage $ WGPUFlags #const WGPUTextureUsage_TransientAttachment
+
+
+newtype WGPUPresentMode = WGPUPresentMode CUInt deriving (Eq, Ord, Show)
+
+instance Storable WGPUPresentMode where
+  alignment _ = alignment (undefined :: CUInt)
+  sizeOf _ = sizeOf (undefined :: CUInt)
+  peek ptr = do
+    x <- peek (castPtr ptr)
+    pure $ WGPUPresentMode x
+  poke ptr (WGPUPresentMode x) = do
+    let a :: Ptr CUInt = castPtr ptr
+    poke a x
+
+wGPUPresentMode_Undefined :: WGPUPresentMode
+wGPUPresentMode_Undefined = WGPUPresentMode #const WGPUPresentMode_Undefined
+
+wGPUPresentMode_Fifo :: WGPUPresentMode
+wGPUPresentMode_Fifo = WGPUPresentMode #const WGPUPresentMode_Fifo
+
+wGPUPresentMode_FifoRelaxed :: WGPUPresentMode
+wGPUPresentMode_FifoRelaxed = WGPUPresentMode #const WGPUPresentMode_FifoRelaxed
+
+wGPUPresentMode_Immediate :: WGPUPresentMode
+wGPUPresentMode_Immediate = WGPUPresentMode #const WGPUPresentMode_Immediate
+
+wGPUPresentMode_Mailbox :: WGPUPresentMode
+wGPUPresentMode_Mailbox = WGPUPresentMode #const WGPUPresentMode_Mailbox
+
+wGPUPresentMode_Force32 :: WGPUPresentMode
+wGPUPresentMode_Force32 = WGPUPresentMode #const WGPUPresentMode_Force32
+
+
+newtype WGPUCompositeAlphaMode = WGPUCompositeAlphaMode CUInt deriving (Eq, Ord, Show)
+
+instance Storable WGPUCompositeAlphaMode where
+  alignment _ = alignment (undefined :: CUInt)
+  sizeOf _ = sizeOf (undefined :: CUInt)
+  peek ptr = do
+    x <- peek (castPtr ptr)
+    pure $ WGPUCompositeAlphaMode x
+  poke ptr (WGPUCompositeAlphaMode x) = do
+    let a :: Ptr CUInt = castPtr ptr
+    poke a x
+
+wGPUCompositeAlphaMode_Auto :: WGPUCompositeAlphaMode
+wGPUCompositeAlphaMode_Auto = WGPUCompositeAlphaMode #const WGPUCompositeAlphaMode_Auto
+
+wGPUCompositeAlphaMode_Opaque :: WGPUCompositeAlphaMode
+wGPUCompositeAlphaMode_Opaque = WGPUCompositeAlphaMode #const WGPUCompositeAlphaMode_Opaque
+
+wGPUCompositeAlphaMode_Premultiplied :: WGPUCompositeAlphaMode
+wGPUCompositeAlphaMode_Premultiplied = WGPUCompositeAlphaMode #const WGPUCompositeAlphaMode_Premultiplied
+
+wGPUCompositeAlphaMode_Unpremultiplied :: WGPUCompositeAlphaMode
+wGPUCompositeAlphaMode_Unpremultiplied = WGPUCompositeAlphaMode #const WGPUCompositeAlphaMode_Unpremultiplied
+
+wGPUCompositeAlphaMode_Inherit :: WGPUCompositeAlphaMode
+wGPUCompositeAlphaMode_Inherit = WGPUCompositeAlphaMode #const WGPUCompositeAlphaMode_Inherit
+
+wGPUCompositeAlphaMode_Force32 :: WGPUCompositeAlphaMode
+wGPUCompositeAlphaMode_Force32 = WGPUCompositeAlphaMode #const WGPUCompositeAlphaMode_Force32

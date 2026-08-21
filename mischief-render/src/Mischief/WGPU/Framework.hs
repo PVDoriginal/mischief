@@ -10,9 +10,6 @@ import Mischief.WGPU.Opaque
 import Mischief.WGPU.Types.Enums
 import Mischief.WGPU.Types.General
 
-bsAsWGPUString :: ByteString -> (WGPUStringView -> IO a) -> IO a
-bsAsWGPUString bs f = BS.useAsCStringLen bs $ \(ptr, length) -> f WGPUStringView {_data = ConstPtr ptr, length}
-
 loadShaderModule :: Ptr WGPUDevice -> String -> IO (Ptr WGPUShaderModule)
 loadShaderModule device path = do
   bytes <- BS.readFile path

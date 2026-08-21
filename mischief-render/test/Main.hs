@@ -9,6 +9,7 @@ import Mischief.WGPU
 import Mischief.WGPU.Callbacks
 import Mischief.WGPU.Framework
 import Mischief.WGPU.Opaque
+import Mischief.WGPU.Types.BindGroups (WGPUPipelineLayoutDescriptor (WGPUPipelineLayoutDescriptor))
 import Mischief.WGPU.Types.Enums
 import Mischief.WGPU.Types.General
 import SDL3.Sys qualified as SDL3
@@ -94,6 +95,16 @@ main = do
   shaderModule <- loadShaderModule device "test/shader.wgsl"
   when (shaderModule == nullPtr) $ error "Couldn't load shader module."
 
+  let pipelineLayoutDesc = newWGPUPipelineLayoutDescriptor
+  pipelineLayout <- with pipelineLayoutDesc $ \pipelineLayoutDesc -> do
+    wgpuDeviceCreatePipelineLayout device pipelineLayoutDesc
+
+  when (pipelineLayout == nullPtr) $ error "Couldn't generate pipeline layout."
+
+  surfaceCapabilities <- malloc @WGPUSurfaceCapabilities
+  wgpuSurfaceGetCapabilities surface adapter surfaceCapabilities
+
+  free surfaceCapabilities
   print driverName
 
 waitOnBool :: Ptr Bool -> IO ()
