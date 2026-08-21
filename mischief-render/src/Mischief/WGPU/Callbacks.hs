@@ -5,8 +5,8 @@ import Foreign (FunPtr, Ptr)
 import Foreign.C
 import Foreign.C.ConstPtr
 import Foreign.C.Types
-import Mischief.WGPU.Enums
 import Mischief.WGPU.Opaque
+import Mischief.WGPU.Types.Enums
 
 newtype Test = Test (# ByteArray# #)
 

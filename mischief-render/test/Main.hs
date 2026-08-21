@@ -7,21 +7,11 @@ import Foreign.C.ConstPtr
 import Mischief.ECS.Prelude
 import Mischief.WGPU
 import Mischief.WGPU.Callbacks
-import Mischief.WGPU.Enums
+import Mischief.WGPU.Framework
 import Mischief.WGPU.Opaque
-import Mischief.WGPU.Types
+import Mischief.WGPU.Types.Enums
+import Mischief.WGPU.Types.General
 import SDL3.Sys qualified as SDL3
-
-data Demo = Demo
-  { wgpuInstance :: Ptr WGPUInstance,
-    surface :: Ptr WGPUSurface,
-    adapter :: Ptr WGPUAdapter,
-    device :: Ptr WGPUDevice,
-    config :: Ptr WGPUSurfaceConfiguration
-  }
-
-newDemo :: Demo
-newDemo = Demo nullPtr nullPtr nullPtr nullPtr nullPtr
 
 main :: IO ()
 main = do
@@ -99,8 +89,10 @@ main = do
   when (device == nullPtr) $ error "Couldn't obtain WGPU edvice."
 
   queue <- wgpuDeviceGetQueue device
-
   when (queue == nullPtr) $ error "Couldn't obtain WGPU queue."
+
+  shaderModule <- loadShaderModule device "test/shader.wgsl"
+  when (shaderModule == nullPtr) $ error "Couldn't load shader module."
 
   print driverName
 

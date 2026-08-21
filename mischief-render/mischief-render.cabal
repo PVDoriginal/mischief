@@ -53,9 +53,11 @@ library
     Mischief.Render.Shader
     Mischief.WGPU
     Mischief.WGPU.Callbacks
-    Mischief.WGPU.Enums
+    Mischief.WGPU.Framework
     Mischief.WGPU.Opaque
-    Mischief.WGPU.Types
+    Mischief.WGPU.Types.BindGroups
+    Mischief.WGPU.Types.Enums
+    Mischief.WGPU.Types.General
 
   -- Modules included in this library but not exported.
   -- other-modules:

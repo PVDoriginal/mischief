@@ -1,6 +1,6 @@
 #include "webgpu.h"
 
-module Mischief.WGPU.Types where 
+module Mischief.WGPU.Types.General where 
 
 import Foreign 
 import Foreign.C.ConstPtr
@@ -8,7 +8,7 @@ import Foreign.C.Types
 import Data.Void
 
 import Mischief.WGPU.Callbacks
-import Mischief.WGPU.Enums
+import Mischief.WGPU.Types.Enums
 
 
 data WGPUSurface = WGPUSurface
@@ -154,3 +154,35 @@ instance Storable (WGPURequestCallbackInfo WGPURequestDeviceCallback) where
     #{poke WGPURequestDeviceCallbackInfo, callback} ptr callback  
     #{poke WGPURequestDeviceCallbackInfo, userdata1} ptr userdata1  
     #{poke WGPURequestDeviceCallbackInfo, userdata2} ptr userdata2  
+
+data WGPUShaderSourceWGSL = WGPUShaderSourceWGSL {
+  chain :: WGPUChainedStruct, 
+  code :: WGPUStringView
+}
+
+instance Storable WGPUShaderSourceWGSL where 
+  alignment _ = #{alignment WGPUShaderSourceWGSL}
+  sizeOf _ = #{size WGPUShaderSourceWGSL}
+  peek ptr = do 
+    chain <- #{peek WGPUShaderSourceWGSL, chain} ptr 
+    code <- #{peek WGPUShaderSourceWGSL, code} ptr 
+    return WGPUShaderSourceWGSL {chain, code}
+  poke ptr WGPUShaderSourceWGSL {chain, code} = do 
+    #{poke WGPUShaderSourceWGSL, chain} ptr chain 
+    #{poke WGPUShaderSourceWGSL, code} ptr code 
+
+data WGPUShaderModuleDescriptor = WGPUShaderModuleDescriptor {
+  nextInChain :: Ptr WGPUChainedStruct, 
+  label :: WGPUStringView
+}
+
+instance Storable WGPUShaderModuleDescriptor where 
+  alignment _ = #{alignment WGPUShaderModuleDescriptor}
+  sizeOf _ = #{size WGPUShaderModuleDescriptor}
+  peek ptr = do 
+    nextInChain <- #{peek WGPUShaderModuleDescriptor, nextInChain} ptr 
+    label <- #{peek WGPUShaderModuleDescriptor, label} ptr 
+    return WGPUShaderModuleDescriptor {nextInChain, label}
+  poke ptr WGPUShaderModuleDescriptor {nextInChain, label} = do 
+    #{poke WGPUShaderModuleDescriptor, nextInChain} ptr nextInChain 
+    #{poke WGPUShaderModuleDescriptor, label} ptr label 

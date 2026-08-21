@@ -9,3 +9,7 @@ data WGPUSurfaceConfiguration = WGPUSurfaceConfiguration
 data WGPUInstance = WGPUInstance
 
 data WGPUQueue = WGPUQueue
+
+data WGPUShaderModule = WGPUShaderModule
+
+data WGPUPipelineLayout = WGPUPipelineLayout
