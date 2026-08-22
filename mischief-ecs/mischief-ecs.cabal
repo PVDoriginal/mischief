@@ -223,25 +223,25 @@ test-suite mischief-test
   other-modules: Relationships
   -- Test dependencies.
   build-depends:
-    base >=4.21.0.0 && <4.22,
+    base,
     containers,
     data-default,
     mischief-ecs,
     primitive,
-    random,
+    random >=1.3.1 && <1.4,
     transformers,
 
 executable example-dungeon
   main-is: Dungeon.hs
   hs-source-dirs: examples
   build-depends:
-    base >=4.21.0.0 && <4.22,
-    containers >=0.7 && <0.8,
-    data-default >=0.8.0 && <0.9,
+    base,
+    containers,
+    data-default,
     mischief-ecs,
-    primitive >=0.9.1 && <0.10,
+    primitive,
     random >=1.3.1 && <1.4,
-    transformers >=0.6.1 && <0.7,
+    transformers,
 
   default-language: GHC2024
   default-extensions:
@@ -262,13 +262,13 @@ benchmark bench-spawn
   hs-source-dirs: benchmarks
   default-language: GHC2024
   build-depends:
-    base >=4.21.0.0 && <4.22,
-    containers >=0.7 && <0.8,
+    base,
+    containers,
     criterion >=1.6.5 && <1.7,
     deepseq >=1.5.1 && <1.6,
-    primitive >=0.9.1 && <0.10,
-    time >=1.14 && <1.15,
-    transformers >=0.6.1 && <0.7,
+    primitive,
+    time,
+    transformers,
 
   default-extensions:
     DeriveAnyClass
@@ -288,13 +288,13 @@ benchmark bench-insert
   hs-source-dirs: benchmarks
   default-language: GHC2024
   build-depends:
-    base >=4.21.0.0 && <4.22,
-    containers >=0.7 && <0.8,
+    base,
+    containers,
     criterion >=1.6.5 && <1.7,
     deepseq >=1.5.1 && <1.6,
-    primitive >=0.9.1 && <0.10,
-    time >=1.14 && <1.15,
-    transformers >=0.6.1 && <0.7,
+    primitive,
+    time,
+    transformers,
 
   default-extensions:
     DeriveAnyClass
@@ -314,13 +314,13 @@ benchmark bench-update
   hs-source-dirs: benchmarks
   default-language: GHC2024
   build-depends:
-    base >=4.21.0.0 && <4.22,
-    containers >=0.7 && <0.8,
+    base,
+    containers,
     criterion >=1.6.5 && <1.7,
     deepseq >=1.5.1 && <1.6,
-    primitive >=0.9.1 && <0.10,
-    time >=1.14 && <1.15,
-    transformers >=0.6.1 && <0.7,
+    primitive,
+    time,
+    transformers,
 
   default-extensions:
     DeriveAnyClass

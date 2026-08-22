@@ -4,7 +4,7 @@ module Mischief.SDL
   ( -- $intro
     SDLPlugin (..),
     SDLMessage (..),
-    Window (..),
+    SDLWindow (..),
   )
 where
 
@@ -21,15 +21,16 @@ import Mischief.ECS.Messages (Message)
 import Mischief.ECS.Messages qualified as Messages
 import Mischief.ECS.Prelude
 import Mischief.ECS.Systems qualified as Systems
+import SDL3.Sys (destroyWindow)
 import SDL3.Sys qualified as SDL3
 import System.Exit
 
-newtype Window = Window {sdlWindow :: Ptr SDL3.SDL_Window}
+newtype SDLWindow = SDLWindow {ptr :: Ptr SDL3.SDL_Window}
   deriving anyclass (Component)
 
 -- deriving newtype (Show)
 
-initSdl :: IO (Ptr SDL3.SDL_Window)
+initSdl :: IO ()
 initSdl = do
   version <- SDL3.getVersion
   let (major, rest) = fromIntegral version `divMod` (1000000 :: Int)
@@ -49,11 +50,11 @@ initSdl = do
   ok <- SDL3.init SDL3.SDL_INIT_VIDEO
   unless ok (die "SDL_Init")
 
-  window <- withCString "sdl3-raw" $ \title -> SDL3.createWindow (ConstPtr title) 640 360 0
+-- window <- withCString "sdl3-raw" $ \title -> SDL3.createWindow (ConstPtr title) 640 360 0
 
-  when (window == nullPtr) (die "Couldn't create window")
+-- when (window == nullPtr) (die "Couldn't create window")
 
-  pure window
+-- pure window
 
 data SDLMessage e = SDLMessage {eventType :: SDL3.SDL_EventType, event :: e}
   deriving anyclass (Message)
@@ -63,10 +64,10 @@ data SDLPlugin = SDLPlugin deriving (Eq)
 
 instance Plugin SDLPlugin where
   init _ = do
-    window <- liftIO initSdl
-    void $ spawn (Window window)
+    liftIO initSdl
+    -- void $ spawn (SDLWindow window)
     Systems.add First handleEvents
-    Systems.add First $ handleQuit `after` handleEvents
+    Systems.add First $ (handleQuit, handleWindowClose) `after` handleEvents
 
 -- addMessage @(SDLMessage SDL3.SDL_DisplayEvent)
 -- addMessage @(SDLMessage SDl3.SDL_WindowEvent)
@@ -197,6 +198,16 @@ handleQuit :: System ()
 handleQuit = do
   messages <- Messages.read @(SDLMessage SDL3.SDL_QuitEvent)
   unless (null messages) $ liftIO exitSuccess
+
+handleWindowClose :: System ()
+handleWindowClose = do
+  messages <- filter (\(SDLMessage t _) -> t == SDL3.SDL_EVENT_WINDOW_CLOSE_REQUESTED) <$> Messages.read @(SDLMessage SDL3.SDL_WindowEvent)
+
+  for_ messages $ \(SDLMessage _ SDL3.SDL_WindowEvent {windowID}) -> do
+    window <- liftIO $ SDL3.getWindowFromID windowID
+    unless (window == nullPtr) $ do
+      liftIO $ destroyWindow window
+      [s|Entity / Check (\(SDLWindow p) -> p == window)|] >>= traverse_ despawn
 
 -- $intro
 -- This package provides the 'sdlPlugin' for @Mischief@, along with a few components.

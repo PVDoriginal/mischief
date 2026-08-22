@@ -53,6 +53,7 @@ library
     Mischief.Render.Shader
     Mischief.WGPU
     Mischief.WGPU.Callbacks
+    Mischief.WGPU.Common
     Mischief.WGPU.Framework
     Mischief.WGPU.Opaque
     Mischief.WGPU.Types.Enums
@@ -83,7 +84,7 @@ library
   -- Other library packages from which modules are imported.
   build-depends:
     async,
-    base >=4.21.0.0 && <4.22,
+    base,
     binary,
     bytestring,
     clock,
@@ -156,7 +157,7 @@ test-suite mischief-test
   -- Test dependencies.
   build-depends:
     async,
-    base >=4.21.0.0 && <4.22,
+    base,
     bytestring,
     containers,
     data-default,
@@ -166,3 +167,32 @@ test-suite mischief-test
     sdl3-bindgen-sys,
     store,
     transformers,
+
+executable example-triangle-low-level
+  main-is: TriangleLowLevel.hs
+  hs-source-dirs: examples
+  build-depends:
+    async,
+    base,
+    bytestring,
+    containers,
+    data-default,
+    mischief-ecs,
+    mischief-render,
+    primitive,
+    sdl3-bindgen-sys,
+    store,
+    transformers,
+
+  default-language: GHC2024
+  default-extensions:
+    DeriveAnyClass
+    DuplicateRecordFields
+    NoFieldSelectors
+    NoGeneralizedNewtypeDeriving
+    OverloadedRecordDot
+    OverloadedStrings
+    QuasiQuotes
+    RequiredTypeArguments
+    TemplateHaskell
+    TypeFamilyDependencies

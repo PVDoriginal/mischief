@@ -78,7 +78,7 @@ library
   -- Other library packages from which modules are imported.
   build-depends:
     -- sdl3-hs,
-    base >=4.21.0.0 && <4.22,
+    base,
     binary,
     bytestring,
     containers,
