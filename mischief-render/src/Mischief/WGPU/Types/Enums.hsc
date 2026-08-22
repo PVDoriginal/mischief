@@ -1286,3 +1286,90 @@ wGPUColorWriteMask_Blue = WGPUColorWriteMask $ WGPUFlags #const WGPUColorWriteMa
 
 wGPUColorWriteMask_Alpha :: WGPUColorWriteMask
 wGPUColorWriteMask_Alpha = WGPUColorWriteMask $ WGPUFlags #const WGPUColorWriteMask_Alpha
+
+wGPUColorWriteMask_All :: WGPUColorWriteMask
+wGPUColorWriteMask_All = WGPUColorWriteMask $ WGPUFlags #const WGPUColorWriteMask_All
+
+
+newtype WGPUSurfaceGetCurrentTextureStatus = WGPUSurfaceGetCurrentTextureStatus CUInt deriving (Eq, Ord, Show)
+
+instance Storable WGPUSurfaceGetCurrentTextureStatus where
+  alignment _ = alignment (undefined :: CUInt)
+  sizeOf _ = sizeOf (undefined :: CUInt)
+  peek ptr = do
+    x <- peek (castPtr ptr)
+    pure $ WGPUSurfaceGetCurrentTextureStatus x
+  poke ptr (WGPUSurfaceGetCurrentTextureStatus x) = do
+    let a :: Ptr CUInt = castPtr ptr
+    poke a x
+
+wGPUSurfaceGetCurrentTextureStatus_SuccessOptimal :: WGPUSurfaceGetCurrentTextureStatus
+wGPUSurfaceGetCurrentTextureStatus_SuccessOptimal = WGPUSurfaceGetCurrentTextureStatus #const WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal
+
+wGPUSurfaceGetCurrentTextureStatus_SuccessSuboptimal :: WGPUSurfaceGetCurrentTextureStatus
+wGPUSurfaceGetCurrentTextureStatus_SuccessSuboptimal = WGPUSurfaceGetCurrentTextureStatus #const WGPUSurfaceGetCurrentTextureStatus_SuccessSuboptimal
+
+wGPUSurfaceGetCurrentTextureStatus_Timeout :: WGPUSurfaceGetCurrentTextureStatus
+wGPUSurfaceGetCurrentTextureStatus_Timeout = WGPUSurfaceGetCurrentTextureStatus #const WGPUSurfaceGetCurrentTextureStatus_Timeout
+
+wGPUSurfaceGetCurrentTextureStatus_Outdated :: WGPUSurfaceGetCurrentTextureStatus
+wGPUSurfaceGetCurrentTextureStatus_Outdated = WGPUSurfaceGetCurrentTextureStatus #const WGPUSurfaceGetCurrentTextureStatus_Outdated
+
+wGPUSurfaceGetCurrentTextureStatus_Lost :: WGPUSurfaceGetCurrentTextureStatus
+wGPUSurfaceGetCurrentTextureStatus_Lost = WGPUSurfaceGetCurrentTextureStatus #const WGPUSurfaceGetCurrentTextureStatus_Lost
+
+wGPUSurfaceGetCurrentTextureStatus_Error :: WGPUSurfaceGetCurrentTextureStatus
+wGPUSurfaceGetCurrentTextureStatus_Error = WGPUSurfaceGetCurrentTextureStatus #const WGPUSurfaceGetCurrentTextureStatus_Error
+
+wGPUSurfaceGetCurrentTextureStatus_Force32 :: WGPUSurfaceGetCurrentTextureStatus
+wGPUSurfaceGetCurrentTextureStatus_Force32 = WGPUSurfaceGetCurrentTextureStatus #const WGPUSurfaceGetCurrentTextureStatus_Force32
+
+
+newtype WGPULoadOp = WGPULoadOp CUInt deriving (Eq, Ord, Show)
+
+instance Storable WGPULoadOp where
+  alignment _ = alignment (undefined :: CUInt)
+  sizeOf _ = sizeOf (undefined :: CUInt)
+  peek ptr = do
+    x <- peek (castPtr ptr)
+    pure $ WGPULoadOp x
+  poke ptr (WGPULoadOp x) = do
+    let a :: Ptr CUInt = castPtr ptr
+    poke a x
+
+wGPULoadOp_Undefined :: WGPULoadOp
+wGPULoadOp_Undefined = WGPULoadOp #const WGPULoadOp_Undefined
+
+wGPULoadOp_Load :: WGPULoadOp
+wGPULoadOp_Load = WGPULoadOp #const WGPULoadOp_Load
+
+wGPULoadOp_Clear :: WGPULoadOp
+wGPULoadOp_Clear = WGPULoadOp #const WGPULoadOp_Clear
+
+wGPULoadOp_Force32 :: WGPULoadOp
+wGPULoadOp_Force32 = WGPULoadOp #const WGPULoadOp_Force32
+
+
+newtype WGPUStoreOp = WGPUStoreOp CUInt deriving (Eq, Ord, Show)
+
+instance Storable WGPUStoreOp where
+  alignment _ = alignment (undefined :: CUInt)
+  sizeOf _ = sizeOf (undefined :: CUInt)
+  peek ptr = do
+    x <- peek (castPtr ptr)
+    pure $ WGPUStoreOp x
+  poke ptr (WGPUStoreOp x) = do
+    let a :: Ptr CUInt = castPtr ptr
+    poke a x
+
+wGPUStoreOp_Undefined :: WGPUStoreOp
+wGPUStoreOp_Undefined = WGPUStoreOp #const WGPUStoreOp_Undefined
+
+wGPUStoreOp_Store :: WGPUStoreOp
+wGPUStoreOp_Store = WGPUStoreOp #const WGPUStoreOp_Store
+
+wGPUStoreOp_Discard :: WGPUStoreOp
+wGPUStoreOp_Discard = WGPUStoreOp #const WGPUStoreOp_Discard
+
+wGPUStoreOp_Force32 :: WGPUStoreOp
+wGPUStoreOp_Force32 = WGPUStoreOp #const WGPUStoreOp_Force32

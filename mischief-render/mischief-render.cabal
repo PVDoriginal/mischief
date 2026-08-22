@@ -105,15 +105,17 @@ library
   build-tool-depends:
     hsc2hs:hsc2hs
 
-  pkgconfig-depends:
-    wgpu-native
-
+  -- pkgconfig-depends:
+  --   wgpu-native
   -- Directories containing source files.
   hs-source-dirs:
     src
 
   include-dirs:
     cbits/
+
+  extra-libraries:
+    wgpu_native
 
   c-sources:
     cbits/wrapper.c

@@ -10,6 +10,8 @@ import Data.Void
 import Mischief.WGPU.Callbacks
 import Mischief.WGPU.Types.Enums
 
+
+import Data.Data(Proxy(Proxy))
 import Mischief.WGPU.Opaque
 
 
@@ -345,7 +347,8 @@ data WGPUVertexState = WGPUVertexState {
   constantCount :: Int, 
   constants :: ConstPtr WGPUConstantEntry, 
   bufferCount :: Int, 
-  buffers :: ConstPtr WGPUVertexBufferLayout
+  buffers :: ConstPtr WGPUVertexBufferLayout, 
+  _WGPUVertexState :: Proxy ()
 }
 
 instance Storable WGPUVertexState where
@@ -359,7 +362,7 @@ instance Storable WGPUVertexState where
     constants <- #{peek WGPUVertexState, constants} ptr
     bufferCount <- #{peek WGPUVertexState, bufferCount} ptr
     buffers <- #{peek WGPUVertexState, buffers} ptr
-    return WGPUVertexState{nextInChain, _module, entryPoint, constantCount, constants, bufferCount, buffers}
+    return WGPUVertexState{nextInChain, _module, entryPoint, constantCount, constants, bufferCount, buffers, _WGPUVertexState = Proxy}
   poke ptr WGPUVertexState{nextInChain, _module, entryPoint, constantCount, constants, bufferCount, buffers} = do
     #{poke WGPUVertexState, nextInChain} ptr nextInChain
     #{poke WGPUVertexState, module} ptr _module
@@ -576,7 +579,8 @@ data WGPUFragmentState = WGPUFragmentState {
   constantCount :: Int, 
   constants :: ConstPtr WGPUConstantEntry, 
   targetCount :: Int, 
-  targets :: ConstPtr WGPUColorTargetState
+  targets :: ConstPtr WGPUColorTargetState, 
+  _WGPUFragmentState :: Proxy ()
 }
 
 instance Storable WGPUFragmentState where
@@ -590,7 +594,7 @@ instance Storable WGPUFragmentState where
     constants <- #{peek WGPUFragmentState, constants} ptr
     targetCount <- #{peek WGPUFragmentState, targetCount} ptr
     targets <- #{peek WGPUFragmentState, targets} ptr
-    return WGPUFragmentState{nextInChain, _module, entryPoint, constantCount, constants, targetCount, targets}
+    return WGPUFragmentState{nextInChain, _module, entryPoint, constantCount, constants, targetCount, targets, _WGPUFragmentState = Proxy}
   poke ptr WGPUFragmentState{nextInChain, _module, entryPoint, constantCount, constants, targetCount, targets} = do
     #{poke WGPUFragmentState, nextInChain} ptr nextInChain
     #{poke WGPUFragmentState, module} ptr _module
@@ -599,3 +603,215 @@ instance Storable WGPUFragmentState where
     #{poke WGPUFragmentState, constants} ptr constants
     #{poke WGPUFragmentState, targetCount} ptr targetCount
     #{poke WGPUFragmentState, targets} ptr targets
+
+data WGPURenderPipelineDescriptor = WGPURenderPipelineDescriptor {
+  nextInChain :: Ptr WGPUChainedStruct, 
+  label :: WGPUStringView, 
+  layout :: Ptr WGPUPipelineLayout, 
+  vertex :: WGPUVertexState, 
+  primitive :: WGPUPrimitiveState, 
+  depthStencil :: ConstPtr (), 
+  multisample :: WGPUMultisampleState, 
+  fragment :: ConstPtr WGPUFragmentState
+}
+
+instance Storable WGPURenderPipelineDescriptor where
+  alignment _ = #{alignment WGPURenderPipelineDescriptor}
+  sizeOf _ = #{size WGPURenderPipelineDescriptor}
+  peek ptr = do
+    nextInChain <- #{peek WGPURenderPipelineDescriptor, nextInChain} ptr
+    label <- #{peek WGPURenderPipelineDescriptor, label} ptr
+    layout <- #{peek WGPURenderPipelineDescriptor, layout} ptr
+    vertex <- #{peek WGPURenderPipelineDescriptor, vertex} ptr
+    primitive <- #{peek WGPURenderPipelineDescriptor, primitive} ptr
+    depthStencil <- #{peek WGPURenderPipelineDescriptor, depthStencil} ptr
+    multisample <- #{peek WGPURenderPipelineDescriptor, multisample} ptr
+    fragment <- #{peek WGPURenderPipelineDescriptor, fragment} ptr
+    return WGPURenderPipelineDescriptor{nextInChain, label, layout, vertex, primitive, depthStencil, multisample, fragment}
+  poke ptr WGPURenderPipelineDescriptor{nextInChain, label, layout, vertex, primitive, depthStencil, multisample, fragment} = do
+    #{poke WGPURenderPipelineDescriptor, nextInChain} ptr nextInChain
+    #{poke WGPURenderPipelineDescriptor, label} ptr label
+    #{poke WGPURenderPipelineDescriptor, layout} ptr layout
+    #{poke WGPURenderPipelineDescriptor, vertex} ptr vertex
+    #{poke WGPURenderPipelineDescriptor, primitive} ptr primitive
+    #{poke WGPURenderPipelineDescriptor, depthStencil} ptr depthStencil
+    #{poke WGPURenderPipelineDescriptor, multisample} ptr multisample
+    #{poke WGPURenderPipelineDescriptor, fragment} ptr fragment
+
+data WGPUSurfaceConfiguration = WGPUSurfaceConfiguration {
+  nextInChain :: Ptr WGPUChainedStruct, 
+  device :: Ptr WGPUDevice, 
+  format :: WGPUTextureFormat, 
+  usage :: WGPUTextureUsage, 
+  width :: CInt, 
+  height :: CInt, 
+  viewFormatCount :: Int, 
+  viewFormats :: ConstPtr WGPUTextureFormat, 
+  alphaMode :: WGPUCompositeAlphaMode, 
+  presentMode :: WGPUPresentMode
+}
+
+instance Storable WGPUSurfaceConfiguration where
+  alignment _ = #{alignment WGPUSurfaceConfiguration}
+  sizeOf _ = #{size WGPUSurfaceConfiguration}
+  peek ptr = do
+    nextInChain <- #{peek WGPUSurfaceConfiguration, nextInChain} ptr
+    device <- #{peek WGPUSurfaceConfiguration, device} ptr
+    format <- #{peek WGPUSurfaceConfiguration, format} ptr
+    usage <- #{peek WGPUSurfaceConfiguration, usage} ptr
+    width <- #{peek WGPUSurfaceConfiguration, width} ptr
+    height <- #{peek WGPUSurfaceConfiguration, height} ptr
+    viewFormatCount <- #{peek WGPUSurfaceConfiguration, viewFormatCount} ptr
+    viewFormats <- #{peek WGPUSurfaceConfiguration, viewFormats} ptr
+    alphaMode <- #{peek WGPUSurfaceConfiguration, alphaMode} ptr
+    presentMode <- #{peek WGPUSurfaceConfiguration, presentMode} ptr
+    return WGPUSurfaceConfiguration{nextInChain, device, format, usage, width, height, viewFormatCount, viewFormats, alphaMode, presentMode}
+  poke ptr WGPUSurfaceConfiguration{nextInChain, device, format, usage, width, height, viewFormatCount, viewFormats, alphaMode, presentMode} = do
+    #{poke WGPUSurfaceConfiguration, nextInChain} ptr nextInChain
+    #{poke WGPUSurfaceConfiguration, device} ptr device
+    #{poke WGPUSurfaceConfiguration, format} ptr format
+    #{poke WGPUSurfaceConfiguration, usage} ptr usage
+    #{poke WGPUSurfaceConfiguration, width} ptr width
+    #{poke WGPUSurfaceConfiguration, height} ptr height
+    #{poke WGPUSurfaceConfiguration, viewFormatCount} ptr viewFormatCount
+    #{poke WGPUSurfaceConfiguration, viewFormats} ptr viewFormats
+    #{poke WGPUSurfaceConfiguration, alphaMode} ptr alphaMode
+    #{poke WGPUSurfaceConfiguration, presentMode} ptr presentMode
+
+data WGPUSurfaceTexture = WGPUSurfaceTexture {
+  nextInChain :: Ptr WGPUChainedStruct, 
+  texture :: Ptr WGPUTexture, 
+  status :: WGPUSurfaceGetCurrentTextureStatus
+}
+
+instance Storable WGPUSurfaceTexture where
+  alignment _ = #{alignment WGPUSurfaceTexture}
+  sizeOf _ = #{size WGPUSurfaceTexture}
+  peek ptr = do
+    nextInChain <- #{peek WGPUSurfaceTexture, nextInChain} ptr
+    texture <- #{peek WGPUSurfaceTexture, texture} ptr
+    status <- #{peek WGPUSurfaceTexture, status} ptr
+    return WGPUSurfaceTexture{nextInChain, texture, status}
+  poke ptr WGPUSurfaceTexture{nextInChain, texture, status} = do
+    #{poke WGPUSurfaceTexture, nextInChain} ptr nextInChain
+    #{poke WGPUSurfaceTexture, texture} ptr texture
+    #{poke WGPUSurfaceTexture, status} ptr status
+
+data WGPUCommandEncoderDescriptor = WGPUCommandEncoderDescriptor {
+  nextInChain :: Ptr WGPUChainedStruct, 
+  label :: WGPUStringView
+}
+
+instance Storable WGPUCommandEncoderDescriptor where
+  alignment _ = #{alignment WGPUCommandEncoderDescriptor}
+  sizeOf _ = #{size WGPUCommandEncoderDescriptor}
+  peek ptr = do
+    nextInChain <- #{peek WGPUCommandEncoderDescriptor, nextInChain} ptr
+    label <- #{peek WGPUCommandEncoderDescriptor, label} ptr
+    return WGPUCommandEncoderDescriptor{nextInChain, label}
+  poke ptr WGPUCommandEncoderDescriptor{nextInChain, label} = do
+    #{poke WGPUCommandEncoderDescriptor, nextInChain} ptr nextInChain
+    #{poke WGPUCommandEncoderDescriptor, label} ptr label
+
+data WGPUColor = WGPUColor {
+  wgpuColorR :: CDouble, 
+  wgpuColorG :: CDouble, 
+  wgpuColorB :: CDouble, 
+  wgpuColorA :: CDouble
+}
+
+instance Storable WGPUColor where
+  alignment _ = #{alignment WGPUColor}
+  sizeOf _ = #{size WGPUColor}
+  peek ptr = do
+    wgpuColorR <- #{peek WGPUColor, r} ptr
+    wgpuColorG <- #{peek WGPUColor, g} ptr
+    wgpuColorB <- #{peek WGPUColor, b} ptr
+    wgpuColorA <- #{peek WGPUColor, a} ptr
+    return WGPUColor{wgpuColorR, wgpuColorG, wgpuColorB, wgpuColorA}
+  poke ptr WGPUColor{wgpuColorR, wgpuColorG, wgpuColorB, wgpuColorA} = do
+    #{poke WGPUColor, r} ptr wgpuColorR
+    #{poke WGPUColor, g} ptr wgpuColorG
+    #{poke WGPUColor, b} ptr wgpuColorB
+    #{poke WGPUColor, a} ptr wgpuColorA
+
+data WGPURenderPassColorAttachment = WGPURenderPassColorAttachment {
+  nextInChain :: Ptr WGPUChainedStruct, 
+  view :: Ptr WGPUTextureView, 
+  depthSlice :: Word32, 
+  resolveTarget :: Ptr WGPUTextureView, 
+  loadOp :: WGPULoadOp,
+  storeOp :: WGPUStoreOp,
+  clearValue :: WGPUColor    
+}
+
+instance Storable WGPURenderPassColorAttachment where
+  alignment _ = #{alignment WGPURenderPassColorAttachment}
+  sizeOf _ = #{size WGPURenderPassColorAttachment}
+  peek ptr = do
+    nextInChain <- #{peek WGPURenderPassColorAttachment, nextInChain} ptr
+    view <- #{peek WGPURenderPassColorAttachment, view} ptr
+    depthSlice <- #{peek WGPURenderPassColorAttachment, depthSlice} ptr
+    resolveTarget <- #{peek WGPURenderPassColorAttachment, resolveTarget} ptr
+    loadOp <- #{peek WGPURenderPassColorAttachment, loadOp} ptr
+    storeOp <- #{peek WGPURenderPassColorAttachment, storeOp} ptr
+    clearValue <- #{peek WGPURenderPassColorAttachment, clearValue} ptr
+    return WGPURenderPassColorAttachment{nextInChain, view, depthSlice, resolveTarget, loadOp, storeOp, clearValue}
+  poke ptr WGPURenderPassColorAttachment{nextInChain, view, depthSlice, resolveTarget, loadOp, storeOp, clearValue} = do
+    #{poke WGPURenderPassColorAttachment, nextInChain} ptr nextInChain
+    #{poke WGPURenderPassColorAttachment, view} ptr view
+    #{poke WGPURenderPassColorAttachment, depthSlice} ptr depthSlice
+    #{poke WGPURenderPassColorAttachment, resolveTarget} ptr resolveTarget
+    #{poke WGPURenderPassColorAttachment, loadOp} ptr loadOp
+    #{poke WGPURenderPassColorAttachment, storeOp} ptr storeOp
+    #{poke WGPURenderPassColorAttachment, clearValue} ptr clearValue
+
+data WGPURenderPassDescriptor = WGPURenderPassDescriptor {
+  nextInChain :: Ptr WGPUChainedStruct,
+  label :: WGPUStringView, 
+  colorAttachmentCount :: Int, 
+  colorAttachments :: ConstPtr WGPURenderPassColorAttachment, 
+  depthStencilAttachment :: ConstPtr (), 
+  occlusionQuerySet :: Ptr WGPUQuerySet, 
+  timestampWrites :: ConstPtr () 
+}
+
+instance Storable WGPURenderPassDescriptor where
+  alignment _ = #{alignment WGPURenderPassDescriptor}
+  sizeOf _ = #{size WGPURenderPassDescriptor}
+  peek ptr = do
+    nextInChain <- #{peek WGPURenderPassDescriptor, nextInChain} ptr
+    label <- #{peek WGPURenderPassDescriptor, label} ptr
+    colorAttachmentCount <- #{peek WGPURenderPassDescriptor, colorAttachmentCount} ptr
+    colorAttachments <- #{peek WGPURenderPassDescriptor, colorAttachments} ptr
+    depthStencilAttachment <- #{peek WGPURenderPassDescriptor, depthStencilAttachment} ptr
+    occlusionQuerySet <- #{peek WGPURenderPassDescriptor, occlusionQuerySet} ptr
+    timestampWrites <- #{peek WGPURenderPassDescriptor, timestampWrites} ptr
+    return WGPURenderPassDescriptor{nextInChain, label, colorAttachmentCount, colorAttachments, depthStencilAttachment, occlusionQuerySet, timestampWrites}
+  poke ptr WGPURenderPassDescriptor{nextInChain, label, colorAttachmentCount, colorAttachments, depthStencilAttachment, occlusionQuerySet, timestampWrites} = do
+    #{poke WGPURenderPassDescriptor, nextInChain} ptr nextInChain
+    #{poke WGPURenderPassDescriptor, label} ptr label
+    #{poke WGPURenderPassDescriptor, colorAttachmentCount} ptr colorAttachmentCount
+    #{poke WGPURenderPassDescriptor, colorAttachments} ptr colorAttachments
+    #{poke WGPURenderPassDescriptor, depthStencilAttachment} ptr depthStencilAttachment
+    #{poke WGPURenderPassDescriptor, occlusionQuerySet} ptr occlusionQuerySet
+    #{poke WGPURenderPassDescriptor, timestampWrites} ptr timestampWrites
+
+wGPU_DEPTH_SLICE_UNDEFINED :: Word32 
+wGPU_DEPTH_SLICE_UNDEFINED = #const WGPU_DEPTH_SLICE_UNDEFINED
+
+data WGPUCommandBufferDescriptor = WGPUCommandBufferDescriptor {
+  nextInChain :: Ptr WGPUChainedStruct, 
+  label :: WGPUStringView
+}
+
+instance Storable WGPUCommandBufferDescriptor where
+  alignment _ = #{alignment WGPUCommandBufferDescriptor}
+  sizeOf _ = #{size WGPUCommandBufferDescriptor}
+  peek ptr = do
+    nextInChain <- #{peek WGPUCommandBufferDescriptor, nextInChain} ptr
+    label <- #{peek WGPUCommandBufferDescriptor, label} ptr
+    return WGPUCommandBufferDescriptor{nextInChain, label}
+  poke ptr WGPUCommandBufferDescriptor{nextInChain, label} = do
+    #{poke WGPUCommandBufferDescriptor, nextInChain} ptr nextInChain
+    #{poke WGPUCommandBufferDescriptor, label} ptr label
