@@ -54,6 +54,27 @@ main = do
           when (wgpuSurface == nullPtr) $ error "Couldn't create WGPU surface."
 
           pure wgpuSurface
+    "windows" -> do
+      hwnd <- BS.useAsCString SDL3.sDL_PROP_WINDOW_WIN32_HWND_POINTER $ \b -> SDL3.getPointerProperty windowProps (ConstPtr b) nullPtr
+      hinstance <- BS.useAsCString SDL3.sDL_PROP_WINDOW_WIN32_INSTANCE_POINTER $ \b -> SDL3.getPointerProperty windowProps (ConstPtr b) nullPtr
+
+      let chain = WGPUChainedStruct {next = nullPtr, sType = wGPUSType_SurfaceSourceWindowsHWND}
+      let win = WGPUSurfaceSourceWindowsHWND {chain, hinstance, hwnd}
+
+      with win $ \win -> do
+        let desc =
+              WGPUSurfaceDescriptor
+                { nextInChain = castPtr win,
+                  label = WGPUStringView {_data = ConstPtr nullPtr, length = 0}
+                }
+
+        with desc $ \desc -> do
+          wgpuSurface <-
+            wgpuInstanceCreateSurface wgpuInstance (ConstPtr desc)
+
+          when (wgpuSurface == nullPtr) $ error "Couldn't create WGPU surface."
+
+          pure wgpuSurface
     _ -> error "undefined video driver"
 
   adapter <- alloca @(Ptr WGPUAdapter) $ \adapterBox -> do
