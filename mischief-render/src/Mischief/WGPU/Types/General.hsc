@@ -35,11 +35,11 @@ instance Storable WGPUChainedStruct where
     #{poke WGPUChainedStruct, sType} ptr sType  
 
 
-data WGPUSurfaceSourceXlibWindow = WGPUSurfaceSourceXlibWindow
-  { chain :: WGPUChainedStruct,
-    display :: Ptr Void,
-    window :: Int64
-  }
+data WGPUSurfaceSourceXlibWindow = WGPUSurfaceSourceXlibWindow { 
+  chain :: WGPUChainedStruct,
+  display :: Ptr Void,
+  window :: Int64
+}
 
 instance Storable WGPUSurfaceSourceXlibWindow where 
   alignment _ = #{alignment WGPUSurfaceSourceXlibWindow}
@@ -53,7 +53,27 @@ instance Storable WGPUSurfaceSourceXlibWindow where
     #{poke WGPUSurfaceSourceXlibWindow, chain} ptr chain
     #{poke WGPUSurfaceSourceXlibWindow, display} ptr display
     #{poke WGPUSurfaceSourceXlibWindow, window} ptr window
-    
+
+data WGPUSurfaceSourceWindowsHWND = WGPUSurfaceSourceWindowsHWND {
+  chain :: WGPUChainedStruct, 
+  hinstance :: Ptr Void,
+  hwnd :: Ptr Void  
+}
+
+instance Storable WGPUSurfaceSourceWindowsHWND where
+  alignment _ = #{alignment WGPUSurfaceSourceWindowsHWND}
+  sizeOf _ = #{size WGPUSurfaceSourceWindowsHWND}
+  peek ptr = do
+    chain <- #{peek WGPUSurfaceSourceWindowsHWND, chain} ptr
+    hinstance <- #{peek WGPUSurfaceSourceWindowsHWND, hinstance} ptr
+    hwnd <- #{peek WGPUSurfaceSourceWindowsHWND, hwnd} ptr
+    return WGPUSurfaceSourceWindowsHWND{chain, hinstance, hwnd}
+  poke ptr WGPUSurfaceSourceWindowsHWND{chain, hinstance, hwnd} = do
+    #{poke WGPUSurfaceSourceWindowsHWND, chain} ptr chain
+    #{poke WGPUSurfaceSourceWindowsHWND, hinstance} ptr hinstance
+    #{poke WGPUSurfaceSourceWindowsHWND, hwnd} ptr hwnd
+
+
 data WGPUStringView = WGPUStringView {
   _data :: ConstPtr CChar, 
   length :: Int 
