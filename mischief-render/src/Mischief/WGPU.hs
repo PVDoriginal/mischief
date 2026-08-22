@@ -36,15 +36,17 @@ newWGPURequestCallbackInfo :: WGPURequestCallbackInfo a
 newWGPURequestCallbackInfo =
   WGPURequestCallbackInfo
     { nextInChain = nullPtr,
-      mode = wGPUCallbackMode_AllowSpontaneous,
+      mode = wGPUCallbackMode_WaitAnyOnly,
       callback = nullFunPtr,
       userdata1 = nullPtr,
       userdata2 = nullPtr
     }
 
-foreign import ccall "wrapper.h hs_wgpuInstanceRequestAdapter" wgpuInstanceRequestAdapter :: Ptr WGPUInstance -> Ptr WGPURequestAdapterOptions -> Ptr (WGPURequestCallbackInfo WGPURequestAdapterCallback) -> IO ()
+foreign import ccall "wrapper.h wgpuInstanceProcessEvents" wgpuInstanceProcessEvents :: Ptr WGPUInstance -> IO ()
 
-foreign import ccall "wrapper.h hs_wgpuAdapterRequestDevice" wgpuAdapterRequestDevice :: Ptr WGPUAdapter -> Ptr () -> Ptr (WGPURequestCallbackInfo WGPURequestDeviceCallback) -> IO ()
+foreign import ccall "wrapper.h hs_wgpuInstanceRequestAdapter" wgpuInstanceRequestAdapter :: Ptr WGPUInstance -> Ptr WGPUSurface -> IO (Ptr WGPUAdapter)
+
+foreign import ccall "wrapper.h hs_wgpuAdapterRequestDevice" wgpuAdapterRequestDevice :: Ptr WGPUAdapter -> IO (Ptr WGPUDevice)
 
 foreign import ccall "webgpu.h wgpuDeviceGetQueue" wgpuDeviceGetQueue :: Ptr WGPUDevice -> IO (Ptr WGPUQueue)
 

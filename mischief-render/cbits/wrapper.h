@@ -1,13 +1,10 @@
-#include <webgpu/webgpu.h>
+#include "webgpu.h"
 
-WGPUFuture hs_wgpuAdapterRequestDevice(
-    WGPUAdapter adapter,
-    WGPUDeviceDescriptor const *descriptor,
-    WGPURequestDeviceCallbackInfo const *callbackInfo
+WGPUDevice hs_wgpuAdapterRequestDevice(
+    WGPUAdapter adapter
 );
 
-WGPUFuture hs_wgpuInstanceRequestAdapter(
+WGPUAdapter hs_wgpuInstanceRequestAdapter(
   WGPUInstance instance, 
-  WGPU_NULLABLE WGPURequestAdapterOptions const * options, 
-  WGPURequestAdapterCallbackInfo *callbackInfo
+  WGPUSurface surface
 );

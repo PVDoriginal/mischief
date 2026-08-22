@@ -27,3 +27,5 @@ data WGPUCommandEncoder = WGPUCommandEncoder
 data WGPUQuerySet = WGPUQuerySet
 
 data WGPURenderPassEncoder = WGPURenderPassEncoder
+
+data WGPUFuture = WGPUFuture

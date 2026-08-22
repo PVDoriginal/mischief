@@ -17,12 +17,11 @@ import SDL3.Sys qualified as SDL3
 import SDL3.Sys.Bindgen.Video.FunPtr (sDL_GetWindowSize)
 import System.Environment (setEnv)
 import System.Exit (exitSuccess)
+import System.IO (hFlush, stdout)
 
 main :: IO ()
 main = do
   !wgpuInstance <- wgpuCreateInstance
-
-  setEnv "SDL_VIDEODRIVER" "x11"
 
   window <- withCString "sdl3-raw" $ \title -> SDL3.createWindow (ConstPtr title) 640 360 0
 
@@ -77,42 +76,46 @@ main = do
           pure wgpuSurface
     _ -> error "undefined video driver"
 
-  adapter <- alloca @(Ptr WGPUAdapter) $ \adapterBox -> do
-    with False $ \b -> do
-      callback <- requestAdapterCallback onAdapterRequestCall
-      let callbackInfo =
-            newWGPURequestCallbackInfo
-              { callback,
-                userdata1 = castPtr adapterBox,
-                userdata2 = castPtr b
-              }
+  -- adapter <- alloca @(Ptr WGPUAdapter) $ \adapterBox -> do
+  --   with False $ \b -> do
+  --     callback <- requestAdapterCallback onAdapterRequestCall
+  --     let callbackInfo =
+  --           newWGPURequestCallbackInfo
+  --             { callback,
+  --               userdata1 = castPtr adapterBox,
+  --               userdata2 = castPtr b
+  --             }
 
-      let adapterOptions = newWGPURequestAdapterOptions {compatibleSurface = surface}
+  --     let adapterOptions = newWGPURequestAdapterOptions {compatibleSurface = surface}
+  --     with adapterOptions $ \adapterOptions -> do
+  --       with callbackInfo $ \callbackInfo -> do
+  --         wgpuInstanceProcessEvents wgpuInstance
+  --         wgpuInstanceRequestAdapter wgpuInstance adapterOptions callbackInfo
+  --         waitOnBool b
 
-      with adapterOptions $ \adapterOptions -> do
-        with callbackInfo $ \callbackInfo -> do
-          wgpuInstanceRequestAdapter wgpuInstance adapterOptions callbackInfo
-          waitOnBool b
+  --         peek adapterBox
 
-          peek adapterBox
+  adapter <- wgpuInstanceRequestAdapter wgpuInstance surface
 
   when (adapter == nullPtr) $ error "Couldn't obtain WGPU adapter."
 
-  device <- alloca @(Ptr WGPUDevice) $ \deviceBox -> do
-    with False $ \b -> do
-      callback <- requestDeviceCallback onDeviceRequestCall
-      let callbackInfo =
-            newWGPURequestCallbackInfo
-              { callback,
-                userdata1 = castPtr deviceBox,
-                userdata2 = castPtr b
-              }
+  -- device <- alloca @(Ptr WGPUDevice) $ \deviceBox -> do
+  --   with False $ \b -> do
+  --     callback <- requestDeviceCallback onDeviceRequestCall
+  --     let callbackInfo =
+  --           newWGPURequestCallbackInfo
+  --             { callback,
+  --               userdata1 = castPtr deviceBox,
+  --               userdata2 = castPtr b
+  --             }
 
-      with callbackInfo $ \callbackInfo -> do
-        wgpuAdapterRequestDevice adapter nullPtr callbackInfo
-        waitOnBool b
+  --     with callbackInfo $ \callbackInfo -> do
+  --       wgpuAdapterRequestDevice adapter nullPtr callbackInfo
+  --       waitOnBool b
 
-        peek deviceBox
+  --       peek deviceBox
+
+  device <- wgpuAdapterRequestDevice adapter
 
   when (device == nullPtr) $ error "Couldn't obtain WGPU edvice."
 
@@ -221,7 +224,8 @@ main = do
     wgpuSurfaceConfigure surface (ConstPtr config)
 
   _ <- forever $ do
-    handleEvents pipeline pipelineLayout shaderModule surfaceCapabilities queue device adapter surface wgpuInstance
+    with cap $ \cap ->
+      handleEvents pipeline pipelineLayout shaderModule cap queue device adapter surface wgpuInstance
 
     surfaceTextureBox <- malloc
     wgpuSurfaceGetCurrentTexture surface surfaceTextureBox
@@ -332,15 +336,21 @@ quit pipeline layout shader surfaceCap queue device adapter surface ins = do
 
 waitOnBool :: Ptr Bool -> IO ()
 waitOnBool p = do
-  b <- peek p
-  if b then pure () else waitOnBool p
+  waitOnBool p
+
+-- b <- peek p
+-- if b then pure () else waitOnBool p
 
 onAdapterRequestCall :: WGPURequestAdapterCallback
 onAdapterRequestCall status adapter _ _ u1 u2 = do
+  unless (status == wGPURequestAdapterStatus_Success) $ error "Can't obtain adapter."
   when (status == wGPURequestAdapterStatus_Success) $ do
     print "Adapter ready!"
+    hFlush stdout
+    when (adapter == nullPtr) $ error "UHM"
     poke (castPtr u1) adapter
-    poke (castPtr u2) True
+
+-- poke (castPtr u2) True
 
 onDeviceRequestCall :: WGPURequestDeviceCallback
 onDeviceRequestCall status device _ _ u1 u2 = do
