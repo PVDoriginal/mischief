@@ -67,19 +67,21 @@ insert bundle entity =
         currentTable <- Vec.read world.tables.inner (I# archetypeId)
 
         -- Simple case, no archetype change.
-        if newComponents `isSubsequenceOf` currentTable.components
-          then
-            liftIO $ replaceComponentsIntoTable bundleData (Just currentTick) (EntityPointer (# archetypeId, rowIndex #)) currentTable
-          -- Complex case, archetype change.
-          else do
-            newArchetype <- getArchetypeOnInsert (ArchetypeId $ I# archetypeId) newComponents
-            ChangeResult {requiredComponentsAdded} <- changeArchetype entity newArchetype (Just bundleData)
+        ChangeResult {requiredComponentsAdded, newComponents} <-
+          if newComponents `isSubsequenceOf` currentTable.components
+            then do
+              liftIO $ replaceComponentsIntoTable bundleData (Just currentTick) (EntityPointer (# archetypeId, rowIndex #)) currentTable
+              pure $ ChangeResult [] []
+            -- Complex case, archetype change.
+            else do
+              newArchetype <- getArchetypeOnInsert (ArchetypeId $ I# archetypeId) newComponents
+              changeArchetype entity newArchetype (Just bundleData)
 
-            unless world.prefs.supressEvents $
-              triggerInsertEvent (ProcessedBundleData requiredComponentsAdded) entity
-
-        unless world.prefs.supressEvents $
-          triggerInsertEvent bundleData entity
+        unless world.prefs.supressEvents $ do
+          triggerAddEvent (ProcessedBundleData newComponents) entity
+          triggerAddEvent (ProcessedBundleData requiredComponentsAdded) entity
+          triggerSetEvent bundleData entity
+          triggerSetEvent (ProcessedBundleData requiredComponentsAdded) entity
 
 getOrInsert :: forall qd. (Updateable (Result qd), Bundle qd) => qd -> Entity -> System (Result qd)
 getOrInsert val entity = do
@@ -118,11 +120,11 @@ insertNew bundle entity =
           newArchetype <- getArchetypeOnInsert (ArchetypeId $ I# archetypeId) $ map (\x -> x.id) newComponents.elements
           ChangeResult {requiredComponentsAdded} <- changeArchetype entity newArchetype (Just bundleData)
 
-          unless world.prefs.supressEvents $
-            triggerInsertEvent (ProcessedBundleData requiredComponentsAdded) entity
-
-          unless world.prefs.supressEvents $
-            triggerInsertEvent newComponents entity
+          unless world.prefs.supressEvents $ do
+            triggerAddEvent (ProcessedBundleData requiredComponentsAdded) entity
+            triggerAddEvent newComponents entity
+            triggerSetEvent (ProcessedBundleData requiredComponentsAdded) entity
+            triggerSetEvent newComponents entity
 
 insertIfNeq :: (BundleEq b) => b -> Entity -> System ()
 insertIfNeq b entity = do
@@ -210,20 +212,38 @@ instance (Updateable' (IsComp c) (Result c)) => Updateable (Result c) where
 update :: forall c. (Updateable (Result c)) => Result c -> System (Maybe (Result c))
 update = updateInner
 
-triggerInsertEvent :: ProcessedBundleData -> Entity -> System ()
-triggerInsertEvent bundle entity =
+triggerAddEvent :: ProcessedBundleData -> Entity -> System ()
+triggerAddEvent bundle entity =
   for_ bundle.elements $ \x -> do
-    let !(ComponentId (# id, target #)) = x.id
+    let !(ComponentId (# _, target #)) = x.id
     case target of
       Nothing ->
-        triggerInsertEventC x.component.value entity
+        triggerSetEventC x.component.value entity
       Just target ->
-        triggerInsertEventR x.component.value target entity
+        triggerSetEventR x.component.value target entity
 
-triggerInsertEventC :: ErasedComponent -> Entity -> System ()
-triggerInsertEventC (ErasedComponent (_ :: c)) entity =
-  runEvent $ eraseEvent $ OnInsert @c entity
+triggerAddEventC :: ErasedComponent -> Entity -> System ()
+triggerAddEventC (ErasedComponent (_ :: c)) entity =
+  runEvent $ eraseEvent $ OnSet @c entity
 
-triggerInsertEventR :: ErasedComponent -> Entity -> Entity -> System ()
-triggerInsertEventR (ErasedComponent (_ :: c)) target entity = do
-  runEvent $ eraseEvent $ OnInsertRel @c entity target
+triggerAddEventR :: ErasedComponent -> Entity -> Entity -> System ()
+triggerAddEventR (ErasedComponent (_ :: c)) target entity = do
+  runEvent $ eraseEvent $ OnSetRel @c entity target
+
+triggerSetEvent :: ProcessedBundleData -> Entity -> System ()
+triggerSetEvent bundle entity =
+  for_ bundle.elements $ \x -> do
+    let !(ComponentId (# _, target #)) = x.id
+    case target of
+      Nothing ->
+        triggerSetEventC x.component.value entity
+      Just target ->
+        triggerSetEventR x.component.value target entity
+
+triggerSetEventC :: ErasedComponent -> Entity -> System ()
+triggerSetEventC (ErasedComponent (_ :: c)) entity =
+  runEvent $ eraseEvent $ OnSet @c entity
+
+triggerSetEventR :: ErasedComponent -> Entity -> Entity -> System ()
+triggerSetEventR (ErasedComponent (_ :: c)) target entity = do
+  runEvent $ eraseEvent $ OnSetRel @c entity target

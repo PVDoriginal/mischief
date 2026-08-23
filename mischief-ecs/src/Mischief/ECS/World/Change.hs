@@ -6,7 +6,7 @@ import Data.IORef
 import Data.Map qualified as Map
 import Data.Maybe
 import Data.Set qualified as Set
-import GHC.Base (Int (..))
+import GHC.Base (Int (..), when)
 import GHC.Stack (HasCallStack)
 import Mischief.ECS.App.SystemDef
 import Mischief.ECS.Archetypes
@@ -35,6 +35,7 @@ changeArchetype entity newArchetype insertedBundle = do
   currentTick <- liftIO $ readIORef world.tick
 
   reqAdded <- liftIO $ newIORef []
+  newAdded <- liftIO $ newIORef []
 
   Just pointer <- liftIO $ getPointer entity world.entities
   (EntityPointer (# archetypeId', rowIndex' #)) <- liftIO $ readIORef pointer
@@ -43,6 +44,7 @@ changeArchetype entity newArchetype insertedBundle = do
 
   collected <- liftIO $ takeComponentsFromTable (EntityPointer (# archetypeId', rowIndex' #)) table
 
+  -- TODO OPT: this whole thing can be greatly optimized
   newElements'' <-
     mapM
       ( \component -> do
@@ -50,7 +52,11 @@ changeArchetype entity newArchetype insertedBundle = do
             Nothing -> maybe undefined return (find (\x -> x.id == component) collected.elements)
             Just bundle ->
               case find (\x -> x.id == component) bundle.elements of
-                Just x -> return x
+                Just x -> do
+                  case find (\x -> x.id == component) collected.elements of
+                    Nothing -> pure ()
+                    Just y -> liftIO $ modifyIORef' newAdded (++ [y])
+                  return x
                 Nothing ->
                   case find (\x -> x.id == component) collected.elements of
                     Just x -> return x
@@ -70,7 +76,8 @@ changeArchetype entity newArchetype insertedBundle = do
   liftIO $ insertEntityIntoTables newElements world.tables newArchetype.id (entity, pointer)
 
   requiredComponentsAdded <- liftIO $ readIORef reqAdded
-  return ChangeResult {requiredComponentsAdded}
+  newComponents <- liftIO $ readIORef newAdded
+  return ChangeResult {requiredComponentsAdded, newComponents}
 
 getDefault :: ComponentId -> System ProcessedBundleElement
 getDefault (ComponentId (# id, e #)) = do

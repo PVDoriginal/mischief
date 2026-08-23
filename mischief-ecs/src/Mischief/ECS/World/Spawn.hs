@@ -68,7 +68,9 @@ spawnEntity entity bundle = do
   ChangeResult {requiredComponentsAdded} <- changeArchetype entity archetype (Just bundleD)
 
   unless world.prefs.supressEvents $ do
-    triggerInsertEvent (ProcessedBundleData $ requiredComponentsAdded ++ bundleD.elements) entity
+    let d = ProcessedBundleData $ requiredComponentsAdded ++ bundleD.elements
+    triggerAddEvent d entity
+    triggerSetEvent d entity
 
 -- insertNew (Name (show entity)) entity
 

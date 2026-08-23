@@ -27,7 +27,7 @@ instance Default WindowTitle where
   def = WindowTitle "Mischief Window"
 
 handleNewWindow :: OnInsert Window -> System ()
-handleNewWindow (OnInsert entity) = do
+handleNewWindow (OnSet entity) = do
   Just (WindowSize w h, WindowTitle title) <- [g|*WindowSize, *WindowTitle|] entity
   window <- liftIO $ withCString title $ \title -> SDL3.createWindow (ConstPtr title) (fromIntegral w) (fromIntegral h) 0
   insert (SDLWindow window) entity
