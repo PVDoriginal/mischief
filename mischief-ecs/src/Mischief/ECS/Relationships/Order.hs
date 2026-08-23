@@ -36,7 +36,7 @@ orderEntitiesStep entities =
     then
       return []
     else do
-      next <- expect "Attempted to Order Cyclic Graph!" =<< findM isAvailable entities
+      next <- expect "Attempted to Order Cyclic Graph!" <$> findM isAvailable entities
       insert Visited next
       (next :) <$> orderEntitiesStep (Set.delete next entities)
 

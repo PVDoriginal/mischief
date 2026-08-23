@@ -26,3 +26,9 @@ unwrap = withFrozenCallStack $ fromMaybe undefined
 
 (>>+) :: forall (m :: Type -> Type) a b. (Monad m) => m a -> (a -> m b) -> m a
 (>>+) a f = a >>= f >>= const a
+
+expect :: (HasCallStack) => String -> Maybe a -> a
+expect t a = withFrozenCallStack $
+  case a of
+    Nothing -> error t
+    Just x -> x

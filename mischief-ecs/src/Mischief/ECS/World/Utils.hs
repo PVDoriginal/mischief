@@ -240,10 +240,4 @@ isAlive entity = do
   world <- unsafeGetWorld
   liftIO $ isAliveIO entity world.entities
 
-expect :: (HasCallStack) => forall m w a. (MonadSystem w m) => Text -> Maybe a -> m a
-expect t a = withFrozenCallStack $ do
-  case a of
-    Nothing -> panic t >>= const undefined
-    Just x -> return x
-
 newtype GetSystem = GetSystem (forall c. (Component c) => Proxy c -> Entity -> System (Maybe c))

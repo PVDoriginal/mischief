@@ -27,10 +27,5 @@ err msg = withFrozenCallStack $ do
   world <- unsafeGetWorld
   liftIO $ Colog.usingLoggerT world.logger $ Colog.logError msg
 
-panic :: (HasCallStack) => (MonadSystem w m) => Text -> m ()
-panic msg = withFrozenCallStack $ do
-  err msg
-  undefined
-
 text :: (Show a) => a -> Text
 text = Text.pack . show
