@@ -79,7 +79,7 @@ library
     containers,
     data-default,
     linear,
-    mischief-ecs ^>=0.1.0.0,
+    mischief-ecs ^>=0.2.0.0,
     mtl,
     primitive,
     sdl3-bindgen-sys ==0.0.0.2,

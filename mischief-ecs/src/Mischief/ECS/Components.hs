@@ -90,8 +90,23 @@ class (Typeable c, IsExclusive (RelExclusivity c)) => Component c where
   type RelExclusivity c :: Exclusivity
   type RelExclusivity c = Inclusive
 
-  hooks :: Hooks c
-  hooks = Hooks []
+  onAdd :: Hooks c
+  onAdd = Hooks []
+
+  onSet :: Hooks c
+  onSet = Hooks []
+
+  onRemove :: Hooks c
+  onRemove = Hooks []
+
+  onAddRel :: HooksRel c
+  onAddRel = HooksRel []
+
+  onSetRel :: HooksRel c
+  onSetRel = HooksRel []
+
+  onRemoveRel :: HooksRel c
+  onRemoveRel = HooksRel []
 
 class IsExclusive (e :: Exclusivity) where
   isExclusive :: Bool

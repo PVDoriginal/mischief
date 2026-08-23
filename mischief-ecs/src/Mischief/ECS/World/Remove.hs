@@ -17,6 +17,7 @@ import Mischief.ECS.Archetypes.Graph
 import Mischief.ECS.Collectable
 import Mischief.ECS.Components
 import Mischief.ECS.Components.Common
+import Mischief.ECS.Components.HooksDef (HookContext (..), HookContextRel (..))
 import Mischief.ECS.Components.Spawn
 import Mischief.ECS.Entities
 import Mischief.ECS.EntityDef
@@ -118,9 +119,20 @@ triggerRemoveEvent components entity = do
       Just target -> triggerRemoveEventR (value t) target entity
 
 triggerRemoveEventC :: ComponentType -> Entity -> System ()
-triggerRemoveEventC (ComponentType (_ :: Proxy t)) entity =
+triggerRemoveEventC (ComponentType (_ :: Proxy t)) entity = do
   runEvent $ eraseEvent $ OnRemove @t entity
 
+  let context = HookContext {entity}
+  Just hooks <- get (Val (M @ComponentRemoveHooks)) =<< meta @t
+  for_ hooks $ \(ComponentRemoveHooks h) -> do
+    for_ h $ \h -> h context
+
 triggerRemoveEventR :: ComponentType -> Entity -> Entity -> System ()
-triggerRemoveEventR (ComponentType (_ :: Proxy t)) target entity =
+triggerRemoveEventR (ComponentType (_ :: Proxy t)) target entity = do
   runEvent $ eraseEvent $ OnRemoveRel @t entity target
+
+  let context = HookContextRel {entity, target}
+
+  Just hooks <- get (Val (M @ComponentRemoveHooksRel)) =<< meta @t
+  for_ hooks $ \(ComponentRemoveHooksRel h) -> do
+    for_ h $ \h -> h context

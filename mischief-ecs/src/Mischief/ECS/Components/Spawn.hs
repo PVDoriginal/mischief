@@ -84,7 +84,7 @@ getOrAddComponentId (ComponentType (_ :: Proxy c)) = do
         worldSet (Rel Requires otherId) result
         worldSet (DefaultValue $ ErasedComponent $ def @other) otherId
 
-      registerHooks $ hooks @c
+      registerHooks @c result
 
       return $ ComponentId (# id, Nothing #)
 
@@ -102,13 +102,50 @@ tryMeta = do
   component <- liftIO $ getComponentId (typeRep $ Proxy @c) world.components
   return $ fmap (\(ComponentId (# id, _ #)) -> Entity (# id, 0## #)) component
 
-registerHooks :: Hooks c -> System ()
-registerHooks (Hooks h) = for_ h registerHook
+registerHooks :: forall c. (Component c) => Entity -> System ()
+registerHooks entity = do
+  let a = map getHook (onAdd @c).inner
+  let s = map getHook (onSet @c).inner
+  let r = map getHook (onRemove @c).inner
+  let ar = map getHookRel (onAddRel @c).inner
+  let sr = map getHookRel (onSetRel @c).inner
+  let rr = map getHookRel (onRemoveRel @c).inner
 
-registerHook :: ErasedHook c -> System ()
-registerHook (ErasedHook (h :: e c -> m ())) = do
-  world <- unsafeGetWorld
-  e <- liftIO $ getNewEntity world.entities
+  worldSet (ComponentAddHooks a) entity
+  worldSet (ComponentSetHooks s) entity
+  worldSet (ComponentRemoveHooks r) entity
+  worldSet (ComponentAddHooksRel ar) entity
+  worldSet (ComponentSetHooksRel sr) entity
+  worldSet (ComponentRemoveHooksRel rr) entity
+
+getHook :: ErasedHook -> (HookContext -> System ())
+getHook (ErasedHook (h :: HookContext -> m ())) = do
   case eqT @m @System of
-    Just Refl -> void $ worldSpawnByInsert e $ Observer h
     Nothing -> undefined
+    Just Refl -> h
+
+getHookRel :: ErasedHookRel -> (HookContextRel -> System ())
+getHookRel (ErasedHookRel (h :: HookContextRel -> m ())) = do
+  case eqT @m @System of
+    Nothing -> undefined
+    Just Refl -> h
+
+-- registerHook :: ErasedHook c -> System ()
+-- registerHook (ErasedHook (h :: e c -> m ())) = do
+--   world <- unsafeGetWorld
+--   e <- liftIO $ getNewEntity world.entities
+--   case eqT @m @System of
+--     Just Refl -> void $ worldSpawnByInsert e $ Observer h
+--     Nothing -> undefined
+
+newtype ComponentAddHooks = ComponentAddHooks [HookContext -> System ()] deriving anyclass (Component)
+
+newtype ComponentSetHooks = ComponentSetHooks [HookContext -> System ()] deriving anyclass (Component)
+
+newtype ComponentRemoveHooks = ComponentRemoveHooks [HookContext -> System ()] deriving anyclass (Component)
+
+newtype ComponentAddHooksRel = ComponentAddHooksRel [HookContextRel -> System ()] deriving anyclass (Component)
+
+newtype ComponentSetHooksRel = ComponentSetHooksRel [HookContextRel -> System ()] deriving anyclass (Component)
+
+newtype ComponentRemoveHooksRel = ComponentRemoveHooksRel [HookContextRel -> System ()] deriving anyclass (Component)

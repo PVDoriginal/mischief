@@ -12,7 +12,7 @@ import Data.Foldable (for_)
 import Data.IORef
 import Data.List hiding (insert)
 import Data.Map qualified as Map
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, isJust)
 import Data.Set qualified as Set
 import Data.Text qualified as Text
 import GHC.Base (Int (..))
@@ -23,6 +23,8 @@ import Mischief.ECS.Archetypes.Graph
   )
 import Mischief.ECS.Components
 import Mischief.ECS.Components.Bundle
+import Mischief.ECS.Components.HooksDef (HookContext (..), HookContextRel (..))
+import Mischief.ECS.Components.Spawn (ComponentAddHooks (ComponentAddHooks), ComponentAddHooksRel (ComponentAddHooksRel), ComponentSetHooks (ComponentSetHooks), ComponentSetHooksRel (ComponentSetHooksRel), meta)
 import Mischief.ECS.Entities
 import Mischief.ECS.EntityDef
 import Mischief.ECS.EventDef
@@ -218,16 +220,30 @@ triggerAddEvent bundle entity =
     let !(ComponentId (# _, target #)) = x.id
     case target of
       Nothing ->
-        triggerSetEventC x.component.value entity
+        triggerAddEventC x.component.value entity
       Just target ->
-        triggerSetEventR x.component.value target entity
+        triggerAddEventR x.component.value target entity
 
 triggerAddEventC :: ErasedComponent -> Entity -> System ()
-triggerAddEventC (ErasedComponent (_ :: c)) entity =
+triggerAddEventC (ErasedComponent (_ :: c)) entity = do
+  let context = HookContext {entity}
+
+  hooks <- get (Val (C @ComponentAddHooks)) =<< meta @c
+  for_ hooks $ \(ComponentAddHooks h) -> do
+    for_ h $ \h -> h context
+
+  when (isJust hooks) $ warn "AUHFASUFJ"
+
   runEvent $ eraseEvent $ OnSet @c entity
 
 triggerAddEventR :: ErasedComponent -> Entity -> Entity -> System ()
 triggerAddEventR (ErasedComponent (_ :: c)) target entity = do
+  let context = HookContextRel {entity, target}
+
+  Just hooks <- get (Val (M @ComponentAddHooksRel)) =<< meta @c
+  for_ hooks $ \(ComponentAddHooksRel h) -> do
+    for_ h $ \h -> h context
+
   runEvent $ eraseEvent $ OnSetRel @c entity target
 
 triggerSetEvent :: ProcessedBundleData -> Entity -> System ()
@@ -241,9 +257,21 @@ triggerSetEvent bundle entity =
         triggerSetEventR x.component.value target entity
 
 triggerSetEventC :: ErasedComponent -> Entity -> System ()
-triggerSetEventC (ErasedComponent (_ :: c)) entity =
+triggerSetEventC (ErasedComponent (_ :: c)) entity = do
+  let context = HookContext {entity}
+
+  Just hooks <- get (Val (M @ComponentSetHooks)) =<< meta @c
+  for_ hooks $ \(ComponentSetHooks h) -> do
+    for_ h $ \h -> h context
+
   runEvent $ eraseEvent $ OnSet @c entity
 
 triggerSetEventR :: ErasedComponent -> Entity -> Entity -> System ()
 triggerSetEventR (ErasedComponent (_ :: c)) target entity = do
+  let context = HookContextRel {entity, target}
+
+  Just hooks <- get (Val (M @ComponentSetHooksRel)) =<< meta @c
+  for_ hooks $ \(ComponentSetHooksRel h) -> do
+    for_ h $ \h -> h context
+
   runEvent $ eraseEvent $ OnSetRel @c entity target

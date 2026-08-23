@@ -1,5 +1,7 @@
 module Main where
 
+import Data.Maybe
+import Mischief.ECS.Components.Spawn
 import Mischief.ECS.Prelude
 import Mischief.ECS.Systems qualified as Systems
 import Mischief.SDL (SDLPlugin (..))
@@ -24,4 +26,5 @@ setup = do
   w1 <- spawn (Window, WindowSize 100 300)
   w2 <- spawn (Window, WindowTitle "Second Window", WindowSize 1000 40)
   w3 <- spawn Window
+
   pure ()
