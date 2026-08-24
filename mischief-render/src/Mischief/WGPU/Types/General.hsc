@@ -417,7 +417,7 @@ instance Storable WGPUBufferBindingLayout where
 
 data WGPUSamplerBindingLayout = WGPUSamplerBindingLayout {
   nextInChain :: Ptr WGPUChainedStruct,
-  _type :: WGPUBufferBindingType
+  _type :: WGPUSamplerBindingType
 }
 
 instance Storable WGPUSamplerBindingLayout where 
@@ -487,8 +487,8 @@ data WGPUBindGroupLayoutEntry = WGPUBindGroupLayoutEntry {
 }
 
 instance Storable WGPUBindGroupLayoutEntry where 
-  alignment _ = #{alignment WGPUStorageTextureBindingLayout}
-  sizeOf _ = #{size WGPUStorageTextureBindingLayout}
+  alignment _ = #{alignment WGPUBindGroupLayoutEntry}
+  sizeOf _ = #{size WGPUBindGroupLayoutEntry}
   peek ptr = do 
     nextInChain <- #{peek WGPUBindGroupLayoutEntry, nextInChain} ptr 
     binding <- #{peek WGPUBindGroupLayoutEntry, binding} ptr
@@ -512,14 +512,14 @@ instance Storable WGPUBindGroupLayoutEntry where
 data WGPUPipelineLayoutDescriptor = WGPUPipelineLayoutDescriptor {
   nextInChain :: Ptr WGPUChainedStruct, 
   label :: WGPUStringView, 
-  bindGroupLayoutCount :: Word32, 
+  bindGroupLayoutCount :: CSize, 
   bindGroupLayouts :: ConstPtr WGPUBindGroupLayout,
   immediateSize :: CUInt
 }
 
 instance Storable WGPUPipelineLayoutDescriptor where 
-  alignment _ = #{alignment WGPUStorageTextureBindingLayout}
-  sizeOf _ = #{size WGPUStorageTextureBindingLayout}
+  alignment _ = #{alignment WGPUPipelineLayoutDescriptor}
+  sizeOf _ = #{size WGPUPipelineLayoutDescriptor}
   peek ptr = do 
     nextInChain <- #{peek WGPUPipelineLayoutDescriptor, nextInChain} ptr
     label <- #{peek WGPUPipelineLayoutDescriptor, label} ptr
@@ -835,3 +835,169 @@ instance Storable WGPUCommandBufferDescriptor where
   poke ptr WGPUCommandBufferDescriptor{nextInChain, label} = do
     #{poke WGPUCommandBufferDescriptor, nextInChain} ptr nextInChain
     #{poke WGPUCommandBufferDescriptor, label} ptr label
+
+data WGPUExtent3D = WGPUExtent3D {
+  width :: Word32, 
+  height :: Word32, 
+  depthOrArrayLayers :: Word32 
+}
+
+instance Storable WGPUExtent3D where
+  alignment _ = #{alignment WGPUExtent3D}
+  sizeOf _ = #{size WGPUExtent3D}
+  peek ptr = do
+    width <- #{peek WGPUExtent3D, width} ptr
+    height <- #{peek WGPUExtent3D, height} ptr
+    depthOrArrayLayers <- #{peek WGPUExtent3D, depthOrArrayLayers} ptr
+    return WGPUExtent3D{width, height, depthOrArrayLayers}
+  poke ptr WGPUExtent3D{width, height, depthOrArrayLayers} = do
+    #{poke WGPUExtent3D, width} ptr width
+    #{poke WGPUExtent3D, height} ptr height
+    #{poke WGPUExtent3D, depthOrArrayLayers} ptr depthOrArrayLayers
+
+data WGPUTextureDescriptor = WGPUTextureDescriptor {
+  nextInChain :: Ptr WGPUChainedStruct, 
+  label :: WGPUStringView, 
+  usage :: WGPUTextureUsage, 
+  dimension :: WGPUTextureDimension, 
+  size :: WGPUExtent3D, 
+  format :: WGPUTextureFormat, 
+  mipLevelCount :: Word32, 
+  sampleCount :: Word32, 
+  viewFormatCount :: CSize, 
+  viewFormats :: ConstPtr WGPUTextureFormat
+}
+
+instance Storable WGPUTextureDescriptor where
+  alignment _ = #{alignment WGPUTextureDescriptor}
+  sizeOf _ = #{size WGPUTextureDescriptor}
+  peek ptr = do
+    nextInChain <- #{peek WGPUTextureDescriptor, nextInChain} ptr
+    label <- #{peek WGPUTextureDescriptor, label} ptr
+    usage <- #{peek WGPUTextureDescriptor, usage} ptr
+    dimension <- #{peek WGPUTextureDescriptor, dimension} ptr
+    size <- #{peek WGPUTextureDescriptor, size} ptr
+    format <- #{peek WGPUTextureDescriptor, format} ptr
+    mipLevelCount <- #{peek WGPUTextureDescriptor, mipLevelCount} ptr
+    sampleCount <- #{peek WGPUTextureDescriptor, sampleCount} ptr
+    viewFormatCount <- #{peek WGPUTextureDescriptor, viewFormatCount} ptr
+    viewFormats <- #{peek WGPUTextureDescriptor, viewFormats} ptr
+    return WGPUTextureDescriptor{nextInChain, label, usage, dimension, size, format, mipLevelCount, sampleCount, viewFormatCount, viewFormats}
+  poke ptr WGPUTextureDescriptor{nextInChain, label, usage, dimension, size, format, mipLevelCount, sampleCount, viewFormatCount, viewFormats} = do
+    #{poke WGPUTextureDescriptor, nextInChain} ptr nextInChain
+    #{poke WGPUTextureDescriptor, label} ptr label
+    #{poke WGPUTextureDescriptor, usage} ptr usage
+    #{poke WGPUTextureDescriptor, dimension} ptr dimension
+    #{poke WGPUTextureDescriptor, size} ptr size
+    #{poke WGPUTextureDescriptor, format} ptr format
+    #{poke WGPUTextureDescriptor, mipLevelCount} ptr mipLevelCount
+    #{poke WGPUTextureDescriptor, sampleCount} ptr sampleCount
+    #{poke WGPUTextureDescriptor, viewFormatCount} ptr viewFormatCount
+    #{poke WGPUTextureDescriptor, viewFormats} ptr viewFormats
+
+data WGPUOrigin3D = WGPUOrigin3D {
+  x :: Word32, 
+  y :: Word32, 
+  z :: Word32
+}
+
+instance Storable WGPUOrigin3D where
+  alignment _ = #{alignment WGPUOrigin3D}
+  sizeOf _ = #{size WGPUOrigin3D}
+  peek ptr = do
+    x <- #{peek WGPUOrigin3D, x} ptr
+    y <- #{peek WGPUOrigin3D, y} ptr
+    z <- #{peek WGPUOrigin3D, z} ptr
+    return WGPUOrigin3D{x, y, z}
+  poke ptr WGPUOrigin3D{x, y, z} = do
+    #{poke WGPUOrigin3D, x} ptr x
+    #{poke WGPUOrigin3D, y} ptr y
+    #{poke WGPUOrigin3D, z} ptr z
+
+data WGPUTexelCopyTextureInfo = WGPUTexelCopyTextureInfo {
+  texture :: Ptr WGPUTexture, 
+  mipLevel :: Word32, 
+  origin :: WGPUOrigin3D, 
+  aspect :: WGPUTextureAspect
+}
+
+instance Storable WGPUTexelCopyTextureInfo where
+  alignment _ = #{alignment WGPUTexelCopyTextureInfo}
+  sizeOf _ = #{size WGPUTexelCopyTextureInfo}
+  peek ptr = do
+    texture <- #{peek WGPUTexelCopyTextureInfo, texture} ptr
+    mipLevel <- #{peek WGPUTexelCopyTextureInfo, mipLevel} ptr
+    origin <- #{peek WGPUTexelCopyTextureInfo, origin} ptr
+    aspect <- #{peek WGPUTexelCopyTextureInfo, aspect} ptr
+    return WGPUTexelCopyTextureInfo{texture, mipLevel, origin, aspect}
+  poke ptr WGPUTexelCopyTextureInfo{texture, mipLevel, origin, aspect} = do
+    #{poke WGPUTexelCopyTextureInfo, texture} ptr texture
+    #{poke WGPUTexelCopyTextureInfo, mipLevel} ptr mipLevel
+    #{poke WGPUTexelCopyTextureInfo, origin} ptr origin
+    #{poke WGPUTexelCopyTextureInfo, aspect} ptr aspect
+
+data WGPUTexelCopyBufferLayout = WGPUTexelCopyBufferLayout {
+  offset :: Word64, 
+  bytesPerRow :: Word32, 
+  rowsPerImage :: Word32
+}
+
+instance Storable WGPUTexelCopyBufferLayout where
+  alignment _ = #{alignment WGPUTexelCopyBufferLayout}
+  sizeOf _ = #{size WGPUTexelCopyBufferLayout}
+  peek ptr = do
+    offset <- #{peek WGPUTexelCopyBufferLayout, offset} ptr
+    bytesPerRow <- #{peek WGPUTexelCopyBufferLayout, bytesPerRow} ptr
+    rowsPerImage <- #{peek WGPUTexelCopyBufferLayout, rowsPerImage} ptr
+    return WGPUTexelCopyBufferLayout{offset, bytesPerRow, rowsPerImage}
+  poke ptr WGPUTexelCopyBufferLayout{offset, bytesPerRow, rowsPerImage} = do
+    #{poke WGPUTexelCopyBufferLayout, offset} ptr offset
+    #{poke WGPUTexelCopyBufferLayout, bytesPerRow} ptr bytesPerRow
+    #{poke WGPUTexelCopyBufferLayout, rowsPerImage} ptr rowsPerImage
+
+
+data WGPUSamplerDescriptor = WGPUSamplerDescriptor {
+  nextInChain :: Ptr WGPUChainedStruct, 
+  label :: WGPUStringView, 
+  addressModeU :: WGPUAddressMode, 
+  addressModeV :: WGPUAddressMode, 
+  addressModeW :: WGPUAddressMode, 
+  magFilter :: WGPUFilterMode, 
+  minFilter :: WGPUFilterMode, 
+  mipmapFilter :: WGPUMipmapFilterMode, 
+  lodMinClamp :: Float, 
+  lodMaxClamp :: Float, 
+  compare :: WGPUCompareFunction, 
+  maxAnisotropy :: Word16
+}
+
+instance Storable WGPUSamplerDescriptor where
+  alignment _ = #{alignment WGPUSamplerDescriptor}
+  sizeOf _ = #{size WGPUSamplerDescriptor}
+  peek ptr = do
+    nextInChain <- #{peek WGPUSamplerDescriptor, nextInChain} ptr
+    label <- #{peek WGPUSamplerDescriptor, label} ptr
+    addressModeU <- #{peek WGPUSamplerDescriptor, addressModeU} ptr
+    addressModeV <- #{peek WGPUSamplerDescriptor, addressModeV} ptr
+    addressModeW <- #{peek WGPUSamplerDescriptor, addressModeW} ptr
+    magFilter <- #{peek WGPUSamplerDescriptor, magFilter} ptr
+    minFilter <- #{peek WGPUSamplerDescriptor, minFilter} ptr
+    mipmapFilter <- #{peek WGPUSamplerDescriptor, mipmapFilter} ptr
+    lodMinClamp <- #{peek WGPUSamplerDescriptor, lodMinClamp} ptr
+    lodMaxClamp <- #{peek WGPUSamplerDescriptor, lodMaxClamp} ptr
+    compare <- #{peek WGPUSamplerDescriptor, compare} ptr
+    maxAnisotropy <- #{peek WGPUSamplerDescriptor, maxAnisotropy} ptr
+    return WGPUSamplerDescriptor{nextInChain, label, addressModeU, addressModeV, addressModeW, magFilter, minFilter, mipmapFilter, lodMinClamp, lodMaxClamp, compare, maxAnisotropy}
+  poke ptr WGPUSamplerDescriptor{nextInChain, label, addressModeU, addressModeV, addressModeW, magFilter, minFilter, mipmapFilter, lodMinClamp, lodMaxClamp, compare, maxAnisotropy} = do
+    #{poke WGPUSamplerDescriptor, nextInChain} ptr nextInChain
+    #{poke WGPUSamplerDescriptor, label} ptr label
+    #{poke WGPUSamplerDescriptor, addressModeU} ptr addressModeU
+    #{poke WGPUSamplerDescriptor, addressModeV} ptr addressModeV
+    #{poke WGPUSamplerDescriptor, addressModeW} ptr addressModeW
+    #{poke WGPUSamplerDescriptor, magFilter} ptr magFilter
+    #{poke WGPUSamplerDescriptor, minFilter} ptr minFilter
+    #{poke WGPUSamplerDescriptor, mipmapFilter} ptr mipmapFilter
+    #{poke WGPUSamplerDescriptor, lodMinClamp} ptr lodMinClamp
+    #{poke WGPUSamplerDescriptor, lodMaxClamp} ptr lodMaxClamp
+    #{poke WGPUSamplerDescriptor, compare} ptr compare
+    #{poke WGPUSamplerDescriptor, maxAnisotropy} ptr maxAnisotropy

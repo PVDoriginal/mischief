@@ -1,8 +1,13 @@
+import Codec.Picture
 import Control.Concurrent
 import Control.Monad (forever, unless, when)
 import Data.ByteString qualified as BS
 import Data.Data (Proxy (..))
-import Foreign (Ptr, Storable (peek, poke), alloca, castPtr, free, malloc, nullPtr, with)
+import Data.Foldable
+import Data.Vector qualified as V
+import Data.Vector.Storable qualified as VS
+import Data.Word
+import Foreign (Bits ((.|.)), Ptr, Storable (alignment, peek, poke, sizeOf), alloca, allocaBytes, castPtr, free, malloc, mallocBytes, nullPtr, with)
 import Foreign.C
 import Foreign.C.ConstPtr
 import Mischief.ECS.Prelude
@@ -18,6 +23,96 @@ import SDL3.Sys.Bindgen.Video.FunPtr (sDL_GetWindowSize)
 import System.Environment (setEnv)
 import System.Exit (exitSuccess)
 import System.IO (hFlush, stdout)
+
+test :: IO ()
+test = do
+  !wgpuInstance <- wgpuCreateInstance
+
+  window <- withCString "sdl3-raw" $ \title -> SDL3.createWindow (ConstPtr title) 640 360 0
+
+  windowProps <- SDL3.getWindowProperties window
+
+  x <- unConstPtr <$> SDL3.getCurrentVideoDriver
+  driverName <- peekCString x
+
+  surface <- case driverName of
+    "x11" -> do
+      display <- BS.useAsCString SDL3.sDL_PROP_WINDOW_X11_DISPLAY_POINTER $ \b -> SDL3.getPointerProperty windowProps (ConstPtr b) nullPtr
+      window <- BS.useAsCString SDL3.sDL_PROP_WINDOW_X11_WINDOW_NUMBER $ \b -> SDL3.getNumberProperty windowProps (ConstPtr b) (-1)
+
+      when (display == nullPtr || window == -1) $ error "Can't obtain x11 window."
+
+      let chain = WGPUChainedStruct {next = nullPtr, sType = wGPUSType_SurfaceSourceXlibWindow}
+      let xlib = WGPUSurfaceSourceXlibWindow {chain, display, window}
+
+      with xlib $ \xlib -> do
+        let desc =
+              WGPUSurfaceDescriptor
+                { nextInChain = castPtr xlib,
+                  label = WGPUStringView {_data = ConstPtr nullPtr, length = 0}
+                }
+        with desc $ \desc -> do
+          wgpuSurface <-
+            wgpuInstanceCreateSurface wgpuInstance (ConstPtr desc)
+
+          when (wgpuSurface == nullPtr) $ error "Couldn't create WGPU surface."
+
+          pure wgpuSurface
+    _ -> undefined
+
+  adapter <- wgpuInstanceRequestAdapter wgpuInstance surface
+  device <- wgpuAdapterRequestDevice adapter
+
+  -- image <- loadRGBA8 "test/rat.jpg"
+  -- Right result <- readImage "test/rat.jpg"
+  -- let img = convertRGBA8 result
+  !image <- BS.readFile "test/rat.jpg"
+  -- print $ image.imageWidth
+  -- print $ image.imageHeight
+
+  let Right !img' = decodeImage image
+  let !img = convertRGBA8 img'
+
+  let x :: VS.Vector Word8 = VS.generate (2916 * 1988) (const 54)
+
+  VS.unsafeWith x $ \_ -> pure ()
+
+  -- threadDelay 5000000
+
+  texture <- withWGPUString "A" $ \label -> do
+    let desc = textureDescriptor 2916 1988 label
+    with desc $ \desc -> wgpuDeviceCreateTexture device (ConstPtr desc)
+
+  allocaBytes 64 $ pure
+  allocaBytes 64 $ pure
+  allocaBytes 64 $ pure
+  allocaBytes 64 $ pure
+  allocaBytes 64 $ pure
+  allocaBytes 64 $ pure
+  -- allocaBytes 64 $ pure
+  -- allocaBytes 64 $ pure
+  allocaBytes 64 $ pure
+  -- allocaBytes 64 $ pure
+  -- allocaBytes 64 $ pure
+
+  -- shaderModule <- loadShaderModule device "test/shader.wgsl"
+  -- when (shaderModule == nullPtr) $ error "Couldn't load shader module."
+  -- shaderModule <- loadShaderModule device "test/shader.wgsl"
+  -- when (shaderModule == nullPtr) $ error "Couldn't load shader module."
+  shaderModule <- loadShaderModule device "test/shader.wgsl"
+  when (shaderModule == nullPtr) $ error "Couldn't load shader module."
+
+  let pipelineLayoutDesc = newWGPUPipelineLayoutDescriptor
+  pipelineLayout <- with pipelineLayoutDesc $ \pipelineLayoutDesc -> do
+    --   print "A"
+    wgpuDeviceCreatePipelineLayout device (ConstPtr pipelineLayoutDesc)
+
+  -- print "C"
+
+  pure ()
+
+-- main :: IO ()
+-- main = test
 
 main :: IO ()
 main = do
@@ -122,12 +217,36 @@ main = do
   queue <- wgpuDeviceGetQueue device
   when (queue == nullPtr) $ error "Couldn't obtain WGPU queue."
 
+  texture <- loadTexture device queue
+
+  -- wgpuTextureRelease texture
+  let samplerDesc =
+        WGPUSamplerDescriptor
+          { addressModeU = wGPUAddressMode_ClampToEdge,
+            addressModeV = wGPUAddressMode_ClampToEdge,
+            addressModeW = wGPUAddressMode_ClampToEdge,
+            magFilter = wGPUFilterMode_Linear,
+            minFilter = wGPUFilterMode_Linear,
+            mipmapFilter = wGPUMipmapFilterMode_Nearest,
+            nextInChain = nullPtr,
+            label = WGPUStringView (ConstPtr nullPtr) 0,
+            lodMinClamp = 0,
+            lodMaxClamp = 32,
+            compare = wGPUCompareFunction_Undefined,
+            maxAnisotropy = 1
+          }
+  print $ alignment samplerDesc
+  -- alloca @WGPUSamplerDescriptor $ \_ -> pure ()
+  sampler <- with samplerDesc $ wgpuDeviceCreateSampler device . ConstPtr
+  -- with samplerDesc $ \_ -> pure ()
+  when (sampler == nullPtr) $ error "Couldn't create sampler"
+
   shaderModule <- loadShaderModule device "test/shader.wgsl"
   when (shaderModule == nullPtr) $ error "Couldn't load shader module."
 
   let pipelineLayoutDesc = newWGPUPipelineLayoutDescriptor
   pipelineLayout <- with pipelineLayoutDesc $ \pipelineLayoutDesc -> do
-    wgpuDeviceCreatePipelineLayout device pipelineLayoutDesc
+    wgpuDeviceCreatePipelineLayout device (ConstPtr pipelineLayoutDesc)
 
   when (pipelineLayout == nullPtr) $ error "Couldn't generate pipeline layout."
 
@@ -149,7 +268,7 @@ main = do
                 { nextInChain = nullPtr,
                   count = 1,
                   mask = 0xFFFFFFFF,
-                  alphaToCoverageEnabled = WGPUBool False
+                  alphaToCoverageEnabled = wgpuFalse
                 }
 
         let primitive =
@@ -334,27 +453,60 @@ quit pipeline layout shader surfaceCap queue device adapter surface ins = do
   wgpuInstanceRelease ins
   exitSuccess
 
-waitOnBool :: Ptr Bool -> IO ()
-waitOnBool p = do
-  waitOnBool p
+loadTexture :: Ptr WGPUDevice -> Ptr WGPUQueue -> IO (Ptr WGPUTexture)
+loadTexture device queue = do
+  image <- loadRGBA8 "test/rat.jpg"
 
--- b <- peek p
--- if b then pure () else waitOnBool p
+  texture <- withWGPUString "A" $ \label -> do
+    let desc = textureDescriptor (fromIntegral image.imageWidth) (fromIntegral image.imageHeight) label
+    with desc $ \desc -> wgpuDeviceCreateTexture device (ConstPtr desc)
 
-onAdapterRequestCall :: WGPURequestAdapterCallback
-onAdapterRequestCall status adapter _ _ u1 u2 = do
-  unless (status == wGPURequestAdapterStatus_Success) $ error "Can't obtain adapter."
-  when (status == wGPURequestAdapterStatus_Success) $ do
-    print "Adapter ready!"
-    hFlush stdout
-    when (adapter == nullPtr) $ error "UHM"
-    poke (castPtr u1) adapter
+  let pixels = imageBytes image
+  let extent = WGPUExtent3D (fromIntegral image.imageWidth) (fromIntegral image.imageHeight) 1
+  let copyInfo =
+        WGPUTexelCopyTextureInfo
+          { texture,
+            mipLevel = 0,
+            origin = WGPUOrigin3D 0 0 0,
+            aspect = wGPUTextureAspect_All
+          }
 
--- poke (castPtr u2) True
+  let layout =
+        WGPUTexelCopyBufferLayout
+          { offset = 0,
+            bytesPerRow = 4 * fromIntegral image.imageWidth,
+            rowsPerImage = fromIntegral image.imageHeight
+          }
 
-onDeviceRequestCall :: WGPURequestDeviceCallback
-onDeviceRequestCall status device _ _ u1 u2 = do
-  when (status == wGPURequestDeviceStatus_Success) $ do
-    print "Device ready!"
-    poke (castPtr u1) device
-    poke (castPtr u2) True
+  VS.unsafeWith (imageBytes image) $ \pixelPtr -> do
+    with extent $ \extent -> do
+      with copyInfo $ \copyInfo -> do
+        with layout $ \layout -> do
+          wgpuQueueWriteTexture queue (ConstPtr copyInfo) (ConstPtr $ castPtr pixelPtr) (fromIntegral $ VS.length pixels) (ConstPtr layout) (ConstPtr extent)
+
+  pure texture
+
+loadRGBA8 :: FilePath -> IO (Image PixelRGBA8)
+loadRGBA8 path = do
+  -- bytes <- BS.readFile path
+  -- let Right result = decodeImage bytes
+  Right result <- readImage path
+  pure $ convertRGBA8 result
+
+imageBytes :: Image PixelRGBA8 -> VS.Vector Word8
+imageBytes (Image _ _ pixels) = pixels
+
+textureDescriptor :: Word32 -> Word32 -> WGPUStringView -> WGPUTextureDescriptor
+textureDescriptor w h label =
+  WGPUTextureDescriptor
+    { size = WGPUExtent3D w h 1,
+      label,
+      mipLevelCount = 1,
+      sampleCount = 1,
+      dimension = wGPUTextureDimension_2D,
+      format = wGPUTextureFormat_RGBA8Unorm,
+      usage = wGPUTextureUsage_TextureBinding .|. wGPUTextureUsage_CopyDst,
+      nextInChain = nullPtr,
+      viewFormatCount = 0,
+      viewFormats = ConstPtr nullPtr
+    }

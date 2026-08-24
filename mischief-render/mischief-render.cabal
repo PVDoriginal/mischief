@@ -50,6 +50,7 @@ library
   -- Modules exported by the library.
   exposed-modules:
     Mischief.Render
+    Mischief.Render.Camera
     Mischief.Render.Shader
     Mischief.WGPU
     Mischief.WGPU.Callbacks
@@ -90,6 +91,7 @@ library
     clock,
     containers,
     data-default,
+    JuicyPixels,
     mischief-ecs,
     mischief-math,
     mtl,
@@ -120,6 +122,9 @@ library
 
   c-sources:
     cbits/wrapper.c
+
+  pkgconfig-depends:
+    sdl3
 
   -- Base language which the package is written in.
   default-language:
@@ -161,12 +166,15 @@ test-suite mischief-test
     bytestring,
     containers,
     data-default,
+    JuicyPixels,
     mischief-ecs,
     mischief-render,
     primitive,
+    mmap,
     sdl3-bindgen-sys,
     store,
     transformers,
+    vector,
 
 executable example-triangle-low-level
   main-is: TriangleLowLevel.hs
@@ -196,3 +204,6 @@ executable example-triangle-low-level
     RequiredTypeArguments
     TemplateHaskell
     TypeFamilyDependencies
+
+  pkgconfig-depends:
+    sdl3

@@ -1,6 +1,7 @@
 #include "wrapper.h"
 #include "webgpu.h"
 #include <stdio.h>
+// #include <unistd.h>
 
 struct adapterBox {
   WGPUAdapter adapter; 
@@ -46,7 +47,7 @@ WGPUDevice hs_wgpuAdapterRequestDevice(
                               .callback = handle_request_device,
                               .userdata1 = &deviceBox
                           });
-
+    // sleep(2);
     return deviceBox.device;
 }
 
@@ -65,5 +66,6 @@ WGPUAdapter hs_wgpuInstanceRequestAdapter(
           .userdata1 = &adapterBox 
       });
     
+    // sleep(2);
     return adapterBox.adapter;
 }

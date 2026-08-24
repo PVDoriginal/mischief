@@ -28,4 +28,4 @@ loadShaderModule device path = do
               }
 
       with desc $ \desc -> do
-        wgpuDeviceCreateShaderModule device desc
+        wgpuDeviceCreateShaderModule device (ConstPtr desc)

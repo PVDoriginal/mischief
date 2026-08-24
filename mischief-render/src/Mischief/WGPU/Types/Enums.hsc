@@ -124,24 +124,12 @@ wGPUPowerPreference_HighPerformance = WGPUPowerPreference #const WGPUPowerPrefer
 wGPUPowerPreference_Force32 :: WGPUPowerPreference
 wGPUPowerPreference_Force32 = WGPUPowerPreference #const WGPUPowerPreference_Force32
 
-newtype WGPUBool = WGPUBool Bool deriving (Show, Eq)
+newtype WGPUBool = WGPUBool Word32 deriving newtype (Storable)
+wgpuFalse, wgpuTrue :: WGPUBool
+wgpuFalse = WGPUBool 0
+wgpuTrue  = WGPUBool 1
 
-instance Storable WGPUBool where
-  alignment _ = alignment (undefined :: CUInt)
-  sizeOf _ = sizeOf (undefined :: CUInt)
-  peek ptr = do
-    x :: CUInt <- peek (castPtr ptr)
-    pure $ WGPUBool (x /= 0)
-  poke ptr (WGPUBool x) = do
-    let a :: Ptr CUInt = castPtr ptr
-    if x then 
-      poke a 1 
-    else 
-      poke a 0 
-
-  
 newtype WGPUBackendType = WGPUBackendType CUInt deriving (Eq, Ord, Show)
-
 
 instance Storable WGPUBackendType where
   alignment _ = alignment (undefined :: CUInt)
@@ -266,7 +254,7 @@ wGPURequestDeviceStatus_Error = WGPURequestDeviceStatus #const WGPURequestDevice
 wGPURequestDeviceStatus_Force32 :: WGPURequestDeviceStatus
 wGPURequestDeviceStatus_Force32 = WGPURequestDeviceStatus #const WGPURequestDeviceStatus_Force32
 
-newtype WGPUFlags = WGPUFlags Word64 deriving newtype (Show, Eq, Storable, Num)
+newtype WGPUFlags = WGPUFlags Word64 deriving newtype (Show, Eq, Storable, Num, Bits)
 
 newtype WGPUShaderStage = WGPUShaderStage WGPUFlags deriving newtype (Show, Eq, Storable, Num)
 
@@ -1050,7 +1038,7 @@ wGPUTextureFormat_ASTC12x12UnormSrgb = WGPUTextureFormat #const WGPUTextureForma
 wGPUTextureFormat_Force32 :: WGPUTextureFormat
 wGPUTextureFormat_Force32 = WGPUTextureFormat #const WGPUTextureFormat_Force32
 
-newtype WGPUTextureUsage = WGPUTextureUsage WGPUFlags deriving newtype (Show, Eq, Storable, Num)
+newtype WGPUTextureUsage = WGPUTextureUsage WGPUFlags deriving newtype (Show, Eq, Storable, Num, Bits)
 
 wGPUTextureUsage_None :: WGPUTextureUsage
 wGPUTextureUsage_None =  WGPUTextureUsage $ WGPUFlags #const WGPUTextureUsage_None
@@ -1191,33 +1179,6 @@ wGPUIndexFormat_Uint32 = WGPUIndexFormat #const WGPUIndexFormat_Uint32
 
 wGPUIndexFormat_Force32 :: WGPUIndexFormat
 wGPUIndexFormat_Force32 = WGPUIndexFormat #const WGPUIndexFormat_Force32
-
-
-newtype WGPUFilterMode = WGPUFilterMode CUInt deriving (Eq, Ord, Show)
-
-instance Storable WGPUFilterMode where
-  alignment _ = alignment (undefined :: CUInt)
-  sizeOf _ = sizeOf (undefined :: CUInt)
-  peek ptr = do
-    x <- peek (castPtr ptr)
-    pure $ WGPUFilterMode x
-  poke ptr (WGPUFilterMode x) = do
-    let a :: Ptr CUInt = castPtr ptr
-    poke a x
-
-wGPUFilterMode_Undefined :: WGPUFilterMode
-wGPUFilterMode_Undefined = WGPUFilterMode #const WGPUFilterMode_Undefined
-
-wGPUFilterMode_Nearest :: WGPUFilterMode
-wGPUFilterMode_Nearest = WGPUFilterMode #const WGPUFilterMode_Nearest
-
-wGPUFilterMode_Linear :: WGPUFilterMode
-wGPUFilterMode_Linear = WGPUFilterMode #const WGPUFilterMode_Linear
-
-wGPUFilterMode_Force32 :: WGPUFilterMode
-wGPUFilterMode_Force32 = WGPUFilterMode #const WGPUFilterMode_Force32
-
-
 newtype WGPUFrontFace = WGPUFrontFace CUInt deriving (Eq, Ord, Show)
 
 instance Storable WGPUFrontFace where
@@ -1289,7 +1250,6 @@ wGPUColorWriteMask_Alpha = WGPUColorWriteMask $ WGPUFlags #const WGPUColorWriteM
 
 wGPUColorWriteMask_All :: WGPUColorWriteMask
 wGPUColorWriteMask_All = WGPUColorWriteMask $ WGPUFlags #const WGPUColorWriteMask_All
-
 
 newtype WGPUSurfaceGetCurrentTextureStatus = WGPUSurfaceGetCurrentTextureStatus CUInt deriving (Eq, Ord, Show)
 
@@ -1373,3 +1333,211 @@ wGPUStoreOp_Discard = WGPUStoreOp #const WGPUStoreOp_Discard
 
 wGPUStoreOp_Force32 :: WGPUStoreOp
 wGPUStoreOp_Force32 = WGPUStoreOp #const WGPUStoreOp_Force32
+
+
+newtype WGPUTextureAspect = WGPUTextureAspect CUInt deriving (Eq, Ord, Show)
+
+instance Storable WGPUTextureAspect where
+  alignment _ = alignment (undefined :: CUInt)
+  sizeOf _ = sizeOf (undefined :: CUInt)
+  peek ptr = do
+    x <- peek (castPtr ptr)
+    pure $ WGPUTextureAspect x
+  poke ptr (WGPUTextureAspect x) = do
+    let a :: Ptr CUInt = castPtr ptr
+    poke a x
+
+wGPUTextureAspect_Undefined :: WGPUTextureAspect
+wGPUTextureAspect_Undefined = WGPUTextureAspect #const WGPUTextureAspect_Undefined
+
+wGPUTextureAspect_All :: WGPUTextureAspect
+wGPUTextureAspect_All = WGPUTextureAspect #const WGPUTextureAspect_All
+
+wGPUTextureAspect_StencilOnly :: WGPUTextureAspect
+wGPUTextureAspect_StencilOnly = WGPUTextureAspect #const WGPUTextureAspect_StencilOnly
+
+wGPUTextureAspect_DepthOnly :: WGPUTextureAspect
+wGPUTextureAspect_DepthOnly = WGPUTextureAspect #const WGPUTextureAspect_DepthOnly
+
+wGPUTextureAspect_Force32 :: WGPUTextureAspect
+wGPUTextureAspect_Force32 = WGPUTextureAspect #const WGPUTextureAspect_Force32
+
+
+newtype WGPUTextureDimension = WGPUTextureDimension CUInt deriving (Eq, Ord, Show)
+
+instance Storable WGPUTextureDimension where
+  alignment _ = alignment (undefined :: CUInt)
+  sizeOf _ = sizeOf (undefined :: CUInt)
+  peek ptr = do
+    x <- peek (castPtr ptr)
+    pure $ WGPUTextureDimension x
+  poke ptr (WGPUTextureDimension x) = do
+    let a :: Ptr CUInt = castPtr ptr
+    poke a x
+
+wGPUTextureDimension_Undefined :: WGPUTextureDimension
+wGPUTextureDimension_Undefined = WGPUTextureDimension #const WGPUTextureDimension_Undefined
+
+wGPUTextureDimension_1D :: WGPUTextureDimension
+wGPUTextureDimension_1D = WGPUTextureDimension #const WGPUTextureDimension_1D
+
+wGPUTextureDimension_2D :: WGPUTextureDimension
+wGPUTextureDimension_2D = WGPUTextureDimension #const WGPUTextureDimension_2D
+
+wGPUTextureDimension_3D :: WGPUTextureDimension
+wGPUTextureDimension_3D = WGPUTextureDimension #const WGPUTextureDimension_3D
+
+wGPUTextureDimension_Force32 :: WGPUTextureDimension
+wGPUTextureDimension_Force32 = WGPUTextureDimension #const WGPUTextureDimension_Force32
+
+
+newtype WGPUAddressMode = WGPUAddressMode CUInt deriving (Eq, Ord, Show)
+
+instance Storable WGPUAddressMode where
+  alignment _ = alignment (undefined :: CUInt)
+  sizeOf _ = sizeOf (undefined :: CUInt)
+  peek ptr = do
+    x <- peek (castPtr ptr)
+    pure $ WGPUAddressMode x
+  poke ptr (WGPUAddressMode x) = do
+    let a :: Ptr CUInt = castPtr ptr
+    poke a x
+
+wGPUAddressMode_Undefined :: WGPUAddressMode
+wGPUAddressMode_Undefined = WGPUAddressMode #const WGPUAddressMode_Undefined
+
+wGPUAddressMode_ClampToEdge :: WGPUAddressMode
+wGPUAddressMode_ClampToEdge = WGPUAddressMode #const WGPUAddressMode_ClampToEdge
+
+wGPUAddressMode_Repeat :: WGPUAddressMode
+wGPUAddressMode_Repeat = WGPUAddressMode #const WGPUAddressMode_Repeat
+
+wGPUAddressMode_MirrorRepeat :: WGPUAddressMode
+wGPUAddressMode_MirrorRepeat = WGPUAddressMode #const WGPUAddressMode_MirrorRepeat
+
+wGPUAddressMode_Force32 :: WGPUAddressMode
+wGPUAddressMode_Force32 = WGPUAddressMode #const WGPUAddressMode_Force32
+
+
+newtype WGPUFilterMode = WGPUFilterMode CUInt deriving (Eq, Ord, Show)
+
+instance Storable WGPUFilterMode where
+  alignment _ = alignment (undefined :: CUInt)
+  sizeOf _ = sizeOf (undefined :: CUInt)
+  peek ptr = do
+    x <- peek (castPtr ptr)
+    pure $ WGPUFilterMode x
+  poke ptr (WGPUFilterMode x) = do
+    let a :: Ptr CUInt = castPtr ptr
+    poke a x
+
+wGPUFilterMode_Undefined :: WGPUFilterMode
+wGPUFilterMode_Undefined = WGPUFilterMode #const WGPUFilterMode_Undefined
+
+wGPUFilterMode_Nearest :: WGPUFilterMode
+wGPUFilterMode_Nearest = WGPUFilterMode #const WGPUFilterMode_Nearest
+
+wGPUFilterMode_Linear :: WGPUFilterMode
+wGPUFilterMode_Linear = WGPUFilterMode #const WGPUFilterMode_Linear
+
+wGPUFilterMode_Force32 :: WGPUFilterMode
+wGPUFilterMode_Force32 = WGPUFilterMode #const WGPUFilterMode_Force32
+
+
+newtype WGPUMipmapFilterMode = WGPUMipmapFilterMode CUInt deriving (Eq, Ord, Show)
+
+instance Storable WGPUMipmapFilterMode where
+  alignment _ = alignment (undefined :: CUInt)
+  sizeOf _ = sizeOf (undefined :: CUInt)
+  peek ptr = do
+    x <- peek (castPtr ptr)
+    pure $ WGPUMipmapFilterMode x
+  poke ptr (WGPUMipmapFilterMode x) = do
+    let a :: Ptr CUInt = castPtr ptr
+    poke a x
+
+wGPUMipmapFilterMode_Undefined :: WGPUMipmapFilterMode
+wGPUMipmapFilterMode_Undefined = WGPUMipmapFilterMode #const WGPUMipmapFilterMode_Undefined
+
+wGPUMipmapFilterMode_Nearest :: WGPUMipmapFilterMode
+wGPUMipmapFilterMode_Nearest = WGPUMipmapFilterMode #const WGPUMipmapFilterMode_Nearest
+
+wGPUMipmapFilterMode_Linear :: WGPUMipmapFilterMode
+wGPUMipmapFilterMode_Linear = WGPUMipmapFilterMode #const WGPUMipmapFilterMode_Linear
+
+wGPUMipmapFilterMode_Force32 :: WGPUMipmapFilterMode
+wGPUMipmapFilterMode_Force32 = WGPUMipmapFilterMode #const WGPUMipmapFilterMode_Force32
+
+
+newtype WGPUCompareFunction = WGPUCompareFunction CUInt deriving (Eq, Ord, Show)
+
+instance Storable WGPUCompareFunction where
+  alignment _ = alignment (undefined :: CUInt)
+  sizeOf _ = sizeOf (undefined :: CUInt)
+  peek ptr = do
+    x <- peek (castPtr ptr)
+    pure $ WGPUCompareFunction x
+  poke ptr (WGPUCompareFunction x) = do
+    let a :: Ptr CUInt = castPtr ptr
+    poke a x
+
+wGPUCompareFunction_Undefined :: WGPUCompareFunction
+wGPUCompareFunction_Undefined = WGPUCompareFunction #const WGPUCompareFunction_Undefined
+
+wGPUCompareFunction_Never :: WGPUCompareFunction
+wGPUCompareFunction_Never = WGPUCompareFunction #const WGPUCompareFunction_Never
+
+wGPUCompareFunction_Less :: WGPUCompareFunction
+wGPUCompareFunction_Less = WGPUCompareFunction #const WGPUCompareFunction_Less
+
+wGPUCompareFunction_Equal :: WGPUCompareFunction
+wGPUCompareFunction_Equal = WGPUCompareFunction #const WGPUCompareFunction_Equal
+
+wGPUCompareFunction_LessEqual :: WGPUCompareFunction
+wGPUCompareFunction_LessEqual = WGPUCompareFunction #const WGPUCompareFunction_LessEqual
+
+wGPUCompareFunction_Greater :: WGPUCompareFunction
+wGPUCompareFunction_Greater = WGPUCompareFunction #const WGPUCompareFunction_Greater
+
+wGPUCompareFunction_NotEqual :: WGPUCompareFunction
+wGPUCompareFunction_NotEqual = WGPUCompareFunction #const WGPUCompareFunction_NotEqual
+
+wGPUCompareFunction_GreaterEqual :: WGPUCompareFunction
+wGPUCompareFunction_GreaterEqual = WGPUCompareFunction #const WGPUCompareFunction_GreaterEqual
+
+wGPUCompareFunction_Always :: WGPUCompareFunction
+wGPUCompareFunction_Always = WGPUCompareFunction #const WGPUCompareFunction_Always
+
+wGPUCompareFunction_Force32 :: WGPUCompareFunction
+wGPUCompareFunction_Force32 = WGPUCompareFunction #const WGPUCompareFunction_Force32
+
+
+newtype WGPUSamplerBindingType = WGPUSamplerBindingType CUInt deriving (Eq, Ord, Show)
+
+instance Storable WGPUSamplerBindingType where
+  alignment _ = alignment (undefined :: CUInt)
+  sizeOf _ = sizeOf (undefined :: CUInt)
+  peek ptr = do
+    x <- peek (castPtr ptr)
+    pure $ WGPUSamplerBindingType x
+  poke ptr (WGPUSamplerBindingType x) = do
+    let a :: Ptr CUInt = castPtr ptr
+    poke a x
+
+wGPUSamplerBindingType_BindingNotUsed :: WGPUSamplerBindingType
+wGPUSamplerBindingType_BindingNotUsed = WGPUSamplerBindingType #const WGPUSamplerBindingType_BindingNotUsed
+
+wGPUSamplerBindingType_Undefined :: WGPUSamplerBindingType
+wGPUSamplerBindingType_Undefined = WGPUSamplerBindingType #const WGPUSamplerBindingType_Undefined
+
+wGPUSamplerBindingType_Filtering :: WGPUSamplerBindingType
+wGPUSamplerBindingType_Filtering = WGPUSamplerBindingType #const WGPUSamplerBindingType_Filtering
+
+wGPUSamplerBindingType_NonFiltering :: WGPUSamplerBindingType
+wGPUSamplerBindingType_NonFiltering = WGPUSamplerBindingType #const WGPUSamplerBindingType_NonFiltering
+
+wGPUSamplerBindingType_Comparison :: WGPUSamplerBindingType
+wGPUSamplerBindingType_Comparison = WGPUSamplerBindingType #const WGPUSamplerBindingType_Comparison
+
+wGPUSamplerBindingType_Force32 :: WGPUSamplerBindingType
+wGPUSamplerBindingType_Force32 = WGPUSamplerBindingType #const WGPUSamplerBindingType_Force32

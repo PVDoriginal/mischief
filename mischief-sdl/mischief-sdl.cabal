@@ -131,3 +131,6 @@ test-suite mischief-test
     mischief-sdl,
     primitive,
     transformers,
+
+  pkgconfig-depends:
+    sdl3

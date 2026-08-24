@@ -6,6 +6,7 @@ import Data.ByteString
 import Data.ByteString qualified as BS
 import Data.ByteString.Char8 as BS8
 import Data.Data (Proxy (Proxy))
+import Data.Void
 import Foreign
 import Foreign.C.ConstPtr
 import Foreign.C.Types
@@ -27,7 +28,7 @@ newWGPURequestAdapterOptions =
     { nextInChain = nullPtr,
       featureLevel = wGPUFeatureLevel_Core,
       powerPreference = wGPUPowerPreference_Undefined,
-      forceFallbackAdapter = WGPUBool False,
+      forceFallbackAdapter = wgpuFalse,
       backendType = wGPUBackendType_Undefined,
       compatibleSurface = nullPtr
     }
@@ -50,7 +51,7 @@ foreign import ccall "wrapper.h hs_wgpuAdapterRequestDevice" wgpuAdapterRequestD
 
 foreign import ccall "webgpu.h wgpuDeviceGetQueue" wgpuDeviceGetQueue :: Ptr WGPUDevice -> IO (Ptr WGPUQueue)
 
-foreign import ccall "webgpu.h wgpuDeviceCreateShaderModule" wgpuDeviceCreateShaderModule :: Ptr WGPUDevice -> Ptr WGPUShaderModuleDescriptor -> IO (Ptr WGPUShaderModule)
+foreign import ccall "webgpu.h wgpuDeviceCreateShaderModule" wgpuDeviceCreateShaderModule :: Ptr WGPUDevice -> ConstPtr WGPUShaderModuleDescriptor -> IO (Ptr WGPUShaderModule)
 
 newWGPUPipelineLayoutDescriptor :: WGPUPipelineLayoutDescriptor
 newWGPUPipelineLayoutDescriptor =
@@ -65,7 +66,7 @@ newWGPUPipelineLayoutDescriptor =
 bsAsWGPUString :: ByteString -> (WGPUStringView -> IO a) -> IO a
 bsAsWGPUString bs f = BS.useAsCStringLen bs $ \(ptr, length) -> f WGPUStringView {_data = ConstPtr ptr, length}
 
-foreign import ccall "webgpu.h wgpuDeviceCreatePipelineLayout" wgpuDeviceCreatePipelineLayout :: Ptr WGPUDevice -> Ptr WGPUPipelineLayoutDescriptor -> IO (Ptr WGPUPipelineLayout)
+foreign import ccall "webgpu.h wgpuDeviceCreatePipelineLayout" wgpuDeviceCreatePipelineLayout :: Ptr WGPUDevice -> ConstPtr WGPUPipelineLayoutDescriptor -> IO (Ptr WGPUPipelineLayout)
 
 foreign import ccall "webgpu.h wgpuSurfaceGetCapabilities" wgpuSurfaceGetCapabilities :: Ptr WGPUSurface -> Ptr WGPUAdapter -> Ptr WGPUSurfaceCapabilities -> IO ()
 
@@ -108,7 +109,7 @@ newWGPUPrimitiveState =
       stripIndexFormat = wGPUIndexFormat_Undefined,
       frontFace = wGPUFrontFace_CCW,
       cullMode = wGPUCullMode_Undefined,
-      unclippedDepth = WGPUBool False
+      unclippedDepth = wgpuFalse
     }
 
 newWGPUSurfaceConfiguration :: WGPUSurfaceConfiguration
@@ -178,3 +179,9 @@ foreign import ccall "webgpu.h wgpuTextureRelease" wgpuTextureRelease :: Ptr WGP
 
 wgpuColor :: Double -> Double -> Double -> Double -> WGPUColor
 wgpuColor r g b a = WGPUColor (realToFrac r) (realToFrac g) (realToFrac b) (realToFrac a)
+
+foreign import ccall safe "webgpu.h wgpuQueueWriteTexture" wgpuQueueWriteTexture :: Ptr WGPUQueue -> ConstPtr WGPUTexelCopyTextureInfo -> ConstPtr Void -> CSize -> ConstPtr WGPUTexelCopyBufferLayout -> ConstPtr WGPUExtent3D -> IO ()
+
+foreign import ccall safe "webgpu.h wgpuDeviceCreateTexture" wgpuDeviceCreateTexture :: Ptr WGPUDevice -> ConstPtr WGPUTextureDescriptor -> IO (Ptr WGPUTexture)
+
+foreign import ccall safe "webgpu.h wgpuDeviceCreateSampler" wgpuDeviceCreateSampler :: Ptr WGPUDevice -> ConstPtr WGPUSamplerDescriptor -> IO (Ptr WGPUSampler)
