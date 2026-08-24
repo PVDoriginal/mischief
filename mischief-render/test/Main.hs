@@ -217,7 +217,10 @@ main = do
   queue <- wgpuDeviceGetQueue device
   when (queue == nullPtr) $ error "Couldn't obtain WGPU queue."
 
-  texture <- loadTexture device queue
+  (texture, w, h) <- loadTexture device queue
+
+  textureView <- wgpuTextureCreateView texture (ConstPtr nullPtr)
+  -- let viewDesc = WGPUTexture
 
   -- wgpuTextureRelease texture
   let samplerDesc =
@@ -244,12 +247,6 @@ main = do
   shaderModule <- loadShaderModule device "test/shader.wgsl"
   when (shaderModule == nullPtr) $ error "Couldn't load shader module."
 
-  let pipelineLayoutDesc = newWGPUPipelineLayoutDescriptor
-  pipelineLayout <- with pipelineLayoutDesc $ \pipelineLayoutDesc -> do
-    wgpuDeviceCreatePipelineLayout device (ConstPtr pipelineLayoutDesc)
-
-  when (pipelineLayout == nullPtr) $ error "Couldn't generate pipeline layout."
-
   surfaceCapabilities <- malloc @WGPUSurfaceCapabilities
   wgpuSurfaceGetCapabilities surface adapter surfaceCapabilities
 
@@ -259,6 +256,65 @@ main = do
   let (ConstPtr alphaModes) = cap.alphaModes
   format <- peek formats
   alphaMode <- peek alphaModes
+
+  let bindGroupLayoutEntries =
+        VS.fromList
+          [ WGPUBindGroupLayoutEntry
+              { nextInChain = nullPtr,
+                binding = 0,
+                visibility = wGPUShaderStage_Fragment,
+                bindingArraySize = 0,
+                buffer = unusedBufferLayout,
+                sampler = unusedSamplerLayout,
+                storageTexture = unusedStorageTextureLayout,
+                texture =
+                  WGPUTextureBindingLayout
+                    { sampleType = wGPUTextureSampleType_Float,
+                      multisampled = wgpuFalse,
+                      viewDimension = wGPUTextureViewDimension_2D,
+                      nextInChain = nullPtr
+                    }
+              },
+            WGPUBindGroupLayoutEntry
+              { nextInChain = nullPtr,
+                binding = 1,
+                visibility = wGPUShaderStage_Fragment,
+                bindingArraySize = 0,
+                buffer = unusedBufferLayout,
+                storageTexture = unusedStorageTextureLayout,
+                texture = unusedTextureLayout,
+                sampler =
+                  WGPUSamplerBindingLayout
+                    { _type = wGPUSamplerBindingType_Filtering,
+                      nextInChain = nullPtr
+                    }
+              }
+          ]
+
+  bindGroupLayout <- VS.unsafeWith bindGroupLayoutEntries $ \entries -> do
+    let desc =
+          WGPUBindGroupLayoutDescriptor
+            { entryCount = 2,
+              entries = ConstPtr entries,
+              label = WGPUStringView (ConstPtr nullPtr) 0,
+              nextInChain = nullPtr
+            }
+    with desc $ \desc -> wgpuDeviceCreateBindGroupLayout device (ConstPtr desc)
+
+  pipelineLayoutDesc <- with bindGroupLayout $ \bindGroupLayout -> do
+    pure $
+      WGPUPipelineLayoutDescriptor
+        { nextInChain = nullPtr,
+          label = WGPUStringView {_data = ConstPtr nullPtr, length = 0},
+          bindGroupLayoutCount = 1,
+          bindGroupLayouts = ConstPtr bindGroupLayout,
+          immediateSize = 0
+        }
+
+  pipelineLayout <- with pipelineLayoutDesc $ \pipelineLayoutDesc -> do
+    wgpuDeviceCreatePipelineLayout device (ConstPtr pipelineLayoutDesc)
+
+  when (pipelineLayout == nullPtr) $ error "Couldn't generate pipeline layout."
 
   pipeline <- withWGPUString "vs_main" $ \vertexEntry -> do
     withWGPUString "fs_main" $ \fragmentEntry -> do
@@ -342,6 +398,41 @@ main = do
   with config $ \config -> do
     wgpuSurfaceConfigure surface (ConstPtr config)
 
+  bindGroup <- withWGPUString "bind group" $ \label -> do
+    let entries =
+          VS.fromList
+            [ WGPUBindGroupEntry
+                { binding = 0,
+                  textureView = textureView,
+                  size = 0,
+                  offset = 0,
+                  sampler = nullPtr,
+                  buffer = nullPtr,
+                  nextInChain = nullPtr
+                },
+              WGPUBindGroupEntry
+                { binding = 1,
+                  textureView = nullPtr,
+                  size = 0,
+                  offset = 0,
+                  sampler,
+                  buffer = nullPtr,
+                  nextInChain = nullPtr
+                }
+            ]
+
+    VS.unsafeWith entries $ \entries -> do
+      let desc =
+            WGPUBindGroupDescriptor
+              { layout = bindGroupLayout,
+                entryCount = 2,
+                label = label,
+                nextInChain = nullPtr,
+                entries = ConstPtr entries
+              }
+
+      with desc $ \desc -> wgpuDeviceCreateBindGroup device (ConstPtr desc)
+
   _ <- forever $ do
     with cap $ \cap ->
       handleEvents pipeline pipelineLayout shaderModule cap queue device adapter surface wgpuInstance
@@ -351,7 +442,7 @@ main = do
     surfaceTexture <- peek surfaceTextureBox
     free surfaceTextureBox
 
-    frame <- wgpuTextureCreateView surfaceTexture.texture nullPtr
+    frame <- wgpuTextureCreateView surfaceTexture.texture (ConstPtr nullPtr)
     when (frame == nullPtr) $ error "Couldn't create texture view."
 
     commandEncoder <- withWGPUString "command encoder" $ \label -> do
@@ -390,6 +481,7 @@ main = do
     when (renderPassEncoder == nullPtr) $ error "Couldn't encode render pass."
 
     wgpuRenderPassEncoderSetPipeline renderPassEncoder pipeline
+    wgpuRenderPassEncoderSetBindGroup renderPassEncoder 0 bindGroup 0 (ConstPtr nullPtr)
     wgpuRenderPassEncoderDraw renderPassEncoder 3 1 0 0
     wgpuRenderPassEncoderEnd renderPassEncoder
     wgpuRenderPassEncoderRelease renderPassEncoder
@@ -453,7 +545,7 @@ quit pipeline layout shader surfaceCap queue device adapter surface ins = do
   wgpuInstanceRelease ins
   exitSuccess
 
-loadTexture :: Ptr WGPUDevice -> Ptr WGPUQueue -> IO (Ptr WGPUTexture)
+loadTexture :: Ptr WGPUDevice -> Ptr WGPUQueue -> IO (Ptr WGPUTexture, Int, Int)
 loadTexture device queue = do
   image <- loadRGBA8 "test/rat.jpg"
 
@@ -484,7 +576,7 @@ loadTexture device queue = do
         with layout $ \layout -> do
           wgpuQueueWriteTexture queue (ConstPtr copyInfo) (ConstPtr $ castPtr pixelPtr) (fromIntegral $ VS.length pixels) (ConstPtr layout) (ConstPtr extent)
 
-  pure texture
+  pure (texture, image.imageWidth, image.imageHeight)
 
 loadRGBA8 :: FilePath -> IO (Image PixelRGBA8)
 loadRGBA8 path = do
@@ -509,4 +601,18 @@ textureDescriptor w h label =
       nextInChain = nullPtr,
       viewFormatCount = 0,
       viewFormats = ConstPtr nullPtr
+    }
+
+textureViewDescriptor :: Word32 -> Word32 -> WGPUStringView -> WGPUTextureViewDescriptor
+textureViewDescriptor w h label =
+  WGPUTextureViewDescriptor
+    { baseMipLevel = 0,
+      arrayLayerCount = 1,
+      mipLevelCount = 1,
+      dimension = wGPUTextureViewDimension_2D,
+      aspect = wGPUTextureAspect_All,
+      usage = wGPUTextureUsage_TextureBinding .|. wGPUTextureUsage_CopyDst,
+      format = wGPUTextureFormat_RGBA8Unorm,
+      label = label,
+      nextInChain = nullPtr
     }

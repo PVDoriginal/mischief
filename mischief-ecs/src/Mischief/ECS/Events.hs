@@ -41,11 +41,11 @@ runEvent (ErasedEvent (event :: e)) = do
     let Observer f = value observer
     f event
 
-newtype OnInsert c = OnSet {entity :: Entity}
+newtype OnSet c = OnSet {entity :: Entity}
   deriving anyclass (Event)
   deriving stock (Show)
 
-data OnInsertRel c = OnSetRel {entity :: Entity, target :: Entity}
+data OnSetRel c = OnSetRel {entity :: Entity, target :: Entity}
   deriving anyclass (Event)
   deriving stock (Show)
 

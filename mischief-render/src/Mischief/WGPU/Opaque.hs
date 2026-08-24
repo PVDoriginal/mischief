@@ -31,3 +31,7 @@ data WGPURenderPassEncoder = WGPURenderPassEncoder
 data WGPUFuture = WGPUFuture
 
 data WGPUSampler = WGPUSampler
+
+data WGPUBuffer = WGPUBuffer
+
+data WGPUBindGroup = WGPUBindGroup

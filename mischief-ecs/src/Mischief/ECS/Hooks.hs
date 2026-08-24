@@ -46,8 +46,14 @@ instance EraseIntoStorage (Hooks a) (Hooks a) where
 hook :: forall c a. (Collectable c (Hooks a)) => c -> Hooks a
 hook = collect
 
+hookSys :: (HookContext -> System ()) -> Hooks a
+hookSys = hook
+
 hookRel :: forall c a. (Collectable c (HooksRel a)) => c -> HooksRel a
 hookRel = collect
+
+hookRelSys :: (HookContextRel -> System ()) -> HooksRel a
+hookRelSys = hookRel
 
 instance EraseIntoStorage (HookContextRel -> System ()) (HooksRel a) where
   erase :: (HookContextRel -> System ()) -> HooksRel a

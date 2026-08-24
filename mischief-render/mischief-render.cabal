@@ -51,6 +51,8 @@ library
   exposed-modules:
     Mischief.Render
     Mischief.Render.Camera
+    Mischief.Render.Core
+    Mischief.Render.Plugin
     Mischief.Render.Shader
     Mischief.WGPU
     Mischief.WGPU.Callbacks
@@ -73,6 +75,7 @@ library
     MagicHash
     NoFieldSelectors
     OverloadedRecordDot
+    QuasiQuotes
     RequiredTypeArguments
     TemplateHaskell
     TypeFamilyDependencies
@@ -94,6 +97,7 @@ library
     JuicyPixels,
     mischief-ecs,
     mischief-math,
+    mischief-sdl,
     mtl,
     primitive,
     process,
@@ -169,8 +173,8 @@ test-suite mischief-test
     JuicyPixels,
     mischief-ecs,
     mischief-render,
-    primitive,
     mmap,
+    primitive,
     sdl3-bindgen-sys,
     store,
     transformers,

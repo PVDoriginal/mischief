@@ -513,7 +513,7 @@ data WGPUPipelineLayoutDescriptor = WGPUPipelineLayoutDescriptor {
   nextInChain :: Ptr WGPUChainedStruct, 
   label :: WGPUStringView, 
   bindGroupLayoutCount :: CSize, 
-  bindGroupLayouts :: ConstPtr WGPUBindGroupLayout,
+  bindGroupLayouts :: ConstPtr (Ptr WGPUBindGroupLayout),
   immediateSize :: CUInt
 }
 
@@ -1001,3 +1001,119 @@ instance Storable WGPUSamplerDescriptor where
     #{poke WGPUSamplerDescriptor, lodMaxClamp} ptr lodMaxClamp
     #{poke WGPUSamplerDescriptor, compare} ptr compare
     #{poke WGPUSamplerDescriptor, maxAnisotropy} ptr maxAnisotropy
+
+data WGPUBindGroupLayoutDescriptor = WGPUBindGroupLayoutDescriptor {
+  nextInChain :: Ptr WGPUChainedStruct, 
+  label :: WGPUStringView, 
+  entryCount :: CSize, 
+  entries :: ConstPtr WGPUBindGroupLayoutEntry
+}
+
+instance Storable WGPUBindGroupLayoutDescriptor where
+  alignment _ = #{alignment WGPUBindGroupLayoutDescriptor}
+  sizeOf _ = #{size WGPUBindGroupLayoutDescriptor}
+  peek ptr = do
+    nextInChain <- #{peek WGPUBindGroupLayoutDescriptor, nextInChain} ptr
+    label <- #{peek WGPUBindGroupLayoutDescriptor, label} ptr
+    entryCount <- #{peek WGPUBindGroupLayoutDescriptor, entryCount} ptr
+    entries <- #{peek WGPUBindGroupLayoutDescriptor, entries} ptr
+    return WGPUBindGroupLayoutDescriptor{nextInChain, label, entryCount, entries}
+  poke ptr WGPUBindGroupLayoutDescriptor{nextInChain, label, entryCount, entries} = do
+    #{poke WGPUBindGroupLayoutDescriptor, nextInChain} ptr nextInChain
+    #{poke WGPUBindGroupLayoutDescriptor, label} ptr label
+    #{poke WGPUBindGroupLayoutDescriptor, entryCount} ptr entryCount
+    #{poke WGPUBindGroupLayoutDescriptor, entries} ptr entries
+
+data WGPUBindGroupEntry = WGPUBindGroupEntry {
+  nextInChain :: Ptr WGPUChainedStruct, 
+  binding :: Word32, 
+  buffer :: Ptr WGPUBuffer, 
+  offset :: Word64, 
+  size :: Word64, 
+  sampler :: Ptr WGPUSampler, 
+  textureView :: Ptr WGPUTextureView
+}
+
+instance Storable WGPUBindGroupEntry where
+  alignment _ = #{alignment WGPUBindGroupEntry}
+  sizeOf _ = #{size WGPUBindGroupEntry}
+  peek ptr = do
+    nextInChain <- #{peek WGPUBindGroupEntry, nextInChain} ptr
+    binding <- #{peek WGPUBindGroupEntry, binding} ptr
+    buffer <- #{peek WGPUBindGroupEntry, buffer} ptr
+    offset <- #{peek WGPUBindGroupEntry, offset} ptr
+    size <- #{peek WGPUBindGroupEntry, size} ptr
+    sampler <- #{peek WGPUBindGroupEntry, sampler} ptr
+    textureView <- #{peek WGPUBindGroupEntry, textureView} ptr
+    return WGPUBindGroupEntry{nextInChain, binding, buffer, offset, size, sampler, textureView}
+  poke ptr WGPUBindGroupEntry{nextInChain, binding, buffer, offset, size, sampler, textureView} = do
+    #{poke WGPUBindGroupEntry, nextInChain} ptr nextInChain
+    #{poke WGPUBindGroupEntry, binding} ptr binding
+    #{poke WGPUBindGroupEntry, buffer} ptr buffer
+    #{poke WGPUBindGroupEntry, offset} ptr offset
+    #{poke WGPUBindGroupEntry, size} ptr size
+    #{poke WGPUBindGroupEntry, sampler} ptr sampler
+    #{poke WGPUBindGroupEntry, textureView} ptr textureView
+
+data WGPUBindGroupDescriptor = WGPUBindGroupDescriptor {
+  nextInChain :: Ptr WGPUChainedStruct, 
+  label :: WGPUStringView, 
+  layout :: Ptr WGPUBindGroupLayout, 
+  entryCount :: CSize, 
+  entries :: ConstPtr WGPUBindGroupEntry
+}
+ 
+instance Storable WGPUBindGroupDescriptor where
+  alignment _ = #{alignment WGPUBindGroupDescriptor}
+  sizeOf _ = #{size WGPUBindGroupDescriptor}
+  peek ptr = do
+    nextInChain <- #{peek WGPUBindGroupDescriptor, nextInChain} ptr
+    label <- #{peek WGPUBindGroupDescriptor, label} ptr
+    layout <- #{peek WGPUBindGroupDescriptor, layout} ptr
+    entryCount <- #{peek WGPUBindGroupDescriptor, entryCount} ptr
+    entries <- #{peek WGPUBindGroupDescriptor, entries} ptr
+    return WGPUBindGroupDescriptor{nextInChain, label, layout, entryCount, entries}
+  poke ptr WGPUBindGroupDescriptor{nextInChain, label, layout, entryCount, entries} = do
+    #{poke WGPUBindGroupDescriptor, nextInChain} ptr nextInChain
+    #{poke WGPUBindGroupDescriptor, label} ptr label
+    #{poke WGPUBindGroupDescriptor, layout} ptr layout
+    #{poke WGPUBindGroupDescriptor, entryCount} ptr entryCount
+    #{poke WGPUBindGroupDescriptor, entries} ptr entries
+
+
+data WGPUTextureViewDescriptor = WGPUTextureViewDescriptor {
+  nextInChain :: Ptr WGPUChainedStruct, 
+  label :: WGPUStringView, 
+  format :: WGPUTextureFormat, 
+  dimension :: WGPUTextureViewDimension, 
+  baseMipLevel :: Word32, 
+  mipLevelCount :: Word32, 
+  arrayLayerCount :: Word32, 
+  aspect :: WGPUTextureAspect, 
+  usage :: WGPUTextureUsage
+}
+
+instance Storable WGPUTextureViewDescriptor where
+  alignment _ = #{alignment WGPUTextureViewDescriptor}
+  sizeOf _ = #{size WGPUTextureViewDescriptor}
+  peek ptr = do
+    nextInChain <- #{peek WGPUTextureViewDescriptor, nextInChain} ptr
+    label <- #{peek WGPUTextureViewDescriptor, label} ptr
+    format <- #{peek WGPUTextureViewDescriptor, format} ptr
+    dimension <- #{peek WGPUTextureViewDescriptor, dimension} ptr
+    baseMipLevel <- #{peek WGPUTextureViewDescriptor, baseMipLevel} ptr
+    mipLevelCount <- #{peek WGPUTextureViewDescriptor, mipLevelCount} ptr
+    arrayLayerCount <- #{peek WGPUTextureViewDescriptor, arrayLayerCount} ptr
+    aspect <- #{peek WGPUTextureViewDescriptor, aspect} ptr
+    usage <- #{peek WGPUTextureViewDescriptor, usage} ptr
+    return WGPUTextureViewDescriptor{nextInChain, label, format, dimension, baseMipLevel, mipLevelCount, arrayLayerCount, aspect, usage}
+  poke ptr WGPUTextureViewDescriptor{nextInChain, label, format, dimension, baseMipLevel, mipLevelCount, arrayLayerCount, aspect, usage} = do
+    #{poke WGPUTextureViewDescriptor, nextInChain} ptr nextInChain
+    #{poke WGPUTextureViewDescriptor, label} ptr label
+    #{poke WGPUTextureViewDescriptor, format} ptr format
+    #{poke WGPUTextureViewDescriptor, dimension} ptr dimension
+    #{poke WGPUTextureViewDescriptor, baseMipLevel} ptr baseMipLevel
+    #{poke WGPUTextureViewDescriptor, mipLevelCount} ptr mipLevelCount
+    #{poke WGPUTextureViewDescriptor, arrayLayerCount} ptr arrayLayerCount
+    #{poke WGPUTextureViewDescriptor, aspect} ptr aspect
+    #{poke WGPUTextureViewDescriptor, usage} ptr usage

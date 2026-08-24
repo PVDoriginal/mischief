@@ -131,7 +131,7 @@ foreign import ccall "webgpu.h wgpuSurfaceConfigure" wgpuSurfaceConfigure :: Ptr
 
 foreign import ccall "webgpu.h wgpuSurfaceGetCurrentTexture" wgpuSurfaceGetCurrentTexture :: Ptr WGPUSurface -> Ptr WGPUSurfaceTexture -> IO ()
 
-foreign import ccall "webgpu.h wgpuTextureCreateView" wgpuTextureCreateView :: Ptr WGPUTexture -> Ptr () -> IO (Ptr WGPUTextureView)
+foreign import ccall "webgpu.h wgpuTextureCreateView" wgpuTextureCreateView :: Ptr WGPUTexture -> ConstPtr WGPUTextureViewDescriptor -> IO (Ptr WGPUTextureView)
 
 foreign import ccall "webgpu.h wgpuDeviceCreateCommandEncoder" wgpuDeviceCreateCommandEncoder :: Ptr WGPUDevice -> Ptr WGPUCommandEncoderDescriptor -> IO (Ptr WGPUCommandEncoder)
 
@@ -185,3 +185,43 @@ foreign import ccall safe "webgpu.h wgpuQueueWriteTexture" wgpuQueueWriteTexture
 foreign import ccall safe "webgpu.h wgpuDeviceCreateTexture" wgpuDeviceCreateTexture :: Ptr WGPUDevice -> ConstPtr WGPUTextureDescriptor -> IO (Ptr WGPUTexture)
 
 foreign import ccall safe "webgpu.h wgpuDeviceCreateSampler" wgpuDeviceCreateSampler :: Ptr WGPUDevice -> ConstPtr WGPUSamplerDescriptor -> IO (Ptr WGPUSampler)
+
+foreign import ccall "webgpu.h wgpuDeviceCreateBindGroup" wgpuDeviceCreateBindGroup :: Ptr WGPUDevice -> ConstPtr WGPUBindGroupDescriptor -> IO (Ptr WGPUBindGroup)
+
+unusedBufferLayout :: WGPUBufferBindingLayout
+unusedBufferLayout =
+  WGPUBufferBindingLayout
+    { minBindingSize = 0,
+      hasDynamicOffset = wgpuFalse,
+      _type = wGPUBufferBindingType_BindingNotUsed,
+      nextInChain = nullPtr
+    }
+
+unusedSamplerLayout :: WGPUSamplerBindingLayout
+unusedSamplerLayout =
+  WGPUSamplerBindingLayout
+    { _type = wGPUSamplerBindingType_BindingNotUsed,
+      nextInChain = nullPtr
+    }
+
+unusedTextureLayout :: WGPUTextureBindingLayout
+unusedTextureLayout =
+  WGPUTextureBindingLayout
+    { sampleType = wGPUTextureSampleType_BindingNotUsed,
+      multisampled = wgpuFalse,
+      viewDimension = wGPUTextureViewDimension_1D,
+      nextInChain = nullPtr
+    }
+
+unusedStorageTextureLayout :: WGPUStorageTextureBindingLayout
+unusedStorageTextureLayout =
+  WGPUStorageTextureBindingLayout
+    { viewDimension = wGPUTextureViewDimension_1D,
+      format = wGPUTextureFormat_ASTC10x10Unorm,
+      access = wGPUStorageTextureAccess_BindingNotUsed,
+      nextInChain = nullPtr
+    }
+
+foreign import ccall "webgpu.h wgpuDeviceCreateBindGroupLayout" wgpuDeviceCreateBindGroupLayout :: Ptr WGPUDevice -> ConstPtr WGPUBindGroupLayoutDescriptor -> IO (Ptr WGPUBindGroupLayout)
+
+foreign import ccall "webgpu.h wgpuRenderPassEncoderSetBindGroup" wgpuRenderPassEncoderSetBindGroup :: Ptr WGPURenderPassEncoder -> Word32 -> Ptr WGPUBindGroup -> CSize -> ConstPtr Word32 -> IO ()

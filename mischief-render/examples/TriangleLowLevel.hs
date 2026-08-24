@@ -129,7 +129,7 @@ main = do
 
   let pipelineLayoutDesc = newWGPUPipelineLayoutDescriptor
   pipelineLayout <- with pipelineLayoutDesc $ \pipelineLayoutDesc -> do
-    wgpuDeviceCreatePipelineLayout device pipelineLayoutDesc
+    wgpuDeviceCreatePipelineLayout device (ConstPtr pipelineLayoutDesc)
 
   when (pipelineLayout == nullPtr) $ error "Couldn't generate pipeline layout."
 
@@ -151,7 +151,7 @@ main = do
                 { nextInChain = nullPtr,
                   count = 1,
                   mask = 0xFFFFFFFF,
-                  alphaToCoverageEnabled = WGPUBool False
+                  alphaToCoverageEnabled = wgpuFalse
                 }
 
         let primitive =
@@ -234,7 +234,7 @@ main = do
     surfaceTexture <- peek surfaceTextureBox
     free surfaceTextureBox
 
-    frame <- wgpuTextureCreateView surfaceTexture.texture nullPtr
+    frame <- wgpuTextureCreateView surfaceTexture.texture (ConstPtr nullPtr)
     when (frame == nullPtr) $ error "Couldn't create texture view."
 
     commandEncoder <- withWGPUString "command encoder" $ \label -> do
