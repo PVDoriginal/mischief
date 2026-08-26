@@ -15,11 +15,13 @@ fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> VertexOutput {
 
     let pos = positions[in_vertex_index]; 
     output.position = vec4<f32>(pos, 0.0, 1.0);
-
+    
     output.uv = vec2<f32>(
         pos.x * 0.5 + 0.5,
         1.0 - (pos.y * 0.5 + 0.5)
     );
+
+    let x = vec2<f32>(-1.0,  3.0).xxxx;
 
     return output;
 }
@@ -32,6 +34,5 @@ var samp : sampler;
 
 @fragment
 fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
-  let x = array<f32, 10>(1, 2, 3, 4, 5, 6, 7, 8, 9, 10); 
   return textureSample(tex, samp, input.uv);
 }

@@ -62,3 +62,5 @@ data Test' = Test'
   deriving (Generic, Default, Bindable)
 
 test' = Test' (Binding Sampler) (Binding Texture2d)
+
+instance Bindable ()
