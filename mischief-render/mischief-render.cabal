@@ -54,6 +54,7 @@ library
     Mischief.Render.Core
     Mischief.Render.Plugin
     Mischief.Render.Shader
+    Mischief.Render.Shader.Bindings
     Mischief.WGPU
     Mischief.WGPU.Callbacks
     Mischief.WGPU.Common
@@ -105,6 +106,7 @@ library
     stm,
     store,
     temporary,
+    text,
     time,
     transformers,
     vector,
