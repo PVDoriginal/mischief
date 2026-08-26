@@ -32,5 +32,6 @@ var samp : sampler;
 
 @fragment
 fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
+  let x = array<f32, 10>(1, 2, 3, 4, 5, 6, 7, 8, 9, 10); 
   return textureSample(tex, samp, input.uv);
 }
