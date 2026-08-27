@@ -56,6 +56,7 @@ library
     Mischief.Render.Shader
     Mischief.Render.Shader.Bindings
     Mischief.Render.Shader.Functions
+    Mischief.Render.Shader.Params
     Mischief.Render.Shader.State
     Mischief.Render.Shader.Types
     Mischief.WGPU
@@ -79,6 +80,7 @@ library
     MagicHash
     NoFieldSelectors
     OverloadedRecordDot
+    OverloadedStrings
     QuasiQuotes
     RequiredTypeArguments
     TemplateHaskell

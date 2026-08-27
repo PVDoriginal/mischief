@@ -13,7 +13,6 @@ import Data.Vector.Internal.Check
 import GHC.Generics
 import GHC.TypeLits (KnownNat, Nat, natVal)
 import Mischief.ECS.Log (text)
-import Mischief.Render.Shader.Bindings
 import Unsafe.Coerce (unsafeCoerce)
 import Prelude hiding (cos, sin)
 
@@ -38,7 +37,22 @@ data PrimitiveTypes = TInt | TFloat | TUInt deriving (Eq)
 
 data VecLength = VL2 | VL3 | VL4 deriving (Eq)
 
-data Types = Primitive PrimitiveTypes | ArrayType Nat PrimitiveTypes | VectorType VecLength PrimitiveTypes deriving (Eq)
+data Types where
+  Primitive :: PrimitiveTypes -> Types
+  ArrayType :: Nat -> PrimitiveTypes -> Types
+  VectorType :: VecLength -> PrimitiveTypes -> Types
+  Custom :: a -> Types
+
+instance Eq Types where
+  Primitive a == Primitive b = a == b
+  (ArrayType n a) == (ArrayType m b) = n == m && a == b
+  (VectorType vl1 a) == (VectorType vl2 b) = vl1 == vl2 && a == b
+  _ == _ = False
+
+data CustomType a = CustomType
+
+instance Eq (CustomType a) where
+  _ == _ = False
 
 data Expr (a :: Types) where
   Function :: Text -> [Param] -> Expr a
@@ -60,6 +74,9 @@ data Expr (a :: Types) where
   Index :: Expr (ArrayType n a) -> Nat -> Expr (Primitive a)
   Var :: VarIndex -> Expr a
   BindingVar :: Integer -> Expr a
+  BuiltInVar :: Text -> Expr a
+  StructInit :: Text -> [Text] -> Expr a
+  LocationVar :: Integer -> Expr a
   Void :: Expr a
 
 data Param where
@@ -203,9 +220,9 @@ exprToWGSL (ConstantVec @n @a' (_ :: Proxy a) x) =
         VectorType VL3 TInt -> "vec3<i32>(" <> elements <> ")"
         VectorType VL3 TFloat -> "vec3<f32>(" <> elements <> ")"
         VectorType VL3 TUInt -> "vec3<u32>(" <> elements <> ")"
-        VectorType VL4 TInt -> "vec3<i32>(" <> elements <> ")"
-        VectorType VL4 TFloat -> "vec3<f32>(" <> elements <> ")"
-        VectorType VL4 TUInt -> "vec3<u32>(" <> elements <> ")"
+        VectorType VL4 TInt -> "vec4<i32>(" <> elements <> ")"
+        VectorType VL4 TFloat -> "vec4<f32>(" <> elements <> ")"
+        VectorType VL4 TUInt -> "vec4<u32>(" <> elements <> ")"
         _ -> undefined
 exprToWGSL (ConstantInt x) = T.pack $ show x <> "i"
 exprToWGSL (ConstantFloat x) = T.pack $ show x <> "f"
@@ -215,6 +232,10 @@ exprToWGSL (BindingVar x) = "b" <> T.pack (show x)
 exprToWGSL Void = ""
 exprToWGSL (AccessField x f) = exprToWGSL x <> "." <> f
 exprToWGSL (Index a i) = exprToWGSL a <> "[" <> T.pack (show i) <> "]"
+exprToWGSL (BuiltInVar x) = "input." <> x
+exprToWGSL (LocationVar x) = "input.l" <> T.pack (show x)
+exprToWGSL (StructInit "" [p]) = p
+exprToWGSL (StructInit name params) = name <> "(" <> T.intercalate "," params <> ")"
 
 stmtToWGSL :: Stmt -> Text
 stmtToWGSL Empty = ""
@@ -224,12 +245,6 @@ stmtToWGSL (Let a b) = "  let " <> nameIndex a <> " = " <> exprToWGSL b <> ";"
 stmtToWGSL (Return a) = "  return " <> exprToWGSL a <> ";"
 
 newtype Shader a = Shader (State ShaderState a) deriving newtype (Functor, Applicative, Monad, MonadState ShaderState)
-
-shaderToWGSL :: Shader (Expr a) -> Text
-shaderToWGSL (Shader s) = do
-  let (a, ShaderState {ast}) = runState s ShaderState {counter = 0, ast = Empty}
-  let ast' = Concat ast (Return a)
-  stmtToWGSL ast'
 
 class ReflType (a :: Types) where
   reflType :: Expr a -> Types
@@ -296,6 +311,7 @@ typeToWGSL a = case reflType a of
   VectorType VL4 TFloat -> "vec4<f32>"
   VectorType VL4 TInt -> "vec4<i32>"
   VectorType VL4 TUInt -> "vec4<u32>"
+  Custom a -> undefined
 
 addStmt :: Stmt -> Shader ()
 addStmt stmt = do
@@ -313,24 +329,6 @@ var expr = do
   index <- newVarIndex
   addStmt (Let index expr)
   pure $ Var index
-
-genFunction :: forall a. (ReflType a) => Text -> Shader (Expr a) -> Text
-genFunction name s = "fn " <> name <> "() -> " <> typeToWGSL (undefined :: Expr a) <> " {\n" <> shaderToWGSL s <> "\n}"
-
-gen :: forall a b. (ReflType a, Bindable b) => (b -> Shader (Expr a)) -> Text
-gen s = genBindings (Proxy @b) <> genFunction "main" (s def)
-
-genBindings :: forall b. (Bindable b) => Proxy b -> Text
-genBindings _ =
-  let Bindings x = collectBindings (Proxy @b)
-   in T.concat (map genBinding x)
-
-genBinding :: BindingData -> Text
-genBinding BindingData {bType, index} = "@group(0) @binding(" <> T.pack (show index) <> ")\nvar b" <> T.pack (show index) <> " : " <> genBindingType bType <> ";\n\n"
-
-genBindingType :: BindingType -> Text
-genBindingType BSampler = "sampler"
-genBindingType BTexture2d = "texture_2d<f32>"
 
 at :: forall n a. (KnownNat n, HasCallStack) => Expr (ArrayType n a) -> Nat -> Expr (Primitive a)
 at a i =

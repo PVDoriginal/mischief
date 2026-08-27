@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
 module Mischief.Render.Shader.Functions where
 
@@ -8,20 +9,23 @@ import Mischief.Render.Shader.Bindings
 import Mischief.Render.Shader.State
 import Mischief.Render.Shader.Types
 
-sample :: forall n m. (KnownNat n, KnownNat m) => Binding n Texture2d -> Binding m Sampler -> Vec2f -> Vec4f
-sample _ _ v =
+sample :: Texture2d -> Sampler -> Vec2f -> Vec4f
+sample tex sampler v =
   Function
     "sampleTexture"
-    [ Param $ BindingVar $ natVal (Proxy @n),
-      Param $ BindingVar $ natVal (Proxy @m),
+    [ Param tex,
+      Param sampler,
       Param v
     ]
 
-abs :: Expr a -> Expr a
+abs :: (IsAlgebric a ~ True) => Expr a -> Expr a
 abs = Abs
 
-sin :: F32 -> F32
+sin :: (IsAlgebric a ~ True) => Expr a -> Expr a
 sin x = Function "sin" [Param x]
 
-cos :: F32 -> F32
+cos :: (IsAlgebric a ~ True) => Expr a -> Expr a
 cos x = Function "cos" [Param x]
+
+dot :: (IsAlgebric a ~ True) => Expr a -> Expr a -> Expr a
+dot a b = Function "dot" [Param a, Param b]
