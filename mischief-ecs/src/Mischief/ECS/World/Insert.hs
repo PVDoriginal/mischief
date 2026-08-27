@@ -23,6 +23,7 @@ import Mischief.ECS.Archetypes.Graph
   )
 import Mischief.ECS.Components
 import Mischief.ECS.Components.Bundle
+import Mischief.ECS.Components.Common
 import Mischief.ECS.Components.HooksDef (HookContext (..), HookContextRel (..))
 import Mischief.ECS.Components.Spawn (ComponentAddHooks (ComponentAddHooks), ComponentAddHooksRel (ComponentAddHooksRel), ComponentSetHooks (ComponentSetHooks), ComponentSetHooksRel (ComponentSetHooksRel), meta)
 import Mischief.ECS.Entities
@@ -68,9 +69,9 @@ insert bundle entity =
 
         currentTable <- Vec.read world.tables.inner (I# archetypeId)
 
-        -- Simple case, no archetype change.
         ChangeResult {requiredComponentsAdded, newComponents} <-
           if newComponents `isSubsequenceOf` currentTable.components
+            -- Simple case, no archetype change.
             then do
               liftIO $ replaceComponentsIntoTable bundleData (Just currentTick) (EntityPointer (# archetypeId, rowIndex #)) currentTable
               pure $ ChangeResult [] []
@@ -232,9 +233,7 @@ triggerAddEventC (ErasedComponent (_ :: c)) entity = do
   for_ hooks $ \(ComponentAddHooks h) -> do
     for_ h $ \h -> h context
 
-  when (isJust hooks) $ warn "AUHFASUFJ"
-
-  runEvent $ eraseEvent $ OnSet @c entity
+  runEvent $ eraseEvent $ OnAdd @c entity
 
 triggerAddEventR :: ErasedComponent -> Entity -> Entity -> System ()
 triggerAddEventR (ErasedComponent (_ :: c)) target entity = do
@@ -244,7 +243,7 @@ triggerAddEventR (ErasedComponent (_ :: c)) target entity = do
   for_ hooks $ \(ComponentAddHooksRel h) -> do
     for_ h $ \h -> h context
 
-  runEvent $ eraseEvent $ OnSetRel @c entity target
+  runEvent $ eraseEvent $ OnAddRel @c entity target
 
 triggerSetEvent :: ProcessedBundleData -> Entity -> System ()
 triggerSetEvent bundle entity =

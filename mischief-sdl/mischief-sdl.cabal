@@ -65,6 +65,7 @@ library
     MagicHash
     NoFieldSelectors
     OverloadedRecordDot
+    OverloadedStrings
     QuasiQuotes
     RequiredTypeArguments
     TemplateHaskell

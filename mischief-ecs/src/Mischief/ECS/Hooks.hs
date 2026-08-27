@@ -36,28 +36,27 @@ import Mischief.ECS.World.Remove
 import Mischief.ECS.World.Spawn
 import Mischief.ECS.World.Utils
 
-instance EraseIntoStorage (HookContext -> System ()) (Hooks a) where
-  erase :: (HookContext -> System ()) -> Hooks a
-  erase x = Hooks [ErasedHook x]
+-- data Hook c where
+--   Hook :: (HookContext -> m ()) -> Hook c
 
-instance EraseIntoStorage (Hooks a) (Hooks a) where
-  erase = id
+-- data HookRel where
+--   HookRel :: (HookContextRel -> m ()) -> HookRel
 
-hook :: forall c a. (Collectable c (Hooks a)) => c -> Hooks a
-hook = collect
+-- hookRel :: forall c a. (Collectable c (HooksRel a)) => c -> HooksRel a
+-- hookRel = collect
 
-hookSys :: (HookContext -> System ()) -> Hooks a
-hookSys = hook
+-- hookRelSys :: (HookContextRel -> System ()) -> HooksRel a
+-- hookRelSys = hookRel
 
-hookRel :: forall c a. (Collectable c (HooksRel a)) => c -> HooksRel a
-hookRel = collect
+-- instance EraseIntoStorage (HookContextRel -> System ()) (HooksRel a) where
+--   erase :: (HookContextRel -> System ()) -> HooksRel a
+--   erase x = HooksRel [ErasedHookRel x]
 
-hookRelSys :: (HookContextRel -> System ()) -> HooksRel a
-hookRelSys = hookRel
+-- instance EraseIntoStorage (HooksRel a) (HooksRel a) where
+--   erase = id
 
-instance EraseIntoStorage (HookContextRel -> System ()) (HooksRel a) where
-  erase :: (HookContextRel -> System ()) -> HooksRel a
-  erase x = HooksRel [ErasedHookRel x]
+hook :: (HookContext -> System ()) -> Hook a
+hook = Hook
 
-instance EraseIntoStorage (HooksRel a) (HooksRel a) where
-  erase = id
+hookRel :: (HookContextRel -> System ()) -> HookRel a
+hookRel = HookRel

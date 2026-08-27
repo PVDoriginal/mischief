@@ -62,17 +62,17 @@ vec4i = vec4 @TInt
 vec4u :: (Expr (Primitive TUInt), Expr (Primitive TUInt), Expr (Primitive TUInt), Expr (Primitive TUInt)) -> Vec4 TUInt
 vec4u = vec4 @TUInt
 
-array :: forall (n :: Nat) (a :: PrimitiveTypes). (PrintArrayElements n a, ReflType (ArrayType n a)) => ArrayInit n a -> Array n a
+array :: forall (n :: Nat) (a :: Types). (PrintArrayElements n a, ReflType (ArrayType n a)) => ArrayInit n a -> Array n a
 array = ConstantArray Proxy
 
-arrayf :: forall (n :: Nat). (PrintArrayElements n TFloat, ReflType (ArrayType n TFloat)) => ArrayInit n TFloat -> Array n TFloat
-arrayf = array @n @TFloat
+arrayf :: forall (n :: Nat). (PrintArrayElements n (Primitive TFloat), ReflType (ArrayType n (Primitive TFloat))) => ArrayInit n (Primitive TFloat) -> Array n (Primitive TFloat)
+arrayf = array @n @(Primitive TFloat)
 
-arrayi :: forall (n :: Nat). (PrintArrayElements n TInt, ReflType (ArrayType n TInt)) => ArrayInit n TInt -> Array n TInt
-arrayi = array @n @TInt
+arrayi :: forall (n :: Nat). (PrintArrayElements n (Primitive TInt), ReflType (ArrayType n (Primitive TInt))) => ArrayInit n (Primitive TInt) -> Array n (Primitive TInt)
+arrayi = array @n @(Primitive TInt)
 
-arrayu :: forall (n :: Nat). (PrintArrayElements n TUInt, ReflType (ArrayType n TUInt)) => ArrayInit n TUInt -> Array n TUInt
-arrayu = array @n @TUInt
+arrayu :: forall (n :: Nat). (PrintArrayElements n (Primitive TUInt), ReflType (ArrayType n (Primitive TUInt))) => ArrayInit n (Primitive TUInt) -> Array n (Primitive TUInt)
+arrayu = array @n @(Primitive TUInt)
 
 type I32 = Expr (Primitive TInt)
 

@@ -4,16 +4,12 @@ import Data.Data
 import Mischief.ECS.EntityDef
 import Mischief.ECS.EventDef
 
-data ErasedHook where
-  ErasedHook :: forall m. (Typeable m) => (HookContext -> m ()) -> ErasedHook
+data Hook a where
+  Hook :: (Typeable m) => (HookContext -> m ()) -> Hook a
 
-newtype Hooks a = Hooks {inner :: [ErasedHook]} deriving newtype (Semigroup)
+data HookRel a where
+  HookRel :: (Typeable m) => (HookContextRel -> m ()) -> HookRel a
 
 newtype HookContext = HookContext {entity :: Entity}
-
-data ErasedHookRel where
-  ErasedHookRel :: forall m. (Typeable m) => (HookContextRel -> m ()) -> ErasedHookRel
-
-newtype HooksRel a = HooksRel {inner :: [ErasedHookRel]} deriving newtype (Semigroup)
 
 data HookContextRel = HookContextRel {entity :: Entity, target :: Entity}

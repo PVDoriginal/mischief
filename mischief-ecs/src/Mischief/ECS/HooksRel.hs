@@ -40,7 +40,7 @@ import Mischief.ECS.World.Spawn
 -- instance 'Component' After where
 --   onAdd = addOther ('const' Before)
 -- @
-addOther :: forall (a :: Type) b. (Component a, Component b) => (a -> b) -> HooksRel a
+addOther :: forall (a :: Type) b. (Component a, Component b) => (a -> b) -> HookRel a
 addOther f = hookRel $ insertComplementary f
 
 -- | Relationship Hook for @Component a@.
@@ -57,7 +57,7 @@ addOther f = hookRel $ insertComplementary f
 --   onAdd = addOther ('const' Likes)
 --   onRemove = removeOther \@Likes
 -- @`
-removeOther :: forall a b. (Component b) => HooksRel a
+removeOther :: forall a b. (Component b) => HookRel a
 removeOther = hookRel $ removeComplementary @b
 
 insertComplementary :: forall (a :: Type) b. (Component b, Component a) => (a -> b) -> HookContextRel -> System ()
@@ -68,7 +68,7 @@ insertComplementary f event = do
 removeComplementary :: forall b. (Component b) => HookContextRel -> System ()
 removeComplementary event = remove (R @b event.entity) event.target
 
-addCleaner :: forall (a :: Type). (Component a) => (CleanupRequest -> System ()) -> HooksRel a
+addCleaner :: forall (a :: Type). (Component a) => (CleanupRequest -> System ()) -> HookRel a
 addCleaner f = hookRel $ insertCleanupWatcher @a f
 
 -- | Relationship Hook for @Component a@.
@@ -76,7 +76,7 @@ addCleaner f = hookRel $ insertCleanupWatcher @a f
 -- Adds a cleaner that will remove this relationship if the target is despawned.
 --
 -- Note that one component can have only one cleaner at a time.
-addRemoveCleaner :: forall (a :: Type). (Component a) => HooksRel a
+addRemoveCleaner :: forall (a :: Type). (Component a) => HookRel a
 addRemoveCleaner = addCleaner @a (\r -> removeRel @a r.target r.entity)
 
 -- | Relationship Hook for @Component a@.
@@ -84,7 +84,7 @@ addRemoveCleaner = addCleaner @a (\r -> removeRel @a r.target r.entity)
 -- Adds a cleaner that will despawn this relationship's entity if the target of the relationship is despawned.
 --
 -- Note that one component can have only one cleaner at a time.
-addDespawnCleaner :: forall (a :: Type). (Component a) => HooksRel a
+addDespawnCleaner :: forall (a :: Type). (Component a) => HookRel a
 addDespawnCleaner = addCleaner @a (\r -> despawn r.entity)
 
 insertCleanupWatcher :: forall c. (Component c) => (CleanupRequest -> System ()) -> HookContextRel -> System ()
@@ -93,7 +93,7 @@ insertCleanupWatcher f e = insert (Rel (CleanupWatcher @c f) e.entity) e.target
 -- | Relationship Hook for @Component a@.
 --
 -- Removes the cleaner associated to this component, if any.
-removeCleaner :: forall (a :: Type). (Component a) => HooksRel a
+removeCleaner :: forall (a :: Type). (Component a) => HookRel a
 removeCleaner = hookRel (removeCleanupWatcher @a)
 
 removeCleanupWatcher :: forall c. (Component c) => HookContextRel -> System ()
@@ -109,7 +109,7 @@ data CleanupRequest = CleanupRequest
   }
 
 instance (Component c) => Component (CleanupWatcher c) where
-  onRemoveRel = hookRel (triggerCleanup @c)
+  onRemoveRel = [hookRel (triggerCleanup @c)]
 
 triggerCleanup :: forall c. (Component c) => HookContextRel -> System ()
 triggerCleanup e = do

@@ -21,8 +21,6 @@ fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> VertexOutput {
         1.0 - (pos.y * 0.5 + 0.5)
     );
 
-    let x = vec2<f32>(-1.0,  3.0).xxxx;
-
     return output;
 }
 

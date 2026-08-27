@@ -14,8 +14,8 @@ import SDL3.Sys qualified as SDL3
 data Window = Window
 
 instance Component Window where
-  onAdd = hook handleNewWindow
-  onRemove = hook handleWindowRemove
+  onAdd = [hook handleNewWindow]
+  onRemove = [hook handleWindowRemove]
   required = require @(WindowSize, WindowTitle)
 
 data WindowSize = WindowSize {width :: Int, height :: Int} deriving (Component)

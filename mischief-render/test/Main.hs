@@ -1,6 +1,8 @@
 import Codec.Picture
+import Codec.Picture.Extra (scaleBilinear)
 import Control.Concurrent
-import Control.Monad (forever, unless, when)
+import Control.Monad (forever, unless, void, when)
+import Control.Monad.IO.Class
 import Data.ByteString qualified as BS
 import Data.Data (Proxy (..))
 import Data.Foldable
@@ -11,6 +13,11 @@ import Foreign (Bits ((.|.)), Ptr, Storable (alignment, peek, poke, sizeOf), all
 import Foreign.C
 import Foreign.C.ConstPtr
 import Mischief.ECS.Prelude
+import Mischief.ECS.Systems qualified as S
+import Mischief.Render.Camera
+import Mischief.Render.Core
+import Mischief.Render.Plugin
+import Mischief.SDL.Window
 import Mischief.WGPU
 import Mischief.WGPU.Callbacks
 import Mischief.WGPU.Framework
@@ -23,6 +30,54 @@ import SDL3.Sys.Bindgen.Video.FunPtr (sDL_GetWindowSize)
 import System.Environment (setEnv)
 import System.Exit (exitSuccess)
 import System.IO (hFlush, stdout)
+
+main :: IO ()
+main = runApp =<< newApp MainPlugin
+
+data MainPlugin = MainPlugin deriving (Eq)
+
+instance Plugin MainPlugin where
+  init _ = do
+    S.add Startup setup
+
+  plugins _ = plug RenderPlugin
+
+setup :: System ()
+setup = do
+  window <- spawn (Name "Window", Window, WindowSize 700 500)
+  camera <- spawn (Camera, Rel OutputTo window)
+
+  Just (CameraTexture (Texture tex)) <- [g|*CameraTexture|] camera
+  Just (RenderQueue queue) <- [g|*RenderQueue|] window
+  liftIO $ uploadTexture queue tex
+
+uploadTexture :: Ptr WGPUQueue -> Ptr WGPUTexture -> IO ()
+uploadTexture queue texture = do
+  image' <- loadRGBA8 "test/rat.jpg"
+  let image = scaleBilinear 700 500 image'
+
+  let pixels = imageBytes image
+  let extent = WGPUExtent3D (fromIntegral image.imageWidth) (fromIntegral image.imageHeight) 1
+  let copyInfo =
+        WGPUTexelCopyTextureInfo
+          { texture,
+            mipLevel = 0,
+            origin = WGPUOrigin3D 0 0 0,
+            aspect = wGPUTextureAspect_All
+          }
+
+  let layout =
+        WGPUTexelCopyBufferLayout
+          { offset = 0,
+            bytesPerRow = 4 * fromIntegral image.imageWidth,
+            rowsPerImage = fromIntegral image.imageHeight
+          }
+
+  VS.unsafeWith (imageBytes image) $ \pixelPtr -> do
+    with extent $ \extent -> do
+      with copyInfo $ \copyInfo -> do
+        with layout $ \layout -> do
+          wgpuQueueWriteTexture queue (ConstPtr copyInfo) (ConstPtr $ castPtr pixelPtr) (fromIntegral $ VS.length pixels) (ConstPtr layout) (ConstPtr extent)
 
 test :: IO ()
 test = do
@@ -114,8 +169,8 @@ test = do
 -- main :: IO ()
 -- main = test
 
-main :: IO ()
-main = do
+_main :: IO ()
+_main = do
   !wgpuInstance <- wgpuCreateInstance
 
   window <- withCString "sdl3-raw" $ \title -> SDL3.createWindow (ConstPtr title) 640 360 0
@@ -495,11 +550,10 @@ main = do
     with commandBuffer $ \commandBuffer -> do
       wgpuQueueSubmit queue 1 (ConstPtr commandBuffer)
 
-    wgpuSurfacePresent surface
-
     wgpuCommandBufferRelease commandBuffer
     wgpuCommandEncoderRelease commandEncoder
     wgpuTextureViewRelease frame
+    wgpuSurfacePresent surface
     wgpuTextureRelease surfaceTexture.texture
 
   print driverName

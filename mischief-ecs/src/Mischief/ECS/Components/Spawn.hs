@@ -104,12 +104,12 @@ tryMeta = do
 
 registerHooks :: forall c. (Component c) => Entity -> System ()
 registerHooks entity = do
-  let a = map getHook (onAdd @c).inner
-  let s = map getHook (onSet @c).inner
-  let r = map getHook (onRemove @c).inner
-  let ar = map getHookRel (onAddRel @c).inner
-  let sr = map getHookRel (onSetRel @c).inner
-  let rr = map getHookRel (onRemoveRel @c).inner
+  let a = map getHook (onAdd @c)
+  let s = map getHook (onSet @c)
+  let r = map getHook (onRemove @c)
+  let ar = map getHookRel (onAddRel @c)
+  let sr = map getHookRel (onSetRel @c)
+  let rr = map getHookRel (onRemoveRel @c)
 
   worldSet (ComponentAddHooks a) entity
   worldSet (ComponentSetHooks s) entity
@@ -118,14 +118,14 @@ registerHooks entity = do
   worldSet (ComponentSetHooksRel sr) entity
   worldSet (ComponentRemoveHooksRel rr) entity
 
-getHook :: ErasedHook -> (HookContext -> System ())
-getHook (ErasedHook (h :: HookContext -> m ())) = do
+getHook :: Hook c -> (HookContext -> System ())
+getHook (Hook (h :: HookContext -> m ())) = do
   case eqT @m @System of
     Nothing -> undefined
     Just Refl -> h
 
-getHookRel :: ErasedHookRel -> (HookContextRel -> System ())
-getHookRel (ErasedHookRel (h :: HookContextRel -> m ())) = do
+getHookRel :: HookRel c -> (HookContextRel -> System ())
+getHookRel (HookRel (h :: HookContextRel -> m ())) = do
   case eqT @m @System of
     Nothing -> undefined
     Just Refl -> h

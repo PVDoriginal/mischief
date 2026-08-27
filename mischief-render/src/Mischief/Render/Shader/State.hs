@@ -39,7 +39,7 @@ data VecLength = VL2 | VL3 | VL4 deriving (Eq)
 
 data Types where
   Primitive :: PrimitiveTypes -> Types
-  ArrayType :: Nat -> PrimitiveTypes -> Types
+  ArrayType :: Nat -> Types -> Types
   VectorType :: VecLength -> PrimitiveTypes -> Types
   Custom :: a -> Types
 
@@ -68,10 +68,10 @@ data Expr (a :: Types) where
   ConstantInt :: Int -> Expr (Primitive TInt)
   ConstantFloat :: Float -> Expr (Primitive TFloat)
   ConstantUInt :: Int -> Expr (Primitive TUInt)
-  ConstantArray :: forall (n :: Nat) (a' :: PrimitiveTypes). (PrintArrayElements n a', ReflType (ArrayType n a')) => Proxy (ArrayType n a') -> ArrayInit n a' -> Expr (ArrayType n a')
+  ConstantArray :: forall (n :: Nat) (a' :: Types). (PrintArrayElements n a', ReflType (ArrayType n a')) => Proxy (ArrayType n a') -> ArrayInit n a' -> Expr (ArrayType n a')
   ConstantVec :: forall (n :: VecLength) (a' :: PrimitiveTypes). (PrintVecElements n a', ReflType (VectorType n a')) => Proxy (VectorType n a') -> VecInit n a' -> Expr (VectorType n a')
   AccessField :: Expr a -> Text -> Expr b
-  Index :: Expr (ArrayType n a) -> Nat -> Expr (Primitive a)
+  Index :: Expr (ArrayType n a) -> Expr (Primitive TUInt) -> Expr a
   Var :: VarIndex -> Expr a
   BindingVar :: Integer -> Expr a
   BuiltInVar :: Text -> Expr a
@@ -148,14 +148,12 @@ instance PrintVecElements VL3 a where
 instance PrintVecElements VL4 a where
   printVecElements (a, b, c, d) = exprToWGSL a <> ", " <> exprToWGSL b <> ", " <> exprToWGSL c <> ", " <> exprToWGSL d
 
-type family ArrayInit (n :: Nat) (a :: PrimitiveTypes) where
-  ArrayInit 2 a = (Expr (Primitive a), Expr (Primitive a))
-  ArrayInit 3 a = (Expr (Primitive a), Expr (Primitive a), Expr (Primitive a))
-  ArrayInit 4 a = (Expr (Primitive a), Expr (Primitive a), Expr (Primitive a), Expr (Primitive a))
-  ArrayInit 5 a = (Expr (Primitive a), Expr (Primitive a), Expr (Primitive a), Expr (Primitive a), Expr (Primitive a))
-  ArrayInit 6 a = (Expr (Primitive a), Expr (Primitive a), Expr (Primitive a), Expr (Primitive a), Expr (Primitive a), Expr (Primitive a))
+type family ArrayInit (n :: Nat) (a :: Types) where
+  ArrayInit 2 a = (Expr a, Expr a)
+  ArrayInit 3 a = (Expr a, Expr a, Expr a)
+  ArrayInit 4 a = (Expr a, Expr a, Expr a, Expr a)
 
-class PrintArrayElements (n :: Nat) (a :: PrimitiveTypes) where
+class PrintArrayElements (n :: Nat) (a :: Types) where
   printArrayElements :: ArrayInit n a -> Text
 
 instance PrintArrayElements 2 a where
@@ -207,9 +205,7 @@ exprToWGSL (CastVec (_ :: Proxy b) (a :: Expr a)) =
 exprToWGSL (ConstantArray @n @a' (_ :: Proxy a) x) =
   let elements = printArrayElements @n @a' x
    in case reflType (undefined :: Expr a) of
-        ArrayType n TInt -> "array<i32, " <> T.pack (show n) <> ">(" <> elements <> ")"
-        ArrayType n TFloat -> "array<f32, " <> T.pack (show n) <> ">(" <> elements <> ")"
-        ArrayType n TUInt -> "array<u32, " <> T.pack (show n) <> ">(" <> elements <> ")"
+        ArrayType n t -> "array<" <> typeToWGSL' t <> ", " <> T.pack (show n) <> ">(" <> elements <> ")"
         _ -> undefined
 exprToWGSL (ConstantVec @n @a' (_ :: Proxy a) x) =
   let elements = printVecElements @n @a' x
@@ -231,7 +227,7 @@ exprToWGSL (Var x) = nameIndex x
 exprToWGSL (BindingVar x) = "b" <> T.pack (show x)
 exprToWGSL Void = ""
 exprToWGSL (AccessField x f) = exprToWGSL x <> "." <> f
-exprToWGSL (Index a i) = exprToWGSL a <> "[" <> T.pack (show i) <> "]"
+exprToWGSL (Index a i) = exprToWGSL a <> "[" <> exprToWGSL i <> "]"
 exprToWGSL (BuiltInVar x) = "input." <> x
 exprToWGSL (LocationVar x) = "input.l" <> T.pack (show x)
 exprToWGSL (StructInit "" [p]) = p
@@ -258,14 +254,8 @@ instance ReflType (Primitive TFloat) where
 instance ReflType (Primitive TUInt) where
   reflType _ = Primitive TUInt
 
-instance (KnownNat n) => ReflType (ArrayType (n :: Nat) TInt) where
-  reflType _ = ArrayType (fromInteger $ natVal (Proxy @n)) TInt
-
-instance (KnownNat n) => ReflType (ArrayType (n :: Nat) TFloat) where
-  reflType _ = ArrayType (fromInteger $ natVal (Proxy @n)) TFloat
-
-instance (KnownNat n) => ReflType (ArrayType (n :: Nat) TUInt) where
-  reflType _ = ArrayType (fromInteger $ natVal (Proxy @n)) TUInt
+instance (KnownNat n, ReflType t) => ReflType (ArrayType (n :: Nat) t) where
+  reflType _ = ArrayType (fromInteger $ natVal (Proxy @n)) (reflType (undefined :: Expr t))
 
 instance ReflType (VectorType VL2 TInt) where
   reflType _ = VectorType VL2 TInt
@@ -295,13 +285,14 @@ instance ReflType (VectorType VL4 TUInt) where
   reflType _ = VectorType VL4 TUInt
 
 typeToWGSL :: (ReflType a) => Expr a -> Text
-typeToWGSL a = case reflType a of
+typeToWGSL = typeToWGSL' . reflType
+
+typeToWGSL' :: Types -> Text
+typeToWGSL' a = case a of
   Primitive TInt -> "i32"
   Primitive TFloat -> "f32"
   Primitive TUInt -> "u32"
-  ArrayType n TFloat -> "array<f32, " <> T.pack (show n) <> ">"
-  ArrayType n TInt -> "array<i32, " <> T.pack (show n) <> ">"
-  ArrayType n TUInt -> "array<u32, " <> T.pack (show n) <> ">"
+  ArrayType n t -> "array<" <> typeToWGSL' t <> ", " <> T.pack (show n) <> ">"
   VectorType VL2 TFloat -> "vec2<f32>"
   VectorType VL2 TInt -> "vec2<i32>"
   VectorType VL2 TUInt -> "vec2<u32>"
@@ -311,7 +302,7 @@ typeToWGSL a = case reflType a of
   VectorType VL4 TFloat -> "vec4<f32>"
   VectorType VL4 TInt -> "vec4<i32>"
   VectorType VL4 TUInt -> "vec4<u32>"
-  Custom a -> undefined
+  Custom _ -> undefined
 
 addStmt :: Stmt -> Shader ()
 addStmt stmt = do
@@ -330,11 +321,5 @@ var expr = do
   addStmt (Let index expr)
   pure $ Var index
 
-at :: forall n a. (KnownNat n, HasCallStack) => Expr (ArrayType n a) -> Nat -> Expr (Primitive a)
-at a i =
-  let i' = fromInteger $ natVal (Proxy @n)
-   in if i >= i'
-        then
-          error $ "Attempted to access element " ++ show i ++ " of an array with " ++ show i' ++ " elements!"
-        else
-          Index a i
+at :: forall n a. Expr (ArrayType n a) -> Expr (Primitive TUInt) -> Expr a
+at = Index

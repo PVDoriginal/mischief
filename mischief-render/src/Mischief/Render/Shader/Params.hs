@@ -48,6 +48,7 @@ class (Typeable a, Default a) => ShaderParam a where
   getName = T.pack . show . typeRep
 
   getType :: Proxy a -> Text -> Text
+  getType a "" = getName a
   getType a n = n <> " : " <> getName a
 
   collectValues :: a -> Values
@@ -137,6 +138,7 @@ instance ReadParam (Location n (Expr a)) (Expr a) where
 
 instance ReadParam (Binding n (Expr a)) (Expr a) where
   get (Binding a) = a
+  get _ = undefined
 
 newtype Struct a = Struct (VarIndex, a)
 

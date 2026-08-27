@@ -50,8 +50,10 @@ library
   -- Modules exported by the library.
   exposed-modules:
     Mischief.Render
+    Mischief.Render.Bind
     Mischief.Render.Camera
     Mischief.Render.Core
+    Mischief.Render.Material
     Mischief.Render.Plugin
     Mischief.Render.Shader
     Mischief.Render.Shader.Bindings
@@ -160,6 +162,7 @@ test-suite mischief-test
     NoFieldSelectors
     NoGeneralizedNewtypeDeriving
     OverloadedRecordDot
+    QuasiQuotes
     RequiredTypeArguments
     TypeFamilyDependencies
 
@@ -178,8 +181,10 @@ test-suite mischief-test
     containers,
     data-default,
     JuicyPixels,
+    JuicyPixels-extra,
     mischief-ecs,
     mischief-render,
+    mischief-sdl,
     mmap,
     primitive,
     sdl3-bindgen-sys,

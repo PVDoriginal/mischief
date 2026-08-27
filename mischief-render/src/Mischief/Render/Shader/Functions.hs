@@ -12,7 +12,7 @@ import Mischief.Render.Shader.Types
 sample :: Texture2d -> Sampler -> Vec2f -> Vec4f
 sample tex sampler v =
   Function
-    "sampleTexture"
+    "textureSample"
     [ Param tex,
       Param sampler,
       Param v

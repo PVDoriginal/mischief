@@ -54,8 +54,9 @@ changeArchetype entity newArchetype insertedBundle = do
               case find (\x -> x.id == component) bundle.elements of
                 Just x -> do
                   case find (\x -> x.id == component) collected.elements of
-                    Nothing -> pure ()
-                    Just y -> liftIO $ modifyIORef' newAdded (++ [y])
+                    Nothing -> do
+                      liftIO $ modifyIORef' newAdded (++ [x])
+                    Just _ -> pure ()
                   return x
                 Nothing ->
                   case find (\x -> x.id == component) collected.elements of
