@@ -14,6 +14,7 @@ import Mischief.Render.Shader
 import Mischief.Render.Shader.Bindings (Bindable, createBindGroup, createBindLayout)
 import Mischief.Render.Shader.Params
 import Mischief.Render.Shader.State
+import Mischief.Render.Texture
 import Mischief.WGPU
 import Mischief.WGPU.Framework (loadShaderFromBytes)
 import Mischief.WGPU.Types.Enums
@@ -105,7 +106,7 @@ createPipeline (RenderDevice device) mat = do
   pure $ Pipeline pipeline
 
 render :: forall bindings vIn vOut fOut. (Bindable bindings, ShaderParam vIn, ShaderParam vOut, ShaderParam fOut) => RenderDevice -> RenderQueue -> bindings -> Material bindings vIn vOut fOut -> Texture -> System ()
-render (RenderDevice device) (RenderQueue queue) b material (Texture output) = liftIO $ do
+render (RenderDevice device) (RenderQueue queue) b material (Texture {texture = output}) = liftIO $ do
   bindLayout <- createBindLayout @bindings (RenderDevice device)
   bindGroup <- createBindGroup (RenderDevice device) bindLayout b
   Pipeline pipeline <- createPipeline (RenderDevice device) material

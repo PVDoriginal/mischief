@@ -14,6 +14,9 @@ import GHC.Generics (Generic)
 import Mischief.ECS.Events
 import Mischief.ECS.Prelude
 import Mischief.Render.Core
+import Mischief.Render.Texture
+import Mischief.Render.Texture (createTexture)
+import Mischief.Render.Texture qualified as Texture
 import Mischief.SDL.Window
 import Mischief.WGPU (wgpuDeviceCreateTexture, wgpuTextureRelease, withWGPUString)
 import Mischief.WGPU.Types.Enums
@@ -35,8 +38,8 @@ newtype CameraTexture = CameraTexture Texture
 instance Component CameraTexture where
   onRemove =
     [ hook $ \(HookContext entity) -> do
-        Just (CameraTexture (Texture tex)) <- [g|*CameraTexture|] entity
-        liftIO $ wgpuTextureRelease tex
+        Just (CameraTexture (Texture {texture})) <- [g|*CameraTexture|] entity
+        liftIO $ wgpuTextureRelease texture
     ]
 
 onAddCameraOutputTo :: OnAddRel OutputTo -> System ()
@@ -48,11 +51,9 @@ updateCameraTexture camera window = do
   window <- [g|*WindowSize, *RenderDevice|] window
   case window of
     Nothing -> warn "Camera output window not found."
-    Just (WindowSize w h, RenderDevice device) -> do
-      texture <- liftIO $ withWGPUString "camera texture" $ \label -> do
-        let desc = newTextureDescriptor w h label
-        with desc $ wgpuDeviceCreateTexture device . ConstPtr
-      insert (CameraTexture (Texture texture)) camera
+    Just (WindowSize width height, device) -> do
+      texture <- createTexture device (textureDescriptor {Texture.width, height})
+      insert (CameraTexture texture) camera
       info "Created new camera texture!"
 
 newTextureDescriptor :: Int -> Int -> WGPUStringView -> WGPUTextureDescriptor

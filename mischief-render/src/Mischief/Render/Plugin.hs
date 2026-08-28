@@ -8,8 +8,10 @@ import Data.Traversable
 import Foreign (Storable (peek), free, malloc, nullPtr, with)
 import Foreign.C.ConstPtr (ConstPtr (..))
 import GHC.Generics
+import Mischief.ECS (Before, Schedule, UpdateSchedule (..), scheduleEntity)
 import Mischief.ECS.Observers qualified as Observers
 import Mischief.ECS.Prelude hiding (get, set)
+import Mischief.ECS.Relationships.Order (Before (..))
 import Mischief.ECS.Systems qualified as Systems
 import Mischief.Render.Bind
 import Mischief.Render.Camera
@@ -20,20 +22,39 @@ import Mischief.Render.Shader.Functions (sample)
 import Mischief.Render.Shader.Params
 import Mischief.Render.Shader.State
 import Mischief.Render.Shader.Types
+import Mischief.Render.Texture
 import Mischief.SDL (SDLPlugin (..))
 import Mischief.SDL.Window
 import Mischief.WGPU
 import Mischief.WGPU.Types.Enums
 import Mischief.WGPU.Types.General
 
+data RenderFirst = RenderFirst deriving (Schedule)
+
+data RenderUpdate = RenderUpdate deriving (Schedule)
+
+data RenderLast = RenderLast deriving (Schedule)
+
 data RenderPlugin = RenderPlugin deriving (Eq)
 
 instance Plugin RenderPlugin where
   init _ = do
+    first <- scheduleEntity RenderFirst
+    update <- scheduleEntity RenderUpdate
+    last <- scheduleEntity RenderLast
+
+    update' <- scheduleEntity PostUpdate
+
+    insert (Rel Before update) first
+    insert (Rel Before last) update
+    insert (Rel Before first) update'
+
+    for_ [first, update, last] $ insert UpdateSchedule
+
     insertRes =<< liftIO (RenderInstance <$> wgpuCreateInstance)
     void $ Observers.spawn onAddWindow
     void $ Observers.spawn onAddCameraOutputTo
-    Systems.add Update renderCameras
+    Systems.add RenderLast renderCameras
 
   plugins _ = plug SDLPlugin
 
@@ -59,7 +80,7 @@ data VertexOutput = VertexOutput
 
 vertex :: Bindings -> BuiltIn "vertex_index" U32 -> Shader VertexOutput
 vertex _ index = do
-  positions <- var $ array @3 @(VectorType VL2 TFloat) (vec2 (-1, -1), vec2 (3, -1), vec2 (-1, 3))
+  positions <- var $ array @3 (vec2f (-1, -1), vec2f (3, -1), vec2f (-1, 3))
   let pos = positions `at` get index
   pure $
     VertexOutput
@@ -68,7 +89,7 @@ vertex _ index = do
       }
 
 data Bindings = Bindings
-  { tex :: Binding 0 Texture2d,
+  { tex :: Binding 0 Texture,
     sampler :: Binding 1 Sampler
   }
   deriving (Generic, Default, Bindable)
@@ -96,12 +117,12 @@ withSurfaceTexture (RenderSurface surface) f = do
   liftIO $ wgpuSurfaceGetCurrentTexture surface surfaceTextureBox
   surfaceTexture <- liftIO $ peek surfaceTextureBox
 
-  res <- f (Texture surfaceTexture.texture)
+  res <- f (Texture {texture = surfaceTexture.texture, desc = def})
 
   liftIO $ free surfaceTextureBox
   return res
 
-newSampler :: RenderDevice -> System TextureSampler
+newSampler :: RenderDevice -> System Sampler
 newSampler (RenderDevice device) = liftIO $ do
   let samplerDesc =
         WGPUSamplerDescriptor
@@ -118,7 +139,7 @@ newSampler (RenderDevice device) = liftIO $ do
             compare = wGPUCompareFunction_Undefined,
             maxAnisotropy = 1
           }
-  TextureSampler <$> with samplerDesc (wgpuDeviceCreateSampler device . ConstPtr)
+  Sampler <$> with samplerDesc (wgpuDeviceCreateSampler device . ConstPtr)
 
 presentSurface :: RenderSurface -> System ()
 presentSurface (RenderSurface surface) = liftIO $ wgpuSurfacePresent surface

@@ -49,11 +49,11 @@ library
   import: warnings
   -- Modules exported by the library.
   exposed-modules:
-    MischiefAssets
-    MischiefAssets.Asset
-    MischiefAssets.Image
-    MischiefAssets.Plugin
-    MischiefAssets.Register
+    Mischief.Assets
+    Mischief.Assets.Asset
+    Mischief.Assets.Image
+    Mischief.Assets.Plugin
+    Mischief.Assets.Register
 
   -- Modules included in this library but not exported.
   -- other-modules:

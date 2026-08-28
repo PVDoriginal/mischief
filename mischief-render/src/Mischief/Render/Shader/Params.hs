@@ -136,7 +136,7 @@ instance ReadParam (BuiltIn s (Expr a)) (Expr a) where
 instance ReadParam (Location n (Expr a)) (Expr a) where
   get (Location a) = a
 
-instance ReadParam (Binding n (Expr a)) (Expr a) where
+instance (AssociatedExpr a ~ b) => ReadParam (Binding n a) (Expr b) where
   get (Binding a) = a
   get _ = undefined
 

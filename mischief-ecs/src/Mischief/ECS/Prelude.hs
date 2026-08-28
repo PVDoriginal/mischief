@@ -26,20 +26,22 @@ module Mischief.ECS.Prelude
     module Mischief.ECS.World.Query.QueryType,
     module Mischief.ECS.Components.HooksDef,
     module Mischief.ECS.Hooks,
+    module Mischief.ECS.Components.Bundle,
   )
 where
 
 import Mischief.ECS.App (newApp, runApp)
 import Mischief.ECS.App.Plugins (Plugin (..), plug)
-import Mischief.ECS.App.Schedules (First (..), PostStartup (..), PostUpdate (..), PreStartup (..), PreUpdate (..), Startup (..), Update (..))
+import Mischief.ECS.App.Schedules (First (..), Last (..), PostStartup (..), PostUpdate (..), PreStartup (..), PreUpdate (..), Startup (..), Update (..))
 import Mischief.ECS.App.SystemConfig (after, before)
 import Mischief.ECS.Components (Component (..), Exclusivity (..), Rel (..))
+import Mischief.ECS.Components.Bundle (Bundle)
 import Mischief.ECS.Components.Common (Name (..))
 import Mischief.ECS.Components.HooksDef (Hook, HookContext (..), HookContextRel (..), HookRel)
 import Mischief.ECS.Components.Required (require)
 import Mischief.ECS.Entities (Entity)
 import Mischief.ECS.EventDef (Event)
-import Mischief.ECS.Events (trigger)
+import Mischief.ECS.Events (OnAdd (..), OnAddRel (..), OnRemove (..), OnRemoveRel (..), OnSet (..), OnSetRel (..), trigger)
 import Mischief.ECS.Hooks (hook, hookRel)
 import Mischief.ECS.Log
 import Mischief.ECS.Resources (insertRes, res, resOrInsert)

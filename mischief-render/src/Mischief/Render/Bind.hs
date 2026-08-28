@@ -4,13 +4,14 @@ import Control.Monad.IO.Class
 import Data.Primitive.Ptr
 import Foreign.C.ConstPtr
 import Mischief.ECS.Prelude
-import Mischief.Render.Core (Texture (Texture), TextureSampler (TextureSampler))
-import Mischief.Render.Shader.Bindings (Binding (BindEntry), Sampler, Texture2d)
+import Mischief.Render.Core (Sampler (..))
+import Mischief.Render.Shader.Bindings (Binding (BindEntry))
+import Mischief.Render.Texture
 import Mischief.WGPU
 import Mischief.WGPU.Types.General
 
-bindTexture :: Texture -> System (Binding index Texture2d)
-bindTexture (Texture texture) = do
+bindTexture :: Texture -> System (Binding index Texture)
+bindTexture (Texture {texture}) = do
   textureView <- liftIO $ wgpuTextureCreateView texture (ConstPtr nullPtr)
   pure $
     BindEntry $
@@ -24,8 +25,8 @@ bindTexture (Texture texture) = do
           nextInChain = nullPtr
         }
 
-bindSampler :: TextureSampler -> System (Binding index Sampler)
-bindSampler (TextureSampler sampler) =
+bindSampler :: Sampler -> System (Binding index Sampler)
+bindSampler (Sampler sampler) =
   pure $
     BindEntry $
       WGPUBindGroupEntry

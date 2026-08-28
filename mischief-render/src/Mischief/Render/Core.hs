@@ -140,12 +140,10 @@ getSurfaceDescriptor "windows" props = do
         }
 getSurfaceDescriptor s _ = error $ "Incompatible driver: " ++ s
 
-newtype Texture = Texture (Ptr WGPUTexture)
-
 newtype BindLayout = BindLayout (Ptr WGPUBindGroupLayout)
 
 newtype Pipeline = Pipeline (Ptr WGPURenderPipeline)
 
 newtype TextureFormat = TextureFormat WGPUTextureFormat
 
-newtype TextureSampler = TextureSampler (Ptr WGPUSampler)
+newtype Sampler = Sampler (Ptr WGPUSampler)

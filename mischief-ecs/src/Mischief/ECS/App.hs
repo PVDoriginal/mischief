@@ -61,6 +61,9 @@ newApp plugin = do
 
 runApp :: App -> IO ()
 runApp app = flip runSystem app.world $ do
+  x <- scheduleEntity Init
+  liftIO $ runSchedules [x]
+
   startups <- orderEntities =<< query' E (With (C @StartupSchedule))
   updates <- orderEntities =<< query' E (With (C @UpdateSchedule))
 
@@ -105,14 +108,14 @@ appInit = do
   systems <- liftIO Systems.newSystems
   insertRes systems
 
-  init <- scheduleEntity Init
+  void $ scheduleEntity Init
   pre <- scheduleEntity PreStartup
   startup <- scheduleEntity Startup
   post <- scheduleEntity PostStartup
 
-  for_ [init, pre, startup, post] $ insert StartupSchedule
+  for_ [pre, startup, post] $ insert StartupSchedule
 
-  insert (Rel Before pre) init
+  -- insert (Rel Before pre) init
   insert (Rel Before startup) pre
   insert (Rel Before post) startup
 
@@ -120,12 +123,14 @@ appInit = do
   pre <- scheduleEntity PreUpdate
   update <- scheduleEntity Update
   post <- scheduleEntity PostUpdate
+  last <- scheduleEntity Last
 
-  for_ [first, pre, update, post] $ insert UpdateSchedule
+  for_ [first, pre, update, post, last] $ insert UpdateSchedule
 
   insert (Rel Before pre) first
   insert (Rel Before update) pre
   insert (Rel Before post) update
+  insert (Rel Before last) post
 
 register :: forall c. (Runnable c) => System ()
 register = runFor @c registerComponent

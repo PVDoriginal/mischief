@@ -1,12 +1,34 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE EmptyCase #-}
+{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE StandaloneKindSignatures #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeAbstractions #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NoCUSKs #-}
+{-# LANGUAGE NoNamedWildCards #-}
+{-# LANGUAGE NoStarIsType #-}
 
 module Mischief.Render.Shader.State where
 
 import Control.Monad.State
 import Data.Data hiding (cast)
 import Data.Default
+import Data.Singletons.Base.CustomStar (genSingletons)
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Vector.Internal.Check
@@ -41,7 +63,8 @@ data Types where
   Primitive :: PrimitiveTypes -> Types
   ArrayType :: Nat -> Types -> Types
   VectorType :: VecLength -> PrimitiveTypes -> Types
-  Custom :: a -> Types
+  TTexture :: Types
+  TSampler :: Types
 
 instance Eq Types where
   Primitive a == Primitive b = a == b
@@ -125,6 +148,8 @@ instance Fractional (Expr (Primitive TFloat)) where
   fromRational = ConstantFloat . fromRational
   recip = Div 1
   (/) = Div
+
+instance Fractional (Expr (VectorType VL2 TFloat))
 
 instance (ReflType (Primitive a)) => Enum (Expr (Primitive a)) where
   toEnum i = fromInteger (toInteger i)
@@ -302,7 +327,7 @@ typeToWGSL' a = case a of
   VectorType VL4 TFloat -> "vec4<f32>"
   VectorType VL4 TInt -> "vec4<i32>"
   VectorType VL4 TUInt -> "vec4<u32>"
-  Custom _ -> undefined
+  _ -> undefined
 
 addStmt :: Stmt -> Shader ()
 addStmt stmt = do
@@ -323,3 +348,5 @@ var expr = do
 
 at :: forall n a. Expr (ArrayType n a) -> Expr (Primitive TUInt) -> Expr a
 at = Index
+
+genSingletons [''PrimitiveTypes, ''VecLength, ''Types]

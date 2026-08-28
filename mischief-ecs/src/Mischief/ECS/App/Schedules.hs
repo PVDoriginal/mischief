@@ -36,6 +36,8 @@ data PreUpdate = PreUpdate deriving (Schedule)
 
 data PostUpdate = PostUpdate deriving (Schedule)
 
+data Last = Last deriving (Schedule)
+
 data StartupSchedule = StartupSchedule deriving (Component)
 
 data UpdateSchedule = UpdateSchedule deriving (Component)

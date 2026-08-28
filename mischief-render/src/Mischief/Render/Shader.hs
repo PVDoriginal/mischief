@@ -13,18 +13,19 @@ import Data.Text qualified as T
 import GHC.Generics
 import GHC.TypeLits (KnownNat, Nat, natVal)
 import Mischief.ECS.Log (text)
+import Mischief.Render.Core
 import Mischief.Render.Shader.Bindings
 import Mischief.Render.Shader.Functions
 import Mischief.Render.Shader.Params
 import Mischief.Render.Shader.State
 import Mischief.Render.Shader.Types
+import Mischief.Render.Texture
 import Unsafe.Coerce (unsafeCoerce)
 import Prelude hiding (abs, cos, sin)
 
 test :: () -> Shader Vec4f
 test _ = do
-  x <- var $ vec4 (2, 3, 4, 5)
-  pure x.xxxx
+  undefined
 
 test2 :: Shader F32
 test2 = do
@@ -43,7 +44,7 @@ test2 = do
 
 data Binds = Binds
   { sampler :: Binding 0 Sampler,
-    texture :: Binding 1 Texture2d
+    texture :: Binding 1 Texture
   }
   deriving (Generic, Bindable, Default)
 

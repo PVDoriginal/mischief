@@ -16,16 +16,22 @@ import Mischief.ECS (System)
 import Mischief.Render.Core
 import Mischief.Render.Shader.State
 import Mischief.Render.Shader.Types
+import Mischief.Render.Texture
 import Mischief.WGPU
 import Mischief.WGPU.Opaque (WGPUBindGroup)
 import Mischief.WGPU.Types.Enums
 import Mischief.WGPU.Types.General
 
 data Binding (index :: Nat) a where
-  Binding :: forall b index. Expr b -> Binding index (Expr b)
-  BindEntry :: WGPUBindGroupEntry -> Binding index (Expr b)
+  Binding :: forall b index. Expr (AssociatedExpr b) -> Binding index b
+  BindEntry :: WGPUBindGroupEntry -> Binding index b
 
-instance (KnownNat n) => Default (Binding n (Expr a)) where
+type family AssociatedExpr a where
+  AssociatedExpr (Expr a) = a
+  AssociatedExpr Texture = TTexture
+  AssociatedExpr Sampler = TSampler
+
+instance (KnownNat n) => Default (Binding n a) where
   def = Binding $ BindingVar (natVal (Proxy @n))
 
 data BindingData = BindingData
@@ -79,10 +85,6 @@ instance (Bindable' f) => Bindable' (M1 i t f) where
   collectLayouts' _ = collectLayouts' (Proxy @f)
   collectEntries' (M1 a) = collectEntries' a
 
-data Sampler' = Sampler'
-
-type Sampler = Expr (Custom Sampler')
-
 instance (KnownNat n) => Bindable (Binding n Sampler) where
   collectBindings _ = Bindings [BindingData {bType = T.pack "sampler", index = natVal (Proxy @n)}]
   collectLayouts _ =
@@ -105,11 +107,7 @@ instance (KnownNat n) => Bindable (Binding n Sampler) where
   collectEntries (BindEntry a) = [a]
   collectEntries _ = undefined
 
-data Texture2d' = Texture2d'
-
-type Texture2d = Expr (Custom Texture2d')
-
-instance (KnownNat n) => Bindable (Binding n Texture2d) where
+instance (KnownNat n) => Bindable (Binding n Texture) where
   collectBindings _ = Bindings [BindingData {bType = T.pack "texture_2d<f32>", index = natVal (Proxy @n)}]
   collectLayouts _ =
     [ WGPUBindGroupLayoutEntry

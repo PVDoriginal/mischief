@@ -53,6 +53,7 @@ library
     Mischief.Render.Bind
     Mischief.Render.Camera
     Mischief.Render.Core
+    Mischief.Render.Image
     Mischief.Render.Material
     Mischief.Render.Plugin
     Mischief.Render.Shader
@@ -61,6 +62,7 @@ library
     Mischief.Render.Shader.Params
     Mischief.Render.Shader.State
     Mischief.Render.Shader.Types
+    Mischief.Render.Texture
     Mischief.WGPU
     Mischief.WGPU.Callbacks
     Mischief.WGPU.Common
@@ -98,11 +100,14 @@ library
     async,
     base,
     binary,
+    bitwise-enum,
     bytestring,
     clock,
     containers,
     data-default,
     JuicyPixels,
+    JuicyPixels-extra,
+    mischief-assets,
     mischief-ecs,
     mischief-math,
     mischief-sdl,
@@ -110,8 +115,12 @@ library
     primitive,
     process,
     sdl3-bindgen-sys,
+    singletons,
+    singletons-base,
+    singletons-th,
     stm,
     store,
+    template-haskell,
     temporary,
     text,
     time,
@@ -182,6 +191,7 @@ test-suite mischief-test
     data-default,
     JuicyPixels,
     JuicyPixels-extra,
+    mischief-assets,
     mischief-ecs,
     mischief-render,
     mischief-sdl,

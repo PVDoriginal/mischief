@@ -8,9 +8,9 @@ import Data.ByteString qualified as B
 import Data.Data
 import Data.Store
 import GHC.Generics
+import Mischief.Assets
 import Mischief.ECS
 import Mischief.ECS.Components.Spawn
-import MischiefAssets
 import System.IO
 
 data Test = Test String Int deriving (Generic, Store, Show)

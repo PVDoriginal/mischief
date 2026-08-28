@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
@@ -5,11 +6,13 @@ module Mischief.Render.Shader.Functions where
 
 import Data.Data
 import GHC.TypeLits
+import Mischief.Render.Core
 import Mischief.Render.Shader.Bindings
 import Mischief.Render.Shader.State
 import Mischief.Render.Shader.Types
+import Mischief.Render.Texture
 
-sample :: Texture2d -> Sampler -> Vec2f -> Vec4f
+sample :: Expr TTexture -> Expr TSampler -> Vec2f -> Vec4f
 sample tex sampler v =
   Function
     "textureSample"
