@@ -25,4 +25,5 @@ benches/
 benches-old/
 
 
+*.jpg
 *.png 
