@@ -5,6 +5,7 @@ module Mischief.Render.Shader.Bindings where
 import Data.Data
 import Data.Default (Default (def))
 import Data.Primitive.Ptr
+import Data.Singletons (SingI)
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Vector.Storable qualified as VS
@@ -14,6 +15,7 @@ import GHC.Generics (Generic (Rep, from), K1 (K1), M1 (M1), U1 (U1), V1, (:*:) (
 import GHC.TypeLits
 import Mischief.ECS (System)
 import Mischief.Render.Core
+import Mischief.Render.Shader.Singletons
 import Mischief.Render.Shader.State
 import Mischief.Render.Shader.Types
 import Mischief.Render.Texture
@@ -31,7 +33,7 @@ type family AssociatedExpr a where
   AssociatedExpr Texture = TTexture
   AssociatedExpr Sampler = TSampler
 
-instance (KnownNat n) => Default (Binding n a) where
+instance (KnownNat n, SingI (AssociatedExpr a)) => Default (Binding n a) where
   def = Binding $ BindingVar (natVal (Proxy @n))
 
 data BindingData = BindingData
@@ -133,21 +135,21 @@ instance (KnownNat n) => Bindable (Binding n Texture) where
 
 instance Bindable ()
 
-instance (KnownNat n, ReflType (Primitive a)) => Bindable (Binding n (Expr (Primitive a))) where
+instance (KnownNat n, SingI (Primitive a)) => Bindable (Binding n (Expr (Primitive a))) where
   collectBindings _ = Bindings [BindingData {bType = typeToWGSL (undefined :: Expr (Primitive a)), index = natVal (Proxy @n)}]
   collectLayouts _ = undefined
 
   collectEntries (BindEntry a) = [a]
   collectEntries _ = undefined
 
-instance (KnownNat n, ReflType (VectorType m a)) => Bindable (Binding n (Expr (VectorType m a))) where
+instance (KnownNat n, SingI (VectorType m a)) => Bindable (Binding n (Expr (VectorType m a))) where
   collectBindings _ = Bindings [BindingData {bType = typeToWGSL (undefined :: Expr (VectorType m a)), index = natVal (Proxy @n)}]
   collectLayouts _ = undefined
 
   collectEntries (BindEntry a) = [a]
   collectEntries _ = undefined
 
-instance (KnownNat n, ReflType (ArrayType m a)) => Bindable (Binding n (Expr (ArrayType m a))) where
+instance (KnownNat n, SingI (ArrayType m a)) => Bindable (Binding n (Expr (ArrayType m a))) where
   collectBindings _ = Bindings [BindingData {bType = typeToWGSL (undefined :: Expr (ArrayType m a)), index = natVal (Proxy @n)}]
   collectLayouts _ = undefined
 

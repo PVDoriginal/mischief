@@ -1,33 +1,12 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE EmptyCase #-}
-{-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE InstanceSigs #-}
-{-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE PolyKinds #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE StandaloneKindSignatures #-}
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE TypeAbstractions #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE NoCUSKs #-}
-{-# LANGUAGE NoNamedWildCards #-}
-{-# LANGUAGE NoStarIsType #-}
 
 module Mischief.Render.Shader.State where
 
 import Control.Monad.State
 import Data.Data hiding (cast)
 import Data.Default
+import Data.Singletons (Sing, SingI, SingKind (Demote), demote)
 import Data.Singletons.Base.CustomStar (genSingletons)
 import Data.Text (Text)
 import Data.Text qualified as T
@@ -35,6 +14,7 @@ import Data.Vector.Internal.Check
 import GHC.Generics
 import GHC.TypeLits (KnownNat, Nat, natVal)
 import Mischief.ECS.Log (text)
+import Mischief.Render.Shader.Singletons
 import Unsafe.Coerce (unsafeCoerce)
 import Prelude hiding (cos, sin)
 
@@ -55,23 +35,6 @@ data Stmt where
   Return :: Expr a -> Stmt
   Empty :: Stmt
 
-data PrimitiveTypes = TInt | TFloat | TUInt deriving (Eq)
-
-data VecLength = VL2 | VL3 | VL4 deriving (Eq)
-
-data Types where
-  Primitive :: PrimitiveTypes -> Types
-  ArrayType :: Nat -> Types -> Types
-  VectorType :: VecLength -> PrimitiveTypes -> Types
-  TTexture :: Types
-  TSampler :: Types
-
-instance Eq Types where
-  Primitive a == Primitive b = a == b
-  (ArrayType n a) == (ArrayType m b) = n == m && a == b
-  (VectorType vl1 a) == (VectorType vl2 b) = vl1 == vl2 && a == b
-  _ == _ = False
-
 data CustomType a = CustomType
 
 instance Eq (CustomType a) where
@@ -79,58 +42,68 @@ instance Eq (CustomType a) where
 
 data Expr (a :: Types) where
   Function :: Text -> [Param] -> Expr a
-  Add :: Expr a -> Expr a -> Expr a
-  Sub :: Expr a -> Expr a -> Expr a
-  Mult :: Expr a -> Expr a -> Expr a
-  Div :: Expr a -> Expr a -> Expr a
-  Neg :: Expr a -> Expr a
-  Abs :: Expr a -> Expr a
-  Signum :: Expr a -> Expr a
-  Cast :: (ReflType a, ReflType b) => Proxy b -> Expr a -> Expr b
-  CastVec :: (ReflType (VectorType n b), ReflType (VectorType n a)) => Proxy (VectorType n b) -> Expr (VectorType n a) -> Expr (VectorType n b)
+  Add :: (SingI a) => Expr a -> Expr a -> Expr a
+  Sub :: (SingI a) => Expr a -> Expr a -> Expr a
+  Mult :: (SingI a) => Expr a -> Expr a -> Expr a
+  Div :: (SingI a) => Expr a -> Expr a -> Expr a
+  Neg :: (SingI a) => Expr a -> Expr a
+  Abs :: (SingI a) => Expr a -> Expr a
+  Signum :: (SingI a) => Expr a -> Expr a
+  Cast :: (SingI a, SingI b) => Proxy b -> Expr a -> Expr b
+  CastVec :: (SingI (VectorType n a), SingI (VectorType n b)) => Proxy (VectorType n b) -> Expr (VectorType n a) -> Expr (VectorType n b)
   ConstantInt :: Int -> Expr (Primitive TInt)
   ConstantFloat :: Float -> Expr (Primitive TFloat)
   ConstantUInt :: Int -> Expr (Primitive TUInt)
-  ConstantArray :: forall (n :: Nat) (a' :: Types). (PrintArrayElements n a', ReflType (ArrayType n a')) => Proxy (ArrayType n a') -> ArrayInit n a' -> Expr (ArrayType n a')
-  ConstantVec :: forall (n :: VecLength) (a' :: PrimitiveTypes). (PrintVecElements n a', ReflType (VectorType n a')) => Proxy (VectorType n a') -> VecInit n a' -> Expr (VectorType n a')
-  AccessField :: Expr a -> Text -> Expr b
-  Index :: Expr (ArrayType n a) -> Expr (Primitive TUInt) -> Expr a
-  Var :: VarIndex -> Expr a
-  BindingVar :: Integer -> Expr a
-  BuiltInVar :: Text -> Expr a
+  ConstantArray :: forall (n :: Nat) (a' :: Types). (PrintArrayElements n a', SingI (ArrayType n a')) => Proxy (ArrayType n a') -> ArrayInit n a' -> Expr (ArrayType n a')
+  ConstantVec :: forall (n :: VecLength) (a' :: PrimitiveTypes). (PrintVecElements n a', SingI (VectorType n a')) => Proxy (VectorType n a') -> VecInit n a' -> Expr (VectorType n a')
+  AccessField :: (SingI a) => Expr a -> Text -> Expr b
+  Index :: (SingI (ArrayType n a)) => Expr (ArrayType n a) -> Expr (Primitive TUInt) -> Expr a
+  Var :: (SingI a) => VarIndex -> Expr a
+  BindingVar :: (SingI a) => Integer -> Expr a
+  BuiltInVar :: (SingI a) => Text -> Expr a
   StructInit :: Text -> [Text] -> Expr a
-  LocationVar :: Integer -> Expr a
-  Void :: Expr a
+  LocationVar :: (SingI a) => Integer -> Expr a
+  Void :: (SingI a) => Expr a
 
 data Param where
-  Param :: Expr a -> Param
+  Param :: (SingI a) => Expr a -> Param
 
 type family IsAlgebric (a :: Types) where
   IsAlgebric (Primitive a) = True
   IsAlgebric (VectorType n a) = True
   IsAlgebric a = False
 
-instance (ReflType (Primitive a)) => Num (Expr (Primitive a)) where
+type family IsIntegral (a :: Types) where
+  IsIntegral (Primitive TInt) = True
+  IsIntegral (Primitive TUInt) = True
+  IsIntegral (VectorType n TInt) = True
+  IsIntegral (VectorType n TUInt) = True
+  IsIntegral a = False
+
+type family VectorOrSingleOf a where
+  VectorOrSingleOf (VectorType n a) = a
+  VectorOrSingleOf (Primitive a) = a
+
+instance (SingI a) => Num (Expr (Primitive a)) where
   (+) = Add
   (*) = Mult
   abs = Abs
   signum = Signum
   fromInteger i =
-    let t = reflType (undefined :: Expr (Primitive a))
+    let t = demote @a
      in case t of
-          Primitive TInt -> unsafeCoerce $ ConstantInt (fromInteger i)
-          Primitive TFloat -> unsafeCoerce $ ConstantFloat (fromInteger i)
-          Primitive TUInt -> unsafeCoerce $ ConstantUInt (fromInteger i)
-          _ -> undefined
+          TInt -> unsafeCoerce $ ConstantInt (fromInteger i)
+          TFloat -> unsafeCoerce $ ConstantFloat (fromInteger i)
+          TUInt -> unsafeCoerce $ ConstantUInt (fromInteger i)
   negate = Neg
 
-instance (ReflType (VectorType n a)) => Num (Expr (VectorType n a)) where
+instance (SingI (VectorType n a)) => Num (Expr (VectorType n a)) where
   (+) = Add
   (*) = Mult
   abs = Abs
   signum = Signum
   fromInteger i =
-    let t = reflType (undefined :: Expr (VectorType n a))
+    let t = demote @(VectorType n a)
      in case t of
           VectorType VL2 TFloat -> unsafeCoerce $ ConstantVec (Proxy @(VectorType VL2 TFloat)) (fromInteger i, fromInteger i)
           VectorType VL2 TInt -> unsafeCoerce $ ConstantVec (Proxy @(VectorType VL2 TInt)) (fromInteger i, fromInteger i)
@@ -149,12 +122,15 @@ instance Fractional (Expr (Primitive TFloat)) where
   recip = Div 1
   (/) = Div
 
-instance Fractional (Expr (VectorType VL2 TFloat))
-
-instance (ReflType (Primitive a)) => Enum (Expr (Primitive a)) where
-  toEnum i = fromInteger (toInteger i)
-  fromEnum (ConstantInt x) = x
-  fromEnum _ = undefined
+instance (SingI n) => Fractional (Expr (VectorType n TFloat)) where
+  fromRational i =
+    let t = demote @n
+     in case t of
+          VL2 -> unsafeCoerce $ ConstantVec (Proxy @(VectorType VL2 TFloat)) (fromRational i, fromRational i)
+          VL3 -> unsafeCoerce $ ConstantVec (Proxy @(VectorType VL3 TFloat)) (fromRational i, fromRational i, fromRational i)
+          VL4 -> unsafeCoerce $ ConstantVec (Proxy @(VectorType VL4 TFloat)) (fromRational i, fromRational i, fromRational i, fromRational i)
+  recip = Div 1
+  (/) = Div
 
 type family VecInit (n :: VecLength) (a :: PrimitiveTypes) where
   VecInit VL2 a = (Expr (Primitive a), Expr (Primitive a))
@@ -164,13 +140,13 @@ type family VecInit (n :: VecLength) (a :: PrimitiveTypes) where
 class PrintVecElements (n :: VecLength) (a :: PrimitiveTypes) where
   printVecElements :: VecInit n a -> Text
 
-instance PrintVecElements VL2 a where
+instance (SingI a) => PrintVecElements VL2 a where
   printVecElements (a, b) = exprToWGSL a <> ", " <> exprToWGSL b
 
-instance PrintVecElements VL3 a where
+instance (SingI a) => PrintVecElements VL3 a where
   printVecElements (a, b, c) = exprToWGSL a <> ", " <> exprToWGSL b <> ", " <> exprToWGSL c
 
-instance PrintVecElements VL4 a where
+instance (SingI a) => PrintVecElements VL4 a where
   printVecElements (a, b, c, d) = exprToWGSL a <> ", " <> exprToWGSL b <> ", " <> exprToWGSL c <> ", " <> exprToWGSL d
 
 type family ArrayInit (n :: Nat) (a :: Types) where
@@ -181,10 +157,10 @@ type family ArrayInit (n :: Nat) (a :: Types) where
 class PrintArrayElements (n :: Nat) (a :: Types) where
   printArrayElements :: ArrayInit n a -> Text
 
-instance PrintArrayElements 2 a where
+instance (SingI a) => PrintArrayElements 2 a where
   printArrayElements (a, b) = exprToWGSL a <> ", " <> exprToWGSL b
 
-instance PrintArrayElements 3 a where
+instance (SingI a) => PrintArrayElements 3 a where
   printArrayElements (a, b, c) = exprToWGSL a <> ", " <> exprToWGSL b <> ", " <> exprToWGSL c
 
 showArgs :: [Param] -> Text
@@ -202,8 +178,8 @@ exprToWGSL (Neg a) = "(-" <> exprToWGSL a <> ")"
 exprToWGSL (Abs a) = exprToWGSL (Function "abs" [Param a])
 exprToWGSL (Signum a) = exprToWGSL (Function "sign" [Param a])
 exprToWGSL (Cast (_ :: Proxy b) (a :: Expr a)) =
-  let aType = reflType (undefined :: Expr a)
-      bType = reflType (undefined :: Expr b)
+  let aType = demote @a
+      bType = demote @b
    in if aType == bType
         then exprToWGSL a
         else case bType of
@@ -212,8 +188,8 @@ exprToWGSL (Cast (_ :: Proxy b) (a :: Expr a)) =
           Primitive TUInt -> "u32(" <> exprToWGSL a <> ")"
           _ -> undefined
 exprToWGSL (CastVec (_ :: Proxy b) (a :: Expr a)) =
-  let aType = reflType (undefined :: Expr a)
-      bType = reflType (undefined :: Expr b)
+  let aType = demote @a
+      bType = demote @b
    in if aType == bType
         then exprToWGSL a
         else case bType of
@@ -229,12 +205,12 @@ exprToWGSL (CastVec (_ :: Proxy b) (a :: Expr a)) =
           _ -> undefined
 exprToWGSL (ConstantArray @n @a' (_ :: Proxy a) x) =
   let elements = printArrayElements @n @a' x
-   in case reflType (undefined :: Expr a) of
+   in case demote @a of
         ArrayType n t -> "array<" <> typeToWGSL' t <> ", " <> T.pack (show n) <> ">(" <> elements <> ")"
         _ -> undefined
 exprToWGSL (ConstantVec @n @a' (_ :: Proxy a) x) =
   let elements = printVecElements @n @a' x
-   in case reflType (undefined :: Expr a) of
+   in case demote @a of
         VectorType VL2 TInt -> "vec2<i32>(" <> elements <> ")"
         VectorType VL2 TFloat -> "vec2<f32>(" <> elements <> ")"
         VectorType VL2 TUInt -> "vec2<u32>(" <> elements <> ")"
@@ -267,50 +243,8 @@ stmtToWGSL (Return a) = "  return " <> exprToWGSL a <> ";"
 
 newtype Shader a = Shader (State ShaderState a) deriving newtype (Functor, Applicative, Monad, MonadState ShaderState)
 
-class ReflType (a :: Types) where
-  reflType :: Expr a -> Types
-
-instance ReflType (Primitive TInt) where
-  reflType _ = Primitive TInt
-
-instance ReflType (Primitive TFloat) where
-  reflType _ = Primitive TFloat
-
-instance ReflType (Primitive TUInt) where
-  reflType _ = Primitive TUInt
-
-instance (KnownNat n, ReflType t) => ReflType (ArrayType (n :: Nat) t) where
-  reflType _ = ArrayType (fromInteger $ natVal (Proxy @n)) (reflType (undefined :: Expr t))
-
-instance ReflType (VectorType VL2 TInt) where
-  reflType _ = VectorType VL2 TInt
-
-instance ReflType (VectorType VL2 TFloat) where
-  reflType _ = VectorType VL2 TFloat
-
-instance ReflType (VectorType VL2 TUInt) where
-  reflType _ = VectorType VL2 TUInt
-
-instance ReflType (VectorType VL3 TInt) where
-  reflType _ = VectorType VL3 TInt
-
-instance ReflType (VectorType VL3 TFloat) where
-  reflType _ = VectorType VL3 TFloat
-
-instance ReflType (VectorType VL3 TUInt) where
-  reflType _ = VectorType VL3 TUInt
-
-instance ReflType (VectorType VL4 TInt) where
-  reflType _ = VectorType VL4 TInt
-
-instance ReflType (VectorType VL4 TFloat) where
-  reflType _ = VectorType VL4 TFloat
-
-instance ReflType (VectorType VL4 TUInt) where
-  reflType _ = VectorType VL4 TUInt
-
-typeToWGSL :: (ReflType a) => Expr a -> Text
-typeToWGSL = typeToWGSL' . reflType
+typeToWGSL :: forall (a :: Types). (SingI a) => Expr a -> Text
+typeToWGSL _ = typeToWGSL' (demote @a)
 
 typeToWGSL' :: Types -> Text
 typeToWGSL' a = case a of
@@ -340,13 +274,11 @@ newVarIndex = do
   put (ShaderState {counter = counter + 1, ast})
   pure counter
 
-var :: Expr a -> Shader (Expr a)
+var :: (SingI a) => Expr a -> Shader (Expr a)
 var expr = do
   index <- newVarIndex
   addStmt (Let index expr)
   pure $ Var index
 
-at :: forall n a. Expr (ArrayType n a) -> Expr (Primitive TUInt) -> Expr a
+at :: forall n a. (SingI (ArrayType n a)) => Expr (ArrayType n a) -> Expr (Primitive TUInt) -> Expr a
 at = Index
-
-genSingletons [''PrimitiveTypes, ''VecLength, ''Types]

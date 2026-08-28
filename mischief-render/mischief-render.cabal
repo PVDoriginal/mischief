@@ -58,6 +58,7 @@ library
     Mischief.Render.Plugin
     Mischief.Render.Shader
     Mischief.Render.Shader.Bindings
+    Mischief.Render.Shader.Singletons
     Mischief.Render.Shader.Functions
     Mischief.Render.Shader.Params
     Mischief.Render.Shader.State

@@ -4,8 +4,10 @@
 module Mischief.Render.Shader.Types where
 
 import Data.Data
+import Data.Singletons (SingI)
 import GHC.Records (HasField (getField))
 import GHC.TypeLits
+import Mischief.Render.Shader.Singletons
 import Mischief.Render.Shader.State
 
 float :: Float -> F32
@@ -26,7 +28,7 @@ i32 = int
 u32 :: Int -> U32
 u32 = uint
 
-vec2 :: forall (a :: PrimitiveTypes). (ReflType (VectorType VL2 a)) => VecInit VL2 a -> Vec2 a
+vec2 :: forall (a :: PrimitiveTypes). (SingI a) => VecInit VL2 a -> Vec2 a
 vec2 = ConstantVec (Proxy @(VectorType VL2 a))
 
 vec2f :: (Expr (Primitive TFloat), Expr (Primitive TFloat)) -> Vec2 TFloat
@@ -38,7 +40,7 @@ vec2i = vec2 @TInt
 vec2u :: (Expr (Primitive TUInt), Expr (Primitive TUInt)) -> Vec2 TUInt
 vec2u = vec2 @TUInt
 
-vec3 :: forall (a :: PrimitiveTypes). (ReflType (VectorType VL3 a)) => VecInit VL3 a -> Vec3 a
+vec3 :: forall (a :: PrimitiveTypes). (SingI a) => VecInit VL3 a -> Vec3 a
 vec3 = ConstantVec (Proxy @(VectorType VL3 a))
 
 vec3f :: (Expr (Primitive TFloat), Expr (Primitive TFloat), Expr (Primitive TFloat)) -> Vec3 TFloat
@@ -50,7 +52,7 @@ vec3i = vec3 @TInt
 vec3u :: (Expr (Primitive TUInt), Expr (Primitive TUInt), Expr (Primitive TUInt)) -> Vec3 TUInt
 vec3u = vec3 @TUInt
 
-vec4 :: forall (a :: PrimitiveTypes). (ReflType (VectorType VL4 a)) => VecInit VL4 a -> Vec4 a
+vec4 :: forall (a :: PrimitiveTypes). (SingI a) => VecInit VL4 a -> Vec4 a
 vec4 = ConstantVec (Proxy @(VectorType VL4 a))
 
 vec4f :: (Expr (Primitive TFloat), Expr (Primitive TFloat), Expr (Primitive TFloat), Expr (Primitive TFloat)) -> Vec4 TFloat
@@ -62,16 +64,16 @@ vec4i = vec4 @TInt
 vec4u :: (Expr (Primitive TUInt), Expr (Primitive TUInt), Expr (Primitive TUInt), Expr (Primitive TUInt)) -> Vec4 TUInt
 vec4u = vec4 @TUInt
 
-array :: forall (n :: Nat) (a :: Types). (PrintArrayElements n a, ReflType (ArrayType n a)) => ArrayInit n a -> Array n a
+array :: forall (n :: Nat) (a :: Types). (PrintArrayElements n a, SingI (ArrayType n a)) => ArrayInit n a -> Array n a
 array = ConstantArray Proxy
 
-arrayf :: forall (n :: Nat). (PrintArrayElements n (Primitive TFloat), ReflType (ArrayType n (Primitive TFloat))) => ArrayInit n (Primitive TFloat) -> Array n (Primitive TFloat)
+arrayf :: forall (n :: Nat). (PrintArrayElements n (Primitive TFloat), SingI (ArrayType n (Primitive TFloat))) => ArrayInit n (Primitive TFloat) -> Array n (Primitive TFloat)
 arrayf = array @n @(Primitive TFloat)
 
-arrayi :: forall (n :: Nat). (PrintArrayElements n (Primitive TInt), ReflType (ArrayType n (Primitive TInt))) => ArrayInit n (Primitive TInt) -> Array n (Primitive TInt)
+arrayi :: forall (n :: Nat). (PrintArrayElements n (Primitive TInt), SingI (ArrayType n (Primitive TInt))) => ArrayInit n (Primitive TInt) -> Array n (Primitive TInt)
 arrayi = array @n @(Primitive TInt)
 
-arrayu :: forall (n :: Nat). (PrintArrayElements n (Primitive TUInt), ReflType (ArrayType n (Primitive TUInt))) => ArrayInit n (Primitive TUInt) -> Array n (Primitive TUInt)
+arrayu :: forall (n :: Nat). (PrintArrayElements n (Primitive TUInt), SingI (ArrayType n (Primitive TUInt))) => ArrayInit n (Primitive TUInt) -> Array n (Primitive TUInt)
 arrayu = array @n @(Primitive TUInt)
 
 type I32 = Expr (Primitive TInt)
@@ -106,14 +108,14 @@ type Vec4i = Expr (VectorType VL4 TInt)
 
 type Vec4u = Expr (VectorType VL4 TUInt)
 
-class (ReflType a, ReflType b) => Cast a b where
+class (SingI b, SingI a) => Cast b a where
   cast :: Expr a -> Expr b
 
-instance (ReflType (Primitive a), ReflType (Primitive b)) => Cast (Primitive a) (Primitive b) where
-  cast = Cast (Proxy @(Primitive b))
+instance (SingI (Primitive a), SingI (Primitive b)) => Cast (Primitive a) (Primitive b) where
+  cast = Cast (Proxy @(Primitive a))
 
-instance (ReflType (VectorType n a), ReflType (VectorType n b)) => Cast (VectorType n a) (VectorType n b) where
-  cast = CastVec (Proxy @(VectorType n b))
+instance (SingI (VectorType n a), SingI (VectorType n b)) => Cast (VectorType n a) (VectorType n b) where
+  cast = CastVec (Proxy @(VectorType n a))
 
 type family ThreeElements (a :: VecLength) where
   ThreeElements VL2 = False
@@ -123,26 +125,26 @@ type family FourElements (a :: VecLength) where
   FourElements VL4 = True
   FourElements a = False
 
-instance HasField "x" (Expr (VectorType n a)) (Expr (Primitive a)) where
+instance (SingI (VectorType n a)) => HasField "x" (Expr (VectorType n a)) (Expr (Primitive a)) where
   getField v = AccessField v "x"
 
-instance HasField "r" (Expr (VectorType n a)) (Expr (Primitive a)) where
+instance (SingI (VectorType n a)) => HasField "r" (Expr (VectorType n a)) (Expr (Primitive a)) where
   getField v = AccessField v "r"
 
-instance HasField "y" (Expr (VectorType n a)) (Expr (Primitive a)) where
+instance (SingI (VectorType n a)) => HasField "y" (Expr (VectorType n a)) (Expr (Primitive a)) where
   getField v = AccessField v "y"
 
-instance HasField "g" (Expr (VectorType n a)) (Expr (Primitive a)) where
+instance (SingI (VectorType n a)) => HasField "g" (Expr (VectorType n a)) (Expr (Primitive a)) where
   getField v = AccessField v "g"
 
-instance (ThreeElements n ~ True) => HasField "z" (Expr (VectorType n a)) (Expr (Primitive a)) where
+instance (ThreeElements n ~ True, SingI (VectorType n a)) => HasField "z" (Expr (VectorType n a)) (Expr (Primitive a)) where
   getField v = AccessField v "z"
 
-instance (ThreeElements n ~ True) => HasField "b" (Expr (VectorType n a)) (Expr (Primitive a)) where
+instance (ThreeElements n ~ True, SingI (VectorType n a)) => HasField "b" (Expr (VectorType n a)) (Expr (Primitive a)) where
   getField v = AccessField v "b"
 
-instance (FourElements n ~ True) => HasField "w" (Expr (VectorType n a)) (Expr (Primitive a)) where
+instance (FourElements n ~ True, SingI (VectorType n a)) => HasField "w" (Expr (VectorType n a)) (Expr (Primitive a)) where
   getField v = AccessField v "w"
 
-instance (FourElements n ~ True) => HasField "a" (Expr (VectorType n a)) (Expr (Primitive a)) where
+instance (FourElements n ~ True, SingI (VectorType n a)) => HasField "a" (Expr (VectorType n a)) (Expr (Primitive a)) where
   getField v = AccessField v "a"

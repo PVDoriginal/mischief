@@ -4,24 +4,26 @@ module Mischief.Render.Shader.Params where
 
 import Data.Data
 import Data.Default
+import Data.Singletons (SingI)
 import Data.Text (Text)
 import Data.Text qualified as T
 import GHC.Generics
 import GHC.Records
 import GHC.TypeLits (KnownNat, KnownSymbol, Nat, Symbol, natVal, symbolVal)
 import Mischief.Render.Shader.Bindings
+import Mischief.Render.Shader.Singletons
 import Mischief.Render.Shader.State
 
 data BuiltIn (name :: Symbol) a where
   BuiltIn :: forall a name. (Expr a) -> BuiltIn name (Expr a)
 
-instance (KnownSymbol name) => Default (BuiltIn name (Expr a)) where
+instance (SingI a, KnownSymbol name) => Default (BuiltIn name (Expr a)) where
   def = BuiltIn $ BuiltInVar (T.pack $ symbolVal (Proxy @name))
 
 data Location (n :: Nat) a where
   Location :: forall a n. (Expr a) -> Location n (Expr a)
 
-instance (KnownNat n) => Default (Location n (Expr a)) where
+instance (SingI a, KnownNat n) => Default (Location n (Expr a)) where
   def = Location $ LocationVar $ fromInteger (natVal (Proxy @n))
 
 data ParamKind = LocParam Integer | BuiltInParam Text deriving (Show)
@@ -84,7 +86,7 @@ instance (ShaderParam' f) => ShaderParam' (M1 i t f) where
 
 instance ShaderParam ()
 
-instance (Typeable a, KnownSymbol s, ReflType (Primitive a)) => ShaderParam (BuiltIn s (Expr (Primitive a))) where
+instance (Typeable a, KnownSymbol s, SingI (Primitive a)) => ShaderParam (BuiltIn s (Expr (Primitive a))) where
   collectParams _ = Params [ParamData {pType = typeToWGSL (undefined :: Expr (Primitive a)), index = BuiltInParam $ T.pack $ symbolVal (Proxy @s)}]
   collectValues (BuiltIn a) = Values [Value a]
 
@@ -92,35 +94,35 @@ instance (Typeable a, KnownSymbol s, ReflType (Primitive a)) => ShaderParam (Bui
   getType _ "" = "@builtin(" <> T.pack (symbolVal (Proxy @s)) <> ") " <> typeToWGSL (undefined :: Expr (Primitive a))
   getType _ n = "@builtin(" <> T.pack (symbolVal (Proxy @s)) <> ") " <> n <> ": " <> typeToWGSL (undefined :: Expr (Primitive a))
 
-instance (Typeable a, Typeable m, KnownSymbol s, ReflType (VectorType m a)) => ShaderParam (BuiltIn s (Expr (VectorType m a))) where
+instance (Typeable a, Typeable m, KnownSymbol s, SingI (VectorType m a)) => ShaderParam (BuiltIn s (Expr (VectorType m a))) where
   collectParams _ = Params [ParamData {pType = typeToWGSL (undefined :: Expr (VectorType m a)), index = BuiltInParam $ T.pack $ symbolVal (Proxy @s)}]
   collectValues (BuiltIn a) = Values [Value a]
   getName _ = ""
   getType _ "" = "@builtin(" <> T.pack (symbolVal (Proxy @s)) <> ") " <> typeToWGSL (undefined :: Expr (VectorType m a))
   getType _ n = "@builtin(" <> T.pack (symbolVal (Proxy @s)) <> ") " <> n <> ": " <> typeToWGSL (undefined :: Expr (VectorType m a))
 
-instance (Typeable a, Typeable m, KnownSymbol s, ReflType (ArrayType m a)) => ShaderParam (BuiltIn s (Expr (ArrayType m a))) where
+instance (Typeable a, Typeable m, KnownSymbol s, SingI (ArrayType m a)) => ShaderParam (BuiltIn s (Expr (ArrayType m a))) where
   collectParams _ = Params [ParamData {pType = typeToWGSL (undefined :: Expr (ArrayType m a)), index = BuiltInParam $ T.pack $ symbolVal (Proxy @s)}]
   collectValues (BuiltIn a) = Values [Value a]
   getName _ = ""
   getType _ "" = "@builtin(" <> T.pack (symbolVal (Proxy @s)) <> ") " <> typeToWGSL (undefined :: Expr (ArrayType m a))
   getType _ n = "@builtin(" <> T.pack (symbolVal (Proxy @s)) <> ") " <> n <> ": " <> typeToWGSL (undefined :: Expr (ArrayType m a))
 
-instance (Typeable a, KnownNat n, ReflType (Primitive a)) => ShaderParam (Location n (Expr (Primitive a))) where
+instance (Typeable a, KnownNat n, SingI (Primitive a)) => ShaderParam (Location n (Expr (Primitive a))) where
   collectParams _ = Params [ParamData {pType = typeToWGSL (undefined :: Expr (Primitive a)), index = LocParam $ fromInteger $ natVal (Proxy @n)}]
   collectValues (Location a) = Values [Value a]
   getName _ = ""
   getType _ "" = "@location(" <> T.pack (show $ natVal (Proxy @n)) <> ") " <> typeToWGSL (undefined :: Expr (Primitive a))
   getType _ n = "@location(" <> T.pack (show $ natVal (Proxy @n)) <> ") " <> n <> ": " <> typeToWGSL (undefined :: Expr (Primitive a))
 
-instance (Typeable m, Typeable a, KnownNat n, ReflType (VectorType m a)) => ShaderParam (Location n (Expr (VectorType m a))) where
+instance (Typeable m, Typeable a, KnownNat n, SingI (VectorType m a)) => ShaderParam (Location n (Expr (VectorType m a))) where
   collectParams _ = Params [ParamData {pType = typeToWGSL (undefined :: Expr (VectorType m a)), index = LocParam $ fromInteger $ natVal (Proxy @n)}]
   collectValues (Location a) = Values [Value a]
   getName _ = ""
   getType _ "" = "@location(" <> T.pack (show $ natVal (Proxy @n)) <> ") " <> typeToWGSL (undefined :: Expr (VectorType m a))
   getType _ n = "@location(" <> T.pack (show $ natVal (Proxy @n)) <> ") " <> n <> ": " <> typeToWGSL (undefined :: Expr (VectorType m a))
 
-instance (Typeable m, Typeable a, KnownNat n, ReflType (ArrayType m a)) => ShaderParam (Location n (Expr (ArrayType m a))) where
+instance (Typeable m, Typeable a, KnownNat n, SingI (ArrayType m a)) => ShaderParam (Location n (Expr (ArrayType m a))) where
   collectParams _ = Params [ParamData {pType = typeToWGSL (undefined :: Expr (ArrayType m a)), index = LocParam $ fromInteger $ natVal (Proxy @n)}]
   collectValues (Location a) = Values [Value a]
   getName _ = ""
