@@ -17,14 +17,8 @@ import Mischief.Render.Shader.State
 data BuiltIn (name :: Symbol) a where
   BuiltIn :: forall a name. (Expr a) -> BuiltIn name (Expr a)
 
-instance (SingI a, KnownSymbol name) => Default (BuiltIn name (Expr a)) where
-  def = BuiltIn $ BuiltInVar (T.pack $ symbolVal (Proxy @name))
-
 data Location (n :: Nat) a where
   Location :: forall a n. (Expr a) -> Location n (Expr a)
-
-instance (SingI a, KnownNat n) => Default (Location n (Expr a)) where
-  def = Location $ LocationVar $ fromInteger (natVal (Proxy @n))
 
 data ParamKind = LocParam Integer | BuiltInParam Text deriving (Show)
 
@@ -41,7 +35,7 @@ data Value where
 
 newtype Values = Values [Value] deriving newtype (Semigroup)
 
-class (Typeable a, Default a) => ShaderParam a where
+class (Typeable a) => ShaderParam a where
   collectParams :: Proxy a -> Params
   default collectParams :: (ShaderParam' (Rep a)) => Proxy a -> Params
   collectParams _ = collectParams' (Proxy @(Rep a))
@@ -57,32 +51,42 @@ class (Typeable a, Default a) => ShaderParam a where
   default collectValues :: (Generic a, ShaderParam' (Rep a)) => a -> Values
   collectValues a = collectValues' (from a)
 
+  dummyP :: a
+  default dummyP :: (Generic a, ShaderParam' (Rep a)) => a
+  dummyP = to dummyP'
+
 -- collectValues :: a -> Values
 -- defualt CollectValues :: ()
 
 class ShaderParam' f where
   collectParams' :: Proxy f -> Params
   collectValues' :: f p -> Values
+  dummyP' :: f p
 
 instance ShaderParam' V1 where
   collectParams' _ = Params []
   collectValues' _ = Values []
+  dummyP' = undefined
 
 instance ShaderParam' U1 where
   collectParams' _ = Params []
   collectValues' _ = Values []
+  dummyP' = U1
 
 instance (ShaderParam' f, ShaderParam' g) => ShaderParam' (f :*: g) where
   collectParams' _ = collectParams' (Proxy @f) <> collectParams' (Proxy @g)
   collectValues' (f :*: g) = collectValues' f <> collectValues' g
+  dummyP' = dummyP' @f :*: dummyP' @g
 
 instance (ShaderParam c) => ShaderParam' (K1 i c) where
   collectParams' _ = collectParams (Proxy @c)
   collectValues' (K1 x) = collectValues x
+  dummyP' = K1 $ dummyP @c
 
 instance (ShaderParam' f) => ShaderParam' (M1 i t f) where
   collectParams' _ = collectParams' (Proxy @f)
   collectValues' (M1 x) = collectValues' x
+  dummyP' = M1 $ dummyP' @f
 
 instance ShaderParam ()
 
@@ -94,12 +98,16 @@ instance (Typeable a, KnownSymbol s, SingI (Primitive a)) => ShaderParam (BuiltI
   getType _ "" = "@builtin(" <> T.pack (symbolVal (Proxy @s)) <> ") " <> typeToWGSL (undefined :: Expr (Primitive a))
   getType _ n = "@builtin(" <> T.pack (symbolVal (Proxy @s)) <> ") " <> n <> ": " <> typeToWGSL (undefined :: Expr (Primitive a))
 
+  dummyP = BuiltIn $ BuiltInVar (T.pack $ symbolVal (Proxy @s))
+
 instance (Typeable a, Typeable m, KnownSymbol s, SingI (VectorType m a)) => ShaderParam (BuiltIn s (Expr (VectorType m a))) where
   collectParams _ = Params [ParamData {pType = typeToWGSL (undefined :: Expr (VectorType m a)), index = BuiltInParam $ T.pack $ symbolVal (Proxy @s)}]
   collectValues (BuiltIn a) = Values [Value a]
   getName _ = ""
   getType _ "" = "@builtin(" <> T.pack (symbolVal (Proxy @s)) <> ") " <> typeToWGSL (undefined :: Expr (VectorType m a))
   getType _ n = "@builtin(" <> T.pack (symbolVal (Proxy @s)) <> ") " <> n <> ": " <> typeToWGSL (undefined :: Expr (VectorType m a))
+
+  dummyP = BuiltIn $ BuiltInVar (T.pack $ symbolVal (Proxy @s))
 
 instance (Typeable a, Typeable m, KnownSymbol s, SingI (ArrayType m a)) => ShaderParam (BuiltIn s (Expr (ArrayType m a))) where
   collectParams _ = Params [ParamData {pType = typeToWGSL (undefined :: Expr (ArrayType m a)), index = BuiltInParam $ T.pack $ symbolVal (Proxy @s)}]
@@ -108,12 +116,16 @@ instance (Typeable a, Typeable m, KnownSymbol s, SingI (ArrayType m a)) => Shade
   getType _ "" = "@builtin(" <> T.pack (symbolVal (Proxy @s)) <> ") " <> typeToWGSL (undefined :: Expr (ArrayType m a))
   getType _ n = "@builtin(" <> T.pack (symbolVal (Proxy @s)) <> ") " <> n <> ": " <> typeToWGSL (undefined :: Expr (ArrayType m a))
 
+  dummyP = BuiltIn $ BuiltInVar (T.pack $ symbolVal (Proxy @s))
+
 instance (Typeable a, KnownNat n, SingI (Primitive a)) => ShaderParam (Location n (Expr (Primitive a))) where
   collectParams _ = Params [ParamData {pType = typeToWGSL (undefined :: Expr (Primitive a)), index = LocParam $ fromInteger $ natVal (Proxy @n)}]
   collectValues (Location a) = Values [Value a]
   getName _ = ""
   getType _ "" = "@location(" <> T.pack (show $ natVal (Proxy @n)) <> ") " <> typeToWGSL (undefined :: Expr (Primitive a))
   getType _ n = "@location(" <> T.pack (show $ natVal (Proxy @n)) <> ") " <> n <> ": " <> typeToWGSL (undefined :: Expr (Primitive a))
+
+  dummyP = Location $ LocationVar $ fromInteger (natVal (Proxy @n))
 
 instance (Typeable m, Typeable a, KnownNat n, SingI (VectorType m a)) => ShaderParam (Location n (Expr (VectorType m a))) where
   collectParams _ = Params [ParamData {pType = typeToWGSL (undefined :: Expr (VectorType m a)), index = LocParam $ fromInteger $ natVal (Proxy @n)}]
@@ -122,12 +134,16 @@ instance (Typeable m, Typeable a, KnownNat n, SingI (VectorType m a)) => ShaderP
   getType _ "" = "@location(" <> T.pack (show $ natVal (Proxy @n)) <> ") " <> typeToWGSL (undefined :: Expr (VectorType m a))
   getType _ n = "@location(" <> T.pack (show $ natVal (Proxy @n)) <> ") " <> n <> ": " <> typeToWGSL (undefined :: Expr (VectorType m a))
 
+  dummyP = Location $ LocationVar $ fromInteger (natVal (Proxy @n))
+
 instance (Typeable m, Typeable a, KnownNat n, SingI (ArrayType m a)) => ShaderParam (Location n (Expr (ArrayType m a))) where
   collectParams _ = Params [ParamData {pType = typeToWGSL (undefined :: Expr (ArrayType m a)), index = LocParam $ fromInteger $ natVal (Proxy @n)}]
   collectValues (Location a) = Values [Value a]
   getName _ = ""
   getType _ "" = "@location(" <> T.pack (show $ natVal (Proxy @n)) <> ") " <> typeToWGSL (undefined :: Expr (ArrayType m a))
   getType _ n = "@location(" <> T.pack (show $ natVal (Proxy @n)) <> ") " <> n <> ": " <> typeToWGSL (undefined :: Expr (ArrayType m a))
+
+  dummyP = Location $ LocationVar $ fromInteger (natVal (Proxy @n))
 
 class ReadParam a b | a -> b where
   get :: a -> b

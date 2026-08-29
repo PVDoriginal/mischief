@@ -76,7 +76,7 @@ data VertexOutput = VertexOutput
   { pos :: BuiltIn "position" Vec4f,
     uv :: Location 0 Vec2f
   }
-  deriving (Generic, Default, ShaderParam)
+  deriving (Generic, ShaderParam)
 
 vertex :: Bindings -> BuiltIn "vertex_index" U32 -> Shader VertexOutput
 vertex _ index = do
@@ -92,7 +92,7 @@ data Bindings = Bindings
   { tex :: Binding 0 Texture,
     sampler :: Binding 1 Sampler
   }
-  deriving (Generic, Default, Bindable)
+  deriving (Generic, Bindable)
 
 fragment :: Bindings -> VertexOutput -> Shader (Location 0 Vec4f)
 fragment b input = pure $ set $ sample (get b.tex) (get b.sampler) (get input.uv)

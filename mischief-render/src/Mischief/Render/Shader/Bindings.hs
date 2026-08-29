@@ -11,7 +11,7 @@ import Data.Text qualified as T
 import Data.Vector.Storable qualified as VS
 import Foreign (with)
 import Foreign.C.ConstPtr
-import GHC.Generics (Generic (Rep, from), K1 (K1), M1 (M1), U1 (U1), V1, (:*:) ((:*:)))
+import GHC.Generics (Generic (Rep, from), K1 (K1), M1 (M1), U1 (U1), V1 (..), to, (:*:) ((:*:)))
 import GHC.TypeLits
 import Mischief.ECS (System)
 import Mischief.Render.Core
@@ -33,8 +33,8 @@ type family AssociatedExpr a where
   AssociatedExpr Texture = TTexture
   AssociatedExpr Sampler = TSampler
 
-instance (KnownNat n, SingI (AssociatedExpr a)) => Default (Binding n a) where
-  def = Binding $ BindingVar (natVal (Proxy @n))
+-- instance (KnownNat n, SingI (AssociatedExpr a)) => Default (Binding n a) where
+--   def = Binding $ BindingVar (natVal (Proxy @n))
 
 data BindingData = BindingData
   { bType :: Text,
@@ -44,7 +44,7 @@ data BindingData = BindingData
 
 newtype Bindings = Bindings [BindingData] deriving newtype (Semigroup, Show)
 
-class (Default a) => Bindable a where
+class Bindable a where
   collectBindings :: Proxy a -> Bindings
   default collectBindings :: (Bindable' (Rep a)) => Proxy a -> Bindings
   collectBindings _ = collectBindings' (Proxy @(Rep a))
@@ -57,35 +57,45 @@ class (Default a) => Bindable a where
   default collectEntries :: (Bindable' (Rep a), Generic a) => a -> [WGPUBindGroupEntry]
   collectEntries a = collectEntries' (from a)
 
+  dummyB :: a
+  default dummyB :: (Bindable' (Rep a), Generic a) => a
+  dummyB = to dummyB'
+
 class Bindable' f where
   collectBindings' :: Proxy f -> Bindings
   collectLayouts' :: Proxy f -> [WGPUBindGroupLayoutEntry]
   collectEntries' :: f p -> [WGPUBindGroupEntry]
+  dummyB' :: f p
 
 instance Bindable' V1 where
   collectBindings' _ = Bindings []
   collectLayouts' _ = []
   collectEntries' _ = []
+  dummyB' = undefined
 
 instance Bindable' U1 where
   collectBindings' _ = Bindings []
   collectLayouts' _ = []
   collectEntries' _ = []
+  dummyB' = U1
 
 instance (Bindable' f, Bindable' g) => Bindable' (f :*: g) where
   collectBindings' _ = collectBindings' (Proxy @f) <> collectBindings' (Proxy @g)
   collectLayouts' _ = collectLayouts' (Proxy @f) <> collectLayouts' (Proxy @g)
   collectEntries' (f :*: g) = collectEntries' f <> collectEntries' g
+  dummyB' = dummyB' @f :*: dummyB' @g
 
 instance (Bindable c) => Bindable' (K1 i c) where
   collectBindings' _ = collectBindings (Proxy @c)
   collectLayouts' _ = collectLayouts (Proxy @c)
   collectEntries' (K1 a) = collectEntries a
+  dummyB' = K1 $ dummyB @c
 
 instance (Bindable' f) => Bindable' (M1 i t f) where
   collectBindings' _ = collectBindings' (Proxy @f)
   collectLayouts' _ = collectLayouts' (Proxy @f)
   collectEntries' (M1 a) = collectEntries' a
+  dummyB' = M1 $ dummyB' @f
 
 instance (KnownNat n) => Bindable (Binding n Sampler) where
   collectBindings _ = Bindings [BindingData {bType = T.pack "sampler", index = natVal (Proxy @n)}]
@@ -108,6 +118,7 @@ instance (KnownNat n) => Bindable (Binding n Sampler) where
 
   collectEntries (BindEntry a) = [a]
   collectEntries _ = undefined
+  dummyB = Binding $ BindingVar (natVal (Proxy @n))
 
 instance (KnownNat n) => Bindable (Binding n Texture) where
   collectBindings _ = Bindings [BindingData {bType = T.pack "texture_2d<f32>", index = natVal (Proxy @n)}]
@@ -132,6 +143,7 @@ instance (KnownNat n) => Bindable (Binding n Texture) where
 
   collectEntries (BindEntry a) = [a]
   collectEntries _ = undefined
+  dummyB = Binding $ BindingVar (natVal (Proxy @n))
 
 instance Bindable ()
 
@@ -141,6 +153,7 @@ instance (KnownNat n, SingI (Primitive a)) => Bindable (Binding n (Expr (Primiti
 
   collectEntries (BindEntry a) = [a]
   collectEntries _ = undefined
+  dummyB = Binding $ BindingVar (natVal (Proxy @n))
 
 instance (KnownNat n, SingI (VectorType m a)) => Bindable (Binding n (Expr (VectorType m a))) where
   collectBindings _ = Bindings [BindingData {bType = typeToWGSL (undefined :: Expr (VectorType m a)), index = natVal (Proxy @n)}]
@@ -148,6 +161,7 @@ instance (KnownNat n, SingI (VectorType m a)) => Bindable (Binding n (Expr (Vect
 
   collectEntries (BindEntry a) = [a]
   collectEntries _ = undefined
+  dummyB = Binding $ BindingVar (natVal (Proxy @n))
 
 instance (KnownNat n, SingI (ArrayType m a)) => Bindable (Binding n (Expr (ArrayType m a))) where
   collectBindings _ = Bindings [BindingData {bType = typeToWGSL (undefined :: Expr (ArrayType m a)), index = natVal (Proxy @n)}]
@@ -155,6 +169,7 @@ instance (KnownNat n, SingI (ArrayType m a)) => Bindable (Binding n (Expr (Array
 
   collectEntries (BindEntry a) = [a]
   collectEntries _ = undefined
+  dummyB = Binding $ BindingVar (natVal (Proxy @n))
 
 createBindLayout :: forall b. (Bindable b) => RenderDevice -> IO BindLayout
 createBindLayout (RenderDevice device) = do

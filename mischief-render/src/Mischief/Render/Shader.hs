@@ -46,17 +46,17 @@ data Binds = Binds
   { sampler :: Binding 0 Sampler,
     texture :: Binding 1 Texture
   }
-  deriving (Generic, Bindable, Default)
+  deriving (Generic, Bindable)
 
 data VertexOutput = VertexOutput
   { position :: BuiltIn "position" Vec4f,
     uv :: Location 0 Vec2f
   }
-  deriving (Generic, ShaderParam, Default)
+  deriving (Generic, ShaderParam)
 
 newtype FragmentOutput = FragmentOutput (Location 0 Vec4f)
   deriving stock (Generic)
-  deriving anyclass (ShaderParam, Default)
+  deriving anyclass (ShaderParam)
 
 frag :: Binds -> BuiltIn "location" Vec2f -> Shader (Location 0 Vec4f)
 frag b input = do
@@ -85,7 +85,7 @@ inputStructName a "" = a
 inputStructName a _ = a
 
 genShader :: forall a b p. (Bindable b, ShaderParam p, ShaderParam a) => Text -> (b -> p -> Shader a) -> Text
-genShader tag s = genBindings (Proxy @b) <> genParams "InputStruct" (Proxy @p) <> genParams "" (Proxy @a) <> "@" <> tag <> "\n" <> genFunction "main" (inputStructName (getName (Proxy @p)) "InputStruct") (s def def)
+genShader tag s = genBindings (Proxy @b) <> genParams "InputStruct" (Proxy @p) <> genParams "" (Proxy @a) <> "@" <> tag <> "\n" <> genFunction "main" (inputStructName (getName (Proxy @p)) "InputStruct") (s dummyB dummyP)
 
 genBindings :: forall b. (Bindable b) => Proxy b -> Text
 genBindings _ =
