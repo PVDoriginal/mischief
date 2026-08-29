@@ -225,3 +225,7 @@ unusedStorageTextureLayout =
 foreign import ccall "webgpu.h wgpuDeviceCreateBindGroupLayout" wgpuDeviceCreateBindGroupLayout :: Ptr WGPUDevice -> ConstPtr WGPUBindGroupLayoutDescriptor -> IO (Ptr WGPUBindGroupLayout)
 
 foreign import ccall "webgpu.h wgpuRenderPassEncoderSetBindGroup" wgpuRenderPassEncoderSetBindGroup :: Ptr WGPURenderPassEncoder -> Word32 -> Ptr WGPUBindGroup -> CSize -> ConstPtr Word32 -> IO ()
+
+foreign import ccall "webgpu.h wgpuDeviceCreateBuffer" wgpuDeviceCreateBuffer :: Ptr WGPUDevice -> ConstPtr WGPUBufferDescriptor -> IO (Ptr WGPUBuffer)
+
+foreign import ccall "webgpu.h wgpuQueueWriteBuffer" wgpuQueueWriteBuffer :: Ptr WGPUQueue -> Ptr WGPUBuffer -> Word64 -> ConstPtr Void -> CSize -> IO ()

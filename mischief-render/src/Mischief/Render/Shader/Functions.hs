@@ -6,6 +6,7 @@ module Mischief.Render.Shader.Functions where
 
 import Data.Data
 import Data.Singletons (SingI)
+import Data.Text (Text)
 import GHC.TypeLits
 import Mischief.Render.Core
 import Mischief.Render.Shader.Bindings
@@ -22,6 +23,9 @@ sample tex sampler v =
       Param sampler,
       Param v
     ]
+
+unsafeCall :: (SingI a) => Text -> [Param] -> Expr a
+unsafeCall = Function
 
 -- Numeric Functions
 
@@ -142,5 +146,87 @@ max a b = Function "max" [Param a, Param b]
 min :: (SingI a, IsAlgebric a ~ True) => Expr a -> Expr a -> Expr a
 min a b = Function "min" [Param a, Param b]
 
-mix :: (SingI a, Fractional (Expr a)) => Expr a -> Expr a -> Expr a -> Expr a
+class Mix a b
+
+instance Mix a a
+
+instance Mix (VectorType n a) (Primitive a)
+
+mix :: (SingI a, SingI b, Fractional (Expr a), Fractional (Expr b), Mix a b) => Expr a -> Expr a -> Expr b -> Expr a
 mix a b c = Function "mix" [Param a, Param b, Param c]
+
+-- TODO: modf (custom struct)
+
+normalize :: (SingI n, SingI a, Fractional (Expr (VectorType n a))) => Expr (VectorType n a) -> Expr (VectorType n a)
+normalize a = Function "normalize" [Param a]
+
+pow :: (SingI a, Fractional (Expr a)) => Expr a -> Expr a -> Expr a
+pow a b = Function "pow" [Param a, Param b]
+
+quantizeToF16 :: (SingI a, VectorOrSingleOf a ~ TFloat) => Expr a -> Expr a
+quantizeToF16 a = Function "quantizeToF16" [Param a]
+
+radians :: (SingI a, Fractional (Expr a)) => Expr a -> Expr a
+radians a = Function "radians" [Param a]
+
+reflect :: (SingI n, SingI a, Fractional (Expr (VectorType n a))) => Expr (VectorType n a) -> Expr (VectorType n a) -> Expr (VectorType n a)
+reflect a b = Function "reflect" [Param a, Param b]
+
+refract :: (SingI a, SingI b, VectorOrSingleOf a ~ b) => Expr a -> Expr a -> Expr (Primitive b) -> Expr a
+refract a b c = Function "refract" [Param a, Param b, Param c]
+
+reverseBits :: (SingI a, IsIntegral a ~ True) => Expr a -> Expr a
+reverseBits a = Function "reverseBits" [Param a]
+
+round :: (SingI a, Fractional (Expr a)) => Expr a -> Expr a
+round a = Function "round" [Param a]
+
+saturate :: (SingI a, Fractional (Expr a)) => Expr a -> Expr a
+saturate a = Function "saturate" [Param a]
+
+sign :: (SingI a, IsAlgebric a ~ True) => Expr a -> Expr a
+sign a = Function "sign" [Param a]
+
+sin :: (SingI a, Fractional (Expr a)) => Expr a -> Expr a
+sin a = Function "sin" [Param a]
+
+sinh :: (SingI a, Fractional (Expr a)) => Expr a -> Expr a
+sinh a = Function "sinh" [Param a]
+
+smoothstep :: (SingI a, Fractional (Expr a)) => Expr a -> Expr a -> Expr a -> Expr a
+smoothstep a b c = Function "smoothstep" [Param a, Param b, Param c]
+
+sqrt :: (SingI a, Fractional (Expr a)) => Expr a -> Expr a
+sqrt a = Function "sqrt" [Param a]
+
+step :: (SingI a, Fractional (Expr a)) => Expr a -> Expr a -> Expr a
+step a b = Function "step" [Param a, Param b]
+
+tan :: (SingI a, Fractional (Expr a)) => Expr a -> Expr a
+tan a = Function "tan" [Param a]
+
+tanh :: (SingI a, Fractional (Expr a)) => Expr a -> Expr a
+tanh a = Function "tanh" [Param a]
+
+-- TODO: transpose (matrix)
+
+trunc :: (SingI a, Fractional (Expr a)) => Expr a -> Expr a
+trunc a = Function "trunc" [Param a]
+
+-- TODO: Bit Reinterpretation Functions
+
+-- TODO: Logical Functions
+
+-- TODO: Array Functions
+
+-- TODO: Derivative Functions
+
+-- TODO: Texture Functions
+
+-- TODO: Atomic Functions
+
+-- TODO: Data Packing Functions
+
+-- TODO: Data Unpacking Functions
+
+-- TODO: Synchronization Functions

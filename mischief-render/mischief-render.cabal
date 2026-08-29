@@ -59,10 +59,12 @@ library
     Mischief.Render.Shader
     Mischief.Render.Shader.Bindings
     Mischief.Render.Shader.Singletons
+    Mischief.Render.Shader.Buffers
     Mischief.Render.Shader.Functions
     Mischief.Render.Shader.Params
     Mischief.Render.Shader.State
     Mischief.Render.Shader.Types
+    Mischief.Render.Buffer
     Mischief.Render.Texture
     Mischief.WGPU
     Mischief.WGPU.Callbacks

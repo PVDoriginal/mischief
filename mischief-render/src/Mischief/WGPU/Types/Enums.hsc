@@ -256,7 +256,7 @@ wGPURequestDeviceStatus_Force32 = WGPURequestDeviceStatus #const WGPURequestDevi
 
 newtype WGPUFlags = WGPUFlags Word64 deriving newtype (Show, Eq, Storable, Num, Bits)
 
-newtype WGPUShaderStage = WGPUShaderStage WGPUFlags deriving newtype (Show, Eq, Storable, Num)
+newtype WGPUShaderStage = WGPUShaderStage WGPUFlags deriving newtype (Show, Eq, Storable, Num, Bits)
 
 wGPUShaderStage_None :: WGPUShaderStage 
 wGPUShaderStage_None =  WGPUShaderStage #const WGPUShaderStage_None
@@ -269,6 +269,41 @@ wGPUShaderStage_Fragment =  WGPUShaderStage #const WGPUShaderStage_Fragment
 
 wGPUShaderStage_Compute :: WGPUShaderStage 
 wGPUShaderStage_Compute =  WGPUShaderStage #const WGPUShaderStage_Compute
+
+newtype WGPUBufferUsage = WGPUBufferUsage WGPUFlags deriving newtype (Show, Eq, Storable, Num, Bits)
+
+wGPUBufferUsage_None :: WGPUBufferUsage 
+wGPUBufferUsage_None =  WGPUBufferUsage #const WGPUBufferUsage_None
+
+wGPUBufferUsage_MapRead :: WGPUBufferUsage 
+wGPUBufferUsage_MapRead =  WGPUBufferUsage #const WGPUBufferUsage_MapRead
+
+wGPUBufferUsage_MapWrite :: WGPUBufferUsage 
+wGPUBufferUsage_MapWrite =  WGPUBufferUsage #const WGPUBufferUsage_MapWrite
+
+wGPUBufferUsage_CopySrc :: WGPUBufferUsage 
+wGPUBufferUsage_CopySrc =  WGPUBufferUsage #const WGPUBufferUsage_CopySrc
+
+wGPUBufferUsage_CopyDst :: WGPUBufferUsage 
+wGPUBufferUsage_CopyDst =  WGPUBufferUsage #const WGPUBufferUsage_CopyDst
+
+wGPUBufferUsage_Index :: WGPUBufferUsage 
+wGPUBufferUsage_Index =  WGPUBufferUsage #const WGPUBufferUsage_Index
+
+wGPUBufferUsage_Vertex :: WGPUBufferUsage 
+wGPUBufferUsage_Vertex =  WGPUBufferUsage #const WGPUBufferUsage_Vertex
+
+wGPUBufferUsage_Uniform :: WGPUBufferUsage 
+wGPUBufferUsage_Uniform =  WGPUBufferUsage #const WGPUBufferUsage_Uniform
+
+wGPUBufferUsage_Storage :: WGPUBufferUsage 
+wGPUBufferUsage_Storage =  WGPUBufferUsage #const WGPUBufferUsage_Storage
+
+wGPUBufferUsage_Indirect :: WGPUBufferUsage 
+wGPUBufferUsage_Indirect =  WGPUBufferUsage #const WGPUBufferUsage_Indirect
+
+wGPUBufferUsage_QueryResolve :: WGPUBufferUsage 
+wGPUBufferUsage_QueryResolve =  WGPUBufferUsage #const WGPUBufferUsage_QueryResolve
 
 
 newtype WGPUBufferBindingType = WGPUBufferBindingType CUInt deriving (Eq, Ord, Show)

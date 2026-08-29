@@ -1117,3 +1117,29 @@ instance Storable WGPUTextureViewDescriptor where
     #{poke WGPUTextureViewDescriptor, arrayLayerCount} ptr arrayLayerCount
     #{poke WGPUTextureViewDescriptor, aspect} ptr aspect
     #{poke WGPUTextureViewDescriptor, usage} ptr usage
+
+
+data WGPUBufferDescriptor = WGPUBufferDescriptor {
+  nextInChain :: Ptr WGPUChainedStruct, 
+  label :: WGPUStringView, 
+  usage :: WGPUBufferUsage, 
+  size :: Word64, 
+  mappedAtCreation :: WGPUBool
+}
+
+instance Storable WGPUBufferDescriptor where
+  alignment _ = #{alignment WGPUBufferDescriptor}
+  sizeOf _ = #{size WGPUBufferDescriptor}
+  peek ptr = do
+    nextInChain <- #{peek WGPUBufferDescriptor, nextInChain} ptr
+    label <- #{peek WGPUBufferDescriptor, label} ptr
+    usage <- #{peek WGPUBufferDescriptor, usage} ptr
+    size <- #{peek WGPUBufferDescriptor, size} ptr
+    mappedAtCreation <- #{peek WGPUBufferDescriptor, mappedAtCreation} ptr
+    return WGPUBufferDescriptor{nextInChain, label, usage, size, mappedAtCreation}
+  poke ptr WGPUBufferDescriptor{nextInChain, label, usage, size, mappedAtCreation} = do
+    #{poke WGPUBufferDescriptor, nextInChain} ptr nextInChain
+    #{poke WGPUBufferDescriptor, label} ptr label
+    #{poke WGPUBufferDescriptor, usage} ptr usage
+    #{poke WGPUBufferDescriptor, size} ptr size
+    #{poke WGPUBufferDescriptor, mappedAtCreation} ptr mappedAtCreation

@@ -20,6 +20,8 @@ import Mischief.WGPU.Opaque
 import Mischief.WGPU.Types.Enums
 import Mischief.WGPU.Types.General
 
+data Texture = Texture {texture :: Ptr WGPUTexture, desc :: TextureDescriptor}
+
 data TextureDescriptor = TextureDescriptor
   { width :: Int,
     height :: Int,
@@ -120,5 +122,3 @@ uploadImage (RenderQueue queue) (Image image) (Texture {texture, desc = TextureD
       with copyInfo $ \copyInfo -> do
         with layout $ \layout -> do
           wgpuQueueWriteTexture queue (ConstPtr copyInfo) (ConstPtr $ castPtr pixelPtr) (fromIntegral $ VS.length bytes) (ConstPtr layout) (ConstPtr extent)
-
-data Texture = Texture {texture :: Ptr WGPUTexture, desc :: TextureDescriptor}
