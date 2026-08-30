@@ -282,3 +282,9 @@ var expr = do
 
 at :: forall n a. (SingI (ArrayType n a)) => Expr (ArrayType n a) -> Expr (Primitive TUInt) -> Expr a
 at = Index
+
+data CPU
+
+data GPU
+
+data Internal

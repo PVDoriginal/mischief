@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Mischief.Render.Shader.Params where
@@ -14,13 +15,25 @@ import Mischief.Render.Shader.Bindings
 import Mischief.Render.Shader.Singletons
 import Mischief.Render.Shader.State
 
-data BuiltIn (name :: Symbol) a where
-  BuiltIn :: forall a name. (Expr a) -> BuiltIn name (Expr a)
+data BuiltInParam (n :: Symbol) b = BuiltInParam
 
-data Location (n :: Nat) a where
-  Location :: forall a n. (Expr a) -> Location n (Expr a)
+data LocationParam (n :: Nat) b = LocationParam
 
-data ParamKind = LocParam Integer | BuiltInParam Text deriving (Show)
+type family BuiltIn a n b where
+  BuiltIn Internal n b = BuiltInParam n b
+  BuiltIn GPU n (Expr b) = Expr b
+
+type family Location a n b where
+  Location Internal n b = LocationParam n b
+  Location GPU n (Expr b) = Expr b
+
+-- data BuiltIn (name :: Symbol) a where
+--   BuiltIn :: forall a name. (Expr a) -> BuiltIn name (Expr a)
+
+-- data Location (n :: Nat) a where
+--   Location :: forall a n. (Expr a) -> Location n (Expr a)
+
+data ParamKind = LocKind Integer | BuiltInKind Text deriving (Show)
 
 data ParamData = ParamData
   { pType :: Text,
@@ -35,141 +48,168 @@ data Value where
 
 newtype Values = Values [Value] deriving newtype (Semigroup)
 
-class (Typeable a) => ShaderParam a where
-  collectParams :: Proxy a -> Params
-  default collectParams :: (ShaderParam' (Rep a)) => Proxy a -> Params
-  collectParams _ = collectParams' (Proxy @(Rep a))
+class (Typeable (a GPU)) => ShaderParam a where
+  collectParams :: Params
+  default collectParams :: (GCollectParams (Rep (a Internal))) => Params
+  collectParams = gCollectParams @(Rep (a Internal))
 
-  getName :: Proxy a -> Text
-  getName = T.pack . show . typeRep
+  getName :: Text
+  getName = T.map (\case ' ' -> '_'; n -> n) $ T.pack $ show (typeRep (Proxy @(a GPU)))
 
-  getType :: Proxy a -> Text -> Text
-  getType a "" = getName a
-  getType a n = n <> " : " <> getName a
+  getType :: Text -> Text
+  getType "" = getName @a
+  getType n = n <> " : " <> getName @a
 
-  collectValues :: a -> Values
-  default collectValues :: (Generic a, ShaderParam' (Rep a)) => a -> Values
-  collectValues a = collectValues' (from a)
+  -- collectValues :: a -> Values
+  -- default collectValues :: (Generic a, ShaderParam' (Rep (a ))) => a -> Values
+  -- collectValues a = collectValues' (from a)
 
-  dummyP :: a
-  default dummyP :: (Generic a, ShaderParam' (Rep a)) => a
-  dummyP = to dummyP'
+  dummyParam :: a GPU
+  default dummyParam :: (Generic (a GPU), GDummyParam (Rep (a Internal)) (Rep (a GPU))) => a GPU
+  dummyParam = to (gDummyParam @(Rep (a Internal)) @(Rep (a GPU)))
 
--- collectValues :: a -> Values
--- defualt CollectValues :: ()
+  collectValues :: a GPU -> Values
+  default collectValues :: (Generic (a GPU), GCollectValues (Rep (a GPU))) => a GPU -> Values
+  collectValues a = gCollectValues (from a)
 
-class ShaderParam' f where
-  collectParams' :: Proxy f -> Params
-  collectValues' :: f p -> Values
-  dummyP' :: f p
+class CollectParam a where
+  collectParam :: ParamData
+  getName' :: Text
+  getType' :: Text -> Text
 
-instance ShaderParam' V1 where
-  collectParams' _ = Params []
-  collectValues' _ = Values []
-  dummyP' = undefined
+class GCollectParams f where
+  gCollectParams :: Params
 
-instance ShaderParam' U1 where
-  collectParams' _ = Params []
-  collectValues' _ = Values []
-  dummyP' = U1
+instance GCollectParams V1 where
+  gCollectParams = undefined
 
-instance (ShaderParam' f, ShaderParam' g) => ShaderParam' (f :*: g) where
-  collectParams' _ = collectParams' (Proxy @f) <> collectParams' (Proxy @g)
-  collectValues' (f :*: g) = collectValues' f <> collectValues' g
-  dummyP' = dummyP' @f :*: dummyP' @g
+instance GCollectParams U1 where
+  gCollectParams = Params []
 
-instance (ShaderParam c) => ShaderParam' (K1 i c) where
-  collectParams' _ = collectParams (Proxy @c)
-  collectValues' (K1 x) = collectValues x
-  dummyP' = K1 $ dummyP @c
+instance (GCollectParams f, GCollectParams g) => GCollectParams (f :*: g) where
+  gCollectParams = gCollectParams @f <> gCollectParams @g
 
-instance (ShaderParam' f) => ShaderParam' (M1 i t f) where
-  collectParams' _ = collectParams' (Proxy @f)
-  collectValues' (M1 x) = collectValues' x
-  dummyP' = M1 $ dummyP' @f
+instance (CollectParam c) => GCollectParams (K1 i c) where
+  gCollectParams = Params [collectParam @c]
 
-instance ShaderParam ()
+instance (GCollectParams f) => GCollectParams (M1 i t f) where
+  gCollectParams = gCollectParams @f
 
-instance (Typeable a, KnownSymbol s, SingI (Primitive a)) => ShaderParam (BuiltIn s (Expr (Primitive a))) where
-  collectParams _ = Params [ParamData {pType = typeToWGSL (undefined :: Expr (Primitive a)), index = BuiltInParam $ T.pack $ symbolVal (Proxy @s)}]
-  collectValues (BuiltIn a) = Values [Value a]
+instance (KnownSymbol s, SingI (Primitive a)) => CollectParam (BuiltInParam s (Expr (Primitive a))) where
+  collectParam = ParamData {pType = typeToWGSL (undefined :: Expr (Primitive a)), index = BuiltInKind $ T.pack $ symbolVal (Proxy @s)}
+  getName' = ""
 
-  getName _ = ""
-  getType _ "" = "@builtin(" <> T.pack (symbolVal (Proxy @s)) <> ") " <> typeToWGSL (undefined :: Expr (Primitive a))
-  getType _ n = "@builtin(" <> T.pack (symbolVal (Proxy @s)) <> ") " <> n <> ": " <> typeToWGSL (undefined :: Expr (Primitive a))
+  getType' "" = "@builtin(" <> T.pack (symbolVal (Proxy @s)) <> ") " <> typeToWGSL (undefined :: Expr (Primitive a))
+  getType' n = "@builtin(" <> T.pack (symbolVal (Proxy @s)) <> ") " <> n <> ": " <> typeToWGSL (undefined :: Expr (Primitive a))
 
-  dummyP = BuiltIn $ BuiltInVar (T.pack $ symbolVal (Proxy @s))
+instance (KnownSymbol s, SingI (VectorType m a)) => CollectParam (BuiltInParam s (Expr (VectorType m a))) where
+  collectParam = ParamData {pType = typeToWGSL (undefined :: Expr (VectorType m a)), index = BuiltInKind $ T.pack $ symbolVal (Proxy @s)}
+  getName' = ""
+  getType' "" = "@builtin(" <> T.pack (symbolVal (Proxy @s)) <> ") " <> typeToWGSL (undefined :: Expr (VectorType m a))
+  getType' n = "@builtin(" <> T.pack (symbolVal (Proxy @s)) <> ") " <> n <> ": " <> typeToWGSL (undefined :: Expr (VectorType m a))
 
-instance (Typeable a, Typeable m, KnownSymbol s, SingI (VectorType m a)) => ShaderParam (BuiltIn s (Expr (VectorType m a))) where
-  collectParams _ = Params [ParamData {pType = typeToWGSL (undefined :: Expr (VectorType m a)), index = BuiltInParam $ T.pack $ symbolVal (Proxy @s)}]
-  collectValues (BuiltIn a) = Values [Value a]
-  getName _ = ""
-  getType _ "" = "@builtin(" <> T.pack (symbolVal (Proxy @s)) <> ") " <> typeToWGSL (undefined :: Expr (VectorType m a))
-  getType _ n = "@builtin(" <> T.pack (symbolVal (Proxy @s)) <> ") " <> n <> ": " <> typeToWGSL (undefined :: Expr (VectorType m a))
+instance (KnownSymbol s, SingI (ArrayType m a)) => CollectParam (BuiltInParam s (Expr (ArrayType m a))) where
+  collectParam = ParamData {pType = typeToWGSL (undefined :: Expr (ArrayType m a)), index = BuiltInKind $ T.pack $ symbolVal (Proxy @s)}
+  getName' = ""
+  getType' "" = "@builtin(" <> T.pack (symbolVal (Proxy @s)) <> ") " <> typeToWGSL (undefined :: Expr (ArrayType m a))
+  getType' n = "@builtin(" <> T.pack (symbolVal (Proxy @s)) <> ") " <> n <> ": " <> typeToWGSL (undefined :: Expr (ArrayType m a))
 
-  dummyP = BuiltIn $ BuiltInVar (T.pack $ symbolVal (Proxy @s))
+instance (KnownNat n, SingI (Primitive a)) => CollectParam (LocationParam n (Expr (Primitive a))) where
+  collectParam = ParamData {pType = typeToWGSL (undefined :: Expr (Primitive a)), index = LocKind $ fromInteger $ natVal (Proxy @n)}
+  getName' = ""
+  getType' "" = "@location(" <> T.pack (show $ natVal (Proxy @n)) <> ") " <> typeToWGSL (undefined :: Expr (Primitive a))
+  getType' n = "@location(" <> T.pack (show $ natVal (Proxy @n)) <> ") " <> n <> ": " <> typeToWGSL (undefined :: Expr (Primitive a))
 
-instance (Typeable a, Typeable m, KnownSymbol s, SingI (ArrayType m a)) => ShaderParam (BuiltIn s (Expr (ArrayType m a))) where
-  collectParams _ = Params [ParamData {pType = typeToWGSL (undefined :: Expr (ArrayType m a)), index = BuiltInParam $ T.pack $ symbolVal (Proxy @s)}]
-  collectValues (BuiltIn a) = Values [Value a]
-  getName _ = ""
-  getType _ "" = "@builtin(" <> T.pack (symbolVal (Proxy @s)) <> ") " <> typeToWGSL (undefined :: Expr (ArrayType m a))
-  getType _ n = "@builtin(" <> T.pack (symbolVal (Proxy @s)) <> ") " <> n <> ": " <> typeToWGSL (undefined :: Expr (ArrayType m a))
+instance (KnownNat n, SingI (VectorType m a)) => CollectParam (LocationParam n (Expr (VectorType m a))) where
+  collectParam = ParamData {pType = typeToWGSL (undefined :: Expr (VectorType m a)), index = LocKind $ fromInteger $ natVal (Proxy @n)}
+  getName' = ""
+  getType' "" = "@location(" <> T.pack (show $ natVal (Proxy @n)) <> ") " <> typeToWGSL (undefined :: Expr (VectorType m a))
+  getType' n = "@location(" <> T.pack (show $ natVal (Proxy @n)) <> ") " <> n <> ": " <> typeToWGSL (undefined :: Expr (VectorType m a))
 
-  dummyP = BuiltIn $ BuiltInVar (T.pack $ symbolVal (Proxy @s))
+instance (KnownNat n, SingI (ArrayType m a)) => CollectParam (LocationParam n (Expr (ArrayType m a))) where
+  collectParam = ParamData {pType = typeToWGSL (undefined :: Expr (ArrayType m a)), index = LocKind $ fromInteger $ natVal (Proxy @n)}
+  getName' = ""
+  getType' "" = "@location(" <> T.pack (show $ natVal (Proxy @n)) <> ") " <> typeToWGSL (undefined :: Expr (ArrayType m a))
+  getType' n = "@location(" <> T.pack (show $ natVal (Proxy @n)) <> ") " <> n <> ": " <> typeToWGSL (undefined :: Expr (ArrayType m a))
 
-instance (Typeable a, KnownNat n, SingI (Primitive a)) => ShaderParam (Location n (Expr (Primitive a))) where
-  collectParams _ = Params [ParamData {pType = typeToWGSL (undefined :: Expr (Primitive a)), index = LocParam $ fromInteger $ natVal (Proxy @n)}]
-  collectValues (Location a) = Values [Value a]
-  getName _ = ""
-  getType _ "" = "@location(" <> T.pack (show $ natVal (Proxy @n)) <> ") " <> typeToWGSL (undefined :: Expr (Primitive a))
-  getType _ n = "@location(" <> T.pack (show $ natVal (Proxy @n)) <> ") " <> n <> ": " <> typeToWGSL (undefined :: Expr (Primitive a))
+class DummyParam a b where
+  dummyParam' :: b
 
-  dummyP = Location $ LocationVar $ fromInteger (natVal (Proxy @n))
+class GDummyParam f g where
+  gDummyParam :: g p
 
-instance (Typeable m, Typeable a, KnownNat n, SingI (VectorType m a)) => ShaderParam (Location n (Expr (VectorType m a))) where
-  collectParams _ = Params [ParamData {pType = typeToWGSL (undefined :: Expr (VectorType m a)), index = LocParam $ fromInteger $ natVal (Proxy @n)}]
-  collectValues (Location a) = Values [Value a]
-  getName _ = ""
-  getType _ "" = "@location(" <> T.pack (show $ natVal (Proxy @n)) <> ") " <> typeToWGSL (undefined :: Expr (VectorType m a))
-  getType _ n = "@location(" <> T.pack (show $ natVal (Proxy @n)) <> ") " <> n <> ": " <> typeToWGSL (undefined :: Expr (VectorType m a))
+instance GDummyParam V1 V1 where
+  gDummyParam = undefined
 
-  dummyP = Location $ LocationVar $ fromInteger (natVal (Proxy @n))
+instance GDummyParam U1 U1 where
+  gDummyParam = U1
 
-instance (Typeable m, Typeable a, KnownNat n, SingI (ArrayType m a)) => ShaderParam (Location n (Expr (ArrayType m a))) where
-  collectParams _ = Params [ParamData {pType = typeToWGSL (undefined :: Expr (ArrayType m a)), index = LocParam $ fromInteger $ natVal (Proxy @n)}]
-  collectValues (Location a) = Values [Value a]
-  getName _ = ""
-  getType _ "" = "@location(" <> T.pack (show $ natVal (Proxy @n)) <> ") " <> typeToWGSL (undefined :: Expr (ArrayType m a))
-  getType _ n = "@location(" <> T.pack (show $ natVal (Proxy @n)) <> ") " <> n <> ": " <> typeToWGSL (undefined :: Expr (ArrayType m a))
+instance (GDummyParam f1 g1, GDummyParam f2 g2) => GDummyParam (f1 :*: f2) (g1 :*: g2) where
+  gDummyParam = gDummyParam @f1 @g1 :*: gDummyParam @f2 @g2
 
-  dummyP = Location $ LocationVar $ fromInteger (natVal (Proxy @n))
+instance (DummyParam a b) => GDummyParam (K1 i a) (K1 i b) where
+  gDummyParam = K1 $ dummyParam' @a @b
 
-class ReadParam a b | a -> b where
-  get :: a -> b
+instance (GDummyParam a b) => GDummyParam (M1 i t a) (M1 i' t' b) where
+  gDummyParam = M1 $ gDummyParam @a @b
 
-instance ReadParam (BuiltIn s (Expr a)) (Expr a) where
-  get (BuiltIn a) = a
+instance (KnownSymbol n, SingI b) => DummyParam (BuiltInParam n a) (Expr b) where
+  dummyParam' = BuiltInVar (T.pack $ symbolVal $ Proxy @n)
 
-instance ReadParam (Location n (Expr a)) (Expr a) where
-  get (Location a) = a
+instance (KnownNat n, SingI b) => DummyParam (LocationParam n a) (Expr b) where
+  dummyParam' = LocationVar (fromInteger $ natVal $ Proxy @n)
 
-instance (AssociatedExpr a ~ b) => ReadParam (Binding n a) (Expr b) where
-  get (Binding a) = a
-  get _ = undefined
+class GCollectValues f where
+  gCollectValues :: f p -> Values
 
-newtype Struct a = Struct (VarIndex, a)
+instance GCollectValues V1 where
+  gCollectValues _ = undefined
 
-newtype StructField a = StructField (VarIndex, a)
+instance GCollectValues U1 where
+  gCollectValues _ = Values []
 
-instance (HasField a b c) => HasField a (Struct b) (StructField c) where
-  getField (Struct (i, a)) = StructField (i, getField @a a)
+instance (GCollectValues f, GCollectValues g) => GCollectValues (f :*: g) where
+  gCollectValues (f :*: g) = gCollectValues f <> gCollectValues g
 
-class SetParam a b | b -> a where
-  set :: a -> b
+instance GCollectValues (K1 i (Expr b)) where
+  gCollectValues (K1 c) = Values [Value c]
 
-instance SetParam (Expr a) (BuiltIn s (Expr a)) where
-  set = BuiltIn
+instance (GCollectValues f) => GCollectValues (M1 i t f) where
+  gCollectValues (M1 f) = gCollectValues f
 
-instance SetParam (Expr a) (Location n (Expr a)) where
-  set = Location
+-- instance (KnownNat n, Typeable (Location' n (Expr a) GPU)) => ShaderParam (Location' n (Expr a)) where
+--   collectParams = undefined
+--   getName = undefined
+--   getType = undefined
+--   dummyParam = undefined
+--   collectValues a = Values [a]
+
+newtype LocInternal n a f = Loc (Location f n a) deriving stock (Generic)
+
+instance
+  ( Typeable a,
+    Location GPU n a ~ Expr b,
+    KnownNat n,
+    CollectParam (LocationParam n a),
+    DummyParam
+      (LocationParam n a)
+      (Location GPU n a)
+  ) =>
+  ShaderParam (LocInternal n a)
+
+type Loc n a = LocInternal n a GPU
+
+newtype BInInternal n a f = BIn (BuiltIn f n a) deriving stock (Generic)
+
+instance
+  ( Typeable a,
+    BuiltIn GPU n a ~ Expr b,
+    KnownSymbol n,
+    CollectParam (BuiltInParam n a),
+    DummyParam
+      (BuiltInParam n a)
+      (BuiltIn GPU n a)
+  ) =>
+  ShaderParam (BInInternal n a)
+
+type BIn n a = BInInternal n a GPU

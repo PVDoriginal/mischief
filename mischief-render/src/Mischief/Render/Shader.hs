@@ -42,31 +42,31 @@ test2 = do
 
   pure $ s + c
 
-data Binds = Binds
-  { sampler :: Binding 0 Sampler,
-    texture :: Binding 1 Texture
+data Binds f = Binds
+  { sampler :: Uniform f 0 Sampler,
+    texture :: Uniform f 1 Texture
   }
   deriving (Generic, Bindable)
 
-data VertexOutput = VertexOutput
-  { position :: BuiltIn "position" Vec4f,
-    uv :: Location 0 Vec2f
+data VertexOutput f = VertexOutput
+  { position :: BuiltIn f "position" Vec4f,
+    uv :: Location f 0 Vec2f
   }
   deriving (Generic, ShaderParam)
 
-newtype FragmentOutput = FragmentOutput (Location 0 Vec4f)
+newtype FragmentOutput f = FragmentOutput (Location f 0 Vec4f)
   deriving stock (Generic)
   deriving anyclass (ShaderParam)
 
-frag :: Binds -> BuiltIn "location" Vec2f -> Shader (Location 0 Vec4f)
-frag b input = do
-  let result = sample (get b.texture) (get b.sampler) (get input)
-  pure (set result)
+-- frag :: Binds -> BuiltIn "location" Vec2f -> Shader (Location 0 Vec4f)
+-- frag b input = do
+--   let result = sample (get b.texture) (get b.sampler) (get input)
+--   pure (set result)
 
-shaderToWGSL :: forall a. (ShaderParam a) => Shader a -> Text
+shaderToWGSL :: forall a. (ShaderParam a) => Shader (a GPU) -> Text
 shaderToWGSL (Shader s) = do
   let (a, ShaderState {ast}) = runState s ShaderState {counter = 0, ast = Empty}
-  let n = getName (Proxy @a)
+  let n = getName @a
   let Values vs = collectValues a
   let vst = map valueToWGSL vs
   let ast' = Concat ast (Return (StructInit n vst))
@@ -75,8 +75,8 @@ shaderToWGSL (Shader s) = do
 valueToWGSL :: Value -> Text
 valueToWGSL (Value (a :: Expr a)) = exprToWGSL a
 
-genFunction :: forall a. (ShaderParam a) => Text -> Text -> Shader a -> Text
-genFunction name input s = "fn " <> name <> "(input" <> ": " <> input <> ") -> " <> getType (Proxy @a) "" <> " {\n" <> shaderToWGSL s <> "\n}"
+genFunction :: forall a. (ShaderParam a) => Text -> Text -> Shader (a GPU) -> Text
+genFunction name input s = "fn " <> name <> "(input" <> ": " <> input <> ") -> " <> getType @a "" <> " {\n" <> shaderToWGSL s <> "\n}"
 
 inputStructName :: Text -> Text -> Text
 inputStructName "" "" = ""
@@ -84,12 +84,12 @@ inputStructName "" a = a
 inputStructName a "" = a
 inputStructName a _ = a
 
-genShader :: forall a b p. (Bindable b, ShaderParam p, ShaderParam a) => Text -> (b -> p -> Shader a) -> Text
-genShader tag s = genBindings (Proxy @b) <> genParams "InputStruct" (Proxy @p) <> genParams "" (Proxy @a) <> "@" <> tag <> "\n" <> genFunction "main" (inputStructName (getName (Proxy @p)) "InputStruct") (s dummyB dummyP)
+genShader :: forall p a b. (Bindable b, ShaderParam p, ShaderParam a) => Text -> (b GPU -> p GPU -> Shader (a GPU)) -> Text
+genShader tag s = genBindings (Proxy @b) <> genParams "InputStruct" (Proxy @p) <> genParams "" (Proxy @a) <> "@" <> tag <> "\n" <> genFunction "main" (inputStructName (getName @p) "InputStruct") (s dummyBinding dummyParam)
 
 genBindings :: forall b. (Bindable b) => Proxy b -> Text
 genBindings _ =
-  let Bindings x = collectBindings (Proxy @b)
+  let Bindings x = collectBindings (Proxy @(b Internal))
    in T.concat (map genBinding x)
 
 genBinding :: BindingData -> Text
@@ -97,8 +97,8 @@ genBinding BindingData {bType, index} = "@group(0) @binding(" <> T.pack (show in
 
 genParams :: forall p. (ShaderParam p) => Text -> Proxy p -> Text
 genParams backup _ =
-  let Params x = collectParams (Proxy @p)
-      name = getName (Proxy @p)
+  let Params x = collectParams @p
+      name = getName @p
    in case name of
         "" -> case backup of
           "" -> ""
@@ -106,10 +106,10 @@ genParams backup _ =
         name -> "struct " <> name <> " {\n" <> T.concat (map genParam x) <> "};\n\n"
 
 genParam :: ParamData -> Text
-genParam ParamData {pType, index = BuiltInParam s} = "  @builtin(" <> s <> ") " <> s <> " : " <> pType <> ",\n"
-genParam ParamData {pType, index = LocParam n} = "  @location(" <> T.pack (show n) <> ") l" <> T.pack (show n) <> " : " <> pType <> ",\n"
+genParam ParamData {pType, index = BuiltInKind s} = "  @builtin(" <> s <> ") " <> s <> " : " <> pType <> ",\n"
+genParam ParamData {pType, index = LocKind n} = "  @location(" <> T.pack (show n) <> ") l" <> T.pack (show n) <> " : " <> pType <> ",\n"
 
-genShaderT :: (Bindable b, ShaderParam p, ShaderParam a) => (b -> p -> Shader a) -> String
+genShaderT :: forall b a p. (Bindable b, ShaderParam p, ShaderParam a) => (b GPU -> p GPU -> Shader (a GPU)) -> String
 genShaderT = T.unpack . genShader "no_tag"
 
 t :: () -> () -> Shader Vec2f

@@ -20,6 +20,7 @@ import Mischief.Render.Material
 import Mischief.Render.Shader.Bindings hiding (Bindings)
 import Mischief.Render.Shader.Functions (sample)
 import Mischief.Render.Shader.Params
+import Mischief.Render.Shader.Singletons
 import Mischief.Render.Shader.State
 import Mischief.Render.Shader.Types
 import Mischief.Render.Texture
@@ -61,43 +62,50 @@ instance Plugin RenderPlugin where
 renderCameras :: System ()
 renderCameras = do
   cameras <- [q|*CameraTexture, OutputTo -> (*RenderSurface, *RenderAdapter, *RenderDevice, *RenderQueue)|]
-  for_ cameras $ \(CameraTexture camera, (surface, adapter, device, queue)) -> do
+  for_ cameras $ \(CameraTexture Texture {texture}, (surface, adapter, device, queue)) -> do
     format <- getFormat surface adapter
     withSurfaceTexture surface $ \output -> do
       let material = Material {vertex, fragment, format}
 
-      sampler <- bindSampler =<< newSampler device
-      tex <- bindTexture camera
+      -- sampler <- bindSampler =<< newSampler device
+      sampler <- newSampler device
+      tex <- liftIO $ wgpuTextureCreateView texture (ConstPtr nullPtr)
 
-      render device queue Bindings {tex, sampler} material output
+      render device queue Bindings {tex = TextureView tex, sampler} material output
       presentSurface surface
 
-data VertexOutput = VertexOutput
-  { pos :: BuiltIn "position" Vec4f,
-    uv :: Location 0 Vec2f
+data VertexOutput f = VertexOutput
+  { pos :: BuiltIn f "position" Vec4f,
+    uv :: Location f 0 Vec2f
   }
   deriving (Generic, ShaderParam)
 
-vertex :: Bindings -> BuiltIn "vertex_index" U32 -> Shader VertexOutput
-vertex _ index = do
+newtype VertexInput f = VertexInput
+  { index :: BuiltIn f "vertex_index" U32
+  }
+  deriving stock (Generic)
+  deriving anyclass (ShaderParam)
+
+vertex :: Bindings GPU -> BIn "vertex_index" U32 -> Shader (VertexOutput GPU)
+vertex _ (BIn index) = do
   positions <- var $ array @3 (vec2f (-1, -1), vec2f (3, -1), vec2f (-1, 3))
-  let pos = positions `at` get index
+  let pos = positions `at` index
   pure $
     VertexOutput
-      { pos = set $ vec4 (pos.x, pos.y, 0, 1),
-        uv = set $ vec2 (pos.x * 0.5 + 0.5, 1.0 - (pos.y * 0.5 + 0.5))
+      { pos = vec4 (pos.x, pos.y, 0, 1),
+        uv = vec2 (pos.x * 0.5 + 0.5, 1.0 - (pos.y * 0.5 + 0.5))
       }
 
-data Bindings = Bindings
-  { tex :: Binding 0 Texture,
-    sampler :: Binding 1 Sampler
+data Bindings f = Bindings
+  { tex :: Uniform f 0 Texture,
+    sampler :: Uniform f 1 Sampler
   }
   deriving (Generic, Bindable)
 
-fragment :: Bindings -> VertexOutput -> Shader (Location 0 Vec4f)
-fragment b input = pure $ set $ sample (get b.tex) (get b.sampler) (get input.uv)
+fragment :: Bindings GPU -> VertexOutput GPU -> Shader (Loc 0 Vec4f)
+fragment b input = pure $ Loc $ sample b.tex b.sampler input.uv
 
-type FullScreenMaterial = Material Bindings (BuiltIn "vertex_index" U32) VertexOutput (Location 0 Vec4f)
+-- type FullScreenMaterial = Material Bindings (BuiltIn "vertex_index" U32) VertexOutput (Location 0 Vec4f)
 
 getFormat :: RenderSurface -> RenderAdapter -> System TextureFormat
 getFormat (RenderSurface surface) (RenderAdapter adapter) = liftIO $ do

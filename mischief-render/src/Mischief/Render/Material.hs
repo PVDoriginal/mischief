@@ -1,3 +1,5 @@
+{-# LANGUAGE GADTSyntax #-}
+
 module Mischief.Render.Material where
 
 import Control.Monad
@@ -7,6 +9,7 @@ import Data.Text qualified as T
 import Data.Text.Encoding qualified as T
 import Foreign (nullPtr, with)
 import Foreign.C.ConstPtr
+import Language.Haskell.TH (Extension (GADTSyntax))
 import Mischief.ECS.Prelude
 import Mischief.Render.Core
 import Mischief.Render.Core (TextureFormat)
@@ -20,11 +23,13 @@ import Mischief.WGPU.Framework (loadShaderFromBytes)
 import Mischief.WGPU.Types.Enums
 import Mischief.WGPU.Types.General
 
-data Material bindings vIn vOut fOut = Material
-  { vertex :: bindings -> vIn -> Shader vOut,
-    fragment :: bindings -> vOut -> Shader fOut,
-    format :: TextureFormat
-  }
+data Material bindings vIn vOut fOut where
+  Material ::
+    { vertex :: bindings GPU -> vIn GPU -> Shader (vOut GPU),
+      fragment :: bindings GPU -> vOut GPU -> Shader (fOut GPU),
+      format :: TextureFormat
+    } ->
+    Material bindings vIn vOut fOut
 
 createPipeline :: forall bindings vIn vOut fOut. (Bindable bindings, ShaderParam vIn, ShaderParam vOut, ShaderParam fOut) => RenderDevice -> Material bindings vIn vOut fOut -> IO Pipeline
 createPipeline (RenderDevice device) mat = do
@@ -43,8 +48,8 @@ createPipeline (RenderDevice device) mat = do
   pipelineLayout <- with pipelineLayoutDesc $ \pipelineLayoutDesc -> do
     wgpuDeviceCreatePipelineLayout device (ConstPtr pipelineLayoutDesc)
 
-  vertShader <- loadShaderFromBytes device (T.encodeUtf8 $ genShader "vertex" mat.vertex)
-  fragShader <- loadShaderFromBytes device (T.encodeUtf8 $ genShader "fragment" mat.fragment)
+  vertShader <- loadShaderFromBytes device (T.encodeUtf8 $ genShader @vIn @vOut "vertex" mat.vertex)
+  fragShader <- loadShaderFromBytes device (T.encodeUtf8 $ genShader @vOut @fOut "fragment" mat.fragment)
 
   pipeline <- withWGPUString "main" $ \vertexEntry -> do
     withWGPUString "main" $ \fragmentEntry -> do
@@ -105,9 +110,12 @@ createPipeline (RenderDevice device) mat = do
 
   pure $ Pipeline pipeline
 
-render :: forall bindings vIn vOut fOut. (Bindable bindings, ShaderParam vIn, ShaderParam vOut, ShaderParam fOut) => RenderDevice -> RenderQueue -> bindings -> Material bindings vIn vOut fOut -> Texture -> System ()
+render :: forall bindings vIn vOut fOut. (Bindable bindings, ShaderParam vIn, ShaderParam vOut, ShaderParam fOut) => RenderDevice -> RenderQueue -> bindings CPU -> Material bindings vIn vOut fOut -> Texture -> System ()
 render (RenderDevice device) (RenderQueue queue) b material (Texture {texture = output}) = liftIO $ do
+  -- let b = toLink @bindings cpu
+
   bindLayout <- createBindLayout @bindings (RenderDevice device)
+
   bindGroup <- createBindGroup (RenderDevice device) bindLayout b
   Pipeline pipeline <- createPipeline (RenderDevice device) material
 

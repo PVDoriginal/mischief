@@ -22,6 +22,8 @@ import Mischief.WGPU.Types.General
 
 data Texture = Texture {texture :: Ptr WGPUTexture, desc :: TextureDescriptor}
 
+newtype TextureView = TextureView (Ptr WGPUTextureView)
+
 data TextureDescriptor = TextureDescriptor
   { width :: Int,
     height :: Int,

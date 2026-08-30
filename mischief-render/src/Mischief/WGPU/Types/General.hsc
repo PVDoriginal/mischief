@@ -484,7 +484,7 @@ data WGPUBindGroupLayoutEntry = WGPUBindGroupLayoutEntry {
   sampler :: WGPUSamplerBindingLayout, 
   texture :: WGPUTextureBindingLayout, 
   storageTexture :: WGPUStorageTextureBindingLayout
-}
+} 
 
 instance Storable WGPUBindGroupLayoutEntry where 
   alignment _ = #{alignment WGPUBindGroupLayoutEntry}

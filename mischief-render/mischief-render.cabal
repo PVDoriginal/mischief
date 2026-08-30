@@ -51,6 +51,7 @@ library
   exposed-modules:
     Mischief.Render
     Mischief.Render.Bind
+    Mischief.Render.Buffer
     Mischief.Render.Camera
     Mischief.Render.Core
     Mischief.Render.Image
@@ -58,13 +59,13 @@ library
     Mischief.Render.Plugin
     Mischief.Render.Shader
     Mischief.Render.Shader.Bindings
-    Mischief.Render.Shader.Singletons
+    Mischief.Render.Shader.Structure 
     Mischief.Render.Shader.Buffers
     Mischief.Render.Shader.Functions
     Mischief.Render.Shader.Params
+    Mischief.Render.Shader.Singletons
     Mischief.Render.Shader.State
     Mischief.Render.Shader.Types
-    Mischief.Render.Buffer
     Mischief.Render.Texture
     Mischief.WGPU
     Mischief.WGPU.Callbacks
