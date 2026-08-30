@@ -80,12 +80,6 @@ data VertexOutput f = VertexOutput
   }
   deriving (Generic, ShaderParam)
 
-newtype VertexInput f = VertexInput
-  { index :: BuiltIn f "vertex_index" U32
-  }
-  deriving stock (Generic)
-  deriving anyclass (ShaderParam)
-
 vertex :: Bindings GPU -> BIn "vertex_index" U32 -> Shader (VertexOutput GPU)
 vertex _ (BIn index) = do
   positions <- var $ array @3 (vec2f (-1, -1), vec2f (3, -1), vec2f (-1, 3))

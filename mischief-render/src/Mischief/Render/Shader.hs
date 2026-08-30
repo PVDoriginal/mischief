@@ -66,26 +66,35 @@ newtype FragmentOutput f = FragmentOutput (Location f 0 Vec4f)
 shaderToWGSL :: forall a. (ShaderParam a) => Shader (a GPU) -> Text
 shaderToWGSL (Shader s) = do
   let (a, ShaderState {ast}) = runState s ShaderState {counter = 0, ast = Empty}
-  let n = getName @a
-  let Values vs = collectValues a
-  let vst = map valueToWGSL vs
-  let ast' = Concat ast (Return (StructInit n vst))
+  let ast' = case (paramDefinition @a) of
+        StructParam n _ -> do
+          let Values vs = collectValues a
+          let vst = map valueToWGSL vs
+          Concat ast (Return (StructInit n vst))
+        AnonParam _ _ -> do
+          let Values [v] = collectValues a
+          Concat ast (Return (unwrapValue v))
   stmtToWGSL ast'
+
+unwrapValue :: forall a. Value -> Expr a
+unwrapValue (Value (a :: Expr b)) = unsafeCoerce a
 
 valueToWGSL :: Value -> Text
 valueToWGSL (Value (a :: Expr a)) = exprToWGSL a
 
-genFunction :: forall a. (ShaderParam a) => Text -> Text -> Shader (a GPU) -> Text
-genFunction name input s = "fn " <> name <> "(input" <> ": " <> input <> ") -> " <> getType @a "" <> " {\n" <> shaderToWGSL s <> "\n}"
+genFunction :: forall a. (ShaderParam a) => Text -> Text -> Text -> Shader (a GPU) -> Text
+genFunction name input output s = "fn " <> name <> "(" <> input <> ") -> " <> output <> " {\n" <> shaderToWGSL s <> "\n}"
 
-inputStructName :: Text -> Text -> Text
-inputStructName "" "" = ""
-inputStructName "" a = a
-inputStructName a "" = a
-inputStructName a _ = a
+genInput :: ParamDefinition -> Text
+genInput (StructParam name _) = "input: " <> name
+genInput (AnonParam n m) = n <> "input: " <> m
+
+genOutput :: ParamDefinition -> Text
+genOutput (StructParam name _) = name
+genOutput (AnonParam n m) = n <> m
 
 genShader :: forall p a b. (Bindable b, ShaderParam p, ShaderParam a) => Text -> (b GPU -> p GPU -> Shader (a GPU)) -> Text
-genShader tag s = genBindings (Proxy @b) <> genParams "InputStruct" (Proxy @p) <> genParams "" (Proxy @a) <> "@" <> tag <> "\n" <> genFunction "main" (inputStructName (getName @p) "InputStruct") (s dummyBinding dummyParam)
+genShader tag s = genBindings (Proxy @b) <> genParams (Proxy @p) <> genParams (Proxy @a) <> "@" <> tag <> "\n" <> genFunction "main" (genInput $ paramDefinition @p) (genOutput $ paramDefinition @a) (s dummyBinding dummyParam)
 
 genBindings :: forall b. (Bindable b) => Proxy b -> Text
 genBindings _ =
@@ -95,15 +104,12 @@ genBindings _ =
 genBinding :: BindingData -> Text
 genBinding BindingData {bType, index} = "@group(0) @binding(" <> T.pack (show index) <> ")\nvar b" <> T.pack (show index) <> " : " <> bType <> ";\n\n"
 
-genParams :: forall p. (ShaderParam p) => Text -> Proxy p -> Text
-genParams backup _ =
-  let Params x = collectParams @p
-      name = getName @p
-   in case name of
-        "" -> case backup of
-          "" -> ""
-          backup -> "struct " <> backup <> " {\n" <> T.concat (map genParam x) <> "};\n\n"
-        name -> "struct " <> name <> " {\n" <> T.concat (map genParam x) <> "};\n\n"
+genParams :: forall p. (ShaderParam p) => Proxy p -> Text
+genParams _ =
+  let definition = paramDefinition @p
+   in case definition of
+        StructParam name (Params params) -> "struct " <> name <> " {\n" <> T.concat (map genParam params) <> "};\n\n"
+        _ -> ""
 
 genParam :: ParamData -> Text
 genParam ParamData {pType, index = BuiltInKind s} = "  @builtin(" <> s <> ") " <> s <> " : " <> pType <> ",\n"

@@ -63,6 +63,7 @@ data Expr (a :: Types) where
   BuiltInVar :: (SingI a) => Text -> Expr a
   StructInit :: Text -> [Text] -> Expr a
   LocationVar :: (SingI a) => Integer -> Expr a
+  VarCustom :: Text -> Expr a
   Void :: (SingI a) => Expr a
 
 data Param where
@@ -233,6 +234,7 @@ exprToWGSL (BuiltInVar x) = "input." <> x
 exprToWGSL (LocationVar x) = "input.l" <> T.pack (show x)
 exprToWGSL (StructInit "" [p]) = p
 exprToWGSL (StructInit name params) = name <> "(" <> T.intercalate "," params <> ")"
+exprToWGSL (VarCustom t) = t
 
 stmtToWGSL :: Stmt -> Text
 stmtToWGSL Empty = ""

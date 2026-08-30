@@ -34,6 +34,9 @@ import Mischief.WGPU.Types.General
 
 newtype UniformBinding (n :: Nat) a = UniformBinding a
 
+type family DesugarExpr a where
+  DesugarExpr (Expr a) = a
+
 type family Uniform f (n :: Nat) a where
   Uniform Internal n b = UniformBinding n b
   Uniform CPU n Sampler = Sampler

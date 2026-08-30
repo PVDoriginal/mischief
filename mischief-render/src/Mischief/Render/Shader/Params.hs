@@ -19,6 +19,8 @@ data BuiltInParam (n :: Symbol) b = BuiltInParam
 
 data LocationParam (n :: Nat) b = LocationParam
 
+data ParamDefinition = StructParam Text Params | AnonParam Text Text
+
 type family BuiltIn a n b where
   BuiltIn Internal n b = BuiltInParam n b
   BuiltIn GPU n (Expr b) = Expr b
@@ -53,12 +55,8 @@ class (Typeable (a GPU)) => ShaderParam a where
   default collectParams :: (GCollectParams (Rep (a Internal))) => Params
   collectParams = gCollectParams @(Rep (a Internal))
 
-  getName :: Text
-  getName = T.map (\case ' ' -> '_'; n -> n) $ T.pack $ show (typeRep (Proxy @(a GPU)))
-
-  getType :: Text -> Text
-  getType "" = getName @a
-  getType n = n <> " : " <> getName @a
+  paramDefinition :: ParamDefinition
+  paramDefinition = StructParam (T.map (\case ' ' -> '_'; n -> n) $ T.pack $ show (typeRep (Proxy @(a GPU)))) (collectParams @a)
 
   -- collectValues :: a -> Values
   -- default collectValues :: (Generic a, ShaderParam' (Rep (a ))) => a -> Values
@@ -187,7 +185,8 @@ instance (GCollectValues f) => GCollectValues (M1 i t f) where
 newtype LocInternal n a f = Loc (Location f n a) deriving stock (Generic)
 
 instance
-  ( Typeable a,
+  ( SingI b,
+    Typeable a,
     Location GPU n a ~ Expr b,
     KnownNat n,
     CollectParam (LocationParam n a),
@@ -196,13 +195,18 @@ instance
       (Location GPU n a)
   ) =>
   ShaderParam (LocInternal n a)
+  where
+  paramDefinition = AnonParam ("@location(" <> T.pack (show $ natVal $ Proxy @n) <> ")") (typeToWGSL (undefined :: Expr b))
+
+  dummyParam = Loc $ VarCustom @b "input"
 
 type Loc n a = LocInternal n a GPU
 
 newtype BInInternal n a f = BIn (BuiltIn f n a) deriving stock (Generic)
 
 instance
-  ( Typeable a,
+  ( SingI b,
+    Typeable a,
     BuiltIn GPU n a ~ Expr b,
     KnownSymbol n,
     CollectParam (BuiltInParam n a),
@@ -211,5 +215,8 @@ instance
       (BuiltIn GPU n a)
   ) =>
   ShaderParam (BInInternal n a)
+  where
+  paramDefinition = AnonParam ("@builtin(" <> T.pack (symbolVal $ Proxy @n) <> ")") (typeToWGSL (undefined :: Expr b))
+  dummyParam = BIn $ VarCustom @b "input"
 
 type BIn n a = BInInternal n a GPU
