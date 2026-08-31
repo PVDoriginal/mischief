@@ -38,8 +38,8 @@ type family Field f a where
 type family ToCPU a where
   ToCPU I32 = Int
   ToCPU F32 = Float
-  ToCPU Vec3f = (Float, Float, Float)
   ToCPU Vec3i = (Int, Int, Int)
+  ToCPU Vec3f = (Float, Float, Float)
   ToCPU Vec4f = (Float, Float, Float, Float)
 
 type family AlignmentOf a where
@@ -65,9 +65,11 @@ newtype Offset = Offset Nat deriving newtype (Show, Num, Eq, Ord)
 newtype BufferStruct = BufferStruct [(Text, Text)]
 
 class Bufferable a where
-  dummyBuffer :: a GPU
-  default dummyBuffer :: (Generic (a GPU), GDummyBuffer (Rep (a GPU))) => a GPU
-  dummyBuffer = to $ gDummyBuffer @(Rep (a GPU)) ""
+  dummyBuffer :: Integer -> a GPU
+  default dummyBuffer :: (Generic (a GPU), GDummyBuffer (Rep (a GPU))) => Integer -> a GPU
+  dummyBuffer i =
+    let (x, _) = gDummyBuffer @(Rep (a GPU)) i 0
+     in to x
 
   getFields :: [(Text, Text)]
   default getFields :: (GGetFields (Rep (a GPU))) => [(Text, Text)]
@@ -95,7 +97,7 @@ roundTo16 x = roundTo16 (x + 4)
 
 roundTo16Pad :: Nat -> [(Text, Text)]
 roundTo16Pad x | x `mod` 16 == 0 = []
-roundTo16Pad x = ("pad", "f32") : roundTo16Pad (x + 4)
+roundTo16Pad x = ("p" <> T.pack (show x), "f32") : roundTo16Pad (x + 4)
 
 roundTo16Bytes :: Ptr Word8 -> Nat -> IO Nat
 roundTo16Bytes _ x | x `mod` 16 == 0 = pure x
@@ -139,7 +141,7 @@ instance {-# OVERLAPPING #-} (SingI a, KnownNat size, KnownNat alignment, SizeOf
     let alignment = fromIntegral $ natVal (Proxy @alignment)
         size = fromIntegral $ natVal (Proxy @size)
         t = addPadding (Offset offset) (Alignment alignment)
-     in (t <> [("var", typeToWGSL (undefined :: Expr a))], Offset $ offset + size + fromIntegral (length t) * 4)
+     in (t <> [("q" <> T.pack (show offset), typeToWGSL (undefined :: Expr a))], Offset $ offset + size + fromIntegral (length t) * 4)
 
 instance (GGetFields (Rep f)) => GGetFields (S1 a (K1 x f)) where
   gGetFields = gGetFields @(Rep f)
@@ -170,9 +172,6 @@ instance (GGetBytes f1 g1, GGetBytes f2 g2) => GGetBytes (f1 :*: f2) (g1 :*: g2)
 instance {-# OVERLAPPING #-} (GetBytes a (Expr b), SingI b, KnownNat size, KnownNat alignment, SizeOf (Expr b) ~ size, AlignmentOf (Expr b) ~ alignment) => GGetBytes (S1 u (K1 i a)) (S1 u (K1 i (Expr b))) where
   gGetBytes (M1 (K1 a)) ptr offset = do
     let alignment = fromIntegral $ natVal (Proxy @alignment)
-    -- let size = fromIntegral $ natVal (Proxy @size)
-    -- let t = addPadding (Offset offset) (Alignment alignment)
-
     offset' <- addPaddingBytes offset alignment ptr
     let bytes = getBytes @a @(Expr b) a
     addBytes bytes ptr offset'
@@ -213,28 +212,42 @@ instance GetBytes (Float, Float, Float, Float) Vec4f where
   getBytes (a, b, c, d) = word32ToWords8 (castFloatToWord32 a) ++ word32ToWords8 (castFloatToWord32 b) ++ word32ToWords8 (castFloatToWord32 c) ++ word32ToWords8 (castFloatToWord32 d)
 
 class GDummyBuffer f where
-  gDummyBuffer :: Text -> f p
+  gDummyBuffer :: Integer -> Offset -> (f p, Offset)
 
 instance GDummyBuffer V1 where
   gDummyBuffer = undefined
 
 instance GDummyBuffer U1 where
-  gDummyBuffer _ = U1
+  gDummyBuffer _ _ = (U1, 0)
 
 instance (GDummyBuffer f, GDummyBuffer g) => GDummyBuffer (f :*: g) where
-  gDummyBuffer text = gDummyBuffer @f text :*: gDummyBuffer @g text
+  gDummyBuffer index offset = do
+    let (f, offset') = gDummyBuffer @f index offset
+    let (g, offset'') = gDummyBuffer @g index offset'
+    (f :*: g, offset'')
 
-instance (KnownSymbol s, GDummyBuffer f) => GDummyBuffer (D1 (MetaData s a b c) f) where
-  gDummyBuffer text = M1 $ gDummyBuffer @f $ text <> "_" <> T.pack (symbolVal $ Proxy @s)
+instance (GDummyBuffer f) => GDummyBuffer (D1 (MetaData s a b c) f) where
+  gDummyBuffer index offset = do
+    let (f, offset') = gDummyBuffer @f index offset
+    (M1 f, offset')
 
-instance {-# OVERLAPPING #-} (KnownSymbol s) => GDummyBuffer (S1 (MetaSel (Just s) a b c) (K1 x (Expr d))) where
-  gDummyBuffer text = M1 $ K1 $ VarCustom $ text <> "_" <> T.pack (symbolVal $ Proxy @s)
+instance {-# OVERLAPPING #-} (KnownNat size, KnownNat alignment, SizeOf (Expr a) ~ size, AlignmentOf (Expr a) ~ alignment) => GDummyBuffer (S1 b (K1 x (Expr a))) where
+  gDummyBuffer index offset = do
+    let alignment = fromIntegral $ natVal (Proxy @alignment)
+    let size = fromIntegral $ natVal (Proxy @size)
+    let t = addPadding offset (Alignment alignment)
+    let offset' = offset + Offset (fromIntegral $ length t)
+    (M1 $ K1 $ VarCustom $ "b" <> T.pack (show index) <> ".q" <> T.pack (show offset), offset' + Offset (fromIntegral size))
 
-instance (KnownSymbol s, GDummyBuffer (Rep f), Generic f) => GDummyBuffer (S1 (MetaSel (Just s) a b c) (K1 x f)) where
-  gDummyBuffer text = M1 $ K1 $ to $ gDummyBuffer @(Rep f) (text <> "_" <> T.pack (symbolVal $ Proxy @s))
+instance {-# OVERLAPPABLE #-} (GDummyBuffer (Rep f), Generic f) => GDummyBuffer (S1 b (K1 x f)) where
+  gDummyBuffer x y =
+    let (a, o) = gDummyBuffer @(Rep f) x y
+     in (M1 $ K1 $ to a, o)
 
 instance (GDummyBuffer c) => GDummyBuffer (C1 i c) where
-  gDummyBuffer text = M1 $ gDummyBuffer @c text
+  gDummyBuffer x y =
+    let (a, o) = gDummyBuffer @c x y
+     in (M1 a, o)
 
 data Test f = Test
   { field1 :: Field f Vec3i,

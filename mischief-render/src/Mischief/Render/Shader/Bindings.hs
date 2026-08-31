@@ -274,8 +274,8 @@ instance (GDummyBinding a b) => GDummyBinding (M1 i t a) (M1 i t b) where
 instance (KnownNat n, SingI b) => DummyBinding (NormalBinding n a) (Expr b) where
   dummyBinding' = BindingVar (natVal (Proxy @n))
 
-instance (Buffers.Bufferable a) => DummyBinding (UniformBinding n (a Internal)) (a GPU) where
-  dummyBinding' = Buffers.dummyBuffer @a
+instance (Buffers.Bufferable a, KnownNat n) => DummyBinding (UniformBinding n (a Internal)) (a GPU) where
+  dummyBinding' = Buffers.dummyBuffer @a (natVal $ Proxy @n)
 
 -- instance (KnownNat n) => Bindable (UniformBinding n Sampler) where
 --   collectBindings _ = Bindings [BindingData {bType = T.pack "sampler", index = natVal (Proxy @n)}]
