@@ -72,7 +72,7 @@ renderCameras = do
   cameras <- [q|*CameraTexture, OutputTo -> (*RenderSurface, *RenderAdapter, *RenderDevice, *RenderQueue)|]
   for_ cameras $ \(CameraTexture Texture {texture}, (surface, adapter, device, queue)) -> do
     buffer <- createBuffer @Coord device
-    uploadBuffer queue buffer Coord {x = 6, y = 5}
+    uploadBuffer queue buffer Coord {x = 0.2, y = 0.1}
 
     format <- getFormat surface adapter
     withSurfaceTexture surface $ \output -> do
@@ -92,9 +92,7 @@ data VertexOutput f = VertexOutput
   deriving (Generic, ShaderParam)
 
 vertex :: Bindings GPU -> BIn "vertex_index" U32 -> Shader (VertexOutput GPU)
-vertex b (BIn index) = do
-  x <- var b.coord.x
-
+vertex _ (BIn index) = do
   positions <- var $ array @3 (vec2f (-1, -1), vec2f (3, -1), vec2f (-1, 3))
   let pos = positions `at` index
   pure $
@@ -111,7 +109,9 @@ data Bindings f = Bindings
   deriving (Generic, Bindable)
 
 fragment :: Bindings GPU -> VertexOutput GPU -> Shader (Loc 0 Vec4f)
-fragment b input = pure $ Loc $ sample b.tex b.sampler input.uv
+fragment b input = pure $ Loc $ sample b.tex b.sampler (input.uv + vec2 (b.coord.x, b.coord.y))
+
+-- fragment b input = pure $ Loc $ vec4 (b.coord.x, b.coord.y, 0, 1)
 
 -- type FullScreenMaterial = Material Bindings (BuiltIn "vertex_index" U32) VertexOutput (Location 0 Vec4f)
 

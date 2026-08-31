@@ -194,7 +194,8 @@ instance (GGetBytes f g) => GGetBytes (D1 a f) (D1 a' g) where
   gGetBytes (M1 a) = gGetBytes @f @g a
 
 word32ToWords8 :: Word32 -> [Word8]
-word32ToWords8 x = [fromIntegral (x `shiftR` 24), fromIntegral (x `shiftR` 16), fromIntegral (x `shiftR` 8), fromIntegral x]
+-- word32ToWords8 x = [fromIntegral (x `shiftR` 24), fromIntegral (x `shiftR` 16), fromIntegral (x `shiftR` 8), fromIntegral x]
+word32ToWords8 x = [fromIntegral x, fromIntegral (x `shiftR` 8), fromIntegral (x `shiftR` 16), fromIntegral (x `shiftR` 24)]
 
 instance GetBytes Int I32 where
   getBytes a = word32ToWords8 (fromIntegral a)
