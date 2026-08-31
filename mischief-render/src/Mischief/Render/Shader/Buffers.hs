@@ -1,57 +1,278 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
+
 module Mischief.Render.Shader.Buffers where
 
+import Control.Monad
+import Data.ByteString (ByteString)
+import Data.ByteString qualified as BS
 import Data.Data
+import Data.Foldable
+import Data.Singletons (SingI)
 import Data.Text (Text)
 import Data.Text qualified as T
+import Data.Traversable
 import Data.Vector.Storable (Vector)
 import Data.Vector.Storable qualified as VS
-import Foreign (Word8)
+import Foreign (Bits (shiftR), Ptr, Storable (peek, peekByteOff, peekElemOff, poke, pokeElemOff), Word32, Word8, free, mallocBytes, peekArray, pokeArray)
+import GHC.Float (castFloatToWord32)
 import GHC.Generics
-import GHC.TypeLits (KnownSymbol, symbolVal)
-import Mischief.Render.Shader.Types (Vec4f)
+import GHC.TypeLits (KnownNat, KnownSymbol, Nat, Symbol, natVal, symbolVal)
+import Mischief.ECS (System)
+import Mischief.Render.Shader.State
+import Mischief.Render.Shader.Types
+import Mischief.WGPU.Opaque (WGPUBuffer)
 
-data Structure = StructRoot Text [Structure] | StructField Field | StructNone deriving (Show)
+data Field' a = Field'
 
-data Field = Field Text Text deriving (Show)
+type family Field f a where
+  Field GPU a = a
+  Field CPU a = ToCPU a
+  Field Internal a = Field' a
 
-class (Typeable a) => Bufferable a where
-  bufferToWgsl :: Proxy a -> Structure
-  default bufferToWgsl :: (Bufferable' (Rep a)) => Proxy a -> Structure
-  bufferToWgsl _ = bufferToWgsl' (Proxy @(Rep a))
+type family ToCPU a where
+  ToCPU I32 = Int
+  ToCPU F32 = Float
+  ToCPU Vec3f = (Float, Float, Float)
+  ToCPU Vec3i = (Int, Int, Int)
+  ToCPU Vec4f = (Float, Float, Float, Float)
 
-class Bufferable' f where
-  bufferToWgsl' :: Proxy f -> Structure
+type family AlignmentOf a where
+  AlignmentOf I32 = 4
+  AlignmentOf F32 = 4
+  AlignmentOf Vec3i = 16
+  AlignmentOf Vec3f = 16
+  AlignmentOf Vec4f = 16
 
-instance Bufferable' V1 where
-  bufferToWgsl' _ = StructNone
+type family SizeOf a where
+  SizeOf I32 = 4
+  SizeOf F32 = 4
+  SizeOf Vec3i = 12
+  SizeOf Vec3f = 12
+  SizeOf Vec4f = 16
 
-instance Bufferable' U1 where
-  bufferToWgsl' _ = StructNone
+newtype Size = Size Nat deriving newtype (Show, Num, Eq, Ord)
 
-instance (Bufferable' f, Bufferable' g) => Bufferable' (f :*: g) where
-  bufferToWgsl' _ = StructNone
+newtype Alignment = Alignment Nat deriving newtype (Show, Num, Eq, Ord)
 
-instance (Bufferable c) => Bufferable' (K1 i c) where
-  bufferToWgsl' _ = StructNone
+newtype Offset = Offset Nat deriving newtype (Show, Num, Eq, Ord)
 
--- instance Bufferable' (M1 S (MetaSel s w w' w'') (K1 i c)) where
---   bufferToWgsl' = ""
+newtype Buffer a = Buffer (Ptr WGPUBuffer)
 
-instance (KnownSymbol name) => Bufferable' (D1 (MetaData name w w' w'') i) where
-  bufferToWgsl' _ = StructRoot (T.pack $ symbolVal (Proxy @name)) []
+newtype BufferStruct = BufferStruct [(Text, Text)]
 
--- instance (Bufferable' f) => Bufferable' (M1 i t f) where
---   bufferToWgsl' _ = StructNone
+class Bufferable a where
+  uploadBuffer :: a CPU -> System (Buffer a)
 
-type family BufferType a where
-  BufferType Vec4f = (Float, Float, Float, Float)
+  dummyBuffer :: a GPU
+  default dummyBuffer :: (Generic (a GPU), GDummyBuffer (Rep (a GPU))) => a GPU
+  dummyBuffer = to $ gDummyBuffer @(Rep (a GPU)) ""
 
-class ConvertBuffer gpu cpu | gpu -> cpu where
-  convertBuffer :: gpu -> cpu
+  getFields :: [(Text, Text)]
+  default getFields :: (GGetFields (Rep (a GPU))) => [(Text, Text)]
+  getFields =
+    let (t, Offset offset) = gGetFields @(Rep (a GPU)) 0
+        t' = roundTo16Pad offset
+     in t ++ t'
 
-data BufferTest = BufferText
-  {
+  getSize :: Int
+  default getSize :: (GGetFields (Rep (a GPU))) => Int
+  getSize =
+    let Offset offset = snd $ gGetFields @(Rep (a GPU)) 0
+     in fromIntegral $ roundTo16 offset
+
+  putBytes :: a CPU -> Ptr Word8 -> IO Int
+  default putBytes :: (GGetBytes (Rep (a CPU)) (Rep (a GPU)), Generic (a CPU)) => a CPU -> Ptr Word8 -> IO Int
+  putBytes a ptr = do
+    Offset x <- gGetBytes @(Rep (a CPU)) @(Rep (a GPU)) (from a) ptr 0
+    x' <- roundTo16Bytes ptr x
+    pure $ fromIntegral x'
+
+roundTo16 :: Nat -> Nat
+roundTo16 x | x `mod` 16 == 0 = x
+roundTo16 x = roundTo16 (x + 4)
+
+roundTo16Pad :: Nat -> [(Text, Text)]
+roundTo16Pad x | x `mod` 16 == 0 = []
+roundTo16Pad x = ("pad", "f32") : roundTo16Pad (x + 4)
+
+roundTo16Bytes :: Ptr Word8 -> Nat -> IO Nat
+roundTo16Bytes _ x | x `mod` 16 == 0 = pure x
+roundTo16Bytes ptr x = do
+  pokeElemOff ptr (fromIntegral x) 0
+  pokeElemOff ptr (fromIntegral x + 1) 0
+  pokeElemOff ptr (fromIntegral x + 2) 0
+  pokeElemOff ptr (fromIntegral x + 3) 0
+  roundTo16Bytes ptr (x + 4)
+
+addPadding :: Offset -> Alignment -> [(Text, Text)]
+addPadding (Offset x) (Alignment y) | x `mod` y == 0 = []
+addPadding x y = ("pad", "f32") : addPadding (x + 4) y
+
+addPaddingBytes :: Offset -> Alignment -> Ptr Word8 -> IO Offset
+addPaddingBytes (Offset x) (Alignment y) _ | x `mod` y == 0 = pure (Offset x)
+addPaddingBytes (Offset x) y ptr = do
+  pokeElemOff ptr (fromIntegral x + 0) 0
+  pokeElemOff ptr (fromIntegral x + 1) 0
+  pokeElemOff ptr (fromIntegral x + 2) 0
+  pokeElemOff ptr (fromIntegral x + 3) 0
+  addPaddingBytes (Offset $ x + 4) y ptr
+
+class GGetFields f where
+  gGetFields :: Offset -> ([(Text, Text)], Offset)
+
+instance GGetFields V1 where
+  gGetFields _ = undefined
+
+instance GGetFields U1 where
+  gGetFields _ = ([], 0)
+
+instance (GGetFields f, GGetFields g) => GGetFields (f :*: g) where
+  gGetFields offset =
+    let (t, offset') = gGetFields @f offset
+        (t2, offset'') = gGetFields @g $ offset'
+     in (t <> t2, offset'')
+
+instance {-# OVERLAPPING #-} (SingI a, KnownNat size, KnownNat alignment, SizeOf (Expr a) ~ size, AlignmentOf (Expr a) ~ alignment) => GGetFields (S1 u (K1 i (Expr a))) where
+  gGetFields (Offset offset) =
+    let alignment = fromIntegral $ natVal (Proxy @alignment)
+        size = fromIntegral $ natVal (Proxy @size)
+        t = addPadding (Offset offset) (Alignment alignment)
+     in (t <> [("var", typeToWGSL (undefined :: Expr a))], Offset $ offset + size + fromIntegral (length t) * 4)
+
+instance (GGetFields (Rep f)) => GGetFields (S1 a (K1 x f)) where
+  gGetFields = gGetFields @(Rep f)
+
+instance (GGetFields c) => GGetFields (C1 i c) where
+  gGetFields = gGetFields @c
+
+instance (GGetFields f) => GGetFields (D1 a f) where
+  gGetFields = gGetFields @f
+
+class GetBytes a b where
+  getBytes :: a -> [Word8]
+
+class GGetBytes f g where
+  gGetBytes :: f p -> Ptr Word8 -> Offset -> IO Offset
+
+instance GGetBytes V1 V1 where
+  gGetBytes _ _ _ = undefined
+
+instance GGetBytes U1 U1 where
+  gGetBytes _ _ _ = pure 0
+
+instance (GGetBytes f1 g1, GGetBytes f2 g2) => GGetBytes (f1 :*: f2) (g1 :*: g2) where
+  gGetBytes (a :*: b) ptr offset = do
+    offset' <- gGetBytes @f1 @g1 a ptr offset
+    gGetBytes @f2 @g2 b ptr offset'
+
+instance {-# OVERLAPPING #-} (GetBytes a (Expr b), SingI b, KnownNat size, KnownNat alignment, SizeOf (Expr b) ~ size, AlignmentOf (Expr b) ~ alignment) => GGetBytes (S1 u (K1 i a)) (S1 u (K1 i (Expr b))) where
+  gGetBytes (M1 (K1 a)) ptr offset = do
+    let alignment = fromIntegral $ natVal (Proxy @alignment)
+    -- let size = fromIntegral $ natVal (Proxy @size)
+    -- let t = addPadding (Offset offset) (Alignment alignment)
+
+    offset' <- addPaddingBytes offset alignment ptr
+    let bytes = getBytes @a @(Expr b) a
+    addBytes bytes ptr offset'
+
+addBytes :: [Word8] -> Ptr Word8 -> Offset -> IO Offset
+addBytes [] _ x = pure x
+addBytes (w : ws) ptr (Offset x) = do
+  pokeElemOff ptr (fromIntegral x) w
+  addBytes ws ptr (Offset $ x + 1)
+
+-- (t <> [("var", typeToWGSL (undefined :: Expr a))], Offset $ offset + size + fromIntegral (length t) * 4)
+
+instance (GGetBytes (Rep f) (Rep g), Generic f) => GGetBytes (S1 a (K1 x f)) (S1 a' (K1 x' g)) where
+  gGetBytes (M1 (K1 a)) = gGetBytes @(Rep f) @(Rep g) (from a)
+
+instance (GGetBytes f g) => GGetBytes (C1 i f) (C1 i' g) where
+  gGetBytes (M1 a) = gGetBytes @f @g a
+
+instance (GGetBytes f g) => GGetBytes (D1 a f) (D1 a' g) where
+  gGetBytes (M1 a) = gGetBytes @f @g a
+
+word32ToWords8 :: Word32 -> [Word8]
+word32ToWords8 x = [fromIntegral (x `shiftR` 24), fromIntegral (x `shiftR` 16), fromIntegral (x `shiftR` 8), fromIntegral x]
+
+instance GetBytes Int I32 where
+  getBytes a = word32ToWords8 (fromIntegral a)
+
+instance GetBytes Float F32 where
+  getBytes a = word32ToWords8 (castFloatToWord32 a)
+
+instance GetBytes (Int, Int, Int) Vec3i where
+  getBytes (a, b, c) = word32ToWords8 (fromIntegral a) ++ word32ToWords8 (fromIntegral b) ++ word32ToWords8 (fromIntegral c)
+
+instance GetBytes (Float, Float, Float) Vec3f where
+  getBytes (a, b, c) = word32ToWords8 (castFloatToWord32 a) ++ word32ToWords8 (castFloatToWord32 b) ++ word32ToWords8 (castFloatToWord32 c)
+
+instance GetBytes (Float, Float, Float, Float) Vec4f where
+  getBytes (a, b, c, d) = word32ToWords8 (castFloatToWord32 a) ++ word32ToWords8 (castFloatToWord32 b) ++ word32ToWords8 (castFloatToWord32 c) ++ word32ToWords8 (castFloatToWord32 d)
+
+class GDummyBuffer f where
+  gDummyBuffer :: Text -> f p
+
+instance GDummyBuffer V1 where
+  gDummyBuffer = undefined
+
+instance GDummyBuffer U1 where
+  gDummyBuffer _ = U1
+
+instance (GDummyBuffer f, GDummyBuffer g) => GDummyBuffer (f :*: g) where
+  gDummyBuffer text = gDummyBuffer @f text :*: gDummyBuffer @g text
+
+instance (KnownSymbol s, GDummyBuffer f) => GDummyBuffer (D1 (MetaData s a b c) f) where
+  gDummyBuffer text = M1 $ gDummyBuffer @f $ text <> "_" <> T.pack (symbolVal $ Proxy @s)
+
+instance {-# OVERLAPPING #-} (KnownSymbol s) => GDummyBuffer (S1 (MetaSel (Just s) a b c) (K1 x (Expr d))) where
+  gDummyBuffer text = M1 $ K1 $ VarCustom $ text <> "_" <> T.pack (symbolVal $ Proxy @s)
+
+instance (KnownSymbol s, GDummyBuffer (Rep f), Generic f) => GDummyBuffer (S1 (MetaSel (Just s) a b c) (K1 x f)) where
+  gDummyBuffer text = M1 $ K1 $ to $ gDummyBuffer @(Rep f) (text <> "_" <> T.pack (symbolVal $ Proxy @s))
+
+instance (GDummyBuffer c) => GDummyBuffer (C1 i c) where
+  gDummyBuffer text = M1 $ gDummyBuffer @c text
+
+data Test f = Test
+  { field1 :: Field f Vec3i,
+    field2 :: Field f I32,
+    test2 :: Test2 f
   }
   deriving (Generic, Bufferable)
 
-test = bufferToWgsl $ Proxy @BufferTest
+data Test2 f = Test2
+  { field3 :: Field f Vec3i,
+    field4 :: Field f I32,
+    field5 :: Field f I32
+  }
+  deriving (Generic, Bufferable)
+
+test2 :: IO ()
+test2 = do
+  let x :: Test CPU =
+        Test
+          { field1 = (5, 5, 5),
+            field2 = 10,
+            test2 =
+              Test2
+                { field3 = (6, 6, 6),
+                  field4 = 30,
+                  field5 = 20
+                }
+          }
+
+  let s = getSize @Test
+  ptr <- mallocBytes s
+
+  print s
+  x <- putBytes x ptr
+  print x
+
+  l <- for [0 .. s - 1] $ \i -> peekElemOff ptr i
+  print l
+
+  let y = getFields @Test
+  print y
+
+  free ptr
