@@ -3,6 +3,7 @@
 module Mischief.Render.Shader.Buffers where
 
 import Control.Monad
+import Control.Monad.IO.Class
 import Data.ByteString (ByteString)
 import Data.ByteString qualified as BS
 import Data.Data
@@ -13,14 +14,19 @@ import Data.Text qualified as T
 import Data.Traversable
 import Data.Vector.Storable (Vector)
 import Data.Vector.Storable qualified as VS
-import Foreign (Bits (shiftR), Ptr, Storable (peek, peekByteOff, peekElemOff, poke, pokeElemOff), Word32, Word8, free, mallocBytes, peekArray, pokeArray)
+import Foreign (Bits (shiftR), Ptr, Storable (peek, peekByteOff, peekElemOff, poke, pokeElemOff), Word32, Word8, free, mallocBytes, nullPtr, peekArray, pokeArray)
 import GHC.Float (castFloatToWord32)
 import GHC.Generics
 import GHC.TypeLits (KnownNat, KnownSymbol, Nat, Symbol, natVal, symbolVal)
 import Mischief.ECS (System)
 import Mischief.Render.Shader.State
 import Mischief.Render.Shader.Types
+import Mischief.WGPU (withWGPUString)
 import Mischief.WGPU.Opaque (WGPUBuffer)
+import Mischief.WGPU.Types.Enums (wGPUBufferUsage_Uniform, wgpuFalse)
+import Mischief.WGPU.Types.General qualified as TG
+
+-- import Mischief.WGPU.Types.General (WGPUBufferDescriptor (..))
 
 data Field' a = Field'
 
@@ -56,13 +62,9 @@ newtype Alignment = Alignment Nat deriving newtype (Show, Num, Eq, Ord)
 
 newtype Offset = Offset Nat deriving newtype (Show, Num, Eq, Ord)
 
-newtype Buffer a = Buffer (Ptr WGPUBuffer)
-
 newtype BufferStruct = BufferStruct [(Text, Text)]
 
 class Bufferable a where
-  uploadBuffer :: a CPU -> System (Buffer a)
-
   dummyBuffer :: a GPU
   default dummyBuffer :: (Generic (a GPU), GDummyBuffer (Rep (a GPU))) => a GPU
   dummyBuffer = to $ gDummyBuffer @(Rep (a GPU)) ""

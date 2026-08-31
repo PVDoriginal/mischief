@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# OPTIONS_GHC -Wno-partial-fields #-}
 
 module Mischief.Render.Shader.Bindings where
 
@@ -15,7 +16,9 @@ import Foreign.C.ConstPtr
 import GHC.Generics (Generic (Rep, from), K1 (K1), M1 (M1), U1 (U1), V1 (..), to, (:*:) ((:*:)))
 import GHC.TypeLits
 import Mischief.ECS (System)
+import Mischief.Render.Buffer (Buffer (..), BufferDescriptor (..))
 import Mischief.Render.Core
+import Mischief.Render.Shader.Buffers qualified as Buffers
 import Mischief.Render.Shader.Singletons
 import Mischief.Render.Shader.State
 import Mischief.Render.Shader.Types
@@ -34,16 +37,25 @@ import Mischief.WGPU.Types.General
 
 newtype UniformBinding (n :: Nat) a = UniformBinding a
 
+newtype NormalBinding (n :: nat) a = NormalBinding a
+
 type family DesugarExpr a where
   DesugarExpr (Expr a) = a
 
+type family Binding f (n :: Nat) a where
+  Binding Internal n b = NormalBinding n b
+  Binding CPU n Sampler = Sampler
+  Binding GPU n Sampler = Expr TSampler
+  Binding CPU n Texture = TextureView
+  Binding GPU n Texture = Expr TTexture
+
 type family Uniform f (n :: Nat) a where
   Uniform Internal n b = UniformBinding n b
-  Uniform CPU n Sampler = Sampler
-  Uniform GPU n Sampler = Expr TSampler
-  Uniform CPU n Texture = TextureView
-  Uniform GPU n Texture = Expr TTexture
-  Uniform GPU n (Expr b) = Expr b
+  Uniform CPU n (a b) = Buffer a
+  Uniform GPU n (Expr a) = Expr a
+  Uniform GPU n (a GPU) = a GPU
+
+-- Uniform CPU
 
 -- type family ToGpu a where
 --   T
@@ -56,10 +68,16 @@ type family AssociatedExpr a where
 -- instance (KnownNat n, SingI (AssociatedExpr a)) => Default (Binding n a) where
 --   def = Binding $ BindingVar (natVal (Proxy @n))
 
-data BindingData = BindingData
-  { bType :: Text,
-    index :: Integer
-  }
+data BindingData
+  = NormalData
+      { bType :: Text,
+        index :: Integer
+      }
+  | UniformData
+      { structName :: Text,
+        structFields :: [(Text, Text)],
+        index :: Integer
+      }
   deriving (Show)
 
 newtype Bindings = Bindings [BindingData] deriving newtype (Semigroup, Show)
@@ -111,8 +129,8 @@ instance (GCollectBindings f) => GCollectBindings (M1 i t f) where
   gCollectBindings _ = gCollectBindings (Proxy @f)
   gCollectLayouts _ = gCollectLayouts (Proxy @f)
 
-instance (KnownNat n) => CollectBindings (UniformBinding n Sampler) where
-  collectBinding _ = BindingData {bType = T.pack "sampler", index = natVal (Proxy @n)}
+instance (KnownNat n) => CollectBindings (NormalBinding n Sampler) where
+  collectBinding _ = NormalData {bType = T.pack "sampler", index = natVal (Proxy @n)}
   collectLayout _ =
     WGPUBindGroupLayoutEntry
       { nextInChain = nullPtr,
@@ -129,8 +147,8 @@ instance (KnownNat n) => CollectBindings (UniformBinding n Sampler) where
             }
       }
 
-instance (KnownNat n) => CollectBindings (UniformBinding n Texture) where
-  collectBinding _ = BindingData {bType = T.pack "texture_2d<f32>", index = natVal (Proxy @n)}
+instance (KnownNat n) => CollectBindings (NormalBinding n Texture) where
+  collectBinding _ = NormalData {bType = T.pack "texture_2d<f32>", index = natVal (Proxy @n)}
   collectLayout _ =
     WGPUBindGroupLayoutEntry
       { nextInChain = nullPtr,
@@ -147,6 +165,32 @@ instance (KnownNat n) => CollectBindings (UniformBinding n Texture) where
               viewDimension = wGPUTextureViewDimension_2D,
               nextInChain = nullPtr
             }
+      }
+
+instance (KnownNat n, Buffers.Bufferable a, Typeable a) => CollectBindings (UniformBinding n (a Internal)) where
+  collectBinding _ =
+    UniformData
+      { structName = T.pack $ show $ typeRep (Proxy @a),
+        structFields = Buffers.getFields @a,
+        index = natVal (Proxy @n)
+      }
+
+  collectLayout _ =
+    WGPUBindGroupLayoutEntry
+      { nextInChain = nullPtr,
+        binding = fromInteger (natVal (Proxy @n)),
+        visibility = wGPUShaderStage_Fragment,
+        bindingArraySize = 0,
+        buffer =
+          WGPUBufferBindingLayout
+            { nextInChain = nullPtr,
+              _type = wGPUBufferBindingType_Uniform,
+              hasDynamicOffset = wgpuFalse,
+              minBindingSize = fromIntegral $ Buffers.getSize @a
+            },
+        sampler = unusedSamplerLayout,
+        storageTexture = unusedStorageTextureLayout,
+        texture = unusedTextureLayout
       }
 
 class CollectEntry a n where
@@ -170,7 +214,7 @@ instance (CollectEntry c n) => GCollectEntries (K1 i c) (K1 i n) where
 instance (GCollectEntries f n) => GCollectEntries (M1 i t f) (M1 i t n) where
   gCollectEntries (M1 a) = gCollectEntries @f @n a
 
-instance (KnownNat n) => CollectEntry TextureView (UniformBinding n b) where
+instance (KnownNat n) => CollectEntry TextureView (NormalBinding n b) where
   collectEntry (TextureView textureView) =
     WGPUBindGroupEntry
       { binding = fromInteger $ natVal $ Proxy @n,
@@ -182,7 +226,7 @@ instance (KnownNat n) => CollectEntry TextureView (UniformBinding n b) where
         nextInChain = nullPtr
       }
 
-instance (KnownNat n) => CollectEntry Sampler (UniformBinding n b) where
+instance (KnownNat n) => CollectEntry Sampler (NormalBinding n b) where
   collectEntry (Sampler sampler) =
     WGPUBindGroupEntry
       { binding = fromInteger $ natVal $ Proxy @n,
@@ -191,6 +235,18 @@ instance (KnownNat n) => CollectEntry Sampler (UniformBinding n b) where
         offset = 0,
         sampler,
         buffer = nullPtr,
+        nextInChain = nullPtr
+      }
+
+instance (KnownNat n) => CollectEntry (Buffer a) (UniformBinding n b) where
+  collectEntry Buffer {buffer, desc = BufferDescriptor {size}} =
+    WGPUBindGroupEntry
+      { binding = fromInteger $ natVal $ Proxy @n,
+        textureView = nullPtr,
+        size = fromIntegral size,
+        offset = 0,
+        sampler = nullPtr,
+        buffer,
         nextInChain = nullPtr
       }
 
@@ -215,8 +271,11 @@ instance (DummyBinding a b) => GDummyBinding (K1 i a) (K1 i b) where
 instance (GDummyBinding a b) => GDummyBinding (M1 i t a) (M1 i t b) where
   gDummyBinding = M1 $ gDummyBinding @a @b
 
-instance (KnownNat n, SingI b) => DummyBinding (UniformBinding n a) (Expr b) where
+instance (KnownNat n, SingI b) => DummyBinding (NormalBinding n a) (Expr b) where
   dummyBinding' = BindingVar (natVal (Proxy @n))
+
+instance (Buffers.Bufferable a) => DummyBinding (UniformBinding n (a Internal)) (a GPU) where
+  dummyBinding' = Buffers.dummyBuffer @a
 
 -- instance (KnownNat n) => Bindable (UniformBinding n Sampler) where
 --   collectBindings _ = Bindings [BindingData {bType = T.pack "sampler", index = natVal (Proxy @n)}]

@@ -1,16 +1,18 @@
 module Mischief.Render.Buffer where
 
 import Control.Monad.IO.Class
-import Foreign (Ptr, nullPtr, with, (.|.))
+import Foreign (Ptr, allocaBytes, castPtr, nullPtr, with, (.|.))
 import Foreign.C.ConstPtr (ConstPtr (..))
 import Mischief.ECS.Prelude
 import Mischief.Render.Core
-import Mischief.WGPU (wgpuDeviceCreateBuffer, withWGPUString)
+import Mischief.Render.Shader.Buffers
+import Mischief.Render.Shader.State (CPU)
+import Mischief.WGPU (wgpuDeviceCreateBuffer, wgpuQueueWriteBuffer, withWGPUString)
 import Mischief.WGPU.Opaque (WGPUBuffer)
 import Mischief.WGPU.Types.Enums
 import Mischief.WGPU.Types.General
 
-data RenderBuffer = RenderBuffer {buffer :: Ptr WGPUBuffer, desc :: BufferDescriptor}
+data Buffer a = Buffer {buffer :: Ptr WGPUBuffer, desc :: BufferDescriptor}
 
 data BufferDescriptor = BufferDescriptor
   { label :: String,
@@ -49,8 +51,8 @@ usageBits = \case
 processUsages :: [BufferUsage] -> WGPUBufferUsage
 processUsages = foldr ((.|.) . usageBits) (WGPUBufferUsage (WGPUFlags 0))
 
-createBuffer :: RenderDevice -> BufferDescriptor -> System RenderBuffer
-createBuffer (RenderDevice device) descriptor = liftIO $ do
+createBuffer' :: RenderDevice -> BufferDescriptor -> System (Buffer a)
+createBuffer' (RenderDevice device) descriptor = liftIO $ do
   let BufferDescriptor {label, size, usages, mappedAtCreation} = descriptor
 
   withWGPUString label $ \label -> do
@@ -64,4 +66,21 @@ createBuffer (RenderDevice device) descriptor = liftIO $ do
             }
 
     buffer <- with desc $ wgpuDeviceCreateBuffer device . ConstPtr
-    pure $ RenderBuffer {buffer, desc = descriptor}
+    pure $ Buffer {buffer, desc = descriptor}
+
+createBuffer :: forall a. (Bufferable a) => RenderDevice -> System (Buffer a)
+createBuffer device = do
+  createBuffer'
+    device
+    BufferDescriptor
+      { label = "buffer",
+        size = getSize @a,
+        usages = [BufferUsageCopyDst, BufferUsageUniform],
+        mappedAtCreation = False
+      }
+
+uploadBuffer :: forall a. (Bufferable a) => RenderQueue -> Buffer a -> a CPU -> System ()
+uploadBuffer (RenderQueue queue) Buffer {buffer, desc = BufferDescriptor {size}} a = liftIO $ do
+  allocaBytes size $ \ptr -> do
+    _ <- putBytes a ptr
+    wgpuQueueWriteBuffer queue buffer 0 (ConstPtr $ castPtr ptr) (fromIntegral size)

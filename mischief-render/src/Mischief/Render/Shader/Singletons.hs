@@ -38,6 +38,7 @@ data Types where
   VectorType :: VecLength -> PrimitiveTypes -> Types
   TTexture :: Types
   TSampler :: Types
+  TVoid :: Types
   deriving (Eq)
 
 genSingletons [''PrimitiveTypes, ''VecLength, ''Types]

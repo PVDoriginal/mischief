@@ -43,8 +43,8 @@ test2 = do
   pure $ s + c
 
 data Binds f = Binds
-  { sampler :: Uniform f 0 Sampler,
-    texture :: Uniform f 1 Texture
+  { sampler :: Binding f 0 Sampler,
+    texture :: Binding f 1 Texture
   }
   deriving (Generic, Bindable)
 
@@ -102,7 +102,14 @@ genBindings _ =
    in T.concat (map genBinding x)
 
 genBinding :: BindingData -> Text
-genBinding BindingData {bType, index} = "@group(0) @binding(" <> T.pack (show index) <> ")\nvar b" <> T.pack (show index) <> " : " <> bType <> ";\n\n"
+genBinding NormalData {bType, index} = "@group(0) @binding(" <> T.pack (show index) <> ")\nvar b" <> T.pack (show index) <> " : " <> bType <> ";\n\n"
+genBinding UniformData {structName, structFields, index} =
+  "@group(0) @binding(" <> T.pack (show index) <> ")\nvar<uniform> b" <> T.pack (show index) <> " : " <> structName <> ";\n\n" <> genBuffer structName structFields
+
+genBuffer :: Text -> [(Text, Text)] -> Text
+genBuffer name fields =
+  let fields' = map (\(x, y) -> "  " <> x <> ": " <> y) fields
+   in "struct " <> name <> " {\n" <> T.intercalate ",\n" fields' <> "\n};\n\n"
 
 genParams :: forall p. (ShaderParam p) => Proxy p -> Text
 genParams _ =

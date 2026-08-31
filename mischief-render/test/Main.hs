@@ -12,12 +12,15 @@ import Data.Word
 import Foreign (Bits ((.|.)), Ptr, Storable (alignment, peek, poke, sizeOf), alloca, allocaBytes, castPtr, free, malloc, mallocBytes, nullPtr, with)
 import Foreign.C
 import Foreign.C.ConstPtr
+import GHC.Generics
 import Mischief.Assets (Image (..))
 import Mischief.ECS.Prelude
 import Mischief.ECS.Systems qualified as S
 import Mischief.Render.Camera
 import Mischief.Render.Core
 import Mischief.Render.Plugin
+import Mischief.Render.Shader.Buffers
+import Mischief.Render.Shader.Types
 import Mischief.Render.Texture
 import Mischief.SDL.Window
 import Mischief.WGPU

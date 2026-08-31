@@ -14,10 +14,12 @@ import Mischief.ECS.Prelude hiding (get, set)
 import Mischief.ECS.Relationships.Order (Before (..))
 import Mischief.ECS.Systems qualified as Systems
 import Mischief.Render.Bind
+import Mischief.Render.Buffer
 import Mischief.Render.Camera
 import Mischief.Render.Core
 import Mischief.Render.Material
 import Mischief.Render.Shader.Bindings hiding (Bindings)
+import Mischief.Render.Shader.Buffers (Bufferable, Field)
 import Mischief.Render.Shader.Functions (sample)
 import Mischief.Render.Shader.Params
 import Mischief.Render.Shader.Singletons
@@ -59,10 +61,19 @@ instance Plugin RenderPlugin where
 
   plugins _ = plug SDLPlugin
 
+data Coord f = Coord
+  { x :: Field f F32,
+    y :: Field f F32
+  }
+  deriving (Generic, Bufferable)
+
 renderCameras :: System ()
 renderCameras = do
   cameras <- [q|*CameraTexture, OutputTo -> (*RenderSurface, *RenderAdapter, *RenderDevice, *RenderQueue)|]
   for_ cameras $ \(CameraTexture Texture {texture}, (surface, adapter, device, queue)) -> do
+    buffer <- createBuffer @Coord device
+    uploadBuffer queue buffer Coord {x = 6, y = 5}
+
     format <- getFormat surface adapter
     withSurfaceTexture surface $ \output -> do
       let material = Material {vertex, fragment, format}
@@ -71,7 +82,7 @@ renderCameras = do
       sampler <- newSampler device
       tex <- liftIO $ wgpuTextureCreateView texture (ConstPtr nullPtr)
 
-      render device queue Bindings {tex = TextureView tex, sampler} material output
+      render device queue Bindings {tex = TextureView tex, sampler, coord = buffer} material output
       presentSurface surface
 
 data VertexOutput f = VertexOutput
@@ -81,7 +92,9 @@ data VertexOutput f = VertexOutput
   deriving (Generic, ShaderParam)
 
 vertex :: Bindings GPU -> BIn "vertex_index" U32 -> Shader (VertexOutput GPU)
-vertex _ (BIn index) = do
+vertex b (BIn index) = do
+  x <- var b.coord.x
+
   positions <- var $ array @3 (vec2f (-1, -1), vec2f (3, -1), vec2f (-1, 3))
   let pos = positions `at` index
   pure $
@@ -91,8 +104,9 @@ vertex _ (BIn index) = do
       }
 
 data Bindings f = Bindings
-  { tex :: Uniform f 0 Texture,
-    sampler :: Uniform f 1 Sampler
+  { tex :: Binding f 0 Texture,
+    sampler :: Binding f 1 Sampler,
+    coord :: Uniform f 2 (Coord f)
   }
   deriving (Generic, Bindable)
 
