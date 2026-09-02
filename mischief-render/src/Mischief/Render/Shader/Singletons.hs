@@ -32,13 +32,16 @@ data PrimitiveTypes = TInt | TFloat | TUInt deriving (Eq)
 
 data VecLength = VL2 | VL3 | VL4 deriving (Eq)
 
+data MatLength = ML2 | ML3 | ML4 deriving (Eq)
+
 data Types where
   Primitive :: PrimitiveTypes -> Types
   ArrayType :: Nat -> Types -> Types
   VectorType :: VecLength -> PrimitiveTypes -> Types
+  MatrixType :: MatLength -> VecLength -> Types
   TTexture :: Types
   TSampler :: Types
   TVoid :: Types
   deriving (Eq)
 
-genSingletons [''PrimitiveTypes, ''VecLength, ''Types]
+genSingletons [''PrimitiveTypes, ''VecLength, ''MatLength, ''Types]

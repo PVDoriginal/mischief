@@ -108,6 +108,51 @@ type Vec4i = Expr (VectorType VL4 TInt)
 
 type Vec4u = Expr (VectorType VL4 TUInt)
 
+type Mat2x2 = Expr (MatrixType ML2 VL2)
+
+type Mat2x3 = Expr (MatrixType ML3 VL2)
+
+type Mat2x4 = Expr (MatrixType ML4 VL2)
+
+type Mat3x2 = Expr (MatrixType ML2 VL3)
+
+type Mat3x3 = Expr (MatrixType ML3 VL3)
+
+type Mat3x4 = Expr (MatrixType ML4 VL3)
+
+type Mat4x2 = Expr (MatrixType ML2 VL4)
+
+type Mat4x3 = Expr (MatrixType ML3 VL4)
+
+type Mat4x4 = Expr (MatrixType ML4 VL4)
+
+mat2x2 :: MatInit ML2 VL2 -> Mat2x2
+mat2x2 = ConstantMat (Proxy @(MatrixType ML2 VL2))
+
+mat2x3 :: MatInit ML3 VL2 -> Mat2x3
+mat2x3 = ConstantMat (Proxy @(MatrixType ML3 VL2))
+
+mat2x4 :: MatInit ML4 VL2 -> Mat2x4
+mat2x4 = ConstantMat (Proxy @(MatrixType ML4 VL2))
+
+mat3x2 :: MatInit ML2 VL3 -> Mat3x2
+mat3x2 = ConstantMat (Proxy @(MatrixType ML2 VL3))
+
+mat3x3 :: MatInit ML3 VL3 -> Mat3x3
+mat3x3 = ConstantMat (Proxy @(MatrixType ML3 VL3))
+
+mat3x4 :: MatInit ML4 VL3 -> Mat3x4
+mat3x4 = ConstantMat (Proxy @(MatrixType ML4 VL3))
+
+mat4x2 :: MatInit ML2 VL4 -> Mat4x2
+mat4x2 = ConstantMat (Proxy @(MatrixType ML2 VL4))
+
+mat4x3 :: MatInit ML3 VL4 -> Mat4x3
+mat4x3 = ConstantMat (Proxy @(MatrixType ML3 VL4))
+
+mat4x4 :: MatInit ML4 VL4 -> Mat4x4
+mat4x4 = ConstantMat (Proxy @(MatrixType ML4 VL4))
+
 class (SingI b, SingI a) => Cast b a where
   cast :: Expr a -> Expr b
 

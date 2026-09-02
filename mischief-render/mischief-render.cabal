@@ -56,6 +56,7 @@ library
     Mischief.Render.Core
     Mischief.Render.Image
     Mischief.Render.Material
+    Mischief.Render.Sprite
     Mischief.Render.Plugin
     Mischief.Render.Shader
     Mischief.Render.Shader.Bindings

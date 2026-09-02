@@ -19,6 +19,8 @@ import GHC.Float (castFloatToWord32)
 import GHC.Generics
 import GHC.TypeLits (KnownNat, KnownSymbol, Nat, Symbol, natVal, symbolVal)
 import Mischief.ECS (System)
+import Mischief.Math.Vec qualified as Math
+import Mischief.Render.Shader.Singletons
 import Mischief.Render.Shader.State
 import Mischief.Render.Shader.Types
 import Mischief.WGPU (withWGPUString)
@@ -38,9 +40,12 @@ type family Field f a where
 type family ToCPU a where
   ToCPU I32 = Int
   ToCPU F32 = Float
-  ToCPU Vec3i = (Int, Int, Int)
-  ToCPU Vec3f = (Float, Float, Float)
-  ToCPU Vec4f = (Float, Float, Float, Float)
+  ToCPU (Expr (VectorType VL2 a)) = Math.V2 (ToCPU (Expr (Primitive a)))
+  ToCPU (Expr (VectorType VL3 a)) = Math.V3 (ToCPU (Expr (Primitive a)))
+  ToCPU (Expr (VectorType VL4 a)) = Math.V4 (ToCPU (Expr (Primitive a)))
+  ToCPU (Expr (MatrixType ML2 n)) = (ToCPU (Expr (VectorType n TFloat)), ToCPU (Expr (VectorType n TFloat)))
+  ToCPU (Expr (MatrixType ML3 n)) = (ToCPU (Expr (VectorType n TFloat)), ToCPU (Expr (VectorType n TFloat)), ToCPU (Expr (VectorType n TFloat)))
+  ToCPU (Expr (MatrixType ML4 n)) = (ToCPU (Expr (VectorType n TFloat)), ToCPU (Expr (VectorType n TFloat)), ToCPU (Expr (VectorType n TFloat)), ToCPU (Expr (VectorType n TFloat)))
 
 type family AlignmentOf a where
   AlignmentOf I32 = 4
@@ -48,6 +53,8 @@ type family AlignmentOf a where
   AlignmentOf Vec3i = 16
   AlignmentOf Vec3f = 16
   AlignmentOf Vec4f = 16
+  AlignmentOf (Expr (MatrixType n VL2)) = 8
+  AlignmentOf (Expr (MatrixType n m)) = 16
 
 type family SizeOf a where
   SizeOf I32 = 4
@@ -55,6 +62,14 @@ type family SizeOf a where
   SizeOf Vec3i = 12
   SizeOf Vec3f = 12
   SizeOf Vec4f = 16
+  SizeOf Mat2x2 = 16
+  SizeOf Mat3x2 = 24
+  SizeOf Mat4x2 = 32
+  SizeOf Mat3x3 = 48
+  SizeOf Mat4x3 = 64
+  SizeOf Mat2x4 = 32
+  SizeOf Mat3x4 = 48
+  SizeOf Mat4x4 = 64
 
 newtype Size = Size Nat deriving newtype (Show, Num, Eq, Ord)
 
@@ -152,8 +167,8 @@ instance (GGetFields c) => GGetFields (C1 i c) where
 instance (GGetFields f) => GGetFields (D1 a f) where
   gGetFields = gGetFields @f
 
-class GetBytes a b where
-  getBytes :: a -> [Word8]
+class GetBytes a where
+  getBytes :: ToCPU a -> [Word8]
 
 class GGetBytes f g where
   gGetBytes :: f p -> Ptr Word8 -> Offset -> IO Offset
@@ -169,11 +184,11 @@ instance (GGetBytes f1 g1, GGetBytes f2 g2) => GGetBytes (f1 :*: f2) (g1 :*: g2)
     offset' <- gGetBytes @f1 @g1 a ptr offset
     gGetBytes @f2 @g2 b ptr offset'
 
-instance {-# OVERLAPPING #-} (GetBytes a (Expr b), SingI b, KnownNat size, KnownNat alignment, SizeOf (Expr b) ~ size, AlignmentOf (Expr b) ~ alignment) => GGetBytes (S1 u (K1 i a)) (S1 u (K1 i (Expr b))) where
+instance {-# OVERLAPPING #-} (GetBytes (Expr b), SingI b, KnownNat size, KnownNat alignment, SizeOf (Expr b) ~ size, AlignmentOf (Expr b) ~ alignment, a ~ ToCPU (Expr b)) => GGetBytes (S1 u (K1 i a)) (S1 u (K1 i (Expr b))) where
   gGetBytes (M1 (K1 a)) ptr offset = do
     let alignment = fromIntegral $ natVal (Proxy @alignment)
     offset' <- addPaddingBytes offset alignment ptr
-    let bytes = getBytes @a @(Expr b) a
+    let bytes = getBytes @(Expr b) a
     addBytes bytes ptr offset'
 
 addBytes :: [Word8] -> Ptr Word8 -> Offset -> IO Offset
@@ -197,20 +212,29 @@ word32ToWords8 :: Word32 -> [Word8]
 -- word32ToWords8 x = [fromIntegral (x `shiftR` 24), fromIntegral (x `shiftR` 16), fromIntegral (x `shiftR` 8), fromIntegral x]
 word32ToWords8 x = [fromIntegral x, fromIntegral (x `shiftR` 8), fromIntegral (x `shiftR` 16), fromIntegral (x `shiftR` 24)]
 
-instance GetBytes Int I32 where
+instance GetBytes I32 where
   getBytes a = word32ToWords8 (fromIntegral a)
 
-instance GetBytes Float F32 where
+instance GetBytes F32 where
   getBytes a = word32ToWords8 (castFloatToWord32 a)
 
-instance GetBytes (Int, Int, Int) Vec3i where
-  getBytes (a, b, c) = word32ToWords8 (fromIntegral a) ++ word32ToWords8 (fromIntegral b) ++ word32ToWords8 (fromIntegral c)
+instance (GetBytes (Expr (Primitive b))) => GetBytes (Expr (VectorType VL2 b)) where
+  getBytes (Math.V2 a b) = getBytes @(Expr (Primitive b)) a ++ getBytes @(Expr (Primitive b)) b
 
-instance GetBytes (Float, Float, Float) Vec3f where
-  getBytes (a, b, c) = word32ToWords8 (castFloatToWord32 a) ++ word32ToWords8 (castFloatToWord32 b) ++ word32ToWords8 (castFloatToWord32 c)
+instance (GetBytes (Expr (Primitive b))) => GetBytes (Expr (VectorType VL3 b)) where
+  getBytes (Math.V3 a b c) = getBytes @(Expr (Primitive b)) a ++ getBytes @(Expr (Primitive b)) b ++ getBytes @(Expr (Primitive b)) c
 
-instance GetBytes (Float, Float, Float, Float) Vec4f where
-  getBytes (a, b, c, d) = word32ToWords8 (castFloatToWord32 a) ++ word32ToWords8 (castFloatToWord32 b) ++ word32ToWords8 (castFloatToWord32 c) ++ word32ToWords8 (castFloatToWord32 d)
+instance (GetBytes (Expr (Primitive b))) => GetBytes (Expr (VectorType VL4 b)) where
+  getBytes (Math.V4 a b c d) = getBytes @(Expr (Primitive b)) a ++ getBytes @(Expr (Primitive b)) b ++ getBytes @(Expr (Primitive b)) c ++ getBytes @(Expr (Primitive b)) d
+
+instance (GetBytes (Expr (VectorType a TFloat)), ToCPU (Expr (MatrixType ML2 a)) ~ (v0, v0)) => GetBytes (Expr (MatrixType ML2 a)) where
+  getBytes (a, b) = getBytes @(Expr (VectorType a TFloat)) a ++ getBytes @(Expr (VectorType a TFloat)) b
+
+instance (GetBytes (Expr (VectorType a TFloat)), ToCPU (Expr (MatrixType ML3 a)) ~ (v0, v0, v0)) => GetBytes (Expr (MatrixType ML3 a)) where
+  getBytes (a, b, c) = getBytes @(Expr (VectorType a TFloat)) a ++ getBytes @(Expr (VectorType a TFloat)) b ++ getBytes @(Expr (VectorType a TFloat)) c
+
+instance (GetBytes (Expr (VectorType a TFloat)), ToCPU (Expr (MatrixType ML3 a)) ~ (v0, v0, v0, v0)) => GetBytes (Expr (MatrixType ML4 a)) where
+  getBytes (a, b, c, d) = getBytes @(Expr (VectorType a TFloat)) a ++ getBytes @(Expr (VectorType a TFloat)) b ++ getBytes @(Expr (VectorType a TFloat)) c ++ getBytes @(Expr (VectorType a TFloat)) d
 
 class GDummyBuffer f where
   gDummyBuffer :: Integer -> Offset -> (f p, Offset)
@@ -253,6 +277,7 @@ instance (GDummyBuffer c) => GDummyBuffer (C1 i c) where
 data Test f = Test
   { field1 :: Field f Vec3i,
     field2 :: Field f I32,
+    fieldM :: Field f Mat2x2,
     test2 :: Test2 f
   }
   deriving (Generic, Bufferable)
@@ -264,31 +289,31 @@ data Test2 f = Test2
   }
   deriving (Generic, Bufferable)
 
-test2 :: IO ()
-test2 = do
-  let x :: Test CPU =
-        Test
-          { field1 = (5, 5, 5),
-            field2 = 10,
-            test2 =
-              Test2
-                { field3 = (6, 6, 6),
-                  field4 = 30,
-                  field5 = 20
-                }
-          }
+-- test2 :: IO ()
+-- test2 = do
+--   let x :: Test CPU =
+--         Test
+--           { field1 = Math.V3 5 5 5,
+--             field2 = 10,
+--             test2 =
+--               Test2
+--                 { field3 = Math.V3 6 6 6,
+--                   field4 = 30,
+--                   field5 = 20
+--                 }
+--           }
 
-  let s = getSize @Test
-  ptr <- mallocBytes s
+--   let s = getSize @Test
+--   ptr <- mallocBytes s
 
-  print s
-  x <- putBytes x ptr
-  print x
+--   print s
+--   x <- putBytes x ptr
+--   print x
 
-  l <- for [0 .. s - 1] $ \i -> peekElemOff ptr i
-  print l
+--   l <- for [0 .. s - 1] $ \i -> peekElemOff ptr i
+--   print l
 
-  let y = getFields @Test
-  print y
+--   let y = getFields @Test
+--   print y
 
-  free ptr
+--   free ptr

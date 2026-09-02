@@ -27,6 +27,22 @@ sample tex sampler v =
 unsafeCall :: (SingI a) => Text -> [Param] -> Expr a
 unsafeCall = Function
 
+-- Arithmetics
+
+type family MLtoVL a where
+  MLtoVL ML2 = VL2
+  MLtoVL ML3 = VL3
+  MLtoVL ML4 = VL4
+
+(^**) :: Expr (MatrixType n m) -> Expr (VectorType (MLtoVL n) TFloat) -> Expr (VectorType m TFloat)
+(^**) = CustomOperator "*"
+
+(**^) :: Expr (VectorType m TFloat) -> Expr (MatrixType n m) -> Expr (VectorType (MLtoVL n) TFloat)
+(**^) = CustomOperator "*"
+
+(***) :: Expr (MatrixType k r) -> Expr (MatrixType c (MLtoVL k)) -> Expr (MatrixType c r)
+(***) = CustomOperator "*"
+
 -- Numeric Functions
 
 abs :: (SingI a, IsAlgebric a ~ True) => Expr a -> Expr a

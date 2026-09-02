@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TypeAbstractions #-}
 
 module Mischief.Render.Shader.State where
 
@@ -12,7 +13,7 @@ import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Vector.Internal.Check
 import GHC.Generics
-import GHC.TypeLits (KnownNat, Nat, natVal)
+import GHC.TypeLits (KnownNat, Nat, natVal, type (-))
 import Mischief.ECS.Log (text)
 import Mischief.Render.Shader.Singletons
 import Unsafe.Coerce (unsafeCoerce)
@@ -56,6 +57,7 @@ data Expr (a :: Types) where
   ConstantUInt :: Int -> Expr (Primitive TUInt)
   ConstantArray :: forall (n :: Nat) (a' :: Types). (PrintArrayElements n a', SingI (ArrayType n a')) => Proxy (ArrayType n a') -> ArrayInit n a' -> Expr (ArrayType n a')
   ConstantVec :: forall (n :: VecLength) (a' :: PrimitiveTypes). (PrintVecElements n a', SingI (VectorType n a')) => Proxy (VectorType n a') -> VecInit n a' -> Expr (VectorType n a')
+  ConstantMat :: forall (n :: MatLength) (m :: VecLength). (PrintMatElements n m, SingI (MatrixType n m)) => Proxy (MatrixType n m) -> MatInit n m -> Expr (MatrixType n m)
   AccessField :: (SingI a) => Expr a -> Text -> Expr b
   Index :: (SingI (ArrayType n a)) => Expr (ArrayType n a) -> Expr (Primitive TUInt) -> Expr a
   Var :: (SingI a) => VarIndex -> Expr a
@@ -64,6 +66,7 @@ data Expr (a :: Types) where
   StructInit :: Text -> [Text] -> Expr a
   LocationVar :: (SingI a) => Integer -> Expr a
   VarCustom :: Text -> Expr a
+  CustomOperator :: Text -> Expr a -> Expr b -> Expr c
   Void :: (SingI a) => Expr a
 
 data Param where
@@ -118,6 +121,22 @@ instance (SingI (VectorType n a)) => Num (Expr (VectorType n a)) where
           _ -> undefined
   negate = Neg
 
+instance (SingI (MatrixType n m), PrintMatElements n m, SingI m) => Num (Expr (MatrixType n m)) where
+  (+) = Add
+  (*) = Mult
+  abs = Abs
+  signum = Signum
+  fromInteger i =
+    let t = demote @(MatrixType n m)
+     in -- v2 :: VecInit n
+        case t of
+          MatrixType ML2 _ -> unsafeCoerce $ ConstantMat (Proxy @(MatrixType ML2 m)) (fromInteger i, fromInteger i)
+          MatrixType ML3 _ -> unsafeCoerce $ ConstantMat (Proxy @(MatrixType ML3 m)) (fromInteger i, fromInteger i, fromInteger i)
+          MatrixType ML4 _ -> unsafeCoerce $ ConstantMat (Proxy @(MatrixType ML4 m)) (fromInteger i, fromInteger i, fromInteger i, fromInteger i)
+          _ -> undefined
+
+  negate = Neg
+
 instance Fractional (Expr (Primitive TFloat)) where
   fromRational = ConstantFloat . fromRational
   recip = Div 1
@@ -141,13 +160,13 @@ type family VecInit (n :: VecLength) (a :: PrimitiveTypes) where
 class PrintVecElements (n :: VecLength) (a :: PrimitiveTypes) where
   printVecElements :: VecInit n a -> Text
 
-instance (SingI a) => PrintVecElements VL2 a where
+instance PrintVecElements VL2 a where
   printVecElements (a, b) = exprToWGSL a <> ", " <> exprToWGSL b
 
-instance (SingI a) => PrintVecElements VL3 a where
+instance PrintVecElements VL3 a where
   printVecElements (a, b, c) = exprToWGSL a <> ", " <> exprToWGSL b <> ", " <> exprToWGSL c
 
-instance (SingI a) => PrintVecElements VL4 a where
+instance PrintVecElements VL4 a where
   printVecElements (a, b, c, d) = exprToWGSL a <> ", " <> exprToWGSL b <> ", " <> exprToWGSL c <> ", " <> exprToWGSL d
 
 type family ArrayInit (n :: Nat) (a :: Types) where
@@ -158,11 +177,31 @@ type family ArrayInit (n :: Nat) (a :: Types) where
 class PrintArrayElements (n :: Nat) (a :: Types) where
   printArrayElements :: ArrayInit n a -> Text
 
-instance (SingI a) => PrintArrayElements 2 a where
+instance PrintArrayElements 2 a where
   printArrayElements (a, b) = exprToWGSL a <> ", " <> exprToWGSL b
 
-instance (SingI a) => PrintArrayElements 3 a where
+instance PrintArrayElements 3 a where
   printArrayElements (a, b, c) = exprToWGSL a <> ", " <> exprToWGSL b <> ", " <> exprToWGSL c
+
+type family MatInit (n :: MatLength) (m :: VecLength) where
+  MatInit ML2 a = (Expr (VectorType a TFloat), Expr (VectorType a TFloat))
+  MatInit ML3 a = (Expr (VectorType a TFloat), Expr (VectorType a TFloat), Expr (VectorType a TFloat))
+  MatInit ML4 a = (Expr (VectorType a TFloat), Expr (VectorType a TFloat), Expr (VectorType a TFloat), Expr (VectorType a TFloat))
+
+class PrintMatElements (n :: MatLength) (m :: VecLength) where
+  printMatElements :: MatInit n m -> Text
+
+instance PrintMatElements ML2 n where
+  printMatElements (a, b) =
+    exprToWGSL a <> ", " <> exprToWGSL b
+
+instance PrintMatElements ML3 n where
+  printMatElements (a, b, c) =
+    exprToWGSL c <> ", " <> exprToWGSL b <> ", " <> exprToWGSL c
+
+instance PrintMatElements ML4 n where
+  printMatElements (a, b, c, d) =
+    exprToWGSL a <> ", " <> exprToWGSL b <> ", " <> exprToWGSL c <> ", " <> exprToWGSL d
 
 showArgs :: [Param] -> Text
 showArgs [] = ""
@@ -222,6 +261,19 @@ exprToWGSL (ConstantVec @n @a' (_ :: Proxy a) x) =
         VectorType VL4 TFloat -> "vec4<f32>(" <> elements <> ")"
         VectorType VL4 TUInt -> "vec4<u32>(" <> elements <> ")"
         _ -> undefined
+exprToWGSL (ConstantMat @n @m (_ :: Proxy a) x) =
+  let elements = printMatElements @n @m x
+   in case demote @a of
+        MatrixType ML2 VL2 -> "mat2x2<f32>(" <> elements <> ")"
+        MatrixType ML3 VL2 -> "mat2x3<f32>(" <> elements <> ")"
+        MatrixType ML4 VL2 -> "mat2x4<f32>(" <> elements <> ")"
+        MatrixType ML2 VL3 -> "mat3x2<f32>(" <> elements <> ")"
+        MatrixType ML3 VL3 -> "mat3x3<f32>(" <> elements <> ")"
+        MatrixType ML4 VL3 -> "mat3x4<f32>(" <> elements <> ")"
+        MatrixType ML2 VL4 -> "mat4x2<f32>(" <> elements <> ")"
+        MatrixType ML3 VL4 -> "mat4x3<f32>(" <> elements <> ")"
+        MatrixType ML4 VL4 -> "mat4x4<f32>(" <> elements <> ")"
+        _ -> undefined
 exprToWGSL (ConstantInt x) = T.pack $ show x <> "i"
 exprToWGSL (ConstantFloat x) = T.pack $ show x <> "f"
 exprToWGSL (ConstantUInt x) = T.pack $ show x <> "u"
@@ -234,6 +286,7 @@ exprToWGSL (BuiltInVar x) = "input." <> x
 exprToWGSL (LocationVar x) = "input.l" <> T.pack (show x)
 exprToWGSL (StructInit "" [p]) = p
 exprToWGSL (StructInit name params) = name <> "(" <> T.intercalate "," params <> ")"
+exprToWGSL (CustomOperator op a b) = "(" <> exprToWGSL a <> " " <> op <> " " <> exprToWGSL b <> ")"
 exprToWGSL (VarCustom t) = t
 
 stmtToWGSL :: Stmt -> Text

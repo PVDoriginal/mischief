@@ -61,28 +61,18 @@ instance Plugin RenderPlugin where
 
   plugins _ = plug SDLPlugin
 
-data Coord f = Coord
-  { x :: Field f F32,
-    y :: Field f F32
-  }
-  deriving (Generic, Bufferable)
-
 renderCameras :: System ()
 renderCameras = do
   cameras <- [q|*CameraTexture, OutputTo -> (*RenderSurface, *RenderAdapter, *RenderDevice, *RenderQueue)|]
   for_ cameras $ \(CameraTexture Texture {texture}, (surface, adapter, device, queue)) -> do
-    buffer <- createBuffer @Coord device
-    uploadBuffer queue buffer Coord {x = 0.2, y = 0.1}
-
     format <- getFormat surface adapter
     withSurfaceTexture surface $ \output -> do
       let material = Material {vertex, fragment, format}
 
-      -- sampler <- bindSampler =<< newSampler device
       sampler <- newSampler device
       tex <- liftIO $ wgpuTextureCreateView texture (ConstPtr nullPtr)
 
-      render device queue Bindings {tex = TextureView tex, sampler, coord = buffer} material output
+      render device queue Bindings {tex = TextureView tex, sampler} material output
       presentSurface surface
 
 data VertexOutput f = VertexOutput
@@ -103,13 +93,13 @@ vertex _ (BIn index) = do
 
 data Bindings f = Bindings
   { tex :: Binding f 0 Texture,
-    sampler :: Binding f 1 Sampler,
-    coord :: Uniform f 2 (Coord f)
+    sampler :: Binding f 1 Sampler
   }
   deriving (Generic, Bindable)
 
 fragment :: Bindings GPU -> VertexOutput GPU -> Shader (Loc 0 Vec4f)
-fragment b input = pure $ Loc $ sample b.tex b.sampler (input.uv + vec2 (b.coord.x, b.coord.y))
+fragment b input = do
+  pure $ Loc $ sample b.tex b.sampler input.uv
 
 -- fragment b input = pure $ Loc $ vec4 (b.coord.x, b.coord.y, 0, 1)
 

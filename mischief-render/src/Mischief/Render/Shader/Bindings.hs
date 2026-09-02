@@ -11,7 +11,7 @@ import Data.Singletons (SingI)
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Vector.Storable qualified as VS
-import Foreign (with)
+import Foreign (Bits ((.|.)), with)
 import Foreign.C.ConstPtr
 import GHC.Generics (Generic (Rep, from), K1 (K1), M1 (M1), U1 (U1), V1 (..), to, (:*:) ((:*:)))
 import GHC.TypeLits
@@ -135,7 +135,7 @@ instance (KnownNat n) => CollectBindings (NormalBinding n Sampler) where
     WGPUBindGroupLayoutEntry
       { nextInChain = nullPtr,
         binding = fromInteger (natVal (Proxy @n)),
-        visibility = wGPUShaderStage_Fragment,
+        visibility = wGPUShaderStage_Fragment .|. wGPUShaderStage_Vertex,
         bindingArraySize = 0,
         buffer = unusedBufferLayout,
         storageTexture = unusedStorageTextureLayout,
@@ -153,7 +153,7 @@ instance (KnownNat n) => CollectBindings (NormalBinding n Texture) where
     WGPUBindGroupLayoutEntry
       { nextInChain = nullPtr,
         binding = fromInteger (natVal (Proxy @n)),
-        visibility = wGPUShaderStage_Fragment,
+        visibility = wGPUShaderStage_Fragment .|. wGPUShaderStage_Vertex,
         bindingArraySize = 0,
         buffer = unusedBufferLayout,
         sampler = unusedSamplerLayout,
@@ -179,7 +179,7 @@ instance (KnownNat n, Buffers.Bufferable a, Typeable a) => CollectBindings (Unif
     WGPUBindGroupLayoutEntry
       { nextInChain = nullPtr,
         binding = fromInteger (natVal (Proxy @n)),
-        visibility = wGPUShaderStage_Fragment,
+        visibility = wGPUShaderStage_Fragment .|. wGPUShaderStage_Vertex,
         bindingArraySize = 0,
         buffer =
           WGPUBufferBindingLayout
