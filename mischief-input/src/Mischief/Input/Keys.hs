@@ -129,6 +129,7 @@ import Data.Foldable (for_)
 import Data.IORef
 import Data.Map (Map)
 import Data.Map qualified as Map
+import Foreign (toBool)
 import GHC.Generics
 import Mischief.ECS
 import Mischief.ECS.Messages qualified as Messages
@@ -163,7 +164,7 @@ justPressed scancode keys = case Map.lookup scancode keys.physical of
   _ -> False
 
 -- | Check if a key has been released this frame.
-justReleased :: SDL3.SDL_Scancode -> Result Keys -> Bool
+justReleased :: SDL3.SDL_Scancode -> Keys -> Bool
 justReleased scancode keys = case Map.lookup scancode keys.physical of
   Just JustReleased -> True
   _ -> False
@@ -199,7 +200,7 @@ instance Plugin KeysPlugin where
   init _ = do
     insertRes (def @Keys)
     insertRes (def @HotKeys)
-    Systems.add Update readEvents
+    Systems.add First readEvents
 
   plugins _ = plug SDLPlugin
 
@@ -214,15 +215,17 @@ readEvents = do
   processedKeys <- liftIO $ newIORef []
 
   for_ messages $ \(SDLMessage {eventType, event}) -> do
-    state <- liftIO $ getState event.scancode keys
-    let state' = updateState (Just eventType) state
-    liftIO $ setState state' (event.scancode, event.key) keys
+    unless (toBool event.repeat) $ do
+      state <- liftIO $ getState event.scancode keys
+      let state' = updateState (Just eventType) state
 
-    when (state' == JustReleased || state' == JustPressed) $
-      liftIO $
-        modifyIORef' hotKeys (++ [((event.scancode, event.key), state')])
+      liftIO $ setState state' (event.scancode, event.key) keys
 
-    liftIO $ modifyIORef' processedKeys (++ [(event.scancode, event.key)])
+      when (state' == JustReleased || state' == JustPressed) $
+        liftIO $
+          modifyIORef' hotKeys (++ [((event.scancode, event.key), state')])
+
+      liftIO $ modifyIORef' processedKeys (++ [(event.scancode, event.key)])
 
   Just (HotKeys oldHotKeys) <- res @HotKeys
   processedKeys <- liftIO $ readIORef processedKeys

@@ -53,9 +53,9 @@ renderSprites = do
 
         -- let (a, b, c, d) = mat.view
         -- let (a', b', c', d') = mat.projection
-        -- let x = (V4 (-10) (-10) 0 0 *! V4 a b c d) *! V4 a' b' c' d'
-        -- let y = (V4 30 (-10) 0 0 *! V4 a b c d) *! V4 a' b' c' d'
-        -- warn $ text x <> " - " <> text y
+        -- let x = (V4 (-10) (-10) 0 1 *! V4 a b c d) *! V4 a' b' c' d'
+        -- let y = (V4 30 (-10) 0 1 *! V4 a b c d) *! V4 a' b' c' d'
+        -- warn $ text x
 
         render device queue Bindings {matrices = buf, spritePos = buf'} material texture
 
@@ -87,7 +87,7 @@ vertex :: Bindings GPU -> BIn "vertex_index" U32 -> Shader (VertexOutput GPU)
 vertex b (BIn index) = do
   positions <- var $ array @3 (vec2f (-10, -10), vec2f (30, -10), vec2f (-10, 30))
   let pos' = (positions `at` index) + vec2 (b.spritePos.coords.x, b.spritePos.coords.y)
-  let pos = b.matrices.projection ^** (b.matrices.view ^** vec4 (pos'.x, pos'.y, 0, 0))
+  let pos = b.matrices.projection ^** (b.matrices.view ^** vec4 (pos'.x, pos'.y, 0, 1))
   pure $
     VertexOutput
       { pos = vec4 (pos.x, pos.y, 0, 1),
@@ -119,10 +119,10 @@ getCameraProjection Transform {translation = pos} = do
 
   let translation' =
         V4
-          (V4 1 0 0 (-pos.x))
-          (V4 0 1 0 (-pos.y))
-          (V4 0 0 1 (-pos.z))
-          (V4 0 0 0 1)
+          (V4 1 0 0 0)
+          (V4 0 1 0 0)
+          (V4 0 0 1 0)
+          (V4 (-pos.x) (-pos.y) (-pos.z) 1)
 
   let translation :: V4 (V4 Float) = rotation !*! translation'
 
