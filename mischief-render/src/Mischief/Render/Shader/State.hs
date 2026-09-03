@@ -316,6 +316,15 @@ typeToWGSL' a = case a of
   VectorType VL4 TFloat -> "vec4<f32>"
   VectorType VL4 TInt -> "vec4<i32>"
   VectorType VL4 TUInt -> "vec4<u32>"
+  MatrixType ML2 VL2 -> "mat2x2<f32>"
+  MatrixType ML2 VL3 -> "mat2x3<f32>"
+  MatrixType ML2 VL4 -> "mat2x4<f32>"
+  MatrixType ML3 VL2 -> "mat3x2<f32>"
+  MatrixType ML3 VL3 -> "mat3x3<f32>"
+  MatrixType ML3 VL4 -> "mat3x4<f32>"
+  MatrixType ML4 VL2 -> "mat4x2<f32>"
+  MatrixType ML4 VL3 -> "mat4x3<f32>"
+  MatrixType ML4 VL4 -> "mat4x4<f32>"
   _ -> undefined
 
 addStmt :: Stmt -> Shader ()

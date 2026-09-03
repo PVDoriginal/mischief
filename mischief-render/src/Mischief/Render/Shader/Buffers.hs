@@ -184,7 +184,7 @@ instance (GGetBytes f1 g1, GGetBytes f2 g2) => GGetBytes (f1 :*: f2) (g1 :*: g2)
     offset' <- gGetBytes @f1 @g1 a ptr offset
     gGetBytes @f2 @g2 b ptr offset'
 
-instance {-# OVERLAPPING #-} (GetBytes (Expr b), SingI b, KnownNat size, KnownNat alignment, SizeOf (Expr b) ~ size, AlignmentOf (Expr b) ~ alignment, a ~ ToCPU (Expr b)) => GGetBytes (S1 u (K1 i a)) (S1 u (K1 i (Expr b))) where
+instance {-# OVERLAPPING #-} (GetBytes (Expr b), KnownNat alignment, SizeOf (Expr b) ~ size, AlignmentOf (Expr b) ~ alignment, a ~ ToCPU (Expr b)) => GGetBytes (S1 u (K1 i a)) (S1 u (K1 i (Expr b))) where
   gGetBytes (M1 (K1 a)) ptr offset = do
     let alignment = fromIntegral $ natVal (Proxy @alignment)
     offset' <- addPaddingBytes offset alignment ptr
@@ -233,7 +233,7 @@ instance (GetBytes (Expr (VectorType a TFloat)), ToCPU (Expr (MatrixType ML2 a))
 instance (GetBytes (Expr (VectorType a TFloat)), ToCPU (Expr (MatrixType ML3 a)) ~ (v0, v0, v0)) => GetBytes (Expr (MatrixType ML3 a)) where
   getBytes (a, b, c) = getBytes @(Expr (VectorType a TFloat)) a ++ getBytes @(Expr (VectorType a TFloat)) b ++ getBytes @(Expr (VectorType a TFloat)) c
 
-instance (GetBytes (Expr (VectorType a TFloat)), ToCPU (Expr (MatrixType ML3 a)) ~ (v0, v0, v0, v0)) => GetBytes (Expr (MatrixType ML4 a)) where
+instance (GetBytes (Expr (VectorType a TFloat)), ToCPU (Expr (MatrixType ML4 a)) ~ (v0, v0, v0, v0)) => GetBytes (Expr (MatrixType ML4 a)) where
   getBytes (a, b, c, d) = getBytes @(Expr (VectorType a TFloat)) a ++ getBytes @(Expr (VectorType a TFloat)) b ++ getBytes @(Expr (VectorType a TFloat)) c ++ getBytes @(Expr (VectorType a TFloat)) d
 
 class GDummyBuffer f where

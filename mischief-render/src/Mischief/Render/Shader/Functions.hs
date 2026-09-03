@@ -27,6 +27,10 @@ sample tex sampler v =
 unsafeCall :: (SingI a) => Text -> [Param] -> Expr a
 unsafeCall = Function
 
+-- Binary
+(&) :: (IsAlgebric a ~ True, IsIntegral a ~ True) => Expr a -> Expr a -> Expr a
+(&) = CustomOperator "&"
+
 -- Arithmetics
 
 type family MLtoVL a where

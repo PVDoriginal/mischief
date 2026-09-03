@@ -68,6 +68,7 @@ library
     MagicHash
     NoFieldSelectors
     OverloadedRecordDot
+    OverloadedStrings
     RequiredTypeArguments
     TemplateHaskell
     TypeFamilyDependencies

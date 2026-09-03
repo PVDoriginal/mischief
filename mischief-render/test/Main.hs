@@ -5,6 +5,7 @@ import Control.Monad (forever, unless, void, when)
 import Control.Monad.IO.Class
 import Data.ByteString qualified as BS
 import Data.Data (Proxy (..))
+import Data.Default
 import Data.Foldable
 import Data.Vector qualified as V
 import Data.Vector.Storable qualified as VS
@@ -13,14 +14,21 @@ import Foreign (Bits ((.|.)), Ptr, Storable (alignment, peek, poke, sizeOf), all
 import Foreign.C
 import Foreign.C.ConstPtr
 import GHC.Generics
-import Mischief.Assets (Image (..))
+import Mischief.Assets (Image (..), load)
 import Mischief.ECS.Prelude
 import Mischief.ECS.Systems qualified as S
+import Mischief.Input (InputPlugin (InputPlugin))
+import Mischief.Input.Keys (Keys)
+import Mischief.Input.Keys qualified as Keys
+import Mischief.Math
+import Mischief.Math.Transform (Transform (..))
+import Mischief.Math.Transform qualified as Transform
 import Mischief.Render.Camera
 import Mischief.Render.Core
 import Mischief.Render.Plugin
 import Mischief.Render.Shader.Buffers
 import Mischief.Render.Shader.Types
+import Mischief.Render.Sprite
 import Mischief.Render.Texture
 import Mischief.SDL.Window
 import Mischief.WGPU
@@ -44,53 +52,36 @@ data MainPlugin = MainPlugin deriving (Eq)
 instance Plugin MainPlugin where
   init _ = do
     S.add Startup setup
+    S.add Update moveSprite
 
-  plugins _ = plug RenderPlugin
+  plugins _ = plug (RenderPlugin, SpritePlugin, InputPlugin)
 
 setup :: System ()
 setup = do
   window <- spawn (Name "Window", Window, WindowSize 700 500)
-  camera <- spawn (Camera, Rel OutputTo window)
+  camera <- spawn (Camera, Rel OutputTo window, def @Transform)
 
   Just (CameraTexture texture) <- [g|*CameraTexture|] camera
   Just queue <- [g|*RenderQueue|] window
   Right image <- liftIO $ P.readImage "test/rat.jpg"
   uploadImage queue (Image image) texture
 
--- uploadTexture :: Ptr WGPUQueue -> Ptr WGPUTexture -> IO ()
--- uploadTexture queue texture = do
---   image' <- loadRGBA8 "test/rat.jpg"
---   let image = scaleBilinear 700 500 image'
+  spriteImage <- load @Image "test/rat.jpg"
+  void $ spawn (Sprite spriteImage, def @Transform)
 
---   let pixels = imageBytes image
---   let extent = WGPUExtent3D (fromIntegral image.imageWidth) (fromIntegral image.imageHeight) 1
---   let copyInfo =
---         WGPUTexelCopyTextureInfo
---           { texture,
---             mipLevel = 0,
---             origin = WGPUOrigin3D 0 0 0,
---             aspect = wGPUTextureAspect_All
---           }
+moveSprite :: System ()
+moveSprite = do
+  Just sprite <- [s|Transform / With Sprite|]
+  Just keys <- res @Keys
 
---   let layout =
---         WGPUTexelCopyBufferLayout
---           { offset = 0,
---             bytesPerRow = 4 * fromIntegral image.imageWidth,
---             rowsPerImage = fromIntegral image.imageHeight
---           }
+  when (Keys.pressed Keys.A keys) $ do
+    modify sprite $ Transform.translate (V3 (-1) 0 0)
 
---   VS.unsafeWith (imageBytes image) $ \pixelPtr -> do
---     with extent $ \extent -> do
---       with copyInfo $ \copyInfo -> do
---         with layout $ \layout -> do
---           wgpuQueueWriteTexture queue (ConstPtr copyInfo) (ConstPtr $ castPtr pixelPtr) (fromIntegral $ VS.length pixels) (ConstPtr layout) (ConstPtr extent)
+  when (Keys.pressed Keys.D keys) $ do
+    modify sprite $ Transform.translate (V3 1 0 0)
 
--- loadRGBA8 :: FilePath -> IO (Image PixelRGBA8)
--- loadRGBA8 path = do
---   -- bytes <- BS.readFile path
---   -- let Right result = decodeImage bytes
---   Right result <- readImage path
---   pure $ convertRGBA8 result
+  when (Keys.pressed Keys.S keys) $ do
+    modify sprite $ Transform.translate (V3 0 (-1) 0)
 
--- imageBytes :: Image PixelRGBA8 -> VS.Vector Word8
--- imageBytes (Image _ _ pixels) = pixels
+  when (Keys.pressed Keys.W keys) $ do
+    modify sprite $ Transform.translate (V3 0 1 0)

@@ -56,17 +56,17 @@ library
     Mischief.Render.Core
     Mischief.Render.Image
     Mischief.Render.Material
-    Mischief.Render.Sprite
     Mischief.Render.Plugin
     Mischief.Render.Shader
     Mischief.Render.Shader.Bindings
-    Mischief.Render.Shader.Structure 
     Mischief.Render.Shader.Buffers
     Mischief.Render.Shader.Functions
     Mischief.Render.Shader.Params
     Mischief.Render.Shader.Singletons
     Mischief.Render.Shader.State
+    Mischief.Render.Shader.Structure
     Mischief.Render.Shader.Types
+    Mischief.Render.Sprite
     Mischief.Render.Texture
     Mischief.WGPU
     Mischief.WGPU.Callbacks
@@ -112,6 +112,7 @@ library
     data-default,
     JuicyPixels,
     JuicyPixels-extra,
+    linear,
     mischief-assets,
     mischief-ecs,
     mischief-math,
@@ -198,6 +199,8 @@ test-suite mischief-test
     JuicyPixels-extra,
     mischief-assets,
     mischief-ecs,
+    mischief-input,
+    mischief-math,
     mischief-render,
     mischief-sdl,
     mmap,

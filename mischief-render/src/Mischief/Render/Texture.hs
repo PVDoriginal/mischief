@@ -49,7 +49,7 @@ textureDescriptor =
       mipLevels = 1,
       samples = 1,
       format = wGPUTextureFormat_RGBA8Unorm,
-      usages = [TextureUsageTextureBinding, TextureUsageCopyDst]
+      usages = [TextureUsageTextureBinding, TextureUsageCopyDst, TextureUsageRenderAttachment]
     }
 
 data TextureUsage
@@ -124,3 +124,19 @@ uploadImage (RenderQueue queue) (Image image) (Texture {texture, desc = TextureD
       with copyInfo $ \copyInfo -> do
         with layout $ \layout -> do
           wgpuQueueWriteTexture queue (ConstPtr copyInfo) (ConstPtr $ castPtr pixelPtr) (fromIntegral $ VS.length bytes) (ConstPtr layout) (ConstPtr extent)
+
+createTextureForImage :: RenderDevice -> Image -> System Texture
+createTextureForImage device (Image image) = do
+  let (P.Image w h _) = P.convertRGBA8 image
+  createTexture
+    device
+    TextureDescriptor
+      { width = w,
+        height = h,
+        depth = 1,
+        label = "texture",
+        mipLevels = 1,
+        samples = 1,
+        format = wGPUTextureFormat_RGBA8Unorm,
+        usages = [TextureUsageTextureBinding, TextureUsageCopyDst]
+      }
