@@ -71,7 +71,7 @@ setup = do
 
 moveSprite :: System ()
 moveSprite = do
-  Just sprite <- [s|Transform / With Camera|]
+  Just sprite <- [s|Transform / With Sprite|]
   Just keys <- res @Keys
 
   when (Keys.pressed Keys.A keys) $ do

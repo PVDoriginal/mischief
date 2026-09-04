@@ -173,6 +173,8 @@ type family ArrayInit (n :: Nat) (a :: Types) where
   ArrayInit 2 a = (Expr a, Expr a)
   ArrayInit 3 a = (Expr a, Expr a, Expr a)
   ArrayInit 4 a = (Expr a, Expr a, Expr a, Expr a)
+  ArrayInit 5 a = (Expr a, Expr a, Expr a, Expr a, Expr a)
+  ArrayInit 6 a = (Expr a, Expr a, Expr a, Expr a, Expr a, Expr a)
 
 class PrintArrayElements (n :: Nat) (a :: Types) where
   printArrayElements :: ArrayInit n a -> Text
@@ -182,6 +184,15 @@ instance PrintArrayElements 2 a where
 
 instance PrintArrayElements 3 a where
   printArrayElements (a, b, c) = exprToWGSL a <> ", " <> exprToWGSL b <> ", " <> exprToWGSL c
+
+instance PrintArrayElements 4 a where
+  printArrayElements (a, b, c, d) = exprToWGSL a <> ", " <> exprToWGSL b <> ", " <> exprToWGSL c <> ", " <> exprToWGSL d
+
+instance PrintArrayElements 5 a where
+  printArrayElements (a, b, c, d, e) = exprToWGSL a <> ", " <> exprToWGSL b <> ", " <> exprToWGSL c <> ", " <> exprToWGSL d <> ", " <> exprToWGSL e
+
+instance PrintArrayElements 6 a where
+  printArrayElements (a, b, c, d, e, f) = exprToWGSL a <> ", " <> exprToWGSL b <> ", " <> exprToWGSL c <> ", " <> exprToWGSL d <> ", " <> exprToWGSL e <> ", " <> exprToWGSL f
 
 type family MatInit (n :: MatLength) (m :: VecLength) where
   MatInit ML2 a = (Expr (VectorType a TFloat), Expr (VectorType a TFloat))

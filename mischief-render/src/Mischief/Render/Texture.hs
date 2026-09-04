@@ -140,3 +140,6 @@ createTextureForImage device (Image image) = do
         format = wGPUTextureFormat_RGBA8Unorm,
         usages = [TextureUsageTextureBinding, TextureUsageCopyDst]
       }
+
+createView :: Texture -> System TextureView
+createView Texture {texture} = liftIO $ TextureView <$> wgpuTextureCreateView texture (ConstPtr nullPtr)

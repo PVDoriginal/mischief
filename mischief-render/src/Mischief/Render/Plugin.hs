@@ -67,7 +67,7 @@ renderCameras = do
   for_ cameras $ \(CameraTexture Texture {texture}, (surface, adapter, device, queue)) -> do
     format <- getFormat surface adapter
     withSurfaceTexture surface $ \output -> do
-      let material = Material {vertex, fragment, format}
+      let material = Material {vertex, fragment, format, draw = SimpleDraw 3}
 
       sampler <- newSampler device
       tex <- liftIO $ wgpuTextureCreateView texture (ConstPtr nullPtr)

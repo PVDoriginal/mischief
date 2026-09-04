@@ -9,6 +9,7 @@ import Data.Text qualified as T
 import Data.Text.Encoding qualified as T
 import Foreign (nullPtr, with)
 import Foreign.C.ConstPtr
+import GHC.TypeLits
 import Language.Haskell.TH (Extension (GADTSyntax))
 import Mischief.ECS.Prelude
 import Mischief.Render.Core
@@ -27,9 +28,12 @@ data Material bindings vIn vOut fOut where
   Material ::
     { vertex :: bindings GPU -> vIn GPU -> Shader (vOut GPU),
       fragment :: bindings GPU -> vOut GPU -> Shader (fOut GPU),
-      format :: TextureFormat
+      format :: TextureFormat,
+      draw :: DrawType
     } ->
     Material bindings vIn vOut fOut
+
+newtype DrawType = SimpleDraw {vertices :: Nat}
 
 createPipeline :: forall bindings vIn vOut fOut. (Bindable bindings, ShaderParam vIn, ShaderParam vOut, ShaderParam fOut) => RenderDevice -> Material bindings vIn vOut fOut -> IO Pipeline
 createPipeline (RenderDevice device) mat = do
@@ -156,7 +160,7 @@ render (RenderDevice device) (RenderQueue queue) b material (Texture {texture = 
 
   wgpuRenderPassEncoderSetPipeline renderPassEncoder pipeline
   wgpuRenderPassEncoderSetBindGroup renderPassEncoder 0 bindGroup 0 (ConstPtr nullPtr)
-  wgpuRenderPassEncoderDraw renderPassEncoder 3 1 0 0
+  wgpuRenderPassEncoderDraw renderPassEncoder (fromIntegral material.draw.vertices) 1 0 0
   wgpuRenderPassEncoderEnd renderPassEncoder
   wgpuRenderPassEncoderRelease renderPassEncoder
 
