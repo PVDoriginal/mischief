@@ -70,49 +70,66 @@ createPipeline (RenderDevice device) mat = do
               newWGPUPrimitiveState
                 { topology = wGPUPrimitiveTopology_TriangleList
                 }
-
-        let (TextureFormat format) = mat.format
-        let target =
-              WGPUColorTargetState
-                { nextInChain = nullPtr,
-                  format,
-                  blend = ConstPtr nullPtr,
-                  writeMask = wGPUColorWriteMask_All
-                }
-
-        let vertex =
-              newVertexState
-                { entryPoint = vertexEntry,
-                  _module = vertShader,
-                  _WGPUVertexState = Proxy
-                }
-
-        with target $ \target -> do
-          let fragment =
-                newFragmentState
-                  { entryPoint = fragmentEntry,
-                    _module = fragShader,
-                    _WGPUFragmentState = Proxy,
-                    targetCount = 1,
-                    targets = ConstPtr target
+        with blendState $ \blend -> do
+          let (TextureFormat format) = mat.format
+          let target =
+                WGPUColorTargetState
+                  { nextInChain = nullPtr,
+                    format,
+                    blend = ConstPtr blend,
+                    writeMask = wGPUColorWriteMask_All
                   }
 
-          with fragment $ \fragment -> do
-            let pipelineDesc =
-                  WGPURenderPipelineDescriptor
-                    { nextInChain = nullPtr,
-                      label,
-                      layout = pipelineLayout,
-                      vertex,
-                      multisample,
-                      primitive,
-                      fragment = ConstPtr fragment,
-                      depthStencil = ConstPtr nullPtr
+          let vertex =
+                newVertexState
+                  { entryPoint = vertexEntry,
+                    _module = vertShader,
+                    _WGPUVertexState = Proxy
+                  }
+
+          with target $ \target -> do
+            let fragment =
+                  newFragmentState
+                    { entryPoint = fragmentEntry,
+                      _module = fragShader,
+                      _WGPUFragmentState = Proxy,
+                      targetCount = 1,
+                      targets = ConstPtr target
                     }
 
-            with pipelineDesc $ \desc -> wgpuDeviceCreateRenderPipeline device desc
+            with fragment $ \fragment -> do
+              let pipelineDesc =
+                    WGPURenderPipelineDescriptor
+                      { nextInChain = nullPtr,
+                        label,
+                        layout = pipelineLayout,
+                        vertex,
+                        multisample,
+                        primitive,
+                        fragment = ConstPtr fragment,
+                        depthStencil = ConstPtr nullPtr
+                      }
+
+              with pipelineDesc $ \desc -> wgpuDeviceCreateRenderPipeline device desc
 
   pure $ Pipeline pipeline
+
+blendState :: WGPUBlendState
+blendState =
+  WGPUBlendState
+    { color =
+        WGPUBlendComponent
+          { srcFactor = wGPUBlendFactor_SrcAlpha,
+            dstFactor = wGPUBlendFactor_OneMinusSrcAlpha,
+            operation = wGPUBlendOperation_Add
+          },
+      alpha =
+        WGPUBlendComponent
+          { srcFactor = wGPUBlendFactor_One,
+            dstFactor = wGPUBlendFactor_OneMinusSrcAlpha,
+            operation = wGPUBlendOperation_Add
+          }
+    }
 
 render :: forall bindings vIn vOut fOut. (Bindable bindings, ShaderParam vIn, ShaderParam vOut, ShaderParam fOut) => RenderDevice -> RenderQueue -> bindings CPU -> Material bindings vIn vOut fOut -> Texture -> System ()
 render (RenderDevice device) (RenderQueue queue) b material (Texture {texture = output}) = liftIO $ do

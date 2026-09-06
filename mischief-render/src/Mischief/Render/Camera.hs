@@ -48,11 +48,12 @@ onAddCameraOutputTo (OnAddRel entity target) = updateCameraTexture entity target
 -- | Creates a new CameraTexture component that fits the targeted window.
 updateCameraTexture :: Entity -> Entity -> System ()
 updateCameraTexture camera window = do
-  window <- [g|*WindowSize, *RenderDevice|] window
+  Just device <- res @RenderDevice
+  window <- [g|*WindowSize|] window
   case window of
     Nothing -> warn "Camera output window not found."
-    Just (WindowSize width height, device) -> do
-      texture <- createTexture device (textureDescriptor {Texture.width, height})
+    Just (WindowSize width height) -> do
+      texture <- liftIO $ createTexture device (textureDescriptor {Texture.width, height})
       insert (CameraTexture texture) camera
       info "Created new camera texture!"
 

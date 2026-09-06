@@ -74,7 +74,7 @@ usageBits TextureUsageTransientAttachment = wGPUTextureUsage_TransientAttachment
 processUsages :: [TextureUsage] -> WGPUTextureUsage
 processUsages = foldr ((.|.) . usageBits) (WGPUTextureUsage (WGPUFlags 0))
 
-createTexture :: RenderDevice -> TextureDescriptor -> System Texture
+createTexture :: RenderDevice -> TextureDescriptor -> IO Texture
 createTexture (RenderDevice device) descriptor = liftIO $ do
   let TextureDescriptor {width, height, depth, label, mipLevels, samples, format, usages} = descriptor
   withWGPUString label $ \label -> do
@@ -99,8 +99,8 @@ getDimension (_, 1, 1) = wGPUTextureDimension_1D
 getDimension (_, _, 1) = wGPUTextureDimension_2D
 getDimension (_, _, _) = wGPUTextureDimension_3D
 
-uploadImage :: RenderQueue -> Image -> Texture -> System ()
-uploadImage (RenderQueue queue) (Image image) (Texture {texture, desc = TextureDescriptor {width, height}}) = liftIO $ do
+uploadImage :: RenderQueue -> Image -> Texture -> IO ()
+uploadImage (RenderQueue queue) (Image image) (Texture {texture, desc = TextureDescriptor {width, height}}) = do
   let (P.Image w h bytes) = scaleBilinear width height (P.convertRGBA8 image)
 
   let extent = WGPUExtent3D (fromIntegral w) (fromIntegral h) 1
@@ -125,7 +125,7 @@ uploadImage (RenderQueue queue) (Image image) (Texture {texture, desc = TextureD
         with layout $ \layout -> do
           wgpuQueueWriteTexture queue (ConstPtr copyInfo) (ConstPtr $ castPtr pixelPtr) (fromIntegral $ VS.length bytes) (ConstPtr layout) (ConstPtr extent)
 
-createTextureForImage :: RenderDevice -> Image -> System Texture
+createTextureForImage :: RenderDevice -> Image -> IO Texture
 createTextureForImage device (Image image) = do
   let (P.Image w h _) = P.convertRGBA8 image
   createTexture

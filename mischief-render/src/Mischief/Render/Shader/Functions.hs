@@ -7,13 +7,14 @@ module Mischief.Render.Shader.Functions where
 import Data.Data
 import Data.Singletons (SingI)
 import Data.Text (Text)
-import GHC.TypeLits
+import GHC.TypeLits hiding (Div)
 import Mischief.Render.Core
 import Mischief.Render.Shader.Bindings
 import Mischief.Render.Shader.Singletons
 import Mischief.Render.Shader.State
 import Mischief.Render.Shader.Types
 import Mischief.Render.Texture
+import Prelude hiding (max)
 
 sample :: Expr TTexture -> Expr TSampler -> Vec2f -> Vec4f
 sample tex sampler v =
@@ -27,25 +28,81 @@ sample tex sampler v =
 unsafeCall :: (SingI a) => Text -> [Param] -> Expr a
 unsafeCall = Function
 
+-- Comparisons
+maxAll :: (SingI a, IsAlgebric a ~ True) => [Expr a] -> Expr a
+maxAll [] = undefined
+maxAll [x] = x
+maxAll (x : (y : xs)) = max x (maxAll $ y : xs)
+
 -- Binary
 (&) :: (IsAlgebric a ~ True, IsIntegral a ~ True) => Expr a -> Expr a -> Expr a
 (&) = CustomOperator "&"
 
 -- Arithmetics
 
-type family MLtoVL a where
-  MLtoVL ML2 = VL2
-  MLtoVL ML3 = VL3
-  MLtoVL ML4 = VL4
+class Add a b c | a b -> c where
+  (+.) :: Expr a -> Expr b -> Expr c
+  (+.) = CustomOperator "+"
 
-(^**) :: Expr (MatrixType n m) -> Expr (VectorType (MLtoVL n) TFloat) -> Expr (VectorType m TFloat)
-(^**) = CustomOperator "*"
+instance {-# OVERLAPPABLE #-} (IsAlgebric a ~ True) => Add a a a
 
-(**^) :: Expr (VectorType m TFloat) -> Expr (MatrixType n m) -> Expr (VectorType (MLtoVL n) TFloat)
-(**^) = CustomOperator "*"
+instance Add (VectorType n a) (Primitive a) (VectorType n a)
 
-(***) :: Expr (MatrixType k r) -> Expr (MatrixType c (MLtoVL k)) -> Expr (MatrixType c r)
-(***) = CustomOperator "*"
+instance Add (Primitive a) (VectorType n a) (VectorType n a)
+
+instance Add (MatrixType n m) (MatrixType n m) (MatrixType n m)
+
+class Minus a b c | a b -> c where
+  (-.) :: Expr a -> Expr b -> Expr c
+  (-.) = CustomOperator "-"
+
+instance {-# OVERLAPPABLE #-} (IsAlgebric a ~ True) => Minus a a a
+
+instance Minus (VectorType n a) (Primitive a) (VectorType n a)
+
+instance Minus (Primitive a) (VectorType n a) (VectorType n a)
+
+instance Minus (MatrixType n m) (MatrixType n m) (MatrixType n m)
+
+class Mult a b c | a b -> c where
+  (*.) :: Expr a -> Expr b -> Expr c
+  (*.) = CustomOperator "*"
+
+instance {-# OVERLAPPABLE #-} (IsAlgebric a ~ True) => Mult a a a
+
+instance Mult (MatrixType n m) (VectorType n TFloat) (VectorType m TFloat)
+
+instance Mult (VectorType m TFloat) (MatrixType n m) (VectorType n TFloat)
+
+instance Mult (MatrixType k r) (MatrixType c k) (MatrixType c r)
+
+instance Mult (MatrixType n m) (Primitive TFloat) (MatrixType n m)
+
+instance Mult (Primitive TFloat) (MatrixType n m) (MatrixType n m)
+
+instance Mult (VectorType n a) (Primitive a) (VectorType n a)
+
+instance Mult (Primitive a) (VectorType n a) (VectorType n a)
+
+class Div a b c | a b -> c where
+  (/.) :: Expr a -> Expr b -> Expr c
+  (/.) = CustomOperator "#"
+
+instance {-# OVERLAPPABLE #-} (IsAlgebric a ~ True) => Div a a a
+
+instance Div (VectorType n a) (Primitive a) (VectorType n a)
+
+instance Div (Primitive a) (VectorType n a) (VectorType n a)
+
+class Modulo a b c | a b -> c where
+  (%.) :: Expr a -> Expr b -> Expr c
+  (%.) = CustomOperator "%"
+
+instance {-# OVERLAPPABLE #-} (IsIntegral a ~ True) => Modulo a a a
+
+instance (IsIntegral (VectorType n a) ~ True, IsIntegral (Primitive a) ~ True) => Modulo (VectorType n a) (Primitive a) (VectorType n a)
+
+instance (IsIntegral (VectorType n a) ~ True, IsIntegral (Primitive a) ~ True) => Modulo (Primitive a) (VectorType n a) (VectorType n a)
 
 -- Numeric Functions
 
@@ -100,7 +157,8 @@ cross a b = Function "cross" [Param a, Param b]
 degrees :: (SingI a, Fractional (Expr a)) => Expr a -> Expr a
 degrees x = Function "degrees" [Param x]
 
--- TODO: determinant (matrix)
+determinant :: (SingI n) => Expr (MatrixType n n) -> F32
+determinant x = Function "determinant" [Param x]
 
 distance :: (SingI a, Fractional (Expr a), VectorOrSingleOf a ~ b) => Expr a -> Expr a -> Expr (Primitive b)
 distance a b = Function "distance" [Param a, Param b]
@@ -228,7 +286,8 @@ tan a = Function "tan" [Param a]
 tanh :: (SingI a, Fractional (Expr a)) => Expr a -> Expr a
 tanh a = Function "tanh" [Param a]
 
--- TODO: transpose (matrix)
+transpose :: (SingI n, SingI m) => Expr (MatrixType n m) -> Expr (MatrixType m n)
+transpose a = Function "tranpose" [Param a]
 
 trunc :: (SingI a, Fractional (Expr a)) => Expr a -> Expr a
 trunc a = Function "trunc" [Param a]

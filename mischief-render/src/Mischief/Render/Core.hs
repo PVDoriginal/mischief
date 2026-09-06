@@ -4,6 +4,7 @@ import Control.Monad
 import Control.Monad.IO.Class
 import Data.ByteString qualified as BS
 import Data.Default (Default)
+import Data.Maybe (isNothing)
 import Data.Primitive (Ptr)
 import Data.Primitive.Ptr (nullPtr)
 import Foreign (Storable (peek), castPtr, free, malloc, with)
@@ -76,9 +77,21 @@ onAddWindow (OnAdd entity) = do
 
   when (surface == nullPtr) $ error "Couldn't create WGPU surface."
 
-  adapter <- liftIO $ wgpuInstanceRequestAdapter wgpuInstance surface
-  device <- liftIO $ wgpuAdapterRequestDevice adapter
-  queue <- liftIO $ wgpuDeviceGetQueue device
+  tryAdapter <- res @RenderAdapter
+  (adapter, device, _) <- case tryAdapter of
+    Just (RenderAdapter adapter) -> do
+      Just (RenderDevice device) <- res @RenderDevice
+      Just (RenderQueue queue) <- res @RenderQueue
+      pure (adapter, device, queue)
+    Nothing -> do
+      adapter <- liftIO $ wgpuInstanceRequestAdapter wgpuInstance surface
+      device <- liftIO $ wgpuAdapterRequestDevice adapter
+      queue <- liftIO $ wgpuDeviceGetQueue device
+
+      insertRes (RenderAdapter adapter)
+      insertRes (RenderDevice device)
+      insertRes (RenderQueue queue)
+      pure (adapter, device, queue)
 
   surfaceCapabilities <- liftIO $ malloc @WGPUSurfaceCapabilities
   liftIO $ wgpuSurfaceGetCapabilities surface adapter surfaceCapabilities
@@ -104,7 +117,7 @@ onAddWindow (OnAdd entity) = do
   liftIO $ with config $ \config -> do
     wgpuSurfaceConfigure surface (ConstPtr config)
 
-  insert (RenderSurface surface, RenderAdapter adapter, RenderDevice device, RenderQueue queue) entity
+  insert (RenderSurface surface) entity
 
 -- | Maps a SDL driver name and window to the correct surface texture for WGPU.
 --
@@ -147,3 +160,10 @@ newtype Pipeline = Pipeline (Ptr WGPURenderPipeline)
 newtype TextureFormat = TextureFormat WGPUTextureFormat
 
 newtype Sampler = Sampler (Ptr WGPUSampler)
+
+getRenderingResources :: System (Maybe (RenderAdapter, RenderDevice, RenderQueue))
+getRenderingResources = do
+  adapter <- res @RenderAdapter
+  device <- res @RenderDevice
+  queue <- res @RenderQueue
+  pure $ (,,) <$> adapter <*> device <*> queue

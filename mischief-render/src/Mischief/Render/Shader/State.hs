@@ -33,6 +33,8 @@ nameIndex i = "v" <> T.pack (show i)
 data Stmt where
   Concat :: Stmt -> Stmt -> Stmt
   Let :: VarIndex -> Expr a -> Stmt
+  -- Assign :: VarIndex -> Expr a
+  -- VLet :: VarIndex -> Expr a -> Stmt
   Return :: Expr a -> Stmt
   Empty :: Stmt
 
@@ -57,7 +59,7 @@ data Expr (a :: Types) where
   ConstantUInt :: Int -> Expr (Primitive TUInt)
   ConstantArray :: forall (n :: Nat) (a' :: Types). (PrintArrayElements n a', SingI (ArrayType n a')) => Proxy (ArrayType n a') -> ArrayInit n a' -> Expr (ArrayType n a')
   ConstantVec :: forall (n :: VecLength) (a' :: PrimitiveTypes). (PrintVecElements n a', SingI (VectorType n a')) => Proxy (VectorType n a') -> VecInit n a' -> Expr (VectorType n a')
-  ConstantMat :: forall (n :: MatLength) (m :: VecLength). (PrintMatElements n m, SingI (MatrixType n m)) => Proxy (MatrixType n m) -> MatInit n m -> Expr (MatrixType n m)
+  ConstantMat :: forall (n :: VecLength) (m :: VecLength). (PrintMatElements n m, SingI (MatrixType n m)) => Proxy (MatrixType n m) -> MatInit n m -> Expr (MatrixType n m)
   AccessField :: (SingI a) => Expr a -> Text -> Expr b
   Index :: (SingI (ArrayType n a)) => Expr (ArrayType n a) -> Expr (Primitive TUInt) -> Expr a
   Var :: (SingI a) => VarIndex -> Expr a
@@ -68,6 +70,8 @@ data Expr (a :: Types) where
   VarCustom :: Text -> Expr a
   CustomOperator :: Text -> Expr a -> Expr b -> Expr c
   Void :: (SingI a) => Expr a
+  ConstantBool :: Bool -> Expr TBool
+  If :: Expr TBool -> Expr a -> Expr a -> Expr a
 
 data Param where
   Param :: (SingI a) => Expr a -> Param
@@ -130,9 +134,9 @@ instance (SingI (MatrixType n m), PrintMatElements n m, SingI m) => Num (Expr (M
     let t = demote @(MatrixType n m)
      in -- v2 :: VecInit n
         case t of
-          MatrixType ML2 _ -> unsafeCoerce $ ConstantMat (Proxy @(MatrixType ML2 m)) (fromInteger i, fromInteger i)
-          MatrixType ML3 _ -> unsafeCoerce $ ConstantMat (Proxy @(MatrixType ML3 m)) (fromInteger i, fromInteger i, fromInteger i)
-          MatrixType ML4 _ -> unsafeCoerce $ ConstantMat (Proxy @(MatrixType ML4 m)) (fromInteger i, fromInteger i, fromInteger i, fromInteger i)
+          MatrixType VL2 _ -> unsafeCoerce $ ConstantMat (Proxy @(MatrixType VL2 m)) (fromInteger i, fromInteger i)
+          MatrixType VL3 _ -> unsafeCoerce $ ConstantMat (Proxy @(MatrixType VL3 m)) (fromInteger i, fromInteger i, fromInteger i)
+          MatrixType VL4 _ -> unsafeCoerce $ ConstantMat (Proxy @(MatrixType VL4 m)) (fromInteger i, fromInteger i, fromInteger i, fromInteger i)
           _ -> undefined
 
   negate = Neg
@@ -194,23 +198,23 @@ instance PrintArrayElements 5 a where
 instance PrintArrayElements 6 a where
   printArrayElements (a, b, c, d, e, f) = exprToWGSL a <> ", " <> exprToWGSL b <> ", " <> exprToWGSL c <> ", " <> exprToWGSL d <> ", " <> exprToWGSL e <> ", " <> exprToWGSL f
 
-type family MatInit (n :: MatLength) (m :: VecLength) where
-  MatInit ML2 a = (Expr (VectorType a TFloat), Expr (VectorType a TFloat))
-  MatInit ML3 a = (Expr (VectorType a TFloat), Expr (VectorType a TFloat), Expr (VectorType a TFloat))
-  MatInit ML4 a = (Expr (VectorType a TFloat), Expr (VectorType a TFloat), Expr (VectorType a TFloat), Expr (VectorType a TFloat))
+type family MatInit (n :: VecLength) (m :: VecLength) where
+  MatInit VL2 a = (Expr (VectorType a TFloat), Expr (VectorType a TFloat))
+  MatInit VL3 a = (Expr (VectorType a TFloat), Expr (VectorType a TFloat), Expr (VectorType a TFloat))
+  MatInit VL4 a = (Expr (VectorType a TFloat), Expr (VectorType a TFloat), Expr (VectorType a TFloat), Expr (VectorType a TFloat))
 
-class PrintMatElements (n :: MatLength) (m :: VecLength) where
+class PrintMatElements (n :: VecLength) (m :: VecLength) where
   printMatElements :: MatInit n m -> Text
 
-instance PrintMatElements ML2 n where
+instance PrintMatElements VL2 n where
   printMatElements (a, b) =
     exprToWGSL a <> ", " <> exprToWGSL b
 
-instance PrintMatElements ML3 n where
+instance PrintMatElements VL3 n where
   printMatElements (a, b, c) =
     exprToWGSL c <> ", " <> exprToWGSL b <> ", " <> exprToWGSL c
 
-instance PrintMatElements ML4 n where
+instance PrintMatElements VL4 n where
   printMatElements (a, b, c, d) =
     exprToWGSL a <> ", " <> exprToWGSL b <> ", " <> exprToWGSL c <> ", " <> exprToWGSL d
 
@@ -275,15 +279,15 @@ exprToWGSL (ConstantVec @n @a' (_ :: Proxy a) x) =
 exprToWGSL (ConstantMat @n @m (_ :: Proxy a) x) =
   let elements = printMatElements @n @m x
    in case demote @a of
-        MatrixType ML2 VL2 -> "mat2x2<f32>(" <> elements <> ")"
-        MatrixType ML3 VL2 -> "mat2x3<f32>(" <> elements <> ")"
-        MatrixType ML4 VL2 -> "mat2x4<f32>(" <> elements <> ")"
-        MatrixType ML2 VL3 -> "mat3x2<f32>(" <> elements <> ")"
-        MatrixType ML3 VL3 -> "mat3x3<f32>(" <> elements <> ")"
-        MatrixType ML4 VL3 -> "mat3x4<f32>(" <> elements <> ")"
-        MatrixType ML2 VL4 -> "mat4x2<f32>(" <> elements <> ")"
-        MatrixType ML3 VL4 -> "mat4x3<f32>(" <> elements <> ")"
-        MatrixType ML4 VL4 -> "mat4x4<f32>(" <> elements <> ")"
+        MatrixType VL2 VL2 -> "mat2x2<f32>(" <> elements <> ")"
+        MatrixType VL3 VL2 -> "mat2x3<f32>(" <> elements <> ")"
+        MatrixType VL4 VL2 -> "mat2x4<f32>(" <> elements <> ")"
+        MatrixType VL2 VL3 -> "mat3x2<f32>(" <> elements <> ")"
+        MatrixType VL3 VL3 -> "mat3x3<f32>(" <> elements <> ")"
+        MatrixType VL4 VL3 -> "mat3x4<f32>(" <> elements <> ")"
+        MatrixType VL2 VL4 -> "mat4x2<f32>(" <> elements <> ")"
+        MatrixType VL3 VL4 -> "mat4x3<f32>(" <> elements <> ")"
+        MatrixType VL4 VL4 -> "mat4x4<f32>(" <> elements <> ")"
         _ -> undefined
 exprToWGSL (ConstantInt x) = T.pack $ show x <> "i"
 exprToWGSL (ConstantFloat x) = T.pack $ show x <> "f"
@@ -299,6 +303,8 @@ exprToWGSL (StructInit "" [p]) = p
 exprToWGSL (StructInit name params) = name <> "(" <> T.intercalate "," params <> ")"
 exprToWGSL (CustomOperator op a b) = "(" <> exprToWGSL a <> " " <> op <> " " <> exprToWGSL b <> ")"
 exprToWGSL (VarCustom t) = t
+exprToWGSL (ConstantBool b) = if b then "true" else "false"
+exprToWGSL (If bool a b) = "if " <> exprToWGSL bool <> " {" <> exprToWGSL a <> "} else {" <> exprToWGSL b <> "}"
 
 stmtToWGSL :: Stmt -> Text
 stmtToWGSL Empty = ""
@@ -306,6 +312,8 @@ stmtToWGSL (Concat Empty a) = stmtToWGSL a
 stmtToWGSL (Concat a b) = stmtToWGSL a <> "\n" <> stmtToWGSL b
 stmtToWGSL (Let a b) = "  let " <> nameIndex a <> " = " <> exprToWGSL b <> ";"
 stmtToWGSL (Return a) = "  return " <> exprToWGSL a <> ";"
+
+-- stmtToWGSL (VLet a b) = "  var " <> nameIndex a <> " = " <> exprToWGSL b <> ";"
 
 newtype Shader a = Shader (State ShaderState a) deriving newtype (Functor, Applicative, Monad, MonadState ShaderState)
 
@@ -327,15 +335,15 @@ typeToWGSL' a = case a of
   VectorType VL4 TFloat -> "vec4<f32>"
   VectorType VL4 TInt -> "vec4<i32>"
   VectorType VL4 TUInt -> "vec4<u32>"
-  MatrixType ML2 VL2 -> "mat2x2<f32>"
-  MatrixType ML2 VL3 -> "mat2x3<f32>"
-  MatrixType ML2 VL4 -> "mat2x4<f32>"
-  MatrixType ML3 VL2 -> "mat3x2<f32>"
-  MatrixType ML3 VL3 -> "mat3x3<f32>"
-  MatrixType ML3 VL4 -> "mat3x4<f32>"
-  MatrixType ML4 VL2 -> "mat4x2<f32>"
-  MatrixType ML4 VL3 -> "mat4x3<f32>"
-  MatrixType ML4 VL4 -> "mat4x4<f32>"
+  MatrixType VL2 VL2 -> "mat2x2<f32>"
+  MatrixType VL2 VL3 -> "mat2x3<f32>"
+  MatrixType VL2 VL4 -> "mat2x4<f32>"
+  MatrixType VL3 VL2 -> "mat3x2<f32>"
+  MatrixType VL3 VL3 -> "mat3x3<f32>"
+  MatrixType VL3 VL4 -> "mat3x4<f32>"
+  MatrixType VL4 VL2 -> "mat4x2<f32>"
+  MatrixType VL4 VL3 -> "mat4x3<f32>"
+  MatrixType VL4 VL4 -> "mat4x4<f32>"
   _ -> undefined
 
 addStmt :: Stmt -> Shader ()

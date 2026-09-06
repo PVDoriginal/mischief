@@ -1,7 +1,11 @@
+{-# OPTIONS_GHC -Wno-partial-fields #-}
+
 module Mischief.Render.Sprite where
 
+import Control.Monad.IO.Class
 import Data.Foldable
 import GHC.Generics
+import GHC.TypeLits
 import Linear.Matrix (M44 (..))
 import Linear.V4
 import Mischief.Assets (Image (Image))
@@ -12,65 +16,75 @@ import Mischief.Math.Transform
 import Mischief.Render.Buffer
 import Mischief.Render.Camera
 import Mischief.Render.Core
+import Mischief.Render.Image
 import Mischief.Render.Material
 import Mischief.Render.Plugin (RenderUpdate (RenderUpdate), getFormat, newSampler)
 import Mischief.Render.Shader.Bindings (Bindable (..), Binding, Uniform)
 import Mischief.Render.Shader.Buffers
 import Mischief.Render.Shader.Functions
+import Mischief.Render.Shader.Functions qualified as F
 import Mischief.Render.Shader.Params
+import Mischief.Render.Shader.Singletons (PrimitiveTypes (TInt), Types (Primitive))
 import Mischief.Render.Shader.State
 import Mischief.Render.Shader.Types
 import Mischief.Render.Texture
 import Mischief.WGPU.Types.Enums (wGPUTextureFormat_RGBA8Unorm)
-import Mischief.WGPU.Types.General (WGPUBindGroupEntry (textureView))
+import Mischief.WGPU.Types.General (WGPUBindGroupEntry (textureView), WGPUExtent3D (height, width))
 
 newtype Sprite = Sprite {image :: Entity} deriving anyclass (Component)
+
+data SpriteSlice = SpriteSlice {start :: V2 Nat, size :: V2 Nat} deriving (Component, Eq)
+
+data SpriteFlipX = SpriteFlipX deriving (Component, Eq)
 
 data SpritePlugin = SpritePlugin deriving (Eq)
 
 instance Plugin SpritePlugin where
   init _ = do
     Systems.add RenderUpdate renderSprites
-
-newtype ImageTexture = ImageTexture Texture deriving anyclass (Component)
+  plugins _ = plug ImageUploadingPlugin
 
 renderSprites :: System ()
 renderSprites = do
-  sprites <- [q|*Sprite, *Transform|]
-  for_ sprites $ \(Sprite {image}, spriteT) -> do
-    image <- [g|E, *Image, *Maybe ImageTexture|] image
-    for_ image $ \(imageEntity, image, imageTexture) -> do
-      cameras <- [q|*CameraTexture, *Transform, OutputTo -> (*RenderSurface, *RenderAdapter, *RenderDevice, *RenderQueue)|]
-      for_ cameras $ \(CameraTexture texture, cameraT, (surface, adapter, device, queue)) -> do
-        format <- getFormat surface adapter
-        let material = Material {vertex, fragment, format = TextureFormat wGPUTextureFormat_RGBA8Unorm, draw = SimpleDraw 6}
+  resources <- getRenderingResources
+  for_ resources $ \(adapter, device, queue) -> do
+    sprites <- [q|*Sprite, *Transform, *Maybe SpriteSlice, *Maybe SpriteFlipX|]
+    for_ sprites $ \(Sprite {image}, spriteT, slice', flipX) -> do
+      image <- [g|*ImageTexture, *ImageTextureView|] image
+      for_ image $ \(ImageTexture Texture {desc}, ImageTextureView imageView) -> do
+        cameras <- [q|*CameraTexture, *Transform, OutputTo -> (*RenderSurface)|]
+        for_ cameras $ \(CameraTexture texture, cameraT, surface) -> do
+          format <- getFormat surface adapter
+          let material = Material {vertex, fragment, format = TextureFormat wGPUTextureFormat_RGBA8Unorm, draw = SimpleDraw 6}
 
-        buf <- createBuffer @Matrices device
-        let mat = getCameraProjection cameraT
-        uploadBuffer queue buf (getCameraProjection cameraT)
+          buf <- createBuffer @Matrices device
+          let mat = getCameraProjection cameraT
+          uploadBuffer queue buf (getCameraProjection cameraT)
 
-        buf' <- createBuffer @SpriteCoords device
-        uploadBuffer queue buf' (SpriteCoords spriteT.translation)
+          buf' <- createBuffer @SpriteData device
 
-        -- let (a, b, c, d) = mat.view
-        -- let (a', b', c', d') = mat.projection
-        -- let x = (V4 (-10) (-10) 0 1 *! V4 a b c d) *! V4 a' b' c' d'
-        -- let y = (V4 30 (-10) 0 1 *! V4 a b c d) *! V4 a' b' c' d'
-        -- warn $ text x
+          let size = case slice' of
+                Just SpriteSlice {size = V2 x y} -> V2 (fromIntegral x) (fromIntegral y)
+                Nothing -> V2 (fromIntegral desc.width) (fromIntegral desc.height)
 
-        sampler <- newSampler device
+          let slice = case slice' of
+                Just SpriteSlice {start, size} ->
+                  V4
+                    (fromIntegral start.x / fromIntegral desc.width)
+                    (fromIntegral start.y / fromIntegral desc.height)
+                    (fromIntegral size.x / fromIntegral desc.width)
+                    (fromIntegral size.y / fromIntegral desc.height)
+                Nothing -> V4 0 0 1 1
 
-        tex <- case imageTexture of
-          Just (ImageTexture texture) -> pure texture
-          Nothing -> do
-            texture <- createTextureForImage device image
-            uploadImage queue image texture
-            insert (ImageTexture texture) imageEntity
-            pure texture
+          let flip = case flipX of
+                Nothing -> 0
+                Just _ -> 1
 
-        view <- createView tex
+          uploadBuffer queue buf' (SpriteData {coords = spriteT.translation, size, slice, flipX = flip})
 
-        render device queue Bindings {matrices = buf, spritePos = buf', sampler, texture = view} material texture
+          sampler <- newSampler device
+
+          render device queue Bindings {matrices = buf, sprite = buf', sampler, texture = imageView} material texture
 
 data Matrices f = Matrices
   { projection :: Field f Mat4x4,
@@ -87,14 +101,19 @@ data VertexOutput f = VertexOutput
 
 data Bindings f = Bindings
   { matrices :: Uniform f 0 (Matrices f),
-    spritePos :: Uniform f 1 (SpriteCoords f),
+    sprite :: Uniform f 1 (SpriteData f),
     texture :: Binding f 2 Texture,
     sampler :: Binding f 3 Sampler
   }
   deriving stock (Generic)
   deriving anyclass (Bindable)
 
-newtype SpriteCoords f = SpriteCoords {coords :: Field f Vec3f}
+data SpriteData f = SpriteData
+  { coords :: Field f Vec3f,
+    size :: Field f Vec2f,
+    slice :: Field f Vec4f,
+    flipX :: Field f I32
+  }
   deriving stock (Generic)
   deriving anyclass (Bufferable)
 
@@ -103,16 +122,40 @@ vertex b (BIn index) = do
   positions <- var $ array @6 (vec2f (-1, -1), vec2f (1, -1), vec2f (1, 1), vec2f (-1, -1), vec2 (1, 1), vec2 (-1, 1))
   uvs <- var $ array @6 (vec2f (0, 1), vec2f (1, 1), vec2f (1, 0), vec2f (0, 1), vec2f (1, 0), vec2f (0, 0))
 
-  let pos' = (positions `at` index) * 40 + vec2 (b.spritePos.coords.x, b.spritePos.coords.y)
-  let pos = b.matrices.projection ^** (b.matrices.view ^** vec4 (pos'.x, pos'.y, 0, 1))
-  pure $
+  pos' <- var $ (positions `at` index) * b.sprite.size * 0.5
+  pos'' <- var $ vec3 (pos'.x, pos'.y, 0) + b.sprite.coords
+  pos <- var $ b.matrices.projection *. (b.matrices.view *. vec4 (pos''.x, pos''.y, pos''.z, 1))
+
+  pure
     VertexOutput
-      { pos = vec4 (pos.x, pos.y, 0, 1),
+      { pos = vec4 (pos.x, pos.y, pos.z, 1),
         uv = uvs `at` index
       }
 
 fragment :: Bindings GPU -> VertexOutput GPU -> Shader (Loc 0 Vec4f)
-fragment b input = pure $ Loc $ sample b.texture b.sampler input.uv
+fragment b VertexOutput {uv} = do
+  let thickness = 0.05
+  let outline = vec4f (0, 1, 1, 1)
+
+  let sample offset = sampleSprite b (uv + offset * thickness)
+
+  color <- sample $ vec2 (0, 0)
+
+  left <- sample $ vec2 (-1, 0)
+  up <- sample $ vec2 (0, -1)
+  right <- sample $ vec2 (1, 0)
+  down <- sample $ vec2 (0, 1)
+
+  let colorAlpha = color.a
+  let outlineAlpha = maxAll [left.a, up.a, right.a, down.a] * (1 - colorAlpha)
+
+  pure . Loc $ color *. colorAlpha + outline *. outlineAlpha
+
+sampleSprite :: Bindings GPU -> Vec2f -> Shader Vec4f
+sampleSprite b uv = do
+  let uv_flipped = vec2f (cast b.sprite.flipX, 0) - uv
+  let uv = F.abs uv_flipped * vec2 (b.sprite.slice.z, b.sprite.slice.w) + vec2 (b.sprite.slice.x, b.sprite.slice.y)
+  pure $ sample b.texture b.sampler uv
 
 getCameraProjection :: Transform -> Matrices CPU
 getCameraProjection Transform {translation = pos} = do
@@ -123,7 +166,7 @@ getCameraProjection Transform {translation = pos} = do
   let n = 0
   let f = 100
 
-  let forward = V3 0 0 (-1)
+  let forward = V3 0 0 1
   let right = V3 1 0 0
   let up = V3 0 1 0
 

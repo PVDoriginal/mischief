@@ -63,17 +63,21 @@ instance Plugin RenderPlugin where
 
 renderCameras :: System ()
 renderCameras = do
-  cameras <- [q|*CameraTexture, OutputTo -> (*RenderSurface, *RenderAdapter, *RenderDevice, *RenderQueue)|]
-  for_ cameras $ \(CameraTexture Texture {texture}, (surface, adapter, device, queue)) -> do
-    format <- getFormat surface adapter
-    withSurfaceTexture surface $ \output -> do
-      let material = Material {vertex, fragment, format, draw = SimpleDraw 3}
+  resources <- getRenderingResources
+  case resources of
+    Nothing -> pure ()
+    Just (adapter, device, queue) -> do
+      cameras <- [q|*CameraTexture, OutputTo -> (*RenderSurface)|]
+      for_ cameras $ \(CameraTexture Texture {texture}, surface) -> do
+        format <- getFormat surface adapter
+        withSurfaceTexture surface $ \output -> do
+          let material = Material {vertex, fragment, format, draw = SimpleDraw 3}
 
-      sampler <- newSampler device
-      tex <- liftIO $ wgpuTextureCreateView texture (ConstPtr nullPtr)
+          sampler <- newSampler device
+          tex <- liftIO $ wgpuTextureCreateView texture (ConstPtr nullPtr)
 
-      render device queue Bindings {tex = TextureView tex, sampler} material output
-      presentSurface surface
+          render device queue Bindings {tex = TextureView tex, sampler} material output
+          presentSurface surface
 
 data VertexOutput f = VertexOutput
   { pos :: BuiltIn f "position" Vec4f,

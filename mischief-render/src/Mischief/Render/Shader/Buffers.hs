@@ -43,25 +43,25 @@ type family ToCPU a where
   ToCPU (Expr (VectorType VL2 a)) = Math.V2 (ToCPU (Expr (Primitive a)))
   ToCPU (Expr (VectorType VL3 a)) = Math.V3 (ToCPU (Expr (Primitive a)))
   ToCPU (Expr (VectorType VL4 a)) = Math.V4 (ToCPU (Expr (Primitive a)))
-  ToCPU (Expr (MatrixType ML2 n)) = (ToCPU (Expr (VectorType n TFloat)), ToCPU (Expr (VectorType n TFloat)))
-  ToCPU (Expr (MatrixType ML3 n)) = (ToCPU (Expr (VectorType n TFloat)), ToCPU (Expr (VectorType n TFloat)), ToCPU (Expr (VectorType n TFloat)))
-  ToCPU (Expr (MatrixType ML4 n)) = (ToCPU (Expr (VectorType n TFloat)), ToCPU (Expr (VectorType n TFloat)), ToCPU (Expr (VectorType n TFloat)), ToCPU (Expr (VectorType n TFloat)))
+  ToCPU (Expr (MatrixType VL2 n)) = (ToCPU (Expr (VectorType n TFloat)), ToCPU (Expr (VectorType n TFloat)))
+  ToCPU (Expr (MatrixType VL3 n)) = (ToCPU (Expr (VectorType n TFloat)), ToCPU (Expr (VectorType n TFloat)), ToCPU (Expr (VectorType n TFloat)))
+  ToCPU (Expr (MatrixType VL4 n)) = (ToCPU (Expr (VectorType n TFloat)), ToCPU (Expr (VectorType n TFloat)), ToCPU (Expr (VectorType n TFloat)), ToCPU (Expr (VectorType n TFloat)))
 
 type family AlignmentOf a where
   AlignmentOf I32 = 4
   AlignmentOf F32 = 4
-  AlignmentOf Vec3i = 16
-  AlignmentOf Vec3f = 16
-  AlignmentOf Vec4f = 16
+  AlignmentOf (Expr (VectorType VL2 a)) = 8
+  AlignmentOf (Expr (VectorType VL3 a)) = 16
+  AlignmentOf (Expr (VectorType VL4 a)) = 16
   AlignmentOf (Expr (MatrixType n VL2)) = 8
   AlignmentOf (Expr (MatrixType n m)) = 16
 
 type family SizeOf a where
   SizeOf I32 = 4
   SizeOf F32 = 4
-  SizeOf Vec3i = 12
-  SizeOf Vec3f = 12
-  SizeOf Vec4f = 16
+  SizeOf (Expr (VectorType VL2 a)) = 8
+  SizeOf (Expr (VectorType VL3 a)) = 12
+  SizeOf (Expr (VectorType VL4 a)) = 16
   SizeOf Mat2x2 = 16
   SizeOf Mat3x2 = 24
   SizeOf Mat4x2 = 32
@@ -125,7 +125,7 @@ roundTo16Bytes ptr x = do
 
 addPadding :: Offset -> Alignment -> [(Text, Text)]
 addPadding (Offset x) (Alignment y) | x `mod` y == 0 = []
-addPadding x y = ("pad", "f32") : addPadding (x + 4) y
+addPadding x y = ("p" <> T.pack (show x), "f32") : addPadding (x + 4) y
 
 addPaddingBytes :: Offset -> Alignment -> Ptr Word8 -> IO Offset
 addPaddingBytes (Offset x) (Alignment y) _ | x `mod` y == 0 = pure (Offset x)
@@ -156,7 +156,7 @@ instance {-# OVERLAPPING #-} (SingI a, KnownNat size, KnownNat alignment, SizeOf
     let alignment = fromIntegral $ natVal (Proxy @alignment)
         size = fromIntegral $ natVal (Proxy @size)
         t = addPadding (Offset offset) (Alignment alignment)
-     in (t <> [("q" <> T.pack (show offset), typeToWGSL (undefined :: Expr a))], Offset $ offset + size + fromIntegral (length t) * 4)
+     in (t <> [("q" <> T.pack (show $ offset + fromIntegral (length t) * 4), typeToWGSL (undefined :: Expr a))], Offset $ offset + size + fromIntegral (length t) * 4)
 
 instance (GGetFields (Rep f)) => GGetFields (S1 a (K1 x f)) where
   gGetFields = gGetFields @(Rep f)
@@ -227,13 +227,13 @@ instance (GetBytes (Expr (Primitive b))) => GetBytes (Expr (VectorType VL3 b)) w
 instance (GetBytes (Expr (Primitive b))) => GetBytes (Expr (VectorType VL4 b)) where
   getBytes (Math.V4 a b c d) = getBytes @(Expr (Primitive b)) a ++ getBytes @(Expr (Primitive b)) b ++ getBytes @(Expr (Primitive b)) c ++ getBytes @(Expr (Primitive b)) d
 
-instance (GetBytes (Expr (VectorType a TFloat)), ToCPU (Expr (MatrixType ML2 a)) ~ (v0, v0)) => GetBytes (Expr (MatrixType ML2 a)) where
+instance (GetBytes (Expr (VectorType a TFloat)), ToCPU (Expr (MatrixType VL2 a)) ~ (v0, v0)) => GetBytes (Expr (MatrixType VL2 a)) where
   getBytes (a, b) = getBytes @(Expr (VectorType a TFloat)) a ++ getBytes @(Expr (VectorType a TFloat)) b
 
-instance (GetBytes (Expr (VectorType a TFloat)), ToCPU (Expr (MatrixType ML3 a)) ~ (v0, v0, v0)) => GetBytes (Expr (MatrixType ML3 a)) where
+instance (GetBytes (Expr (VectorType a TFloat)), ToCPU (Expr (MatrixType VL3 a)) ~ (v0, v0, v0)) => GetBytes (Expr (MatrixType VL3 a)) where
   getBytes (a, b, c) = getBytes @(Expr (VectorType a TFloat)) a ++ getBytes @(Expr (VectorType a TFloat)) b ++ getBytes @(Expr (VectorType a TFloat)) c
 
-instance (GetBytes (Expr (VectorType a TFloat)), ToCPU (Expr (MatrixType ML4 a)) ~ (v0, v0, v0, v0)) => GetBytes (Expr (MatrixType ML4 a)) where
+instance (GetBytes (Expr (VectorType a TFloat)), ToCPU (Expr (MatrixType VL4 a)) ~ (v0, v0, v0, v0)) => GetBytes (Expr (MatrixType VL4 a)) where
   getBytes (a, b, c, d) = getBytes @(Expr (VectorType a TFloat)) a ++ getBytes @(Expr (VectorType a TFloat)) b ++ getBytes @(Expr (VectorType a TFloat)) c ++ getBytes @(Expr (VectorType a TFloat)) d
 
 class GDummyBuffer f where
@@ -259,10 +259,10 @@ instance (GDummyBuffer f) => GDummyBuffer (D1 (MetaData s a b c) f) where
 instance {-# OVERLAPPING #-} (KnownNat size, KnownNat alignment, SizeOf (Expr a) ~ size, AlignmentOf (Expr a) ~ alignment) => GDummyBuffer (S1 b (K1 x (Expr a))) where
   gDummyBuffer index offset = do
     let alignment = fromIntegral $ natVal (Proxy @alignment)
-    let size = fromIntegral $ natVal (Proxy @size)
+    let size = natVal (Proxy @size)
     let t = addPadding offset (Alignment alignment)
-    let offset' = offset + Offset (fromIntegral $ length t)
-    (M1 $ K1 $ VarCustom $ "b" <> T.pack (show index) <> ".q" <> T.pack (show offset), offset' + Offset (fromIntegral size))
+    let offset' = offset + Offset (fromIntegral $ length t) * 4
+    (M1 $ K1 $ VarCustom $ "b" <> T.pack (show index) <> ".q" <> T.pack (show offset'), offset' + Offset (fromIntegral size))
 
 instance {-# OVERLAPPABLE #-} (GDummyBuffer (Rep f), Generic f) => GDummyBuffer (S1 b (K1 x f)) where
   gDummyBuffer x y =

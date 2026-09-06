@@ -92,6 +92,7 @@ library
     OverloadedStrings
     QuasiQuotes
     RequiredTypeArguments
+    MultiWayIf
     TemplateHaskell
     TypeFamilyDependencies
     UnboxedTuples
