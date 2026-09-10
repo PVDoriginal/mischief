@@ -7,6 +7,8 @@ import Data.ByteString qualified as BS
 import Data.Data
 import Mischief.ECS.Prelude
 
+newtype AssetSource = AssetSource FilePath deriving anyclass (Component)
+
 class (Typeable a, Component a) => Asset a where
   loadAsset :: ByteString -> IO a
 
@@ -17,7 +19,12 @@ data Loaded = Loaded deriving (Component)
 data AssetEntity = AssetEntity deriving (Component)
 
 load :: forall a. (Asset a, Bundle a) => FilePath -> System Entity
-load !path = do
+load !path' = do
+  source <- res @AssetSource
+  let path = case source of
+        Nothing -> path'
+        Just (AssetSource s) -> s ++ path'
+
   entity <- spawn (AssetEntity, Loading)
 
   runAfter

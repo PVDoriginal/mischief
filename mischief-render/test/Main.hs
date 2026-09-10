@@ -1,3 +1,4 @@
+{-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 import Codec.Picture qualified as P
@@ -17,7 +18,7 @@ import Foreign (Bits ((.|.)), Ptr, Storable (alignment, peek, poke, sizeOf), all
 import Foreign.C
 import Foreign.C.ConstPtr
 import GHC.Generics
-import Mischief.Assets (Image (..), load)
+import Mischief.Assets (AssetSource (..), Image (..), load)
 import Mischief.ECS
 import Mischief.ECS.Prelude
 import Mischief.ECS.Systems qualified as S
@@ -31,9 +32,10 @@ import Mischief.Math.Transform (Transform (..))
 import Mischief.Math.Transform qualified as Transform
 import Mischief.Render.Camera
 import Mischief.Render.Core
+import Mischief.Render.Image (QueueUpload (QueueUpload))
 import Mischief.Render.Plugin
 import Mischief.Render.Shader.Buffers
-import Mischief.Render.Shader.Types
+import Mischief.Render.Shader.Types hiding (Vec2)
 import Mischief.Render.Sprite
 import Mischief.Render.Texture
 import Mischief.SDL.Window
@@ -61,59 +63,61 @@ instance Plugin MainPlugin where
     S.add Update moveSprite
     S.add Update $ animSprite `after` moveSprite
 
-  plugins _ = plug (RenderPlugin, SpritePlugin, InputPlugin, TimePlugin)
+    insertRes $ AssetSource "../assets/"
+
+  plugins _ = plug (RenderPlugin, InputPlugin, TimePlugin)
 
 setup :: System ()
 setup = do
   window <- spawn (Name "Window", Window, WindowSize 700 500)
-  camera <- spawn (Camera, Rel OutputTo window, def @Transform)
+  void $ spawn (Camera, Rel OutputTo window, def @Transform)
 
-  Just (CameraTexture texture) <- [g|*CameraTexture|] camera
-  Just queue <- res @RenderQueue
-  Right image <- liftIO $ P.readImage "test/rat.jpg"
-  liftIO $ uploadImage queue (Image image) texture
+  spriteImage <- load @Image "characters.png"
 
-  spriteImage <- load @Image "test/characters.png"
-  let spritePos = V3 0 0 (-1)
-  void $ spawn (Sprite spriteImage, def {translation = spritePos}, SpriteSlice {start = V2 516 387, size = V2 128 128})
+  let positions = [V2 0 0, V2 (-1) 0, V2 1 0, V2 0 1, V2 0 (-1)]
+  let characters = [Pink, Beige, Green, Purple, Yellow]
+
+  for_ (positions `zip` characters) $ \(V2 x y, c) -> do
+    let spritePos = V3 (x * 150) (y * 150) (-1)
+    void $ spawn (Sprite spriteImage, def {translation = spritePos}, SpriteSlice {start = V2 516 387, size = V2 128 128}, c)
 
 moveSprite :: System ()
 moveSprite = do
-  Just (entity, sprite) <- [s|E, Transform / With Sprite|]
+  sprites <- [q|E, *Character, Transform, SpriteFlip / With Sprite|]
   Just keys <- res @Keys
 
-  delta <- deltaTime
-  let speed = 150
+  for_ sprites $ \(entity, character, sprite, flip) -> do
+    delta <- deltaTime
+    let speed = 150
 
-  dir <- liftIO $ newIORef (V2 0 0)
+    dir <- liftIO $ newIORef (V2 0 0)
 
-  when (Keys.pressed Keys.A keys) $ do
-    liftIO $ modifyIORef' dir (+ V2 (-1) 0)
+    when (Keys.pressed Keys.A keys) $ do
+      liftIO $ modifyIORef' dir (+ V2 (-1) 0)
 
-  when (Keys.pressed Keys.D keys) $ do
-    liftIO $ modifyIORef' dir (+ V2 1 0)
+    when (Keys.pressed Keys.D keys) $ do
+      liftIO $ modifyIORef' dir (+ V2 1 0)
 
-  when (Keys.pressed Keys.S keys) $ do
-    liftIO $ modifyIORef' dir (+ V2 0 (-1))
+    when (Keys.pressed Keys.S keys) $ do
+      liftIO $ modifyIORef' dir (+ V2 0 (-1))
 
-  when (Keys.pressed Keys.W keys) $ do
-    liftIO $ modifyIORef' dir (+ V2 0 1)
+    when (Keys.pressed Keys.W keys) $ do
+      liftIO $ modifyIORef' dir (+ V2 0 1)
 
-  dir <- liftIO $ (^* (delta * speed)) . normalize <$> readIORef dir
+    dir <- liftIO $ (^* (delta * speed)) . normalize <$> readIORef dir
 
-  if norm dir > 0
-    then
-      insertIfNeq (CurrentSlices walkAnims) entity
-    else
-      insertIfNeq (CurrentSlices idleAnims) entity
+    if norm dir > 0
+      then
+        insertIfNeq (CurrentSlices (walkAnims character)) entity
+      else
+        insertIfNeq (CurrentSlices (idleAnims character)) entity
 
-  if dir.x < 0
-    then
-      insert SpriteFlipX entity
-    else
-      remove (C @SpriteFlipX) entity
+    if
+      | dir.x < 0 -> set flip SpriteFlip {x = True, y = False}
+      | dir.x > 0 -> set flip SpriteFlip {x = False, y = False}
+      | otherwise -> pure ()
 
-  modify sprite $ Transform.translate (V3 dir.x dir.y 0)
+    modify sprite $ Transform.translate (V3 dir.x dir.y 0)
 
 newtype CurrentSlices = CurrentSlices [SpriteSlice]
   deriving stock (Eq)
@@ -128,17 +132,28 @@ newtype AnimTimer = AnimTimer (Int, Timer) deriving anyclass (Component)
 
 animSprite :: System ()
 animSprite = do
-  Just (entity, AnimTimer (frame, timer), CurrentSlices slices) <- [s|Entity, *AnimTimer, *CurrentSlices|]
+  sprites <- [q|Entity, *AnimTimer, *CurrentSlices|]
   delta <- deltaTime
 
-  let (timer', justFinished) = Timer.tick delta timer
-  let frame' = if justFinished then (frame + 1) `mod` length slices else frame
+  for_ sprites $ \(entity, AnimTimer (frame, timer), CurrentSlices slices) -> do
+    let (timer', justFinished) = Timer.tick delta timer
+    let frame' = if justFinished then (frame + 1) `mod` length slices else frame
 
-  insert (slices !! frame') entity
-  insert (AnimTimer (frame', timer')) entity
+    insert (slices !! frame') entity
+    insert (AnimTimer (frame', timer')) entity
 
-walkAnims :: [SpriteSlice]
-walkAnims = [SpriteSlice {start = V2 516 387, size = V2 128 128}, SpriteSlice {start = V2 645 387, size = V2 128 128}]
+data Character = Pink | Purple | Green | Beige | Yellow deriving (Component, Show)
 
-idleAnims :: [SpriteSlice]
-idleAnims = [SpriteSlice {start = V2 258 387, size = V2 128 128}]
+walkAnims :: Character -> [SpriteSlice]
+walkAnims Pink = [SpriteSlice {start = V2 516 387, size = V2 128 128}, SpriteSlice {start = V2 645 387, size = V2 128 128}]
+walkAnims Beige = [SpriteSlice {start = V2 0 129, size = V2 128 128}, SpriteSlice {start = V2 129 129, size = V2 128 128}]
+walkAnims Green = [SpriteSlice {start = V2 258 258, size = V2 128 128}, SpriteSlice {start = V2 387 258, size = V2 128 128}]
+walkAnims Purple = [SpriteSlice {start = V2 774 516, size = V2 128 128}, SpriteSlice {start = V2 0 645, size = V2 128 128}]
+walkAnims Yellow = [SpriteSlice {start = V2 129 774, size = V2 128 128}, SpriteSlice {start = V2 258 774, size = V2 128 128}]
+
+idleAnims :: Character -> [SpriteSlice]
+idleAnims Pink = [SpriteSlice {start = V2 258 387, size = V2 128 128}]
+idleAnims Beige = [SpriteSlice {start = V2 645 0, size = V2 128 128}]
+idleAnims Green = [SpriteSlice {start = V2 0 258, size = V2 128 128}]
+idleAnims Purple = [SpriteSlice {start = V2 516 516, size = V2 128 128}]
+idleAnims Yellow = [SpriteSlice {start = V2 774 645, size = V2 128 128}]

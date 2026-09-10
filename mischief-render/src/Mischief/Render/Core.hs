@@ -10,6 +10,7 @@ import Data.Primitive.Ptr (nullPtr)
 import Foreign (Storable (peek), castPtr, free, malloc, with)
 import Foreign.C (peekCString)
 import Foreign.C.ConstPtr
+import Mischief.ECS
 import Mischief.ECS.Events
 import Mischief.ECS.Hooks
 import Mischief.ECS.Observers qualified as Observers
@@ -167,3 +168,40 @@ getRenderingResources = do
   device <- res @RenderDevice
   queue <- res @RenderQueue
   pure $ (,,) <$> adapter <*> device <*> queue
+
+data RenderFirst = RenderFirst deriving (Schedule)
+
+data RenderUpdate = RenderUpdate deriving (Schedule)
+
+data RenderLast = RenderLast deriving (Schedule)
+
+getFormat :: RenderSurface -> RenderAdapter -> System TextureFormat
+getFormat (RenderSurface surface) (RenderAdapter adapter) = liftIO $ do
+  surfaceCapabilities <- malloc @WGPUSurfaceCapabilities
+  wgpuSurfaceGetCapabilities surface adapter surfaceCapabilities
+
+  cap <- peek surfaceCapabilities
+  free surfaceCapabilities
+  let (ConstPtr formats) = cap.formats
+  format <- peek formats
+
+  pure $ TextureFormat format
+
+newSampler :: RenderDevice -> System Sampler
+newSampler (RenderDevice device) = liftIO $ do
+  let samplerDesc =
+        WGPUSamplerDescriptor
+          { addressModeU = wGPUAddressMode_ClampToEdge,
+            addressModeV = wGPUAddressMode_ClampToEdge,
+            addressModeW = wGPUAddressMode_ClampToEdge,
+            magFilter = wGPUFilterMode_Linear,
+            minFilter = wGPUFilterMode_Linear,
+            mipmapFilter = wGPUMipmapFilterMode_Nearest,
+            nextInChain = nullPtr,
+            label = WGPUStringView (ConstPtr nullPtr) 0,
+            lodMinClamp = 0,
+            lodMaxClamp = 32,
+            compare = wGPUCompareFunction_Undefined,
+            maxAnisotropy = 1
+          }
+  Sampler <$> with samplerDesc (wgpuDeviceCreateSampler device . ConstPtr)

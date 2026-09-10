@@ -25,18 +25,13 @@ import Mischief.Render.Shader.Params
 import Mischief.Render.Shader.Singletons
 import Mischief.Render.Shader.State
 import Mischief.Render.Shader.Types
+import Mischief.Render.Sprite (SpritePlugin (..))
 import Mischief.Render.Texture
 import Mischief.SDL (SDLPlugin (..))
 import Mischief.SDL.Window
 import Mischief.WGPU
 import Mischief.WGPU.Types.Enums
 import Mischief.WGPU.Types.General
-
-data RenderFirst = RenderFirst deriving (Schedule)
-
-data RenderUpdate = RenderUpdate deriving (Schedule)
-
-data RenderLast = RenderLast deriving (Schedule)
 
 data RenderPlugin = RenderPlugin deriving (Eq)
 
@@ -56,10 +51,9 @@ instance Plugin RenderPlugin where
 
     insertRes =<< liftIO (RenderInstance <$> wgpuCreateInstance)
     void $ Observers.spawn onAddWindow
-    void $ Observers.spawn onAddCameraOutputTo
     Systems.add RenderLast renderCameras
 
-  plugins _ = plug SDLPlugin
+  plugins _ = plug (SDLPlugin, SpritePlugin, CameraPlugin)
 
 renderCameras :: System ()
 renderCameras = do
@@ -71,12 +65,13 @@ renderCameras = do
       for_ cameras $ \(CameraTexture Texture {texture}, surface) -> do
         format <- getFormat surface adapter
         withSurfaceTexture surface $ \output -> do
-          let material = Material {vertex, fragment, format, draw = SimpleDraw 3}
+          let material = Material {vertex, fragment, format}
 
           sampler <- newSampler device
           tex <- liftIO $ wgpuTextureCreateView texture (ConstPtr nullPtr)
 
-          render device queue Bindings {tex = TextureView tex, sampler} material output
+          let command = Draw Bindings {tex = TextureView tex, sampler} 3
+          render device queue material output [command]
           presentSurface surface
 
 data VertexOutput f = VertexOutput
@@ -109,18 +104,6 @@ fragment b input = do
 
 -- type FullScreenMaterial = Material Bindings (BuiltIn "vertex_index" U32) VertexOutput (Location 0 Vec4f)
 
-getFormat :: RenderSurface -> RenderAdapter -> System TextureFormat
-getFormat (RenderSurface surface) (RenderAdapter adapter) = liftIO $ do
-  surfaceCapabilities <- malloc @WGPUSurfaceCapabilities
-  wgpuSurfaceGetCapabilities surface adapter surfaceCapabilities
-
-  cap <- peek surfaceCapabilities
-  free surfaceCapabilities
-  let (ConstPtr formats) = cap.formats
-  format <- peek formats
-
-  pure $ TextureFormat format
-
 withSurfaceTexture :: RenderSurface -> (Texture -> System a) -> System a
 withSurfaceTexture (RenderSurface surface) f = do
   surfaceTextureBox <- liftIO malloc
@@ -131,25 +114,6 @@ withSurfaceTexture (RenderSurface surface) f = do
 
   liftIO $ free surfaceTextureBox
   return res
-
-newSampler :: RenderDevice -> System Sampler
-newSampler (RenderDevice device) = liftIO $ do
-  let samplerDesc =
-        WGPUSamplerDescriptor
-          { addressModeU = wGPUAddressMode_ClampToEdge,
-            addressModeV = wGPUAddressMode_ClampToEdge,
-            addressModeW = wGPUAddressMode_ClampToEdge,
-            magFilter = wGPUFilterMode_Linear,
-            minFilter = wGPUFilterMode_Linear,
-            mipmapFilter = wGPUMipmapFilterMode_Nearest,
-            nextInChain = nullPtr,
-            label = WGPUStringView (ConstPtr nullPtr) 0,
-            lodMinClamp = 0,
-            lodMaxClamp = 32,
-            compare = wGPUCompareFunction_Undefined,
-            maxAnisotropy = 1
-          }
-  Sampler <$> with samplerDesc (wgpuDeviceCreateSampler device . ConstPtr)
 
 presentSurface :: RenderSurface -> System ()
 presentSurface (RenderSurface surface) = liftIO $ wgpuSurfacePresent surface

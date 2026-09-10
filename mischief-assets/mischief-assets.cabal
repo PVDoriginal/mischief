@@ -86,6 +86,7 @@ library
     data-default,
     filepath,
     JuicyPixels,
+    kdl-hs,
     mischief-ecs,
     mtl,
     primitive,

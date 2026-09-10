@@ -14,8 +14,12 @@ module Mischief.Math.Vec
   )
 where
 
+import Control.Monad (forever)
+import Control.Monad.Reader
+import Data.IORef
 import GHC.Records
 import Linear
+import Mischief.Math.Mat (Euler (z))
 
 type Vec2 = V2 Float
 

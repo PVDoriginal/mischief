@@ -4,10 +4,12 @@ module Mischief.Render.Material where
 
 import Control.Monad
 import Control.Monad.IO.Class
+import Control.Monad.Reader (Reader)
 import Data.Data
+import Data.Foldable
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as T
-import Foreign (nullPtr, with)
+import Foreign (Ptr, nullPtr, with)
 import Foreign.C.ConstPtr
 import GHC.TypeLits
 import Language.Haskell.TH (Extension (GADTSyntax))
@@ -21,6 +23,7 @@ import Mischief.Render.Shader.State
 import Mischief.Render.Texture
 import Mischief.WGPU
 import Mischief.WGPU.Framework (loadShaderFromBytes)
+import Mischief.WGPU.Opaque
 import Mischief.WGPU.Types.Enums
 import Mischief.WGPU.Types.General
 
@@ -28,12 +31,9 @@ data Material bindings vIn vOut fOut where
   Material ::
     { vertex :: bindings GPU -> vIn GPU -> Shader (vOut GPU),
       fragment :: bindings GPU -> vOut GPU -> Shader (fOut GPU),
-      format :: TextureFormat,
-      draw :: DrawType
+      format :: TextureFormat
     } ->
     Material bindings vIn vOut fOut
-
-newtype DrawType = SimpleDraw {vertices :: Nat}
 
 createPipeline :: forall bindings vIn vOut fOut. (Bindable bindings, ShaderParam vIn, ShaderParam vOut, ShaderParam fOut) => RenderDevice -> Material bindings vIn vOut fOut -> IO Pipeline
 createPipeline (RenderDevice device) mat = do
@@ -131,13 +131,19 @@ blendState =
           }
     }
 
-render :: forall bindings vIn vOut fOut. (Bindable bindings, ShaderParam vIn, ShaderParam vOut, ShaderParam fOut) => RenderDevice -> RenderQueue -> bindings CPU -> Material bindings vIn vOut fOut -> Texture -> System ()
-render (RenderDevice device) (RenderQueue queue) b material (Texture {texture = output}) = liftIO $ do
-  -- let b = toLink @bindings cpu
+data DrawCommand bindings = Draw {binds :: bindings CPU, vertices :: Nat}
 
+drawCommand :: (Bindable bindings) => RenderDevice -> Ptr WGPURenderPassEncoder -> BindLayout -> DrawCommand bindings -> IO ()
+drawCommand device encoder layout (Draw b vert) = do
+  bindGroup <- createBindGroup device layout b
+  wgpuRenderPassEncoderSetBindGroup encoder 0 bindGroup 0 (ConstPtr nullPtr)
+  wgpuRenderPassEncoderDraw encoder (fromIntegral vert) 1 0 0
+
+render :: forall bindings vIn vOut fOut. (Bindable bindings, ShaderParam vIn, ShaderParam vOut, ShaderParam fOut) => RenderDevice -> RenderQueue -> Material bindings vIn vOut fOut -> Texture -> [DrawCommand bindings] -> System ()
+render (RenderDevice device) (RenderQueue queue) material (Texture {texture = output}) commands = liftIO $ do
   bindLayout <- createBindLayout @bindings (RenderDevice device)
 
-  bindGroup <- createBindGroup (RenderDevice device) bindLayout b
+  -- bindGroup <- createBindGroup (RenderDevice device) bindLayout b
   Pipeline pipeline <- createPipeline (RenderDevice device) material
 
   frame <- wgpuTextureCreateView output (ConstPtr nullPtr)
@@ -176,8 +182,9 @@ render (RenderDevice device) (RenderQueue queue) b material (Texture {texture = 
   when (renderPassEncoder == nullPtr) $ error "Couldn't encode render pass."
 
   wgpuRenderPassEncoderSetPipeline renderPassEncoder pipeline
-  wgpuRenderPassEncoderSetBindGroup renderPassEncoder 0 bindGroup 0 (ConstPtr nullPtr)
-  wgpuRenderPassEncoderDraw renderPassEncoder (fromIntegral material.draw.vertices) 1 0 0
+  -- wgpuRenderPassEncoderSetBindGroup renderPassEncoder 0 bindGroup 0 (ConstPtr nullPtr)
+  -- wgpuRenderPassEncoderDraw renderPassEncoder (fromIntegral material.draw.vertices) 1 0 0
+  for_ commands $ drawCommand (RenderDevice device) renderPassEncoder bindLayout
   wgpuRenderPassEncoderEnd renderPassEncoder
   wgpuRenderPassEncoderRelease renderPassEncoder
 
