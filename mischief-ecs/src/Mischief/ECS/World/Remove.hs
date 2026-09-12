@@ -1,6 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 
-module Mischief.ECS.World.Remove (remove, delete, removeRel, triggerRemoveEvent) where
+module Mischief.ECS.World.Remove (remove, removeRel, triggerRemoveEvent) where
 
 import Control.Monad
 import Control.Monad.Reader
@@ -48,22 +48,22 @@ instance (Component c) => EraseIntoStorage (R c Any) ToRemove where
 --   types <- getTypes (Proxy @r)
 --   removeFromEntity (Set.toList types) entity
 
-class Delete r where
-  delete :: r -> System ()
+-- class Delete r where
+--   delete :: r -> System ()
 
-class Delete' r isRel where
-  delete' :: r -> System ()
+-- class Delete' r isRel where
+--   delete' :: r -> System ()
 
-instance (Delete' (Result r) (IsComp r)) => Delete (Result r) where
-  delete = delete' @(Result r) @(IsComp r)
+-- instance (Delete' (Result r) (IsComp r)) => Delete (Result r) where
+--   delete = delete' @(Result r) @(IsComp r)
 
-instance (Component c) => Delete' (Result c) True where
-  delete' :: Result c -> System ()
-  delete' result = remove (C @c) (entityOf result)
+-- instance (Component c) => Delete' (Result c) True where
+--   delete' :: Result c -> System ()
+--   delete' result = remove (C @c) (entityOf result)
 
-instance (Component c) => Delete' (Result (Rel c)) False where
-  delete' :: Result (Rel c) -> System ()
-  delete' result = remove (R @c result.target) (entityOf result)
+-- instance (Component c) => Delete' (Result (Rel c)) False where
+--   delete' :: Result (Rel c) -> System ()
+--   delete' result = remove (R @c result.target) (entityOf result)
 
 remove :: (Collectable c ToRemove) => c -> Entity -> System ()
 remove c entity = do
@@ -113,17 +113,18 @@ removeFromEntity components entity = do
 triggerRemoveEvent :: [ComponentId] -> Entity -> System ()
 triggerRemoveEvent components entity = do
   for_ components $ \(ComponentId (# id, target #)) -> do
-    Just t <- get (C @ComponentType) (Entity (# id, 0## #))
+    Just t <- get (Entity (# id, 0## #)) $ mkQuery (C @ComponentType)
     case target of
-      Nothing -> triggerRemoveEventC (value t) entity
-      Just target -> triggerRemoveEventR (value t) target entity
+      Nothing -> triggerRemoveEventC t entity
+      Just target -> triggerRemoveEventR t target entity
 
 triggerRemoveEventC :: ComponentType -> Entity -> System ()
 triggerRemoveEventC (ComponentType (_ :: Proxy t)) entity = do
   runEvent $ eraseEvent $ OnRemove @t entity
 
   let context = HookContext {entity}
-  Just hooks <- get (Val (M @ComponentRemoveHooks)) =<< meta @t
+  m <- meta @t
+  Just hooks <- get m $ mkQuery (M @ComponentRemoveHooks)
   for_ hooks $ \(ComponentRemoveHooks h) -> do
     for_ h $ \h -> h context
 
@@ -133,6 +134,7 @@ triggerRemoveEventR (ComponentType (_ :: Proxy t)) target entity = do
 
   let context = HookContextRel {entity, target}
 
-  Just hooks <- get (Val (M @ComponentRemoveHooksRel)) =<< meta @t
+  m <- meta @t
+  Just hooks <- get m $ mkQuery (M @ComponentRemoveHooksRel)
   for_ hooks $ \(ComponentRemoveHooksRel h) -> do
     for_ h $ \h -> h context

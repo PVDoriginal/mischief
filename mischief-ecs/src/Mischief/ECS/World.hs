@@ -206,13 +206,13 @@ instance EraseIntoStorage (System ()) [System ()] where
   erase x = [x]
 
 data SystemTools = SystemTools
-  { get :: forall c m w. (MonadSystem w m, QueryType c) => Proxy c -> Entity -> m (Maybe c),
+  { get :: forall c m w. (MonadSystem w m, Component c) => Proxy c -> Entity -> m (Maybe c),
     getRAny :: forall c m w. (Component c, MonadSystem w m, RelExclusivity c ~ Inclusive) => Proxy c -> Entity -> m (Maybe [Rel c]),
     set :: forall c. (Bundle c) => c -> Entity -> System (),
     spawnByInsert :: forall b. (Bundle b) => Entity -> b -> System ()
   }
 
-worldGet :: forall c m w. (MonadSystem w m, QueryType c) => Proxy c -> Entity -> m (Maybe c)
+worldGet :: forall c m w. (MonadSystem w m, Component c) => Proxy c -> Entity -> m (Maybe c)
 worldGet p e = do
   World {tools = SystemTools {get}} <- unsafeGetWorld
   get p e

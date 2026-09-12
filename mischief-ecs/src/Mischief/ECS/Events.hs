@@ -35,10 +35,10 @@ flushEvents = do
 
 runEvent :: ErasedEvent -> System ()
 runEvent (ErasedEvent (event :: e)) = do
-  observers' <- query (C @(Observer e), C @(EventProxy e), C @ObserverOrder)
+  observers' <- query $ mkQuery (C @(Observer e), C @(EventProxy e), C @ObserverOrder)
   let observers = sortBy (\(_, _, a) (_, _, b) -> compare a b) observers'
   for_ observers $ \(observer, _, _) -> do
-    let Observer f = value observer
+    let Observer f = observer
     f event
 
 newtype OnSet c = OnSet {entity :: Entity}

@@ -62,7 +62,7 @@ removeOther = hookRel $ removeComplementary @b
 
 insertComplementary :: forall (a :: Type) b. (Component b, Component a) => (a -> b) -> HookContextRel -> System ()
 insertComplementary f event = do
-  Just val <- get (R @a event.target) event.entity
+  Just val <- get event.entity $ mkQuery (R @a event.target)
   insert (Rel (f val.comp) event.entity) event.target
 
 removeComplementary :: forall b. (Component b) => HookContextRel -> System ()
@@ -113,5 +113,5 @@ instance (Component c) => Component (CleanupWatcher c) where
 
 triggerCleanup :: forall c. (Component c) => HookContextRel -> System ()
 triggerCleanup e = do
-  Just watcher <- get (R @(CleanupWatcher c) e.target) e.entity
+  Just watcher <- get e.entity $ mkQuery (R @(CleanupWatcher c) e.target)
   watcher.comp.function CleanupRequest {entity = e.target, target = e.entity}

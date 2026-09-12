@@ -86,14 +86,14 @@ insert bundle entity =
           triggerSetEvent bundleData entity
           triggerSetEvent (ProcessedBundleData requiredComponentsAdded) entity
 
-getOrInsert :: forall qd. (Updateable (Result qd), Bundle qd) => qd -> Entity -> System (Result qd)
-getOrInsert val entity = do
-  g <- update (Result (val, entity))
-  case g of
-    Just g -> return g
-    Nothing -> do
-      insert val entity
-      return $ Result (val, entity)
+-- getOrInsert :: forall qd. (Updateable (Result qd), Bundle qd) => qd -> Entity -> System (Result qd)
+-- getOrInsert val entity = do
+--   g <- update (Result (val, entity))
+--   case g of
+--     Just g -> return g
+--     Nothing -> do
+--       insert val entity
+--       return $ Result (val, entity)
 
 -- | Insert a bundle of components on an Entity.
 --
@@ -135,8 +135,8 @@ insertIfNeq b entity = do
 
   comps <- flip filterM (Set.toList elements) $ \BundleElement {rep, component = ErasedComponentEq (val :: c)} -> do
     val' <- case rep of
-      PairRep (_, target) -> fmap (\x -> x.comp) <$> get (R @c target) entity
-      _ -> fmap value <$> get (C @c) entity
+      PairRep (_, target) -> fmap (\x -> x.comp) <$> get entity (mkQuery (R @c target))
+      _ -> get entity (mkQuery (C @c))
 
     case val' of
       Nothing -> return True
@@ -153,67 +153,11 @@ class Settable' isRel c i | isRel c -> i where
   setInner' :: c -> i -> System ()
   setIfNeqInner' :: (Eq i) => c -> i -> System ()
 
-instance (Component c) => Settable' False (Result (Rel c)) c where
-  setInner' :: Result (Rel c) -> c -> System ()
-  setInner' !result !newValue = Mischief.ECS.World.Insert.insert (Rel newValue result.target) (entityOf result)
-
-  setIfNeqInner' :: (Component c, Eq c) => Result (Rel c) -> c -> System ()
-  setIfNeqInner' !result !newValue = do
-    curr <- get (R @c result.target) (entityOf result)
-    case curr of
-      Nothing -> warn $ "SetIfNeq failed: Entity " <> text (entityOf result) <> " is not alive."
-      Just curr ->
-        when (curr.comp /= newValue) $
-          setInner' @False result newValue
-
-instance (Component c, IsComponentC c ~ HTrue) => Settable' True (Result c) c where
-  setInner' :: Result c -> c -> System ()
-  setInner' !result !newValue = Mischief.ECS.World.Insert.insert newValue (entityOf result)
-
-  setIfNeqInner' :: (Component c, Eq c) => Result c -> c -> System ()
-  setIfNeqInner' !result !newValue = do
-    curr <- get (C @c) (entityOf result)
-    case curr of
-      Nothing -> warn $ "SetIfNeq failed: Entity " <> text (entityOf result) <> " is not alive."
-      Just curr ->
-        when (value curr /= newValue) $
-          setInner' @True result newValue
-
-instance (Settable' (IsComp c) (Result c) i) => Settable (Result c) i where
-  setInner = setInner' @(IsComp c)
-  setIfNeqInner = setIfNeqInner' @(IsComp c)
-
--- | Set the value of a component obtained as query result.
---
--- Note that the local 'Result' won't be mutated.
--- You'll need to query the component again or use 'update' to update the current result.
 set :: (Settable c i) => c -> i -> System ()
 set = setInner
 
 setIfNeq :: (Eq i, Settable c i) => c -> i -> System ()
 setIfNeq = setIfNeqInner
-
-class Updateable' flag r where
-  updateInner' :: r -> System (Maybe r)
-
-instance (Component c, IsComponentC c ~ HTrue) => Updateable' True (Result c) where
-  updateInner' r = get (C @c) (entityOf r)
-
-instance (Component c) => Updateable' False (Result (Rel c)) where
-  updateInner' r = get (R @c r.target) (entityOf r)
-
-class Updateable r where
-  updateInner :: r -> System (Maybe r)
-
-instance (Updateable' (IsComp c) (Result c)) => Updateable (Result c) where
-  updateInner = updateInner' @(IsComp c)
-
--- | Update the value of a 'Result'.
---
--- Useful if you've done changed to the component and want to grab the live value
--- without re-querying.
-update :: forall c. (Updateable (Result c)) => Result c -> System (Maybe (Result c))
-update = updateInner
 
 triggerAddEvent :: ProcessedBundleData -> Entity -> System ()
 triggerAddEvent bundle entity =
@@ -229,7 +173,8 @@ triggerAddEventC :: ErasedComponent -> Entity -> System ()
 triggerAddEventC (ErasedComponent (_ :: c)) entity = do
   let context = HookContext {entity}
 
-  hooks <- get (Val (C @ComponentAddHooks)) =<< meta @c
+  m <- meta @c
+  hooks <- get m $ mkQuery (C @ComponentAddHooks)
   for_ hooks $ \(ComponentAddHooks h) -> do
     for_ h $ \h -> h context
 
@@ -239,7 +184,8 @@ triggerAddEventR :: ErasedComponent -> Entity -> Entity -> System ()
 triggerAddEventR (ErasedComponent (_ :: c)) target entity = do
   let context = HookContextRel {entity, target}
 
-  Just hooks <- get (Val (M @ComponentAddHooksRel)) =<< meta @c
+  m <- meta @c
+  Just hooks <- get m $ mkQuery (M @ComponentAddHooksRel)
   for_ hooks $ \(ComponentAddHooksRel h) -> do
     for_ h $ \h -> h context
 
@@ -259,7 +205,8 @@ triggerSetEventC :: ErasedComponent -> Entity -> System ()
 triggerSetEventC (ErasedComponent (_ :: c)) entity = do
   let context = HookContext {entity}
 
-  Just hooks <- get (Val (M @ComponentSetHooks)) =<< meta @c
+  m <- meta @c
+  Just hooks <- get m $ mkQuery (M @ComponentSetHooks)
   for_ hooks $ \(ComponentSetHooks h) -> do
     for_ h $ \h -> h context
 
@@ -269,7 +216,8 @@ triggerSetEventR :: ErasedComponent -> Entity -> Entity -> System ()
 triggerSetEventR (ErasedComponent (_ :: c)) target entity = do
   let context = HookContextRel {entity, target}
 
-  Just hooks <- get (Val (M @ComponentSetHooksRel)) =<< meta @c
+  m <- meta @c
+  Just hooks <- get m $ mkQuery (M @ComponentSetHooksRel)
   for_ hooks $ \(ComponentSetHooksRel h) -> do
     for_ h $ \h -> h context
 

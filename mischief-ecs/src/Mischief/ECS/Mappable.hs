@@ -16,49 +16,48 @@ data RelQueryOutput out = RelQueryOutput out | InvalidRelQueryOutput
 
 type family MapIsId c where
   MapIsId (Maybe a) = False
-  MapIsId (Result a) = False
   MapIsId (RelQueryOutput a) = False
   MapIsId [a] = False
   MapIsId a = True
 
-data MapQueryVal
+-- data MapQueryVal
 
-instance TryMapId True MapQueryVal a a where
-  tryMapId = id
+-- instance TryMapId True MapQueryVal a a where
+--   tryMapId = id
 
-instance TryMapId False MapQueryVal (Result a) a where
-  tryMapId = value
+-- instance TryMapId False MapQueryVal (Result a) a where
+--   tryMapId = value
 
-instance (TryMapId (MapIsId a) MapQueryVal a out) => TryMapId False MapQueryVal (Maybe a) (Maybe out) where
-  tryMapId = fmap (tryMapId @(MapIsId a) @MapQueryVal)
+-- instance (TryMapId (MapIsId a) MapQueryVal a out) => TryMapId False MapQueryVal (Maybe a) (Maybe out) where
+--   tryMapId = fmap (tryMapId @(MapIsId a) @MapQueryVal)
 
-instance (TryMapId (MapIsId a) MapQueryVal a out) => TryMapId False MapQueryVal [a] [out] where
-  tryMapId = map (tryMapId @(MapIsId a) @MapQueryVal)
+-- instance (TryMapId (MapIsId a) MapQueryVal a out) => TryMapId False MapQueryVal [a] [out] where
+--   tryMapId = map (tryMapId @(MapIsId a) @MapQueryVal)
 
-instance (TryMapId (MapIsId a) MapQueryVal a out) => TryMapId False MapQueryVal (RelQueryOutput a) (RelQueryOutput out) where
-  tryMapId (RelQueryOutput a) = RelQueryOutput $ tryMapId @(MapIsId a) @MapQueryVal a
-  tryMapId InvalidRelQueryOutput = InvalidRelQueryOutput
+-- instance (TryMapId (MapIsId a) MapQueryVal a out) => TryMapId False MapQueryVal (RelQueryOutput a) (RelQueryOutput out) where
+--   tryMapId (RelQueryOutput a) = RelQueryOutput $ tryMapId @(MapIsId a) @MapQueryVal a
+--   tryMapId InvalidRelQueryOutput = InvalidRelQueryOutput
 
-instance {-# OVERLAPPABLE #-} (TryMapId (MapIsId a) flag a out) => Mappable flag a out where
-  mapTuple = tryMapId @(MapIsId a) @flag
+-- instance {-# OVERLAPPABLE #-} (TryMapId (MapIsId a) flag a out) => Mappable flag a out where
+--   mapTuple = tryMapId @(MapIsId a) @flag
 
-data MapQueryValidity
+-- data MapQueryValidity
 
-instance TryMapId True MapQueryValidity a a where
-  tryMapId = id
+-- instance TryMapId True MapQueryValidity a a where
+--   tryMapId = id
 
-instance TryMapId False MapQueryValidity (Result a) (Result a) where
-  tryMapId = id
+-- instance TryMapId False MapQueryValidity (Result a) (Result a) where
+--   tryMapId = id
 
-instance (TryMapId (MapIsId a) MapQueryValidity a out) => TryMapId False MapQueryValidity (RelQueryOutput a) a where
-  tryMapId (RelQueryOutput a) = a
-  tryMapId InvalidRelQueryOutput = undefined
+-- instance (TryMapId (MapIsId a) MapQueryValidity a out) => TryMapId False MapQueryValidity (RelQueryOutput a) a where
+--   tryMapId (RelQueryOutput a) = a
+--   tryMapId InvalidRelQueryOutput = undefined
 
-instance (TryMapId (MapIsId a) MapQueryValidity a out) => TryMapId False MapQueryValidity (Maybe a) (Maybe out) where
-  tryMapId = fmap (tryMapId @(MapIsId a) @MapQueryValidity)
+-- instance (TryMapId (MapIsId a) MapQueryValidity a out) => TryMapId False MapQueryValidity (Maybe a) (Maybe out) where
+--   tryMapId = fmap (tryMapId @(MapIsId a) @MapQueryValidity)
 
-instance (TryMapId (MapIsId a) MapQueryValidity a out) => TryMapId False MapQueryValidity [a] [out] where
-  tryMapId = map (tryMapId @(MapIsId a) @MapQueryValidity)
+-- instance (TryMapId (MapIsId a) MapQueryValidity a out) => TryMapId False MapQueryValidity [a] [out] where
+--   tryMapId = map (tryMapId @(MapIsId a) @MapQueryValidity)
 
 -- instance {-# OVERLAPPABLE #-} (TryMapId (MapIsId a) MapQueryValidity a out) => Mappable flag a out where
 --   mapTuple = tryMapId @(MapIsId a) @MapQueryValidity

@@ -205,6 +205,9 @@ instance {-# OVERLAPPING #-} (Component c) => EraseIntoStorage (Rel c) (BundleDa
   erase (Rel c entity) =
     BundleData $ Set.singleton BundleElement {rep = PairRep (ComponentType $ Proxy @c, entity), component = ErasedComponent c}
 
+instance {-# OVERLAPPING #-} (EraseIntoStorage c (BundleData ErasedComponent)) => EraseIntoStorage [c] (BundleData ErasedComponent) where
+  erase = foldr ((<>) . erase) (BundleData Set.empty)
+
 instance (Component c, Eq c) => EraseIntoStorage c (BundleData ErasedComponentEq) where
   erase c =
     BundleData $ Set.singleton BundleElement {rep = ComponentRep $ ComponentType $ Proxy @c, component = ErasedComponentEq c}
@@ -212,6 +215,9 @@ instance (Component c, Eq c) => EraseIntoStorage c (BundleData ErasedComponentEq
 instance {-# OVERLAPPING #-} (Component c, Eq c) => EraseIntoStorage (Rel c) (BundleData ErasedComponentEq) where
   erase (Rel c entity) =
     BundleData $ Set.singleton BundleElement {rep = PairRep (ComponentType $ Proxy @c, entity), component = ErasedComponentEq c}
+
+instance {-# OVERLAPPING #-} (EraseIntoStorage c (BundleData ErasedComponentEq)) => EraseIntoStorage [c] (BundleData ErasedComponentEq) where
+  erase = foldr ((<>) . erase) (BundleData Set.empty)
 
 -- | Unique id corresponding to an archetype.
 newtype ArchetypeId = ArchetypeId
@@ -235,6 +241,8 @@ data ComponentData = ComponentData {value :: ErasedComponent, ticks :: Component
 
 -- | Type used for querying and inserting relationships.
 data Rel c = Rel {comp :: c, target :: Entity} deriving (Show)
+
+data From c = From {entity :: Entity, comp :: c} deriving (Show)
 
 -- | @Meta@ component with the /erased/ default value of this component. Added to components required by other components.
 newtype DefaultValue = DefaultValue ErasedComponent deriving anyclass (Component)

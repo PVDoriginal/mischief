@@ -17,12 +17,12 @@ insertRes res = do
   entity <- meta @r
   insert res entity
 
-res :: forall c. (QueryType c) => System (Maybe c)
+res :: forall c. (Component c) => System (Maybe c)
 res = do
   meta <- meta @c
-  get (Val (C @c)) meta
+  get meta $ mkQuery (C @c)
 
-resOrInsert :: forall r. (Component r, Updateable (Result r), Bundle r) => r -> System (Result r)
-resOrInsert r = do
-  meta <- meta @r
-  getOrInsert r meta
+-- resOrInsert :: forall r. (Component r, Updateable (Result r), Bundle r) => r -> System (Result r)
+-- resOrInsert r = do
+--   meta <- meta @r
+--   getOrInsert r meta

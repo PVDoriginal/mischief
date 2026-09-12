@@ -61,8 +61,8 @@ renderSprites = do
   resources <- getRenderingResources
   for_ resources $ \(_, device, queue) -> do
     cameras <- [q|*CameraTexture, *CameraMatrices|]
+    sprites <- [q|Entity, *Sprite, *Transform, *Maybe SpriteSlice, *SpriteFlip, *Maybe SpriteBuffer|]
     for_ cameras $ \(CameraTexture texture, CameraMatrices buf) -> do
-      sprites <- [q|Entity, *Sprite, *Transform, *Maybe SpriteSlice, *SpriteFlip, *Maybe SpriteBuffer|]
       commands <- for sprites $ \(sprite, Sprite {image}, spriteT, slice', SpriteFlip {x = flipX, y = flipY}, buffer) -> do
         buffer <- case buffer of
           Just (SpriteBuffer b) -> pure b

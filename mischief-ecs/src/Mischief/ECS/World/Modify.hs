@@ -22,14 +22,14 @@ import Mischief.ECS.World.Remove
 -- you are encouraged to use 'modify'' instead.
 --
 -- Note that this will trigger change detection even if the provided function is 'id'.
-modify :: forall c i. (Updateable (Result c), Settable (Result c) i, DeepValue (Result c) i) => Result c -> (i -> i) -> System ()
-modify !result !f = do
-  res <- update result
-  case res of
-    Nothing -> warn $ "Modify failed: Entity " <> text (entityOf result) <> " is not alive."
-    Just res -> do
-      let v = deepValue res
-      set result (f v)
+-- modify :: forall c i. (Updateable (Result c), Settable (Result c) i, DeepValue (Result c) i) => Result c -> (i -> i) -> System ()
+-- modify !result !f = do
+--   res <- update result
+--   case res of
+--     Nothing -> warn $ "Modify failed: Entity " <> text (entityOf result) <> " is not alive."
+--     Just res -> do
+--       let v = deepValue res
+--       set result (f v)
 
 -- | Modifies the value of the component with the given function.
 --
@@ -39,10 +39,10 @@ modify !result !f = do
 -- If you wish to apply the function over the live value, use 'modify' instead.
 --
 -- Note that this will trigger change detection even if the provided function is 'id'.
-modify' :: forall c i. (Settable (Result c) i, DeepValue (Result c) i) => Result c -> (i -> i) -> System ()
-modify' !result !f = do
-  let v = deepValue result
-  set result (f v)
+-- modify' :: forall c i. (Settable (Result c) i, DeepValue (Result c) i) => Result c -> (i -> i) -> System ()
+-- modify' !result !f = do
+--   let v = deepValue result
+--   set result (f v)
 
 -- | The most generic function for modifying a component on a given entity.
 --
@@ -56,15 +56,15 @@ modify' !result !f = do
 -- incrementCounter :: 'Entity' -> 'System' ()
 -- incrementCounter = 'alter' (\case 'Nothing' -> 'Just' $ Counter 0; 'Just' (Counter x) -> 'Just' $ Counter (x + 1))
 -- @
-alter :: forall c. (Queryable (C c) (Result c), Bundle c, Component c) => (Maybe c -> Maybe c) -> Entity -> System ()
-alter !f !entity = do
-  val <- get (C @c) entity
-  let r = f (fmap value val)
+-- alter :: forall c. (Queryable (C c) (Result c), Bundle c, Component c) => (Maybe c -> Maybe c) -> Entity -> System ()
+-- alter !f !entity = do
+--   val <- get (C @c) entity
+--   let r = f (fmap value val)
 
-  if isNothing r && isJust val
-    then
-      remove (C @c) entity
-    else case r of
-      Just r ->
-        insert r entity
-      Nothing -> return ()
+--   if isNothing r && isJust val
+--     then
+--       remove (C @c) entity
+--     else case r of
+--       Just r ->
+--         insert r entity
+--       Nothing -> return ()

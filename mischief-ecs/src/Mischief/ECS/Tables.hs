@@ -204,7 +204,7 @@ tryGetComponentFromColumn (Column components) (EntityPointer (# _, rowIndex #)) 
   element <- Vec.unsafeRead components (I# rowIndex)
   pure $ tryGetComponent element.value
 
-tryGetRelCollectionFromTable :: forall c. (Component c) => Table -> Entity -> EntityPointer -> ComponentId -> IO (Maybe [Result (Rel c)])
+tryGetRelCollectionFromTable :: forall c. (Component c) => Table -> Entity -> EntityPointer -> ComponentId -> IO (Maybe [(Entity, Rel c)])
 tryGetRelCollectionFromTable table entity pointer (ComponentId (# id, target #)) =
   do
     columns <- readIORef table.columns
@@ -224,7 +224,7 @@ tryGetRelCollectionFromTable table entity pointer (ComponentId (# id, target #))
       then
         return Nothing
       else do
-        return $ Just $ map (\(value, target) -> Result (Rel value target, entity)) $ catMaybes components'
+        return $ Just $ map (\(value, target) -> (entity, Rel value target)) $ catMaybes components'
 
 tryGetComponentFromTable :: forall c. (Component c) => Table -> EntityPointer -> ComponentId -> IO (Maybe c)
 tryGetComponentFromTable table pointer componentId =
@@ -235,7 +235,7 @@ tryGetComponentFromTable table pointer componentId =
       Nothing -> return Nothing
       Just column -> tryGetComponentFromColumn column pointer
 
-tryGetRelCollectionFromTables :: forall c. (Component c) => Tables -> Entity -> EntityPointer -> ComponentId -> IO (Maybe ([Result (Rel c)]))
+tryGetRelCollectionFromTables :: forall c. (Component c) => Tables -> Entity -> EntityPointer -> ComponentId -> IO (Maybe [(Entity, Rel c)])
 tryGetRelCollectionFromTables (Tables tables) entity (EntityPointer (# archetypeId, rowIndex #)) componentId =
   do
     table <- Vec.unsafeRead tables (I# archetypeId)
@@ -302,7 +302,7 @@ tryGetComponentsFromColumn (Column components) = do
   let x = Vector.mapM (\x -> tryGetComponent x.value) frozen
   pure $ maybe [] Vector.toList x
 
-tryGetRelCollectionsFromTable :: forall c. (Component c) => Table -> ComponentId -> IO [(Entity, [Result (Rel c)])]
+tryGetRelCollectionsFromTable :: forall c. (Component c) => Table -> ComponentId -> IO [(Entity, [Rel c])]
 tryGetRelCollectionsFromTable table (ComponentId (# id, target #)) =
   do
     -- let Just entity = componentId.entity
@@ -323,10 +323,10 @@ tryGetRelCollectionsFromTable table (ComponentId (# id, target #)) =
     let components'' = zip (map fst entities) $ transpose $ catMaybes components'
     return $
       map
-        (\(entity, components) -> (entity, map (\(value, target) -> Result (Rel value target, entity)) components))
+        (\(entity, components) -> (entity, map (\(value, target) -> Rel value target) components))
         components''
 
-tryGetComponentsFromTable :: forall c. (Component c) => Table -> ComponentId -> IO [(Entity, Result c)]
+tryGetComponentsFromTable :: forall c. (Component c) => Table -> ComponentId -> IO [(Entity, c)]
 tryGetComponentsFromTable table componentId =
   do
     columns <- readIORef table.columns
@@ -336,7 +336,7 @@ tryGetComponentsFromTable table componentId =
         results <- tryGetComponentsFromColumn @c column
         entities <- Vec.toList table.entities
         let zipped = zip (map fst entities) results
-        return $ map (\(e, r) -> (e, Result (r, e))) zipped
+        return $ map (\(e, r) -> (e, r)) zipped
 
 tryGetEntitiesFromTable :: Table -> IO [Entity]
 tryGetEntitiesFromTable table =
@@ -344,7 +344,7 @@ tryGetEntitiesFromTable table =
     entities <- Vec.toList table.entities
     return $ map fst entities
 
-tryGetComponentsFromTableMaybe :: forall c. (Component c) => Table -> ComponentId -> IO [(Entity, Maybe (Result c))]
+tryGetComponentsFromTableMaybe :: forall c. (Component c) => Table -> ComponentId -> IO [(Entity, Maybe c)]
 tryGetComponentsFromTableMaybe table componentId =
   do
     columns <- readIORef table.columns
@@ -355,14 +355,14 @@ tryGetComponentsFromTableMaybe table componentId =
       Just column -> do
         results <- tryGetComponentsFromColumn @c column
         entities <- Vec.toList table.entities
-        return $ zipWith (\x e -> (e, Just $ Result (x, e))) results (map fst entities)
+        return $ zipWith (\x e -> (e, Just x)) results (map fst entities)
 
-tryGetRelCollectionsFromArchetype :: forall c. (Component c) => ArchetypeId -> IOVec Table -> ComponentId -> IO [(Entity, [Result (Rel c)])]
+tryGetRelCollectionsFromArchetype :: forall c. (Component c) => ArchetypeId -> IOVec Table -> ComponentId -> IO [(Entity, [Rel c])]
 tryGetRelCollectionsFromArchetype archetype tables componentId = do
   table <- Vec.unsafeRead tables archetype.id
   tryGetRelCollectionsFromTable table componentId
 
-tryGetComponentsFromArchetype :: forall c. (Component c) => ArchetypeId -> IOVec Table -> ComponentId -> IO [(Entity, Result c)]
+tryGetComponentsFromArchetype :: forall c. (Component c) => ArchetypeId -> IOVec Table -> ComponentId -> IO [(Entity, c)]
 tryGetComponentsFromArchetype archetype tables componentId = do
   table <- Vec.unsafeRead tables archetype.id
   tryGetComponentsFromTable table componentId
@@ -372,18 +372,18 @@ tryGetEntitiesFromArchetype archetype tables = do
   table <- Vec.unsafeRead tables archetype.id
   tryGetEntitiesFromTable table
 
-tryGetComponentsFromArchetypeMaybe :: forall c. (Component c) => ArchetypeId -> IOVec Table -> ComponentId -> IO [(Entity, Maybe (Result c))]
+tryGetComponentsFromArchetypeMaybe :: forall c. (Component c) => ArchetypeId -> IOVec Table -> ComponentId -> IO [(Entity, Maybe c)]
 tryGetComponentsFromArchetypeMaybe archetype tables componentId = do
   table <- Vec.unsafeRead tables archetype.id
   tryGetComponentsFromTableMaybe table componentId
 
-tryGetRelCollectionsFromTables :: forall c. (Component c) => Tables -> [ArchetypeId] -> ComponentId -> IO [(Entity, [Result (Rel c)])]
+tryGetRelCollectionsFromTables :: forall c. (Component c) => Tables -> [ArchetypeId] -> ComponentId -> IO [(Entity, [Rel c])]
 tryGetRelCollectionsFromTables (Tables tables) archetypes componentId =
   do
     results <- mapM (\archetype -> tryGetRelCollectionsFromArchetype archetype tables componentId) archetypes
     return $ concat results
 
-tryGetComponentsFromTables :: forall c. (Component c) => Tables -> [ArchetypeId] -> ComponentId -> IO [(Entity, Result c)]
+tryGetComponentsFromTables :: forall c. (Component c) => Tables -> [ArchetypeId] -> ComponentId -> IO [(Entity, c)]
 tryGetComponentsFromTables (Tables tables) archetypes componentId =
   do
     results <- mapM (\archetype -> tryGetComponentsFromArchetype archetype tables componentId) archetypes
@@ -395,53 +395,53 @@ tryGetEntitiesFromTables (Tables tables) archetypes =
     results <- mapM (`tryGetEntitiesFromArchetype` tables) archetypes
     return $ concat results
 
-tryGetComponentsFromTablesMaybe :: forall c. (Component c) => Tables -> [ArchetypeId] -> ComponentId -> IO [(Entity, Maybe (Result c))]
+tryGetComponentsFromTablesMaybe :: forall c. (Component c) => Tables -> [ArchetypeId] -> ComponentId -> IO [(Entity, Maybe c)]
 tryGetComponentsFromTablesMaybe (Tables tables) archetypes componentId =
   do
     results <- mapM (\archetype -> tryGetComponentsFromArchetypeMaybe archetype tables componentId) archetypes
     return $ concat results
 
-newtype Result c = Result (c, Entity)
+-- newtype Result c = Result (c, Entity)
 
-data ErasedResult where
-  ErasedResult :: Result c -> ErasedResult
+-- data ErasedResult where
+--   ErasedResult :: Result c -> ErasedResult
 
-value :: Result c -> c
-value (Result (c, _)) = c
+-- value :: Result c -> c
+-- value (Result (c, _)) = c
 
-type family IsComp a where
-  IsComp (Rel a) = False
-  IsComp a = True
+-- type family IsComp a where
+--   IsComp (Rel a) = False
+--   IsComp a = True
 
-entityOf :: Result c -> Entity
-entityOf (Result (_, e)) = e
+-- entityOf :: Result c -> Entity
+-- entityOf (Result (_, e)) = e
 
-instance (Show c) => Show (Result c) where
-  show :: Result c -> String
-  show = show . value
+-- instance (Show c) => Show (Result c) where
+--   show :: Result c -> String
+--   show = show . value
 
-instance (Eq c) => Eq (Result c) where
-  (==) :: Result c -> Result c -> Bool
-  (==) a b = value a == value b
+-- instance (Eq c) => Eq (Result c) where
+--   (==) :: Result c -> Result c -> Bool
+--   (==) a b = value a == value b
 
-instance (Ord c) => Ord (Result c) where
-  compare :: Result c -> Result c -> Ordering
-  compare a b = compare (value a) (value b)
+-- instance (Ord c) => Ord (Result c) where
+--   compare :: Result c -> Result c -> Ordering
+--   compare a b = compare (value a) (value b)
 
-instance (HasField a b c) => HasField a (Result b) c where
-  getField a = getField @a (value a)
+-- instance (HasField a b c) => HasField a (Result b) c where
+--   getField a = getField @a (value a)
 
-class DeepValue' flag c i | flag c -> i where
-  deepValue' :: c -> i
+-- class DeepValue' flag c i | flag c -> i where
+--   deepValue' :: c -> i
 
-instance DeepValue' True (Result c) c where
-  deepValue' = value
+-- instance DeepValue' True (Result c) c where
+--   deepValue' = value
 
-instance DeepValue' False (Result (Rel c)) c where
-  deepValue' x = x.comp
+-- instance DeepValue' False (Result (Rel c)) c where
+--   deepValue' x = x.comp
 
-class DeepValue c i | c -> i where
-  deepValue :: c -> i
+-- class DeepValue c i | c -> i where
+--   deepValue :: c -> i
 
-instance (DeepValue' (IsComp c) (Result c) i) => DeepValue (Result c) i where
-  deepValue = deepValue' @(IsComp c)
+-- instance (DeepValue' (IsComp c) (Result c) i) => DeepValue (Result c) i where
+--   deepValue = deepValue' @(IsComp c)
