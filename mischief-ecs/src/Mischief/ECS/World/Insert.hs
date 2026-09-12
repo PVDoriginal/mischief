@@ -58,7 +58,14 @@ insert bundle entity =
     case pointer of
       Nothing -> warn $ "Insertion failed: Entity " <> text entity <> " is not alive."
       Just currentPointer -> do
-        let BundleData {elements} = bundleData bundle
+        let BundleData {elements, resources, external} = bundleData bundle
+
+        for_ external $ \(e, x) -> do
+          insert x e
+
+        for_ resources $ \BundleElement {component = ErasedComponent (val :: c)} -> do
+          m <- meta @c
+          insert val m
 
         currentTick <- liftIO $ readIORef world.tick
 
@@ -101,13 +108,23 @@ insert bundle entity =
 insertNew :: forall b. (Bundle b) => b -> Entity -> System ()
 insertNew bundle entity =
   do
+    let BundleData {elements, resources, external} = bundleData bundle
+    for_ external $ \(e, s) -> do
+      insertNew s e
+
     world <- unsafeGetWorld
+
     pointer <- liftIO $ getPointer entity world.entities
 
     case pointer of
       Nothing -> warn $ "Insertion failed: Entity " <> text entity <> " is not alive."
       Just currentPointer -> do
-        let BundleData {elements} = bundleData bundle
+        for_ resources $ \BundleElement {component = ErasedComponent (val :: c)} -> do
+          m <- meta @c
+          r <- get m $ mkQuery (C @c)
+          case r of
+            Just _ -> pure ()
+            Nothing -> insert val m
 
         currentTick <- liftIO $ readIORef world.tick
 
@@ -129,9 +146,9 @@ insertNew bundle entity =
             triggerSetEvent (ProcessedBundleData requiredComponentsAdded) entity
             triggerSetEvent newComponents entity
 
-insertIfNeq :: (BundleEq b) => b -> Entity -> System ()
+insertIfNeq :: forall b. (BundleEq b) => b -> Entity -> System ()
 insertIfNeq b entity = do
-  let BundleData {elements} = bundleDataEq b
+  let BundleData {elements, resources, external} = bundleDataEq b
 
   comps <- flip filterM (Set.toList elements) $ \BundleElement {rep, component = ErasedComponentEq (val :: c)} -> do
     val' <- case rep of
@@ -142,22 +159,36 @@ insertIfNeq b entity = do
       Nothing -> return True
       Just val' -> return (val /= val')
 
-  insert (bundleEqToSimple $ BundleData (Set.fromList comps)) entity
+  resources <- flip filterM (Set.toList resources) $ \BundleElement {rep, component = ErasedComponentEq (val :: c)} -> do
+    e <- meta @c
+    val' <- case rep of
+      ComponentRep _ -> get e $ mkQuery (C @c)
+      _ -> undefined
 
-class Settable c i | c -> i where
-  setInner :: c -> i -> System ()
+    case val' of
+      Nothing -> return True
+      Just val' -> return (val /= val')
 
-  setIfNeqInner :: (Eq i) => c -> i -> System ()
+  for_ external $ \(e, external) -> do
+    insertIfNeq external e
+    undefined
 
-class Settable' isRel c i | isRel c -> i where
-  setInner' :: c -> i -> System ()
-  setIfNeqInner' :: (Eq i) => c -> i -> System ()
+  insert (bundleEqToSimple $ BundleData (Set.fromList comps) (Set.fromList resources) Set.empty) entity
 
-set :: (Settable c i) => c -> i -> System ()
-set = setInner
+-- class Settable c i | c -> i where
+--   setInner :: c -> i -> System ()
 
-setIfNeq :: (Eq i, Settable c i) => c -> i -> System ()
-setIfNeq = setIfNeqInner
+--   setIfNeqInner :: (Eq i) => c -> i -> System ()
+
+-- class Settable' isRel c i | isRel c -> i where
+--   setInner' :: c -> i -> System ()
+--   setIfNeqInner' :: (Eq i) => c -> i -> System ()
+
+-- set :: (Settable c i) => c -> i -> System ()
+-- set = setInner
+
+-- setIfNeq :: (Eq i, Settable c i) => c -> i -> System ()
+-- setIfNeq = setIfNeqInner
 
 triggerAddEvent :: ProcessedBundleData -> Entity -> System ()
 triggerAddEvent bundle entity =

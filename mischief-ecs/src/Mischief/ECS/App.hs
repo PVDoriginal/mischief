@@ -64,8 +64,8 @@ runApp app = flip runSystem app.world $ do
   x <- scheduleEntity Init
   liftIO $ runSchedules [x]
 
-  startups <- orderEntities =<< query' E (With (C @StartupSchedule))
-  updates <- orderEntities =<< query' E (With (C @UpdateSchedule))
+  startups <- orderEntities =<< query (mkQuery' E (With (C @StartupSchedule)))
+  updates <- orderEntities =<< query (mkQuery' E (With (C @UpdateSchedule)))
 
   liftIO $ runSchedules startups
   liftIO $ runSchedulesLoop updates
@@ -85,13 +85,13 @@ runSchedule sch = scheduleEntity sch >>= runSchedule'
 runSchedule' :: Entity -> System ()
 runSchedule' schedule = do
   world <- unsafeGetWorld
-  systems <- orderEntities =<< query' E (With (R @ScheduledIn schedule))
+  systems <- orderEntities =<< query (mkQuery' E (With (R @ScheduledIn schedule)))
 
   for_ systems $ \systemId -> do
-    Just (systemFunction, lastSystemTick) <- get (C @SystemFunction, C @SystemTick) systemId
+    Just (systemFunction, lastSystemTick) <- get systemId $ mkQuery (C @SystemFunction, C @SystemTick)
     currentSystemTick <- liftIO $ readIORef world.tick
 
-    set lastSystemTick (SystemTick currentSystemTick)
+    insert (SystemTick currentSystemTick) systemId
     insert (LastSystemTick lastSystemTick.inner) systemId
 
     Control.Monad.Reader.local (hide . setSystemId (SystemId systemId) . unhide) $ do
@@ -149,14 +149,14 @@ getTools =
       spawnByInsert = toolsSpawnByInsert
     }
 
-toolsGet :: forall c m w. (MonadSystem w m, QueryType c) => Proxy c -> Entity -> m (Maybe c)
-toolsGet _ = get (Val (C @c))
+toolsGet :: forall c m w. (MonadSystem w m, Component c) => Proxy c -> Entity -> m (Maybe c)
+toolsGet _ e = get e $ mkQuery (C @c)
 
 toolsSet :: forall c. (Bundle c) => c -> Entity -> System ()
 toolsSet = insert
 
 toolsGetRAny :: forall c m w. (Component c, MonadSystem w m, RelExclusivity c ~ Inclusive) => Proxy c -> Entity -> m (Maybe [Rel c])
-toolsGetRAny _ = get (Val (R @c Any))
+toolsGetRAny _ e = get e $ mkQuery (R @c Any)
 
 toolsSpawnByInsert :: forall b. (Bundle b) => Entity -> b -> System ()
 toolsSpawnByInsert = spawnEntityByInsert

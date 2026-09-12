@@ -2,6 +2,7 @@
 
 module Mischief.ECS.Components.Bundle where
 
+import Data.Bifunctor qualified
 import Data.Set qualified as Set
 import Data.Typeable
 import Mischief.ECS.Collectable (Collectable (collect))
@@ -12,11 +13,11 @@ newtype ProcessedBundleData = ProcessedBundleData {elements :: [ProcessedBundleE
 data ProcessedBundleElement = ProcessedBundleElement {id :: ComponentId, component :: ComponentData}
 
 addComponentToBundleData :: forall c. (Component c) => c -> BundleData ErasedComponent -> BundleData ErasedComponent
-addComponentToBundleData c (BundleData {elements}) =
+addComponentToBundleData c (BundleData {elements, resources, external}) =
   let rep = ComponentRep $ ComponentType (Proxy @c)
       component = ErasedComponent c
       element = BundleElement {rep, component}
-   in BundleData {elements = Set.union elements (Set.singleton element)}
+   in BundleData {elements = Set.union elements (Set.singleton element), resources, external}
 
 instance Eq ProcessedBundleElement where
   (==) :: ProcessedBundleElement -> ProcessedBundleElement -> Bool
@@ -37,5 +38,8 @@ bundleDataEq :: (BundleEq b) => b -> BundleData ErasedComponentEq
 bundleDataEq = collect
 
 bundleEqToSimple :: BundleData ErasedComponentEq -> BundleData ErasedComponent
-bundleEqToSimple BundleData {elements} =
-  BundleData $ Set.map (\BundleElement {rep, component = ErasedComponentEq (a :: s)} -> BundleElement {rep, component = ErasedComponent a}) elements
+bundleEqToSimple BundleData {elements, resources, external} =
+  BundleData
+    (Set.map (\BundleElement {rep, component = ErasedComponentEq (a :: s)} -> BundleElement {rep, component = ErasedComponent a}) elements)
+    (Set.map (\BundleElement {rep, component = ErasedComponentEq (a :: s)} -> BundleElement {rep, component = ErasedComponent a}) resources)
+    (Set.map (Data.Bifunctor.second bundleEqToSimple) external)

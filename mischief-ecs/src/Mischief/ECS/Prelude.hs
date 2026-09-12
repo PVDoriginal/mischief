@@ -9,7 +9,6 @@ module Mischief.ECS.Prelude
     module Mischief.ECS.World.Query.TH,
     module Mischief.ECS.World.Insert,
     module Mischief.ECS.World.Remove,
-    module Mischief.ECS.World.Modify,
     module Mischief.ECS.World.Spawn,
     module Mischief.ECS.Resources,
     module Mischief.ECS.EventDef,
@@ -23,7 +22,6 @@ module Mischief.ECS.Prelude
     module Mischief.ECS.Log,
     module Mischief.ECS.Utils,
     module Mischief.ECS.Events,
-    module Mischief.ECS.World.Query.QueryType,
     module Mischief.ECS.Components.HooksDef,
     module Mischief.ECS.Hooks,
     module Mischief.ECS.Components.Bundle,
@@ -49,13 +47,11 @@ import Mischief.ECS.Time (Time, TimePlugin (..), deltaSecs, deltaTime)
 import Mischief.ECS.Utils (expect, unwrap)
 import Mischief.ECS.World (System)
 import Mischief.ECS.World.Defer (defer, delay, runAfter)
-import Mischief.ECS.World.Insert (insert, insertIfNeq, insertNew, set, setIfNeq, update)
-import Mischief.ECS.World.Modify (modify, modify')
-import Mischief.ECS.World.Query (get, get', query, query', single, single')
-import Mischief.ECS.World.Query.Markers (Any (..), C (..), E (..), Has (..), HasR (..), M (..), MR (..), Q (..), Q' (..), R (..), Val (..))
-import Mischief.ECS.World.Query.QueryFilter (Added (..), Changed (..), Check (..), CheckR (..), Not (..), With (..), Without (..), (|.))
-import Mischief.ECS.World.Query.QueryType (QueryType)
+import Mischief.ECS.World.Insert (insert, insertIfNeq, insertNew)
+import Mischief.ECS.World.Query (get, query)
+import Mischief.ECS.World.Query.Markers (Any (..), C (..), E (..), Has (..), HasR (..), M (..), MR (..), Q (..), Q' (..), R (..), R' (..))
+import Mischief.ECS.World.Query.QueryFilter (QueryFilter (..))
 import Mischief.ECS.World.Query.Queryable ()
-import Mischief.ECS.World.Query.TH (g, q, s)
+import Mischief.ECS.World.Query.TH (q, qf)
 import Mischief.ECS.World.Remove (remove)
 import Mischief.ECS.World.Spawn (despawn, spawn, spawnDefer)

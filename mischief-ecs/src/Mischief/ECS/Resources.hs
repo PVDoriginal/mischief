@@ -26,3 +26,13 @@ res = do
 -- resOrInsert r = do
 --   meta <- meta @r
 --   getOrInsert r meta
+
+resOrInsert :: forall r. (Component r, Bundle r) => r -> System r
+resOrInsert r = do
+  meta <- meta @r
+  x <- get meta $ mkQuery (C @r)
+  case x of
+    Nothing -> do
+      insertRes r
+      pure r
+    Just r -> pure r

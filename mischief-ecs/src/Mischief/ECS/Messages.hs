@@ -26,7 +26,7 @@ import Mischief.ECS.Utils
 import Mischief.ECS.World
 import Mischief.ECS.World.Insert
 import Mischief.ECS.World.Modify
-import Mischief.ECS.World.Query (get)
+import Mischief.ECS.World.Query (get, mkQuery)
 import Mischief.ECS.World.Query.Markers
 import Mischief.ECS.World.Query.Queryable
 import Prelude hiding (read)
@@ -59,15 +59,15 @@ instance (Message m) => Component (Messages m)
 -- | Write a message.
 write :: forall m. (Message m) => m -> System ()
 write !message = do
-  messages <- resOrInsert $ newMessages @m
+  messages <- resOrInsert (newMessages @m)
   world <- unsafeGetWorld
   frame <- liftIO $ readIORef world.frame
 
   loc <- self
-  Just currentSystemTick <- get (C @SystemTick) loc
+  Just currentSystemTick <- get loc $ mkQuery (C @SystemTick)
 
   let message' = (frame, currentSystemTick.inner, message)
-  modify messages (\Messages {messages, readers} -> Messages {messages = message' : messages, readers})
+  insertRes $ (\Messages {messages, readers} -> Messages {messages = message' : messages, readers}) messages
   clearOldMessages messages
 
 -- | Read all the messages that haven't been read by the current system.
@@ -81,7 +81,7 @@ read = do
       readerTick <- liftIO $ readIORef tick
 
       loc <- self
-      Just currentSystemTick <- get (C @SystemTick) loc
+      Just currentSystemTick <- get loc $ mkQuery (C @SystemTick)
 
       let newMessages = map (\(_, _, x) -> x) $ filter (\(_, tick, _) -> tick < currentSystemTick.inner && tick > readerTick) m.messages
       liftIO $ writeIORef tick currentSystemTick.inner
@@ -92,8 +92,8 @@ read = do
 add :: forall (m :: Type). (Message m) => System ()
 add = insertRes $ newMessages @m
 
-clearOldMessages :: (Message m) => Result (Messages m) -> System ()
+clearOldMessages :: (Message m) => Messages m -> System ()
 clearOldMessages !m = do
   world <- unsafeGetWorld
   frame <- liftIO $ readIORef world.frame
-  modify m (\Messages {messages, readers} -> Messages {messages = filter (\(Frame x, _, _) -> Frame (x + 2) >= frame) messages, readers})
+  insertRes $ (\Messages {messages, readers} -> Messages {messages = filter (\(Frame x, _, _) -> Frame (x + 2) >= frame) messages, readers}) m

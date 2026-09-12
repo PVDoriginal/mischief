@@ -84,12 +84,12 @@ getDefault :: ComponentId -> System ProcessedBundleElement
 getDefault (ComponentId (# id, e #)) = do
   world <- unsafeGetWorld
 
-  Just x <- get (C @DefaultValue) (Entity (# id, 0## #))
-  let dv = value x
+  Just x <- get (Entity (# id, 0## #)) $ mkQuery (C @DefaultValue)
+  let dv = x
   let (DefaultValue value) = dv
 
   let (SystemId sys) = world.systemId
-  currentSystemTick <- fromMaybe (SystemTick $ Tick (0, 0)) <$> get (Val $ C @SystemTick) sys
+  currentSystemTick <- fromMaybe (SystemTick $ Tick (0, 0)) <$> get sys (mkQuery (C @SystemTick))
 
   return
     ProcessedBundleElement

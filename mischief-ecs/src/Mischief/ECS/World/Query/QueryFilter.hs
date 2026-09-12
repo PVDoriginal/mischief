@@ -26,25 +26,15 @@ qfAddedF ticks lastSystemTick currentSystemTick = ticks.added >= lastSystemTick 
 
 data FilterType = ArchetypeFilter | EntityFilter
 
--- data QueryFilter where
---   NoFilter :: QueryFilter
---   QFWith :: (TypeRep, Maybe Entity) -> QueryFilter
---   QFWithRelAny :: TypeRep -> QueryFilter
---   -- QFChanged :: (TypeRep, Maybe Entity) -> (ComponentTicks -> Tick -> Tick -> Bool) -> QueryFilter EntityFilter
---   -- QFChangedRelAny :: TypeRep -> (ComponentTicks -> Tick -> Tick -> Bool) -> QueryFilter EntityFilter
---   -- QFCheckRaw :: (TypeRep, Maybe Entity, ErasedCheck) -> QueryFilter EntityFilter
---   -- QFCheckRawRelAny :: (TypeRep, ErasedCheck) -> QueryFilter EntityFilter
---   QFNot :: QueryFilter -> QueryFilter
---   QFAnd :: QueryFilter -> QueryFilter -> QueryFilter
---   QFOr :: QueryFilter -> QueryFilter -> QueryFilter
-
-data QueryFilter where
-  NoFilter :: QueryFilter
-  With :: (ToFilterComponent a) => a -> QueryFilter
-  Without :: (ToFilterComponent a) => a -> QueryFilter
-  Not :: QueryFilter -> QueryFilter
-  And :: QueryFilter -> QueryFilter -> QueryFilter
-  Or :: QueryFilter -> QueryFilter -> QueryFilter
+data QueryFilter (f :: FilterType) where
+  NoFilter :: QueryFilter f
+  With :: (ToFilterComponent a) => a -> QueryFilter f
+  Without :: (ToFilterComponent a) => a -> QueryFilter f
+  Changed :: (ToFilterComponent a) => a -> QueryFilter EntityFilter
+  Added :: (ToFilterComponent a) => a -> QueryFilter EntityFilter
+  Not :: QueryFilter f -> QueryFilter f
+  And :: QueryFilter f -> QueryFilter f -> QueryFilter f
+  Or :: QueryFilter f -> QueryFilter f -> QueryFilter f
 
 newtype FilterComponent = FilterComponent {inner :: (TypeRep, Maybe Entity, Maybe Any)}
 
@@ -62,8 +52,8 @@ instance (Component c) => ToFilterComponent (R c Any) where
 
 -- With ::
 
-instance Semigroup QueryFilter where
-  (<>) :: QueryFilter -> QueryFilter -> QueryFilter
+instance Semigroup (QueryFilter f) where
+  (<>) :: QueryFilter f -> QueryFilter f -> QueryFilter f
   (<>) = And
 
 -- instance {-# OVERLAPPING #-} EraseIntoStorage (QueryFilter a) (QueryFilter a) where
@@ -95,7 +85,7 @@ filterArchetype' (FilterComponent (c, _, Just _)) world components = do
     Just (ComponentId (# id, _ #)) -> do
       return $ any (\(ComponentId (# id', a #)) -> isJust a && isTrue# (eqWord# id' id)) components
 
-filterArchetype :: QueryFilter -> World -> [ComponentId] -> IO Bool
+filterArchetype :: QueryFilter ArchetypeFilter -> World -> [ComponentId] -> IO Bool
 filterArchetype NoFilter _ _ = pure True
 filterArchetype (With a) b c = filterArchetype' (toFilterComponent a) b c
 filterArchetype (Without a) b c = not <$> filterArchetype' (toFilterComponent a) b c
@@ -153,10 +143,10 @@ filterArchetype (Or a0 a1) b c = (||) <$> filterArchetype a0 b c <*> filterArche
 -- isArchetypeFilter (QFCheckRawRelAny _) = False
 -- isArchetypeFilter (QFNot a) = isArchetypeFilter a
 
-preprocessFilter :: QueryFilter -> QueryFilter
+preprocessFilter :: QueryFilter f -> QueryFilter f
 preprocessFilter = propagateQFNot
 
-propagateQFNot :: QueryFilter -> QueryFilter
+propagateQFNot :: QueryFilter f -> QueryFilter f
 propagateQFNot (Not NoFilter) = NoFilter
 propagateQFNot (Not (Not a)) = propagateQFNot a
 propagateQFNot (Not (a `And` b)) = propagateQFNot (Not a) `Or` propagateQFNot (Not b)

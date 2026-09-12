@@ -42,5 +42,5 @@ orderEntitiesStep entities =
 
 isAvailable :: Entity -> System Bool
 isAvailable entity = do
-  before <- query' E (With (R @Before entity))
-  isNothing <$> findM ((not . unwrap <$>) . get (Has @Visited)) before
+  before <- query $ mkQuery' E (With (R @Before entity))
+  isNothing <$> findM (\x -> (not . unwrap <$>) $ get x $ mkQuery (Has @Visited)) before

@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wno-overlapping-patterns #-}
 
-module Mischief.ECS.World.Query.TH (q, s, g) where
+module Mischief.ECS.World.Query.TH (q, qf) where
 
 import Control.Monad
 import Control.Monad.IO.Class
@@ -24,7 +24,7 @@ import Mischief.ECS.World.Query.QueryFilter
 import Mischief.ECS.World.Query.Queryable hiding (Q)
 import Mischief.ECS.World.Query.TH.Common
 import Mischief.ECS.World.Query.TH.QD
-import Mischief.ECS.World.Query.TH.QF (Qf, pCheck, pQf, quoteQf)
+import Mischief.ECS.World.Query.TH.QF (Qf, pQf, quoteQf)
 import Text.Megaparsec (MonadParsec (eof), Parsec, choice, optional, parse, parseTest, runParserT, some, (<|>))
 import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer qualified as L
@@ -42,9 +42,9 @@ q =
       quoteDec = undefined
     }
 
-data Query = Query Qd (Maybe Qf) deriving (Show)
+data QueryBuilder = QueryBuilder Qd (Maybe Qf) deriving (Show)
 
-pQuery :: Parser Query
+pQuery :: Parser QueryBuilder
 pQuery = do
   qd <- pQd
   whitespace
@@ -54,51 +54,24 @@ pQuery = do
     whitespace
     pQf
 
-  pure $ Query qd qf
+  pure $ QueryBuilder qd qf
 
-quoteQuery :: Query -> Q Exp
-quoteQuery (Query qd Nothing) = AppE (VarE 'query) <$> quoteQd qd
-quoteQuery (Query qd (Just qf)) = do
+quoteQuery :: QueryBuilder -> Q Exp
+quoteQuery (QueryBuilder qd Nothing) = AppE (VarE 'mkQuery) <$> quoteQd qd
+quoteQuery (QueryBuilder qd (Just qf)) = do
   qd <- quoteQd qd
   qf <- quoteQf qf
-  return $ AppE (AppE (VarE 'query') qd) qf
+  return $ AppE (AppE (VarE 'mkQuery') qd) qf
 
-s :: QuasiQuoter
-s =
+qf :: QuasiQuoter
+qf =
   QuasiQuoter
     { quoteExp = \str -> do
-        let x = parse (whitespace *> pQuery <* eof) "inline_input" (T.pack str)
+        let x = parse (whitespace *> pQf <* eof) "inline_input" (T.pack str)
         case x of
           Left f -> error (show f)
-          Right x -> quoteSingle x,
+          Right x -> quoteQf x,
       quotePat = undefined,
       quoteType = undefined,
       quoteDec = undefined
     }
-
-quoteSingle :: Query -> Q Exp
-quoteSingle (Query qd Nothing) = AppE (VarE 'single) <$> quoteQd qd
-quoteSingle (Query qd (Just qf)) = do
-  qd <- quoteQd qd
-  qf <- quoteQf qf
-  return $ AppE (AppE (VarE 'single') qd) qf
-
-g :: QuasiQuoter
-g =
-  QuasiQuoter
-    { quoteExp = \str -> do
-        let x = parse (whitespace *> pQuery <* eof) "inline_input" (T.pack str)
-        case x of
-          Left f -> error (show f)
-          Right x -> quoteGet x,
-      quotePat = undefined,
-      quoteType = undefined,
-      quoteDec = undefined
-    }
-
-quoteGet :: Query -> Q Exp
-quoteGet (Query qd Nothing) = AppE (VarE 'get) <$> quoteQd qd
-quoteGet (Query qd (Just qf)) = do
-  qd <- quoteQd qd
-  qf <- quoteQf qf
-  return $ AppE (AppE (VarE 'get') qd) qf

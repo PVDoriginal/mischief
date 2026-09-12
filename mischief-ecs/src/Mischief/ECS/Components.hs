@@ -38,6 +38,8 @@ module Mischief.ECS.Components
     -- * Utils
     Pair (..),
     Rel (..),
+    From (..),
+    Res (..),
     ComponentRep (..),
     Tick (..),
     ErasedComponentEq (..),
@@ -192,32 +194,47 @@ tryGetComponent (ErasedComponent (s :: c')) =
     Nothing -> Nothing
 
 instance {-# OVERLAPPING #-} EraseIntoStorage () (BundleData ErasedComponent) where
-  erase _ = BundleData Set.empty
+  erase _ = BundleData Set.empty Set.empty Set.empty
 
 instance {-# OVERLAPPING #-} EraseIntoStorage (BundleData ErasedComponent) (BundleData ErasedComponent) where
   erase = id
 
 instance (Component c) => EraseIntoStorage c (BundleData ErasedComponent) where
   erase c =
-    BundleData $ Set.singleton BundleElement {rep = ComponentRep $ ComponentType $ Proxy @c, component = ErasedComponent c}
+    BundleData (Set.singleton BundleElement {rep = ComponentRep $ ComponentType $ Proxy @c, component = ErasedComponent c}) Set.empty Set.empty
 
 instance {-# OVERLAPPING #-} (Component c) => EraseIntoStorage (Rel c) (BundleData ErasedComponent) where
   erase (Rel c entity) =
-    BundleData $ Set.singleton BundleElement {rep = PairRep (ComponentType $ Proxy @c, entity), component = ErasedComponent c}
+    BundleData (Set.singleton BundleElement {rep = PairRep (ComponentType $ Proxy @c, entity), component = ErasedComponent c}) Set.empty Set.empty
 
-instance {-# OVERLAPPING #-} (EraseIntoStorage c (BundleData ErasedComponent)) => EraseIntoStorage [c] (BundleData ErasedComponent) where
-  erase = foldr ((<>) . erase) (BundleData Set.empty)
+instance {-# OVERLAPPING #-} (Component c) => EraseIntoStorage (Res c) (BundleData ErasedComponent) where
+  erase (Res c) = BundleData Set.empty (Set.singleton BundleElement {rep = ComponentRep $ ComponentType $ Proxy @c, component = ErasedComponent c}) Set.empty
+
+instance {-# OVERLAPPING #-} (Collectable c (BundleData ErasedComponent)) => EraseIntoStorage (From c) (BundleData ErasedComponent) where
+  erase (From e c) = BundleData Set.empty Set.empty (Set.singleton (e, collect c))
+
+instance {-# OVERLAPPING #-} (Collectable c (BundleData ErasedComponent)) => EraseIntoStorage [c] (BundleData ErasedComponent) where
+  erase = foldr ((<>) . collect) (BundleData Set.empty Set.empty Set.empty)
 
 instance (Component c, Eq c) => EraseIntoStorage c (BundleData ErasedComponentEq) where
   erase c =
-    BundleData $ Set.singleton BundleElement {rep = ComponentRep $ ComponentType $ Proxy @c, component = ErasedComponentEq c}
+    BundleData (Set.singleton BundleElement {rep = ComponentRep $ ComponentType $ Proxy @c, component = ErasedComponentEq c}) Set.empty Set.empty
 
 instance {-# OVERLAPPING #-} (Component c, Eq c) => EraseIntoStorage (Rel c) (BundleData ErasedComponentEq) where
   erase (Rel c entity) =
-    BundleData $ Set.singleton BundleElement {rep = PairRep (ComponentType $ Proxy @c, entity), component = ErasedComponentEq c}
+    BundleData (Set.singleton BundleElement {rep = PairRep (ComponentType $ Proxy @c, entity), component = ErasedComponentEq c}) Set.empty Set.empty
 
-instance {-# OVERLAPPING #-} (EraseIntoStorage c (BundleData ErasedComponentEq)) => EraseIntoStorage [c] (BundleData ErasedComponentEq) where
-  erase = foldr ((<>) . erase) (BundleData Set.empty)
+instance {-# OVERLAPPING #-} (Component c, Eq c) => EraseIntoStorage (Res c) (BundleData ErasedComponentEq) where
+  erase (Res c) = BundleData Set.empty (Set.singleton BundleElement {rep = ComponentRep $ ComponentType $ Proxy @c, component = ErasedComponentEq c}) Set.empty
+
+instance {-# OVERLAPPING #-} (Collectable c (BundleData ErasedComponentEq)) => EraseIntoStorage (From c) (BundleData ErasedComponentEq) where
+  erase (From e c) = BundleData Set.empty Set.empty (Set.singleton (e, collect c))
+
+instance {-# OVERLAPPING #-} (Collectable c (BundleData ErasedComponentEq)) => EraseIntoStorage [c] (BundleData ErasedComponentEq) where
+  erase = foldr ((<>) . collect) (BundleData Set.empty Set.empty Set.empty)
+
+instance {-# OVERLAPPING #-} EraseIntoStorage (BundleData ErasedComponentEq) (BundleData ErasedComponentEq) where
+  erase = id
 
 -- | Unique id corresponding to an archetype.
 newtype ArchetypeId = ArchetypeId
@@ -226,7 +243,10 @@ newtype ArchetypeId = ArchetypeId
   deriving (Show, Eq, Ord)
 
 -- | Data extracted from a 'Mischief.ECS.Components.Bundle.Bundle'.
-newtype BundleData e = BundleData {elements :: Set (BundleElement e)} deriving newtype (Semigroup)
+data BundleData e = BundleData {elements :: Set (BundleElement e), resources :: Set (BundleElement e), external :: Set (Entity, BundleData e)} deriving (Eq, Ord)
+
+instance Semigroup (BundleData e) where
+  (<>) (BundleData a0 b0 c0) (BundleData a1 b1 c1) = BundleData (a0 <> a1) (b0 <> b1) (c0 <> c1)
 
 instance Show (BundleData e) where
   show BundleData {elements} = mconcat ["BundleData e [", List.intercalate ", " ts, "]"]
@@ -243,6 +263,8 @@ data ComponentData = ComponentData {value :: ErasedComponent, ticks :: Component
 data Rel c = Rel {comp :: c, target :: Entity} deriving (Show)
 
 data From c = From {entity :: Entity, comp :: c} deriving (Show)
+
+newtype Res c = Res c deriving (Show)
 
 -- | @Meta@ component with the /erased/ default value of this component. Added to components required by other components.
 newtype DefaultValue = DefaultValue ErasedComponent deriving anyclass (Component)

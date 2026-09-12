@@ -4,6 +4,7 @@ import Control.Monad
 import Control.Monad.IO.Class
 import Control.Monad.Reader (MonadReader (..), ReaderT (runReaderT))
 import Data.Data
+import Data.Foldable
 import Data.IORef
 import Data.Map qualified as Map
 import Data.Maybe
@@ -14,6 +15,7 @@ import Mischief.ECS.Archetypes.Graph (getArchetypeOnSpawn)
 import Mischief.ECS.Components
 import Mischief.ECS.Components.Bundle
 import Mischief.ECS.Components.Common
+import Mischief.ECS.Components.Spawn
 import Mischief.ECS.Entities
 import Mischief.ECS.EventDef
 import Mischief.ECS.Hidden
@@ -52,7 +54,14 @@ data SpawnEventsSettings = WithSpawnEvents | WithoutSpawnEvents
 spawnEntity :: (HasCallStack, Bundle b) => Entity -> b -> System ()
 spawnEntity entity bundle = do
   world <- unsafeGetWorld
-  let BundleData {elements} = addComponentToBundleData (Name (show entity)) $ bundleData bundle
+  let BundleData {elements, resources, external} = addComponentToBundleData (Name (show entity)) $ bundleData bundle
+
+  for_ external $ \(e, s) -> do
+    insert s e
+
+  for_ resources $ \BundleElement {component = ErasedComponent (val :: c)} -> do
+    m <- meta @c
+    insert val m
 
   currentTick <- liftIO $ readIORef world.tick
   bundleD <- liftIO $ processBundleElements world ComponentTicks {changed = currentTick, added = currentTick} elements

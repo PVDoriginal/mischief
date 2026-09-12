@@ -12,6 +12,7 @@ import Data.IORef
 import Data.Map qualified as Map
 import Data.Maybe
 import Data.Set qualified as Set
+import Data.Traversable
 import GHC.Base (Int (..), eqWord#, isTrue#)
 import Mischief.ECS.App.SystemDef
 import Mischief.ECS.Archetypes.Graph
@@ -53,18 +54,18 @@ findArchetypes query = do
 
   findMatchingArchetypes (catMaybes components) world.archetypes
 
-runQuery :: forall qd m w output a. (Queryable qd output, MonadSystem w m) => qd -> QueryFilter -> World -> m [output]
-runQuery query filter world =
-  do
-    archetypes <- findArchetypes query
-    -- let (otherFilter, archetypeFilter) = extractArchetypeFilters $ preprocessFilter filter
+-- runQuery :: forall qd m w output a. (Queryable qd output, MonadSystem w m) => qd -> QueryFilter -> World -> m [output]
+-- runQuery query filter world =
+--   do
+--     archetypes <- findArchetypes query
+--     -- let (otherFilter, archetypeFilter) = extractArchetypeFilters $ preprocessFilter filter
 
-    -- archetypes' <- filterM (\(components, _) -> liftIO $ (filterArchetype . preprocessFilter) archetypeFilter components world) archetypes
+--     -- archetypes' <- filterM (\(components, _) -> liftIO $ (filterArchetype . preprocessFilter) archetypeFilter components world) archetypes
 
-    -- outputs <- liftIO $ runQueryInternal query (map snd archetypes') world
-    -- outputs' <- filterM (\(e, b, _) -> (&& b) <$> filterQuery (preprocessFilter otherFilter) e) outputs
-    -- return $ map (\(_, _, o) -> o) outputs'
-    undefined
+--     -- outputs <- liftIO $ runQueryInternal query (map snd archetypes') world
+--     -- outputs' <- filterM (\(e, b, _) -> (&& b) <$> filterQuery (preprocessFilter otherFilter) e) outputs
+--     -- return $ map (\(_, _, o) -> o) outputs'
+--     undefined
 
 -- query :: forall qd output m w. (Queryable qd output, MonadSystem w m) => qd -> m [output]
 -- query qd = do
@@ -122,17 +123,8 @@ entityQuery qd entity = do
 --   res <- query @qd
 --   parIterList res $ \chunk -> for_ chunk system
 
-class GetResultComponentId c where
-  getResultComponentId :: (MonadSystem w m) => c -> m (Maybe ComponentId)
-
-class GetResultComponentId' flag c where
-  getResultComponentId' :: (MonadSystem w m) => c -> m (Maybe ComponentId)
-
--- instance (Component c) => GetResultComponentId' True (Result c) where
---   getResultComponentId' _ = fmap (\(Entity (# id, _ #)) -> ComponentId (# id, Nothing #)) <$> tryMetaLocal @c
-
--- instance (Component c) => GetResultComponentId' False (Result (Rel c)) where
---   getResultComponentId' r = fmap (\(Entity (# id, _ #)) -> ComponentId (# id, Just r.target #)) <$> tryMetaLocal @c
+class GetComponentId c where
+  getComponentId' :: (MonadSystem w m) => c -> FilterComponent
 
 tryMetaLocal :: forall c m w. (Component c, MonadSystem w m) => m (Maybe Entity)
 tryMetaLocal = do
@@ -140,34 +132,81 @@ tryMetaLocal = do
   component <- liftIO $ getComponentId (typeRep $ Proxy @c) world.components
   return $ fmap (\(ComponentId (# id, _ #)) -> Entity (# id, 0## #)) component
 
+-- instance {-# OVERLAPPING #-} (Component c) => GetComponentId (C c) where
+--   getComponentId' _ =
+
+-- instance (Component c) => GetComponentId (R c Entity) where
+--   getComponentId' (R e) = fmap (\(Entity (# id, _ #)) -> ComponentId (# id, Just e #)) <$> tryMetaLocal @c
+
 -- instance (GetResultComponentId' (IsComp c) (Result c)) => GetResultComponentId (Result c) where
 --   getResultComponentId = getResultComponentId' @(IsComp c)
 
--- addedChanged :: forall c m w. (MonadSystem w m, GetResultComponentId (Result c)) => (ComponentTicks -> Tick -> Tick -> Bool) -> Result c -> m Bool
--- addedChanged f r = do
---   id <- getResultComponentId r
---   case id of
---     Nothing -> return False
---     Just id -> do
---       world <- unsafeGetWorld
---       ticks <- liftIO $ tryGetEntityTicks (entityOf r) id world
---       case ticks of
---         Nothing -> return False
---         Just ticks -> do
---           (lastSystemTick, currentSystemTick) <- liftIO $ getSystemTicksInternal world
---           return $ f ticks lastSystemTick currentSystemTick
+addedChanged :: forall c m w. (MonadSystem w m) => (ComponentTicks -> Tick -> Tick -> Bool) -> FilterComponent -> Entity -> m Bool
+addedChanged f (FilterComponent (c, Nothing, Nothing)) e = do
+  world <- unsafeGetWorld
+  id <- liftIO $ getComponentId c world.components
+  case id of
+    Nothing -> return False
+    Just id -> do
+      ticks <- liftIO $ tryGetEntityTicks e id world
+      case ticks of
+        Nothing -> return False
+        Just ticks -> do
+          (lastSystemTick, currentSystemTick) <- liftIO $ getSystemTicksInternal world
+          return $ f ticks lastSystemTick currentSystemTick
+addedChanged f (FilterComponent (c, Just entity, Nothing)) e = do
+  world <- unsafeGetWorld
+  id <- liftIO $ getComponentId c world.components
+  case id of
+    Nothing -> return False
+    Just (ComponentId (# id, _ #)) -> do
+      ticks <- liftIO $ tryGetEntityTicks e (ComponentId (# id, Just entity #)) world
+      case ticks of
+        Nothing -> return False
+        Just ticks -> do
+          (lastSystemTick, currentSystemTick) <- liftIO $ getSystemTicksInternal world
+          return $ f ticks lastSystemTick currentSystemTick
+addedChanged f (FilterComponent (c, _, Just _)) e = do
+  world <- unsafeGetWorld
+  id <- liftIO $ getComponentId c world.components
+  case id of
+    Nothing -> return False
+    Just (ComponentId (# id, _ #)) -> do
+      Just (ComponentType (_ :: Proxy a)) <- liftIO $ runQueryEntity (C @ComponentType) world (Entity (# id, 0## #))
+      rels <- get e $ mkQuery (R' @a Any)
+      case rels of
+        Nothing -> pure False
+        Just rels -> do
+          and
+            <$> for
+              rels
+              ( \(Rel _ target) -> do
+                  addedChanged f (FilterComponent (c, Just target, Nothing)) e
+              )
 
--- added :: forall c m w. (MonadSystem w m, GetResultComponentId (Result c)) => Result c -> m Bool
--- added = addedChanged qfAddedF
+-- ticks <- liftIO $ tryGetEntityTicks e (ComponentId (# id, Just entity #)) world
+-- case ticks of
+--   Nothing -> return False
+--   Just ticks -> do
+--     (lastSystemTick, currentSystemTick) <- liftIO $ getSystemTicksInternal world
+--     return $ f ticks lastSystemTick currentSystemTick
 
--- changed :: forall c m w. (MonadSystem w m, GetResultComponentId (Result c)) => Result c -> m Bool
--- changed = addedChanged qfChangedF
+added :: forall c m w. (MonadSystem w m, ToFilterComponent c) => c -> Entity -> m Bool
+added x = addedChanged qfAddedF (toFilterComponent x)
+
+changed :: forall c m w. (MonadSystem w m, ToFilterComponent c) => c -> Entity -> m Bool
+changed x = addedChanged qfChangedF (toFilterComponent x)
+
+has :: forall c m w. (MonadSystem w m, ToFilterComponent c) => c -> Entity -> m Bool
+has c e = do
+  world <- unsafeGetWorld
+  liftIO $ filterEntity (With c) world e
 
 -- newtype Query a = Query [(Entity, a)]
 
-data Query a where
-  BuildQuery :: (Queryable qd out) => qd -> QueryFilter -> Query out
-  ChangeQuery :: Query b -> ([(Entity, b)] -> System [(Entity, a)]) -> Query a
+data Query a s where
+  BuildQuery :: (Queryable qd out) => qd -> QueryFilter ArchetypeFilter -> Query out s
+  ChangeQuery :: Query b s -> ([(Entity, b)] -> s [(Entity, a)]) -> Query a s
 
 -- qread :: Query out -> [out]
 -- qread (Query a) = map snd a
@@ -192,7 +231,7 @@ data Query a where
 
 --   pure $   $ mapMaybe (\case (_, False, _) -> Nothing; (_, True, x) -> Just x) x
 
-get :: Entity -> Query out -> System (Maybe out)
+get :: (MonadSystem w m) => Entity -> Query out m -> m (Maybe out)
 get entity (BuildQuery qd qf) = do
   world <- unsafeGetWorld
   b <- liftIO $ filterEntity qf world entity
@@ -205,7 +244,7 @@ get entity (ChangeQuery a f) = do
       [(_, y)] <- f [(entity, x)]
       pure $ Just y
 
-qrun' :: Query out -> System [(Entity, out)]
+qrun' :: (MonadSystem w m) => Query out m -> m [(Entity, out)]
 qrun' (BuildQuery qd qf) = do
   world <- unsafeGetWorld
   archetypes' <- findArchetypes qd
@@ -214,14 +253,14 @@ qrun' (BuildQuery qd qf) = do
   pure $ mapMaybe (\case (_, False, _) -> Nothing; (_, True, x) -> Just x) x
 qrun' (ChangeQuery a f) = f =<< qrun' a
 
-query :: Query out -> System [out]
+query :: (MonadSystem w m) => Query out m -> m [out]
 query a = map snd <$> qrun' a
 
-qrun :: Query out -> System ()
+qrun :: (MonadSystem w m) => Query out m -> m ()
 qrun a = void $ qrun' a
 
-mkQuery :: (Queryable qd out) => qd -> Query out
+mkQuery :: (Queryable qd out) => qd -> Query out m
 mkQuery x = mkQuery' x NoFilter
 
-mkQuery' :: (Queryable qd out) => qd -> QueryFilter -> Query out
+mkQuery' :: (Queryable qd out) => qd -> QueryFilter ArchetypeFilter -> Query out m
 mkQuery' = BuildQuery

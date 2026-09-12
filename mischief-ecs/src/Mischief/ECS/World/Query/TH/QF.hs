@@ -24,7 +24,7 @@ import Text.Megaparsec (MonadParsec (eof, lookAhead, notFollowedBy, try), Parsec
 import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer qualified as L
 
-data Qf = With' [QfType] | Added' [QfType] | Changed' [QfType] | Not' Qf | Tup' [Qf] | Or' Qf Qf | Check' CompType Text deriving (Show)
+data Qf = With' [QfType] | Added' [QfType] | Changed' [QfType] | Not' Qf | Tup' [Qf] | And' Qf Qf | Or' Qf Qf deriving (Show)
 
 data QfType = QfType {name :: Text, compType :: CompType} deriving (Show)
 
@@ -39,13 +39,23 @@ pOr = do
   s <- pSingle
   whitespace
 
-  or <- optional $ choice [string "|.", string "||", string "or", string "OR", string "Or"] <* whitespace
+  or <- optional $ choice [string "||", string "or", string "OR", string "Or"] <* whitespace
   case or of
     Nothing -> return s
     Just _ -> foldr Or' s <$> pTup'
 
+pAnd :: Parser Qf
+pAnd = do
+  s <- pSingle
+  whitespace
+
+  and <- optional $ choice [string "&&", string "and", string "AND", string "And"] <* whitespace
+  case and of
+    Nothing -> return s
+    Just _ -> foldr And' s <$> pTup'
+
 pSingle :: Parser Qf
-pSingle = try pWith <|> pWithout <|> pAdded <|> try pChanged <|> pCheck <|> pNot
+pSingle = try pWith <|> pWithout <|> pAdded <|> try pChanged <|> pNot
 
 pNot :: Parser Qf
 pNot = do
@@ -77,28 +87,6 @@ pChanged = do
   void $ choice [string "Changed", string "changed"] <* notFollowedBy alphaNumChar
   whitespace
   Changed' <$> pTypes
-
-pCheck :: Parser Qf
-pCheck = do
-  void $ choice [string "Check", string "check"] <* notFollowedBy alphaNumChar
-  whitespace
-
-  f <- pF
-  whitespace
-
-  target <- optional $ do
-    void $ string "->"
-    whitespace
-    r <- string "*" <|> T.pack <$> some alphaNumChar
-    whitespace
-    return r
-
-  let compType = case target of
-        Nothing -> Single
-        Just "*" -> PairAny
-        Just e -> Pair e
-
-  return $ Check' compType f
 
 pF :: Parser Text
 pF = try ((char '(' *> whitespace) *> pfLambda "(" <* whitespace) <|> T.pack <$> some alphaNumChar
@@ -141,32 +129,32 @@ pType = do
 
 quoteQf :: Qf -> Q Exp
 quoteQf (Tup' qf) = processTup qf
-quoteQf (With' x) = AppE (ConE 'With) <$> processTypes x
-quoteQf (Changed' x) = AppE (ConE 'Changed) <$> processTypes x
-quoteQf (Added' x) = AppE (ConE 'Added) <$> processTypes x
+quoteQf (With' x) = processTypes (ConE 'With) x
+quoteQf (Changed' x) = processTypes (ConE 'Changed) x
+quoteQf (Added' x) = processTypes (ConE 'Added) x
 quoteQf (Or' x y) = do
   x <- quoteQf x
   y <- quoteQf y
-  return $ AppE (AppE (ConE 'Or) x) y
+  pure $ AppE (AppE (ConE 'Or) x) y
+quoteQf (And' x y) = do
+  x <- quoteQf x
+  y <- quoteQf y
+  pure $ AppE (AppE (ConE 'And) x) y
 quoteQf (Not' x) = AppE (ConE 'Not) <$> quoteQf x
-quoteQf (Check' c f) = case parseExp (T.unpack f) of
-  Left x -> error x
-  Right x -> processCheck c x
-
-processCheck :: CompType -> Exp -> Q Exp
-processCheck Single f = return $ AppE (ConE 'Check) f
-processCheck (Pair e') f = do
-  e <- getValueName e'
-  return $ AppE (AppE (ConE 'CheckR) (VarE e)) f
-processCheck PairAny f = return $ AppE (AppE (ConE 'CheckR) (ConE 'Any)) f
 
 processTup :: [Qf] -> Q Exp
+processTup [] = pure $ VarE '()
 processTup [x] = quoteQf x
-processTup t = TupE . map Just <$> forM t quoteQf
+processTup (x : xs) = do
+  x' <- quoteQf x
+  AppE (AppE (ConE 'And) x') <$> processTup xs
 
-processTypes :: [QfType] -> Q Exp
-processTypes [x] = processType x
-processTypes t = TupE . map Just <$> forM t processType
+processTypes :: Exp -> [QfType] -> Q Exp
+processTypes _ [] = pure $ VarE '()
+processTypes exp [x] = AppE exp <$> processType x
+processTypes exp (x : xs) = do
+  x' <- processType x
+  AppE (AppE (ConE 'And) (AppE exp x')) <$> processTypes exp xs
 
 processType :: QfType -> Q Exp
 processType (QfType {name, compType = Single}) = processC name
