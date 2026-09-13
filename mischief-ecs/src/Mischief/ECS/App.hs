@@ -47,17 +47,20 @@ data App = App
     systems :: Systems
   }
 
-newApp :: (Plugin p) => p -> IO App
-newApp plugin = do
+newApp :: IO App
+newApp = do
   world <- newWorld getTools
   systems <- Systems.newSystems
 
   let app = App {world, systems}
 
   runSystem appInit app.world
-  runSystem (Systems.add Init $ runPluginRec plugin) app.world
+  -- runSystem (Systems.add Init $ runPluginRec plugin) app.world
 
   return app
+
+addPlugin :: forall p. (Plugin p) => App -> IO ()
+addPlugin app = runSystem (addPluginRec @p) app.world
 
 runApp :: App -> IO ()
 runApp app = flip runSystem app.world $ do

@@ -13,7 +13,8 @@ import Data.Map qualified as Map
 import Data.Maybe
 import Data.Set qualified as Set
 import Data.Traversable
-import GHC.Base (Int (..), eqWord#, isTrue#)
+import GHC.Base (Int (..), Type, eqWord#, isTrue#)
+import GHC.TypeLits
 import Mischief.ECS.App.SystemDef
 import Mischief.ECS.Archetypes.Graph
 import Mischief.ECS.Collectable
@@ -206,7 +207,11 @@ has c e = do
 
 data Query a s where
   BuildQuery :: (Queryable qd out) => qd -> QueryFilter ArchetypeFilter -> Query out s
-  ChangeQuery :: Query b s -> ([(Entity, b)] -> s [(Entity, a)]) -> Query a s
+  MapQuery :: Query b s -> (Entity -> b -> s a) -> Query a s
+  FilterQuery :: Query a s -> (Entity -> a -> s Bool) -> Query a s
+
+mapFilterQuery :: (MonadSystem w s) => Query b s -> (Entity -> b -> s (Maybe a)) -> Query a s
+mapFilterQuery b f = MapQuery (FilterQuery (MapQuery b f) (\_ x -> pure (isJust x))) (\_ x -> pure (fromMaybe undefined x))
 
 -- qread :: Query out -> [out]
 -- qread (Query a) = map snd a
@@ -236,13 +241,18 @@ get entity (BuildQuery qd qf) = do
   world <- unsafeGetWorld
   b <- liftIO $ filterEntity qf world entity
   if b then entityQuery qd entity else pure Nothing
-get entity (ChangeQuery a f) = do
+get entity (MapQuery a f) = do
+  x <- get entity a
+  case x of
+    Nothing -> pure Nothing
+    Just x -> Just <$> f entity x
+get entity (FilterQuery a f) = do
   x <- get entity a
   case x of
     Nothing -> pure Nothing
     Just x -> do
-      [(_, y)] <- f [(entity, x)]
-      pure $ Just y
+      b <- f entity x
+      if b then pure $ Just x else pure Nothing
 
 qrun' :: (MonadSystem w m) => Query out m -> m [(Entity, out)]
 qrun' (BuildQuery qd qf) = do
@@ -251,7 +261,12 @@ qrun' (BuildQuery qd qf) = do
   archetypes <- liftIO (filterM (filterArchetype qf world . fst) archetypes')
   x <- liftIO $ runQueryInternal (E, qd) (map snd archetypes) world
   pure $ mapMaybe (\case (_, False, _) -> Nothing; (_, True, x) -> Just x) x
-qrun' (ChangeQuery a f) = f =<< qrun' a
+qrun' (MapQuery a f) = do
+  x <- qrun' a
+  mapM (\(e, x) -> (e,) <$> f e x) x
+qrun' (FilterQuery a f) = do
+  x <- qrun' a
+  filterM (uncurry f) x
 
 query :: (MonadSystem w m) => Query out m -> m [out]
 query a = map snd <$> qrun' a

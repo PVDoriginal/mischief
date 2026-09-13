@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wno-overlapping-patterns #-}
 
-module Mischief.ECS.World.Query.TH (q, qf) where
+module Mischief.ECS.World.Query.TH (q, f) where
 
 import Control.Monad
 import Control.Monad.IO.Class
@@ -63,8 +63,8 @@ quoteQuery (QueryBuilder qd (Just qf)) = do
   qf <- quoteQf qf
   return $ AppE (AppE (VarE 'mkQuery') qd) qf
 
-qf :: QuasiQuoter
-qf =
+f :: QuasiQuoter
+f =
   QuasiQuoter
     { quoteExp = \str -> do
         let x = parse (whitespace *> pQf <* eof) "inline_input" (T.pack str)

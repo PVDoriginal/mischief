@@ -32,10 +32,10 @@ deltaTime = deltaSecs <$> time
 deltaSecs :: Time -> Float
 deltaSecs Time {delta} = fromIntegral delta.sec + fromIntegral delta.nsec / 1000000000
 
-data TimePlugin = TimePlugin deriving (Eq)
+data TimePlugin
 
 instance Plugin TimePlugin where
-  init _ = do
+  init = do
     currentTime <- liftIO $ getTime Monotonic
     insertRes $ Time {delta = TimeSpec {sec = 0, nsec = 0}, elapsed = currentTime}
     Systems.add First updateTime

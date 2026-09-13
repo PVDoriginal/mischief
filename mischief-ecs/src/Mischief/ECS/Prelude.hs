@@ -29,7 +29,7 @@ module Mischief.ECS.Prelude
 where
 
 import Mischief.ECS.App (newApp, runApp)
-import Mischief.ECS.App.Plugins (Plugin (..), plug)
+import Mischief.ECS.App.Plugins (Dependency, Plugin (..), dep)
 import Mischief.ECS.App.Schedules (First (..), Last (..), PostStartup (..), PostUpdate (..), PreStartup (..), PreUpdate (..), Startup (..), Update (..))
 import Mischief.ECS.App.SystemConfig (after, before)
 import Mischief.ECS.Components (Component (..), Exclusivity (..), Rel (..))
@@ -52,6 +52,6 @@ import Mischief.ECS.World.Query (get, query)
 import Mischief.ECS.World.Query.Markers (Any (..), C (..), E (..), Has (..), HasR (..), M (..), MR (..), Q (..), Q' (..), R (..), R' (..))
 import Mischief.ECS.World.Query.QueryFilter (QueryFilter (..))
 import Mischief.ECS.World.Query.Queryable ()
-import Mischief.ECS.World.Query.TH (q, qf)
+import Mischief.ECS.World.Query.TH (f, q)
 import Mischief.ECS.World.Remove (remove)
 import Mischief.ECS.World.Spawn (despawn, spawn, spawnDefer)

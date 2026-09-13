@@ -6,11 +6,13 @@ import Control.Monad (filterM, void)
 import Control.Monad.IO.Class
 import Data.Data
 import Data.Foldable
+import Data.Function
 import Data.Maybe
 import Data.Traversable
 import Mischief.ECS.Components
 import Mischief.ECS.Components.Bundle
 import Mischief.ECS.Entities
+import Mischief.ECS.Prelude (info, text)
 import Mischief.ECS.Tables
 import Mischief.ECS.World
 import Mischief.ECS.World.Insert
@@ -24,31 +26,29 @@ import Mischief.ECS.World.Utils
 
 qmapM :: (Bundle b) => (Entity -> out -> System b) -> Query out System -> Query b System
 qmapM f x =
-  ChangeQuery
+  MapQuery
     x
-    ( \a -> do
-        for a $ \(e, a) -> do
-          b <- f e a
-          insert b e
-          pure (e, b)
+    ( \e a -> do
+        y <- f e a
+        insert y e
+        pure y
     )
 
 qmap :: (Bundle b) => (out -> b) -> Query out System -> Query b System
 qmap f x =
-  ChangeQuery
+  MapQuery
     x
-    ( \a -> do
-        for a $ \(e, a) -> do
-          let b = f a
-          insert b e
-          pure (e, b)
+    ( \e a -> do
+        let y = f a
+        insert y e
+        pure y
     )
 
-qfilterM :: (MonadSystem w s) => (Entity -> out -> s Bool) -> Query out s -> Query out s
-qfilterM f x = ChangeQuery x (filterM (uncurry f))
+qfilterM :: (Entity -> out -> s Bool) -> Query out s -> Query out s
+qfilterM f x = FilterQuery x f
 
 qfilter :: (MonadSystem w s) => (out -> Bool) -> Query out s -> Query out s
-qfilter f x = ChangeQuery x (pure . filter (\(_, x) -> f x))
+qfilter f x = FilterQuery x (\_ x -> pure (f x))
 
 check :: (MonadSystem w m) => QueryFilter EntityFilter -> Entity -> m Bool
 check NoFilter _ = pure True
@@ -64,12 +64,109 @@ check (And a b) e = (&&) <$> check a e <*> check b e
 check (Or a b) e = (||) <$> check a e <*> check b e
 check (Not a) e = not <$> check a e
 
-qcheck :: (MonadSystem w s) => QueryFilter EntityFilter -> Query out s -> Query out s
-qcheck f x = ChangeQuery x $ filterM (\(e, _) -> check f e)
+qcheck :: (MonadSystem w s) => QueryFilter EntityFilter -> Query a s -> Query a s
+qcheck f x =
+  FilterQuery
+    x
+    (\e _ -> check f e)
 
-data Position = Position Int deriving (Component)
+qappend :: (MonadSystem w s) => (a -> Entity) -> (a -> From b -> c) -> Query b s -> Query a s -> Query c s
+qappend f f' y x =
+  mapFilterQuery
+    x
+    ( \_ x -> do
+        let entity = f x
+        y <- get entity y
+        case y of
+          Nothing -> pure Nothing
+          Just y -> pure $ Just (f' x (From entity y))
+    )
 
-data Velocity = Velocity Int deriving (Component)
+qappendM :: (MonadSystem w s) => (a -> Entity) -> (Entity -> a -> From b -> s c) -> Query b s -> Query a s -> Query c s
+qappendM f f' y x =
+  mapFilterQuery
+    x
+    ( \e x -> do
+        let entity = f x
+        y <- get entity y
+        case y of
+          Nothing -> pure Nothing
+          Just y -> do
+            r <- f' e x (From entity y)
+            pure $ Just r
+    )
+
+qappendAll :: (MonadSystem w s) => (a -> [Entity]) -> (a -> [From b] -> c) -> Query b s -> Query a s -> Query c s
+qappendAll f f' y x =
+  mapFilterQuery
+    x
+    ( \_ x -> do
+        let entities = f x
+        y <- catMaybes <$> mapM (\e -> fmap (e,) <$> get e y) entities
+        pure $ Just $ f' x (map (uncurry From) y)
+    )
+
+qappendAllM :: (MonadSystem w s) => (a -> [Entity]) -> (Entity -> a -> [From b] -> s c) -> Query b s -> Query a s -> Query c s
+qappendAllM f f' y x =
+  mapFilterQuery
+    x
+    ( \e x -> do
+        let entities = f x
+        y <- catMaybes <$> mapM (\e -> fmap (e,) <$> get e y) entities
+        Just <$> f' e x (map (uncurry From) y)
+        -- Just <$>(x, map (uncurry From) y)
+    )
+
+qjoin :: (MonadSystem w s) => (a -> b -> Bool) -> (a -> [From b] -> c) -> Query b s -> Query a s -> Query c s
+qjoin f f' a b =
+  mapFilterQuery
+    b
+    ( \_ x -> do
+        y <- query (qentity a)
+        let b = filter (f x . snd) y
+        let c = f' x (map (uncurry From) b)
+        pure $ Just c
+    )
+
+qjoinM :: (MonadSystem w s) => (a -> b -> Bool) -> (Entity -> a -> [From b] -> s c) -> Query b s -> Query a s -> Query c s
+qjoinM f f' a b =
+  mapFilterQuery
+    b
+    ( \e x -> do
+        y <- query (qentity a)
+        let b = filter (f x . snd) y
+        c <- f' e x (map (uncurry From) b)
+        pure $ Just c
+    )
+
+qextend :: (MonadSystem w s) => (a -> b -> c) -> Query b s -> Query a s -> Query c s
+qextend f y x =
+  mapFilterQuery
+    x
+    ( \e x -> do
+        y <- get e y
+        case y of
+          Nothing -> pure Nothing
+          Just y -> pure $ Just $ f x y
+    )
+
+qextendM :: (MonadSystem w s) => (Entity -> a -> b -> s c) -> Query b s -> Query a s -> Query c s
+qextendM f y x =
+  mapFilterQuery
+    x
+    ( \e x -> do
+        y <- get e y
+        case y of
+          Nothing -> pure Nothing
+          Just y -> Just <$> f e x y
+    )
+
+qentity :: (MonadSystem w s) => Query a s -> Query (Entity, a) s
+qentity = qextend (\a b -> (b, a)) (mkQuery E)
+
+data Position = Position Int deriving (Component, Num)
+
+data Velocity = Velocity Int deriving (Component, Show)
 
 data TC = TC Int deriving (Component)
 
@@ -77,27 +174,42 @@ data RenderDevice = RenderDevice deriving (Component)
 
 data Likes = Likes deriving (Component)
 
+data Player = Player deriving (Component)
+
+data Name = Name String deriving (Component, Show)
+
+data Child = Child deriving (Component, Show)
+
 test :: System ()
 test = do
-  let x = mkQuery' (C @TC, C @TC, R @TC Any) NoFilter
-  let f = qfilter (const True) . qmap (\(_, _, a) -> (Rel (TC 5) (undefined :: Entity), TC 10)) $ x
-
-  let e = undefined :: Entity
-
-  x <-
-    query
-      . qcheck [qf|Changed Velocity, With Velocity|]
-      . qfilter (\(Position x, _, _) -> x > 5)
-      $ [q|Position, Velocity, Position -> e|]
+  qrun
+    . qmap (\(Position x, Velocity y) -> Position (x + y))
+    . qfilter (\(_, Velocity y) -> y > 5)
+    $ [q|Position, Velocity / With Player|]
 
   qrun
-    . qmap (\(Velocity v, positions) -> map (\(From x (Position p, a)) -> From x (Position $ p + v, a)) positions)
-    -- \$ mkQuery (C @Velocity, R @Likes (Q (C @Position, R @Likes (Q (C @Position)))))
-    $ [q|Velocity, Likes -> (Position, Likes -> (Position)) / With Position|]
+    . qmapM
+      ( \_ (name, vel) -> do
+          info $ "My name is " <> text name
+          info $ "My velocity is " <> text vel
+      )
+    . qextend (,) [q|Velocity|]
+    $ [q|Name|]
 
-  y <- get e $ mkQuery (C @Position)
+  qrun
+    . qmap (\(parentPos, children) -> map (\(From child pos) -> From child (pos + parentPos)) children)
+    . qcheck [f|Changed Position|]
+    $ [q|Position, Child -> (Position)|]
 
-  qrun . qmapM (\e _ -> remove (C @Position) e) $ mkQuery (C @Position)
+  [q|Velocity|]
+    & qjoin (\(Velocity v) (Position p) -> v == p) (,) [q|Position|]
+    & qmap (\(Velocity v, positions) -> map (\(From e (Position p)) -> From e (Position (p + v))) positions)
+    & qrun
+
+  x <- query $ qcheck [f|Changed Position|] [q|Position, Child -> (Position)|]
+
+  let player = undefined :: Entity
+  y <- get player [q|Name|]
 
   undefined
 

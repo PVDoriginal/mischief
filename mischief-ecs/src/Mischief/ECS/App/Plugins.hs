@@ -1,56 +1,63 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
+
 {- HLINT ignore "Use newtype instead of data" -}
 module Mischief.ECS.App.Plugins where
 
+import Control.Monad
 import Data.Foldable
+import Data.Kind
 import Data.Map (Map)
 import Data.Map qualified as Map
+import Data.Set (Set)
+import Data.Set qualified as Set
 import Data.Typeable
 import Mischief.ECS.Collectable
+import Mischief.ECS.Components
 import Mischief.ECS.Components.Bundle
 import Mischief.ECS.Components.Common
 import Mischief.ECS.World
+import Mischief.ECS.World.Query
+import Mischief.ECS.World.Query.Markers
+import Mischief.ECS.World.Query.QueryFilter
+import Mischief.ECS.World.Spawn
 import Unsafe.Coerce
 
-class (Typeable p, Eq p) => Plugin p where
-  plugins :: p -> Plugins
-  plugins _ = collect ()
+class (Typeable p) => Plugin (p :: Type) where
+  deps :: [Dependency]
+  deps = []
 
-  init :: p -> System ()
-  init _ = pure ()
+  init :: System ()
+  init = pure ()
 
-data ErasedPlugin where
-  ErasedPlugin :: (Plugin p, Eq p) => p -> ErasedPlugin
+data Dependency where
+  Dependency :: (Plugin p) => Proxy p -> Dependency
 
-getInit :: ErasedPlugin -> System ()
-getInit (ErasedPlugin p) = Mischief.ECS.App.Plugins.init p
+instance Eq Dependency where
+  (Dependency p) == (Dependency p') = typeRep p == typeRep p'
 
-newtype Plugins = Plugins {inner :: [ErasedPlugin]} deriving newtype (Semigroup, Monoid)
+instance Ord Dependency where
+  compare (Dependency p) (Dependency p') = compare (typeRep p) (typeRep p')
 
-instance (Plugin p) => EraseIntoStorage p Plugins where
-  erase p = Plugins [ErasedPlugin p]
+instance Show Dependency where
+  show (Dependency p) = show (typeRep p)
 
-instance {-# OVERLAPPING #-} EraseIntoStorage () Plugins where
-  erase _ = Plugins []
+dep :: forall p. (Plugin p) => Dependency
+dep = Dependency (Proxy @p)
 
-newtype PluginData = PluginData {inner :: Map TypeRep ErasedPlugin}
+data PluginMarker p = PluginMarker deriving (Component)
 
-instance Show PluginData where
-  show p = show $ map fst $ Map.toList p.inner
+addPluginRec :: forall p. (Plugin p) => System ()
+addPluginRec = addPluginRec' @p Set.empty
 
-plug :: (Collectable p Plugins) => p -> Plugins
-plug = collect
+addPluginRec' :: forall p. (Plugin p) => Set Dependency -> System ()
+addPluginRec' set = do
+  x <- query $ mkQuery' E (With (C @(PluginMarker p)))
 
-addErasedRec :: ErasedPlugin -> PluginData -> PluginData
-addErasedRec (ErasedPlugin (plugin :: p)) d =
-  case Map.lookup (typeOf plugin) d.inner of
-    Nothing -> foldr addErasedRec (PluginData $ Map.insert (typeOf plugin) (ErasedPlugin plugin) d.inner) (plugins plugin).inner
-    Just other ->
-      if plugin == unsafeCoerce other
-        then d
-        else undefined
+  when (null x) $ do
+    when (Set.member (Dependency (Proxy @p)) set) $ error $ "Cyclic Plugin Dependency: " ++ show set
 
-plugAll :: (Plugin p) => p -> PluginData
-plugAll p = addErasedRec (ErasedPlugin p) (PluginData Map.empty)
+    for_ (Mischief.ECS.App.Plugins.deps @p) $ \(Dependency (_ :: Proxy p')) -> do
+      addPluginRec' @p' (Set.insert (Dependency (Proxy @p)) set)
 
-runPluginRec :: (Plugin p) => p -> System ()
-runPluginRec p = for_ (map snd $ Map.toList (plugAll p).inner) getInit
+    void $ spawn (Name . show . typeRep $ Proxy @p, PluginMarker @p)
+    Mischief.ECS.App.Plugins.init @p
