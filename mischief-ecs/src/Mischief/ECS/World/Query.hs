@@ -14,6 +14,7 @@ import Data.Maybe
 import Data.Set qualified as Set
 import Data.Traversable
 import GHC.Base (Int (..), Type, eqWord#, isTrue#)
+import GHC.Stack
 import GHC.TypeLits
 import Mischief.ECS.App.SystemDef
 import Mischief.ECS.Archetypes.Graph
@@ -209,6 +210,7 @@ data Query a s where
   BuildQuery :: (Queryable qd out) => qd -> QueryFilter ArchetypeFilter -> Query out s
   MapQuery :: Query b s -> (Entity -> b -> s a) -> Query a s
   FilterQuery :: Query a s -> (Entity -> a -> s Bool) -> Query a s
+  DoQuery :: Query a s -> (Entity -> a -> s ()) -> Query a s
 
 mapFilterQuery :: (MonadSystem w s) => Query b s -> (Entity -> b -> s (Maybe a)) -> Query a s
 mapFilterQuery b f = MapQuery (FilterQuery (MapQuery b f) (\_ x -> pure (isJust x))) (\_ x -> pure (fromMaybe undefined x))
@@ -253,6 +255,13 @@ get entity (FilterQuery a f) = do
     Just x -> do
       b <- f entity x
       if b then pure $ Just x else pure Nothing
+get entity (DoQuery a f) = do
+  x <- get entity a
+  for_ x (f entity)
+  pure x
+
+get_ :: (MonadSystem w m) => Entity -> Query out m -> m ()
+get_ a b = void $ get a b
 
 qrun' :: (MonadSystem w m) => Query out m -> m [(Entity, out)]
 qrun' (BuildQuery qd qf) = do
@@ -267,12 +276,16 @@ qrun' (MapQuery a f) = do
 qrun' (FilterQuery a f) = do
   x <- qrun' a
   filterM (uncurry f) x
+qrun' (DoQuery a f) = do
+  x <- qrun' a
+  for_ x (uncurry f)
+  pure x
 
 query :: (MonadSystem w m) => Query out m -> m [out]
 query a = map snd <$> qrun' a
 
-qrun :: (MonadSystem w m) => Query out m -> m ()
-qrun a = void $ qrun' a
+query_ :: (MonadSystem w m) => Query out m -> m ()
+query_ a = void $ qrun' a
 
 mkQuery :: (Queryable qd out) => qd -> Query out m
 mkQuery x = mkQuery' x NoFilter

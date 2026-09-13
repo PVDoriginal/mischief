@@ -262,7 +262,10 @@ data ComponentData = ComponentData {value :: ErasedComponent, ticks :: Component
 -- | Type used for querying and inserting relationships.
 data Rel c = Rel {comp :: c, target :: Entity} deriving (Show)
 
-data From c = From {entity :: Entity, comp :: c} deriving (Show)
+data From c = From {entity :: Entity, comp :: c}
+
+instance (Show c) => Show (From c) where
+  show From {entity, comp} = "(" ++ show entity ++ ", " ++ show comp ++ ")"
 
 newtype Res c = Res c deriving (Show)
 

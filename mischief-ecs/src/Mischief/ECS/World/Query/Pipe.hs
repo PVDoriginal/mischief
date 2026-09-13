@@ -8,11 +8,13 @@ import Data.Data
 import Data.Foldable
 import Data.Function
 import Data.Maybe
+import Data.Text (Text)
 import Data.Traversable
+import GHC.Stack
 import Mischief.ECS.Components
 import Mischief.ECS.Components.Bundle
 import Mischief.ECS.Entities
-import Mischief.ECS.Prelude (info, text)
+import Mischief.ECS.Prelude (info, text, warn)
 import Mischief.ECS.Tables
 import Mischief.ECS.World
 import Mischief.ECS.World.Insert
@@ -70,8 +72,8 @@ qcheck f x =
     x
     (\e _ -> check f e)
 
-qappend :: (MonadSystem w s) => (a -> Entity) -> (a -> From b -> c) -> Query b s -> Query a s -> Query c s
-qappend f f' y x =
+qappend1 :: (MonadSystem w s) => (a -> Entity) -> (a -> From b -> c) -> Query b s -> Query a s -> Query c s
+qappend1 f f' y x =
   mapFilterQuery
     x
     ( \_ x -> do
@@ -82,22 +84,21 @@ qappend f f' y x =
           Just y -> pure $ Just (f' x (From entity y))
     )
 
-qappendM :: (MonadSystem w s) => (a -> Entity) -> (Entity -> a -> From b -> s c) -> Query b s -> Query a s -> Query c s
-qappendM f f' y x =
+qappend1M :: (MonadSystem w s) => (Entity -> a -> s Entity) -> (a -> From b -> c) -> Query b s -> Query a s -> Query c s
+qappend1M f f' y x =
   mapFilterQuery
     x
     ( \e x -> do
-        let entity = f x
+        entity <- f e x
         y <- get entity y
         case y of
           Nothing -> pure Nothing
           Just y -> do
-            r <- f' e x (From entity y)
-            pure $ Just r
+            pure . Just $ f' x (From entity y)
     )
 
-qappendAll :: (MonadSystem w s) => (a -> [Entity]) -> (a -> [From b] -> c) -> Query b s -> Query a s -> Query c s
-qappendAll f f' y x =
+qappend :: (MonadSystem w s) => (a -> [Entity]) -> (a -> [From b] -> c) -> Query b s -> Query a s -> Query c s
+qappend f f' y x =
   mapFilterQuery
     x
     ( \_ x -> do
@@ -106,15 +107,38 @@ qappendAll f f' y x =
         pure $ Just $ f' x (map (uncurry From) y)
     )
 
-qappendAllM :: (MonadSystem w s) => (a -> [Entity]) -> (Entity -> a -> [From b] -> s c) -> Query b s -> Query a s -> Query c s
-qappendAllM f f' y x =
+qappendM :: (MonadSystem w s) => (Entity -> a -> s [Entity]) -> (a -> [From b] -> c) -> Query b s -> Query a s -> Query c s
+qappendM f f' y x =
   mapFilterQuery
     x
     ( \e x -> do
-        let entities = f x
+        entities <- f e x
         y <- catMaybes <$> mapM (\e -> fmap (e,) <$> get e y) entities
-        Just <$> f' e x (map (uncurry From) y)
-        -- Just <$>(x, map (uncurry From) y)
+        pure . Just $ f' x (map (uncurry From) y)
+    )
+
+qtraversal1 :: (MonadSystem w s) => (Entity -> s Entity) -> (a -> From b -> c) -> Query b s -> Query a s -> Query c s
+qtraversal1 f f' y x =
+  mapFilterQuery
+    x
+    ( \e x -> do
+        entity <- f e
+        y <- get entity y
+        case y of
+          Nothing -> pure Nothing
+          Just y -> pure $ Just (f' x (From entity y))
+    )
+
+qtraversal :: (MonadSystem w s, Foldable t) => (Entity -> s (t Entity)) -> (a -> [From b] -> c) -> Query b s -> Query a s -> Query c s
+qtraversal f f' y x =
+  mapFilterQuery
+    x
+    ( \e x -> do
+        entities <- f e
+        y <- catMaybes <$> mapM (\e -> fmap (e,) <$> get e y) (toList entities)
+        case y of
+          [] -> pure Nothing
+          y -> pure . Just $ f' x (map (uncurry From) y)
     )
 
 qjoin :: (MonadSystem w s) => (a -> b -> Bool) -> (a -> [From b] -> c) -> Query b s -> Query a s -> Query c s
@@ -161,6 +185,9 @@ qextendM f y x =
           Just y -> Just <$> f e x y
     )
 
+qinfo :: (HasCallStack, MonadSystem w s) => (a -> Text) -> Query a s -> Query a s
+qinfo f a = withFrozenCallStack $ DoQuery a (\_ x -> info (f x))
+
 qentity :: (MonadSystem w s) => Query a s -> Query (Entity, a) s
 qentity = qextend (\a b -> (b, a)) (mkQuery E)
 
@@ -182,12 +209,12 @@ data Child = Child deriving (Component, Show)
 
 test :: System ()
 test = do
-  qrun
+  query_
     . qmap (\(Position x, Velocity y) -> Position (x + y))
     . qfilter (\(_, Velocity y) -> y > 5)
     $ [q|Position, Velocity / With Player|]
 
-  qrun
+  query_
     . qmapM
       ( \_ (name, vel) -> do
           info $ "My name is " <> text name
@@ -196,7 +223,7 @@ test = do
     . qextend (,) [q|Velocity|]
     $ [q|Name|]
 
-  qrun
+  query_
     . qmap (\(parentPos, children) -> map (\(From child pos) -> From child (pos + parentPos)) children)
     . qcheck [f|Changed Position|]
     $ [q|Position, Child -> (Position)|]
@@ -204,7 +231,7 @@ test = do
   [q|Velocity|]
     & qjoin (\(Velocity v) (Position p) -> v == p) (,) [q|Position|]
     & qmap (\(Velocity v, positions) -> map (\(From e (Position p)) -> From e (Position (p + v))) positions)
-    & qrun
+    & query_
 
   x <- query $ qcheck [f|Changed Position|] [q|Position, Child -> (Position)|]
 
