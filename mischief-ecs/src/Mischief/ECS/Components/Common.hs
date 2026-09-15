@@ -11,4 +11,4 @@ newtype Name = Name String
 
 instance Show Name where
   show :: Name -> String
-  show (Name name) = show name
+  show (Name name) = name

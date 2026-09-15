@@ -1,0 +1,68 @@
+module Main where
+
+import Mischief.ECS.Prelude
+import Mischief.ECS.Relationships.Graph qualified as Graph
+
+main :: IO ()
+main = do
+  app <- newApp
+  addPlugin @MyPlugin app
+  runApp app
+
+data MyPlugin
+
+instance Plugin MyPlugin where
+  init :: System ()
+  init = do
+    systems (helloWorld, greetPeople, showLikes)
+      & schedule Update
+
+    systems addPeople
+      & schedule Startup
+
+    systems updateFlo
+      & before greetPeople
+      & schedule Update
+
+    insertRes (Greeting "Hey")
+
+data Person = Person deriving (Component)
+
+addPeople :: System ()
+addPeople = do
+  kim <- spawn (Person, Name "Kimberly")
+  nick <- spawn (Person, Name "Nicholas")
+  flo <- spawn (Person, Name "Florian")
+
+  insert (Rel Likes kim) flo
+  insert (Rel Likes nick, Rel Likes flo) kim
+
+helloWorld :: System ()
+helloWorld = info "Hello World!"
+
+data Greeting = Greeting String deriving (Component)
+
+instance Show Greeting where
+  show (Greeting a) = a
+
+data Likes = Likes deriving (Component)
+
+greetPeople :: System ()
+greetPeople = do
+  [q|Name, Res Greeting / With Person|]
+    & qinfo (\(name, greeting) -> [i|#{greeting} #{name}!|])
+    & query_
+
+updateFlo :: System ()
+updateFlo = do
+  [q|Name|]
+    & qfilter (== Name "Florian")
+    & qmap (\_ -> Name "Florianne")
+    & query_
+
+showLikes :: System ()
+showLikes = do
+  [q|Name|]
+    & qrelateMany (Graph.outgoing @Likes) (,) [q|Name|]
+    & qinfo (\(name, likes) -> [i|#{name} likes #{likes}|])
+    & query_

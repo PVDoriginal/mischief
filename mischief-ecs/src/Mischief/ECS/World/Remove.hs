@@ -11,6 +11,7 @@ import Data.Map qualified as Map
 import Data.Maybe
 import Data.Set (Set)
 import Data.Set qualified as Set
+import Data.Text qualified as T
 import GHC.Base (Int (..), eqWord#, isTrue#)
 import Mischief.ECS.Archetypes
 import Mischief.ECS.Archetypes.Graph
@@ -101,7 +102,7 @@ removeFromEntity components entity = do
   pointer <- liftIO $ getPointer entity world.entities
 
   case pointer of
-    Nothing -> warn $ "Removal failed: Entity " <> text entity <> " is not alive."
+    Nothing -> warn $ "Removal failed: Entity " <> T.show entity <> " is not alive."
     Just pointer -> do
       (EntityPointer (# archetypeId, _ #)) <- liftIO $ readIORef pointer
 

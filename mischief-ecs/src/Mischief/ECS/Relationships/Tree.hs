@@ -12,19 +12,19 @@ descendants :: forall c m w. (Component c, BundleTypes c, MonadSystem w m) => En
 descendants entity = do
   next <- ingoing @c entity
   next' <- mapM (descendants @c) next
-  return $ next ++ concat next'
+  pure $ next ++ concat next'
 
 anestors :: forall c m w. (Component c, MonadSystem w m) => Entity -> m [Entity]
 anestors entity = do
   next <- outgoing @c entity
   x <- mapM (anestors @c) next
-  return $ concat (next : x)
+  pure $ concat (next : x)
 
-root :: forall c m w. (Component c, MonadSystem w m) => Entity -> m Entity
+root :: forall c m w. (Component c, MonadSystem w m) => Entity -> m (Maybe Entity)
 root entity = do
   out <- outgoing @c entity
   case out of
-    [] -> return entity
+    [] -> pure $ Just entity
     [p] -> root @c p
     _ -> undefined
 
@@ -35,4 +35,4 @@ leaves entity = do
     [] -> return [entity]
     l -> do
       l' <- mapM (leaves @c) l
-      return $ concat l'
+      pure $ concat l'

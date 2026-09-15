@@ -9,6 +9,7 @@ import Data.IORef
 import Data.Map qualified as Map
 import Data.Maybe
 import Data.Set qualified as Set
+import Data.Text qualified as T
 import GHC.Base (Int (..))
 import GHC.Stack
 import Mischief.ECS.Archetypes.Graph (getArchetypeOnSpawn)
@@ -120,7 +121,7 @@ despawn entity =
     world <- unsafeGetWorld
     pointer <- liftIO $ getPointer entity world.entities
     case pointer of
-      Nothing -> warn $ "Despawn failed: Entity " <> text entity <> " is not alive."
+      Nothing -> warn $ "Despawn failed: Entity " <> T.show entity <> " is not alive."
       Just pointer -> do
         let Tables tables = world.tables
 

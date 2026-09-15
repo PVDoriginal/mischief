@@ -15,6 +15,7 @@ module Mischief.ECS
 
     -- * Learn You an ECS for Great Mischief!
     -- $tutorials
+    module Mischief.ECS.Exports,
     module Mischief.ECS.App,
     module Mischief.ECS.App.Plugins,
     module Mischief.ECS.App.Schedules,
@@ -90,6 +91,7 @@ import Mischief.ECS.Components.Spawn
 import Mischief.ECS.Entities
 import Mischief.ECS.EventDef
 import Mischief.ECS.Events
+import Mischief.ECS.Exports
 import Mischief.ECS.Graph
 import Mischief.ECS.Hooks
 import Mischief.ECS.Log

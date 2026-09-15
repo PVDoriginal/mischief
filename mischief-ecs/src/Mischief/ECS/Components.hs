@@ -69,7 +69,7 @@ import Mischief.ECS.Utils
 data Exclusivity = Inclusive | Exclusive
 
 -- | The @Component@ typeclass.
-class (Typeable c, IsExclusive (RelExclusivity c)) => Component c where
+class (Typeable c, IsExclusive (IsExclusiveRel c)) => Component c where
   -- | List of components required by this one.
   -- All required components must be 'Default'
   --
@@ -89,8 +89,8 @@ class (Typeable c, IsExclusive (RelExclusivity c)) => Component c where
   required :: Set DefaultComponentType
   required = Set.empty
 
-  type RelExclusivity c :: Exclusivity
-  type RelExclusivity c = Inclusive
+  type IsExclusiveRel c :: Bool
+  type IsExclusiveRel c = False
 
   onAdd :: [Hook c]
   onAdd = []
@@ -110,13 +110,13 @@ class (Typeable c, IsExclusive (RelExclusivity c)) => Component c where
   onRemoveRel :: [HookRel c]
   onRemoveRel = []
 
-class IsExclusive (e :: Exclusivity) where
+class IsExclusive (e :: Bool) where
   isExclusive :: Bool
 
-instance IsExclusive Inclusive where
+instance IsExclusive False where
   isExclusive = False
 
-instance IsExclusive Exclusive where
+instance IsExclusive True where
   isExclusive = True
 
 -- | Unique id for components and component pairs.
@@ -260,14 +260,17 @@ data ComponentTicks = ComponentTicks {changed :: Tick, added :: Tick} deriving (
 data ComponentData = ComponentData {value :: ErasedComponent, ticks :: ComponentTicks}
 
 -- | Type used for querying and inserting relationships.
-data Rel c = Rel {comp :: c, target :: Entity} deriving (Show)
+data Rel c = Rel {comp :: c, target :: Entity}
+
+instance (Show c) => Show (Rel c) where
+  show Rel {comp, target} = "Rel (" ++ show comp ++ ", " ++ show target ++ ")"
 
 data From c = From {entity :: Entity, comp :: c}
 
 instance (Show c) => Show (From c) where
-  show From {entity, comp} = "(" ++ show entity ++ ", " ++ show comp ++ ")"
+  show From {entity, comp} = "From (" ++ show entity ++ ", " ++ show comp ++ ")"
 
-newtype Res c = Res c deriving (Show)
+newtype Res c = Res c deriving newtype (Show)
 
 -- | @Meta@ component with the /erased/ default value of this component. Added to components required by other components.
 newtype DefaultValue = DefaultValue ErasedComponent deriving anyclass (Component)

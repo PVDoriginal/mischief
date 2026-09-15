@@ -158,7 +158,7 @@ toolsGet _ e = get e $ mkQuery (C @c)
 toolsSet :: forall c. (Bundle c) => c -> Entity -> System ()
 toolsSet = insert
 
-toolsGetRAny :: forall c m w. (Component c, MonadSystem w m, RelExclusivity c ~ Inclusive) => Proxy c -> Entity -> m (Maybe [Rel c])
+toolsGetRAny :: forall c m w. (Component c, MonadSystem w m, IsExclusiveRel c ~ False) => Proxy c -> Entity -> m (Maybe [Rel c])
 toolsGetRAny _ e = get e $ mkQuery (R @c Any)
 
 toolsSpawnByInsert :: forall b. (Bundle b) => Entity -> b -> System ()

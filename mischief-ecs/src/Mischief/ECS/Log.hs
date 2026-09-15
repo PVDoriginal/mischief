@@ -3,7 +3,6 @@ module Mischief.ECS.Log where
 import Colog qualified
 import Control.Monad.IO.Class
 import Data.Text (Text)
-import Data.Text qualified as Text
 import GHC.Stack
 import Mischief.ECS.World
 
@@ -26,6 +25,3 @@ err :: (HasCallStack) => (MonadSystem w m) => Text -> m ()
 err msg = withFrozenCallStack $ do
   world <- unsafeGetWorld
   liftIO $ Colog.usingLoggerT world.logger $ Colog.logError msg
-
-text :: (Show a) => a -> Text
-text = Text.pack . show

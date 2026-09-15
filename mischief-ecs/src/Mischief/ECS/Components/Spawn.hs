@@ -73,7 +73,7 @@ getOrAddComponentId (ComponentType (_ :: Proxy c)) = do
               "Meta entity for " ++ show (typeRep $ Proxy @c)
           )
 
-      when (isExclusive @(RelExclusivity c)) $ do
+      when (isExclusive @(IsExclusiveRel c)) $ do
         worldSet IsExclusiveRelationship result
 
       for_ (requireAll @c) $ \(DefaultComponentType (_ :: (Proxy other))) -> do

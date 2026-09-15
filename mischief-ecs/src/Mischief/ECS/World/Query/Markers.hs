@@ -271,3 +271,7 @@ data Q' a b = Q' a b
 newtype Val a = Val a
 
 newtype R' a b = R' b
+
+data MRes a = MRes
+
+data HasRes a = HasRes

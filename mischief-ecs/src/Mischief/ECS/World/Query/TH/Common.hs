@@ -22,7 +22,7 @@ import Text.Megaparsec (MonadParsec (eof, lookAhead, notFollowedBy, try), Parsec
 import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer qualified as L
 
-data CompType = Single | Pair Text | PairAny deriving (Show)
+data CompType = Single | Pair Text | PairAny | Resource deriving (Show)
 
 type Parser = Parsec Void Text
 

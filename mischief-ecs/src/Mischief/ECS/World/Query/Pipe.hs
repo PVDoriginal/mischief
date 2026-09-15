@@ -2,7 +2,7 @@
 
 module Mischief.ECS.World.Query.Pipe where
 
-import Control.Monad (filterM, void)
+import Control.Monad (filterM, void, (<=<))
 import Control.Monad.IO.Class
 import Data.Data
 import Data.Foldable
@@ -14,7 +14,7 @@ import GHC.Stack
 import Mischief.ECS.Components
 import Mischief.ECS.Components.Bundle
 import Mischief.ECS.Entities
-import Mischief.ECS.Prelude (info, text, warn)
+import Mischief.ECS.Log
 import Mischief.ECS.Tables
 import Mischief.ECS.World
 import Mischief.ECS.World.Insert
@@ -46,6 +46,21 @@ qmap f x =
         pure y
     )
 
+qtraverse :: (MonadSystem w s) => (Entity -> a -> s b) -> Query a s -> Query b s
+qtraverse f x = MapQuery x f
+
+qtraverse_ :: (MonadSystem w s) => (Entity -> a -> s b) -> Query a s -> Query a s
+qtraverse_ f x = DoQuery x (\e x -> void (f e x))
+
+qinsert :: (Bundle b) => (a -> b) -> Query a System -> Query a System
+qinsert f x = DoQuery x (\e a -> insert (f a) e)
+
+qinsertNew :: (Bundle b) => (a -> b) -> Query a System -> Query a System
+qinsertNew f x = DoQuery x (\e a -> insertNew (f a) e)
+
+qinsertIfNeq :: (BundleEq b) => (a -> b) -> Query a System -> Query a System
+qinsertIfNeq f x = DoQuery x (\e a -> insertIfNeq (f a) e)
+
 qfilterM :: (Entity -> out -> s Bool) -> Query out s -> Query out s
 qfilterM f x = FilterQuery x f
 
@@ -72,29 +87,35 @@ qcheck f x =
     x
     (\e _ -> check f e)
 
-qappend1 :: (MonadSystem w s) => (a -> Entity) -> (a -> From b -> c) -> Query b s -> Query a s -> Query c s
+qappend1 :: (MonadSystem w s) => (a -> Maybe Entity) -> (a -> From b -> c) -> Query b s -> Query a s -> Query c s
 qappend1 f f' y x =
   mapFilterQuery
     x
     ( \_ x -> do
         let entity = f x
-        y <- get entity y
-        case y of
+        case entity of
           Nothing -> pure Nothing
-          Just y -> pure $ Just (f' x (From entity y))
+          Just entity -> do
+            y <- get entity y
+            case y of
+              Nothing -> pure Nothing
+              Just y -> pure $ Just (f' x (From entity y))
     )
 
-qappend1M :: (MonadSystem w s) => (Entity -> a -> s Entity) -> (a -> From b -> c) -> Query b s -> Query a s -> Query c s
+qappend1M :: (MonadSystem w s) => (Entity -> a -> s (Maybe Entity)) -> (a -> From b -> c) -> Query b s -> Query a s -> Query c s
 qappend1M f f' y x =
   mapFilterQuery
     x
     ( \e x -> do
         entity <- f e x
-        y <- get entity y
-        case y of
+        case entity of
           Nothing -> pure Nothing
-          Just y -> do
-            pure . Just $ f' x (From entity y)
+          Just entity -> do
+            y <- get entity y
+            case y of
+              Nothing -> pure Nothing
+              Just y -> do
+                pure . Just $ f' x (From entity y)
     )
 
 qappend :: (MonadSystem w s) => (a -> [Entity]) -> (a -> [From b] -> c) -> Query b s -> Query a s -> Query c s
@@ -104,7 +125,9 @@ qappend f f' y x =
     ( \_ x -> do
         let entities = f x
         y <- catMaybes <$> mapM (\e -> fmap (e,) <$> get e y) entities
-        pure $ Just $ f' x (map (uncurry From) y)
+        case y of
+          [] -> pure Nothing
+          y -> pure $ Just $ f' x (map (uncurry From) y)
     )
 
 qappendM :: (MonadSystem w s) => (Entity -> a -> s [Entity]) -> (a -> [From b] -> c) -> Query b s -> Query a s -> Query c s
@@ -114,23 +137,28 @@ qappendM f f' y x =
     ( \e x -> do
         entities <- f e x
         y <- catMaybes <$> mapM (\e -> fmap (e,) <$> get e y) entities
-        pure . Just $ f' x (map (uncurry From) y)
+        case y of
+          [] -> pure Nothing
+          y -> pure . Just $ f' x (map (uncurry From) y)
     )
 
-qtraversal1 :: (MonadSystem w s) => (Entity -> s Entity) -> (a -> From b -> c) -> Query b s -> Query a s -> Query c s
-qtraversal1 f f' y x =
+qrelateOne :: (MonadSystem w s) => (Entity -> s (Maybe Entity)) -> (a -> From b -> c) -> Query b s -> Query a s -> Query c s
+qrelateOne f f' y x =
   mapFilterQuery
     x
     ( \e x -> do
         entity <- f e
-        y <- get entity y
-        case y of
+        case entity of
           Nothing -> pure Nothing
-          Just y -> pure $ Just (f' x (From entity y))
+          Just entity -> do
+            y <- get entity y
+            case y of
+              Nothing -> pure Nothing
+              Just y -> pure $ Just (f' x (From entity y))
     )
 
-qtraversal :: (MonadSystem w s, Foldable t) => (Entity -> s (t Entity)) -> (a -> [From b] -> c) -> Query b s -> Query a s -> Query c s
-qtraversal f f' y x =
+qrelateMany :: (MonadSystem w s, Foldable t) => (Entity -> s (t Entity)) -> (a -> [From b] -> c) -> Query b s -> Query a s -> Query c s
+qrelateMany f f' y x =
   mapFilterQuery
     x
     ( \e x -> do
@@ -188,63 +216,69 @@ qextendM f y x =
 qinfo :: (HasCallStack, MonadSystem w s) => (a -> Text) -> Query a s -> Query a s
 qinfo f a = withFrozenCallStack $ DoQuery a (\_ x -> info (f x))
 
+qwarn :: (HasCallStack, MonadSystem w s) => (a -> Text) -> Query a s -> Query a s
+qwarn f a = withFrozenCallStack $ DoQuery a (\_ x -> warn (f x))
+
+qerr :: (HasCallStack, MonadSystem w s) => (a -> Text) -> Query a s -> Query a s
+qerr f a = withFrozenCallStack $ DoQuery a (\_ x -> err (f x))
+
 qentity :: (MonadSystem w s) => Query a s -> Query (Entity, a) s
 qentity = qextend (\a b -> (b, a)) (mkQuery E)
 
-data Position = Position Int deriving (Component, Num)
+-- data Position = Position Int deriving (Component, Num)
 
-data Velocity = Velocity Int deriving (Component, Show)
+-- data Velocity = Velocity Int deriving (Component, Show)
 
-data TC = TC Int deriving (Component)
+-- data TC = TC Int deriving (Component)
 
-data RenderDevice = RenderDevice deriving (Component)
+-- data RenderDevice = RenderDevice deriving (Component)
 
-data Likes = Likes deriving (Component)
+-- data Likes = Likes deriving (Component)
 
-data Player = Player deriving (Component)
+-- data Player = Player deriving (Component)
 
-data Name = Name String deriving (Component, Show)
+-- data Name = Name String deriving (Component, Show)
 
-data Child = Child deriving (Component, Show)
+-- data Child = Child deriving (Component, Show)
 
-test :: System ()
-test = do
-  query_
-    . qmap (\(Position x, Velocity y) -> Position (x + y))
-    . qfilter (\(_, Velocity y) -> y > 5)
-    $ [q|Position, Velocity / With Player|]
+-- test :: System ()
+-- test = do
+--   query_
+--     . qmap (\(Position x, Velocity y) -> Position (x + y))
+--     . qfilter (\(_, Velocity y) -> y > 5)
+--     $ [q|Position, Velocity / With Player|]
 
-  query_
-    . qmapM
-      ( \_ (name, vel) -> do
-          info $ "My name is " <> text name
-          info $ "My velocity is " <> text vel
-      )
-    . qextend (,) [q|Velocity|]
-    $ [q|Name|]
+--   query_
+--     . qmapM
+--       ( \_ (name, vel) -> do
+--           info $ "My name is " <> text name
+--           info $ "My velocity is " <> text vel
+--       )
+--     . qextend (,) [q|Velocity|]
+--     $ [q|Name|]
 
-  query_
-    . qmap (\(parentPos, children) -> map (\(From child pos) -> From child (pos + parentPos)) children)
-    . qcheck [f|Changed Position|]
-    $ [q|Position, Child -> (Position)|]
+--   query_
+--     . qmap (\(parentPos, children) -> map (\(From child pos) -> From child (pos + parentPos)) children)
+--     . qcheck [f|Changed Position|]
+--     $ [q|Position, Child -> (Position)|]
 
-  [q|Velocity|]
-    & qjoin (\(Velocity v) (Position p) -> v == p) (,) [q|Position|]
-    & qmap (\(Velocity v, positions) -> map (\(From e (Position p)) -> From e (Position (p + v))) positions)
-    & query_
+--   [q|Velocity|]
+--     & qjoin (\(Velocity v) (Position p) -> v == p) (,) [q|Position|]
+--     & qmap (\(Velocity v, positions) -> map (\(From e (Position p)) -> From e (Position (p + v))) positions)
+--     & query_
 
-  x <- query $ qcheck [f|Changed Position|] [q|Position, Child -> (Position)|]
+--   x <- query $ qcheck [f|Changed Position|] [q|Position, Child -> (Position)|]
 
-  let player = undefined :: Entity
-  y <- get player [q|Name|]
+--   let player = undefined :: Entity
+--   y <- get player [q|Name|]
 
-  undefined
+--   undefined
 
--- test' :: ParSystem ()
--- test' = do
---   let e = undefined :: Entity
---   x <- query . qfilter (\(Position x, _, _) -> x > 5) $ mkQuery (C @Position, C @Velocity, R @Velocity e)
+-- -- test' :: ParSystem ()
+-- -- test' = do
+-- --   let e = undefined :: Entity
+-- --   x <- query . qfilter (\(Position x, _, _) -> x > 5) $ mkQuery (C @Position, C @Velocity, R @Velocity e)
 
---   qrun
---     . qmap (\(Position x, Velocity y) -> Velocity (x + y))
---     $ mkQuery (C @Position, C @Velocity)
+-- --   qrun
+-- --     . qmap (\(Position x, Velocity y) -> Velocity (x + y))
+-- --     $ mkQuery (C @Position, C @Velocity)

@@ -11,7 +11,7 @@ import Language.Haskell.TH
 import Language.Haskell.TH qualified
 import Language.Haskell.TH.Quote
 import Language.Haskell.TH.Syntax
-import Mischief.ECS.Components (Component)
+import Mischief.ECS.Components (Component, Res (Res))
 import Mischief.ECS.World.Query
 import Mischief.ECS.World.Query.Markers hiding (Q)
 import Mischief.ECS.World.Query.Markers qualified as Markers
@@ -47,7 +47,7 @@ data TestG a b = TestG deriving (Component)
 
 pSingle :: Parser Qd
 pSingle = do
-  try pEntity <|> try pVal <|> try pMaybe <|> try pHas <|> try pValStar <|> try (pTrans Nothing) <|> pType Nothing
+  try pEntity <|> try pMaybe <|> try pHas <|> try pValStar <|> try (pTrans Nothing) <|> pType Nothing
 
 pEntity :: Parser Qd
 pEntity = do
@@ -60,13 +60,6 @@ pValStar :: Parser Qd
 pValStar = do
   void $ char '*'
   whitespace
-  Val' <$> pEl
-
-pVal :: Parser Qd
-pVal = do
-  void $ choice [string "Val", string "val", string "V", string "v"] <* notFollowedBy alphaNumChar
-  whitespace
-
   Val' <$> pEl
 
 pMaybe :: Parser Qd
@@ -110,30 +103,47 @@ pTrans mod = do
         exp = qd
       }
 
-pType :: Maybe Mod -> Parser Qd
-pType mod = do
-  -- name <- pTypeGeneric <|> T.pack <$> some alphaNumChar
+pRes :: Maybe Mod -> Parser Qd
+pRes mod = do
+  void $ choice ["Res", "res"]
+  whitespace
+
   name <- pNameTup <|> T.pack <$> some alphaNumChar
   whitespace
 
-  target <- optional $ do
-    void $ string "->"
-    whitespace
-    r <- string "*" <|> T.pack <$> some alphaNumChar
-    whitespace
-    return r
-
-  let compType = case target of
-        Nothing -> Single
-        Just "*" -> PairAny
-        Just e -> Pair e
-
-  return . Type $
+  pure . Type $
     QdType
       { name,
-        compType,
+        compType = Resource,
         mod
       }
+
+pType :: Maybe Mod -> Parser Qd
+pType mod =
+  pRes mod <|> pTypeSimple
+  where
+    pTypeSimple = do
+      name <- pNameTup <|> T.pack <$> some alphaNumChar
+      whitespace
+
+      target <- optional $ do
+        void $ string "->"
+        whitespace
+        r <- string "*" <|> T.pack <$> some alphaNumChar
+        whitespace
+        return r
+
+      let compType = case target of
+            Nothing -> Single
+            Just "*" -> PairAny
+            Just e -> Pair e
+
+      return . Type $
+        QdType
+          { name,
+            compType,
+            mod
+          }
 
 pName :: Parser Text
 pName = T.pack <$> some alphaNumChar <|> pNameTup
@@ -142,6 +152,9 @@ pTypeGeneric :: Parser Text
 pTypeGeneric = T.pack <$> (char '{' *> manyTill L.charLiteral (char '}'))
 
 quoteQd :: Qd -> Q Exp
+quoteQd (Type QdType {name, compType = Resource, mod = Nothing}) = processRes name
+quoteQd (Type QdType {name, compType = Resource, mod = Just M'}) = processMRes name
+quoteQd (Type QdType {name, compType = Resource, mod = Just H'}) = processHasRes name
 quoteQd (Type QdType {name, compType = Single, mod = Nothing}) = processC name
 quoteQd (Type QdType {name, compType = Single, mod = Just M'}) = processM name
 quoteQd (Type QdType {name, compType = Single, mod = Just H'}) = processH name
@@ -167,6 +180,21 @@ relTrans exp (Just f) = do
 
 processVal :: Exp -> Exp
 processVal = AppE (ConE 'Val)
+
+processRes :: Text -> Q Exp
+processRes name = do
+  name <- getTypeName name
+  return $ AppTypeE (ConE 'Res) (ConT name)
+
+processMRes :: Text -> Q Exp
+processMRes name = do
+  name <- getTypeName name
+  return $ AppTypeE (ConE 'MRes) (ConT name)
+
+processHasRes :: Text -> Q Exp
+processHasRes name = do
+  name <- getTypeName name
+  return $ AppTypeE (ConE 'HasRes) (ConT name)
 
 processM :: Text -> Q Exp
 processM name = do

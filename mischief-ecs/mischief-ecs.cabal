@@ -78,6 +78,7 @@ library
     Mischief.ECS.EntityDef
     Mischief.ECS.EventDef
     Mischief.ECS.Events
+    Mischief.ECS.Exports
     Mischief.ECS.Foreign
     Mischief.ECS.Graph
     Mischief.ECS.Hooks
@@ -121,9 +122,9 @@ library
     Mischief.ECS.World.Prefs
     Mischief.ECS.World.Query
     Mischief.ECS.World.Query.Markers
+    Mischief.ECS.World.Query.Pipe
     Mischief.ECS.World.Query.Queryable
     Mischief.ECS.World.Query.QueryFilter
-    Mischief.ECS.World.Query.Pipe
     Mischief.ECS.World.Query.QueryType
     Mischief.ECS.World.Query.TH
     Mischief.ECS.World.Query.TH.Common
@@ -179,6 +180,7 @@ library
     mtl >=2.3.1 && <2.4,
     primitive >=0.9.1 && <0.10,
     stm >=2.5.3 && <2.6,
+    string-interpolate >=1.0.0,
     template-haskell >=2.23.0 && <2.24,
     text >=2.1.2 && <2.2,
     time >=1.14 && <1.15,
@@ -231,6 +233,7 @@ test-suite mischief-test
     mischief-ecs,
     primitive,
     random >=1.3.1 && <1.4,
+    text,
     transformers,
 
 executable example-dungeon
@@ -243,6 +246,30 @@ executable example-dungeon
     mischief-ecs,
     primitive,
     random >=1.3.1 && <1.4,
+    transformers,
+
+  default-language: GHC2024
+  default-extensions:
+    DeriveAnyClass
+    DuplicateRecordFields
+    NoFieldSelectors
+    NoGeneralizedNewtypeDeriving
+    OverloadedRecordDot
+    OverloadedStrings
+    QuasiQuotes
+    RequiredTypeArguments
+    TemplateHaskell
+    TypeFamilyDependencies
+
+executable example-startup
+  main-is: Startup.hs
+  hs-source-dirs: examples
+  build-depends:
+    base,
+    containers,
+    data-default,
+    mischief-ecs,
+    primitive,
     transformers,
 
   default-language: GHC2024

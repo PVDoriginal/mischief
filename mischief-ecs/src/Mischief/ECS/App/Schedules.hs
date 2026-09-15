@@ -62,5 +62,3 @@ scheduleEntity :: (Schedule sch) => sch -> System Entity
 scheduleEntity sch = do
   ScheduleId id <- getScheduleId $ ScheduleLabel $ typeOf sch
   return id
-
--- runSystemsIn :: (Schedule sch) => sch -> System ()

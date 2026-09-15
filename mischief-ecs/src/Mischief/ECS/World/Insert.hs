@@ -14,6 +14,7 @@ import Data.List hiding (insert)
 import Data.Map qualified as Map
 import Data.Maybe (fromMaybe, isJust)
 import Data.Set qualified as Set
+import Data.Text qualified as T
 import Data.Text qualified as Text
 import GHC.Base (Int (..))
 import GHC.Stack
@@ -56,7 +57,7 @@ insert bundle entity =
     pointer <- liftIO $ getPointer entity world.entities
 
     case pointer of
-      Nothing -> warn $ "Insertion failed: Entity " <> text entity <> " is not alive."
+      Nothing -> warn $ "Insertion failed: Entity " <> T.show entity <> " is not alive."
       Just currentPointer -> do
         let BundleData {elements, resources, external} = bundleData bundle
 
@@ -117,7 +118,7 @@ insertNew bundle entity =
     pointer <- liftIO $ getPointer entity world.entities
 
     case pointer of
-      Nothing -> warn $ "Insertion failed: Entity " <> text entity <> " is not alive."
+      Nothing -> warn $ "Insertion failed: Entity " <> T.show entity <> " is not alive."
       Just currentPointer -> do
         for_ resources $ \BundleElement {component = ErasedComponent (val :: c)} -> do
           m <- meta @c
