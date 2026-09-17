@@ -33,6 +33,9 @@ module Mischief.ECS.Tutorial.Dungeon
     -- * Moving the Player
     -- $move
 
+    -- * Receiving Input
+    -- $input
+
     -- * Displaying the Grid
     -- $display
 
@@ -98,16 +101,15 @@ import System.Exit (exitSuccess)
 --
 -- main :: 'IO' ()
 -- main = do
---   app <- 'newApp' MainPlugin
+--   app <- 'newApp'
+--   'addPlugin' \@MainPlugin app
 --   'runApp' app
 --
--- data MainPlugin = MainPlugin deriving ('Eq')
+-- data MainPlugin
 --
 -- instance 'Plugin' MainPlugin where
---   'Mischief.ECS.App.Plugins.init' _ = 'info' \"Hello World!\"
+--   init = 'pure' ()
 -- @
---
--- If you run this program you should see \"Hello World!\" logged to the terminal.
 
 -- $grid
 -- The game will play out on a small 2D grid. There are many ways of representing this Mischief, the way I've chosen to do it
@@ -159,59 +161,30 @@ import System.Exit (exitSuccess)
 -- Now we just need to modify @MainPlugin@ so that it schedules @spawnGrid@ to happen when the app starts.
 --
 -- @
--- import "Mischief.ECS.Systems" qualified as [Systems]("Mischief.ECS.Systems")
---
 -- instance 'Plugin' MainPlugin where
---   'Mischief.ECS.App.Plugins.init' _ = [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Startup' spawnGrid
+--   init = do
+--     'systems' spawnGrid
+--       & 'schedule' 'Startup'
 -- @
 
 -- $traversing
 -- Next, we need to code a way for traversing between adjacent tiles. Having a tile entity, we should have easy access to the entities found above, below, to the left and right of it.
 --
--- First, I've written this function which gets an entity by position:
+-- First, I've written this function which gets an entity by position, given the Grid:
 --
 -- @
--- getTile :: ('Int', 'Int') -> 'System' ('Maybe' 'Entity')
--- getTile (x, y) = do
---   grid <- 'res' @Grid
---   'pure' $ do
---     Grid tiles <- grid
---     line <- tiles '!?' x
---     line '!?' y
+-- getTile :: ('Int', 'Int') -> Grid -> 'Maybe' 'Entity'
+-- getTile (x, y) (Grid tiles) = do
+--   line <- tiles !? x
+--   line !? y
 -- @
 --
--- Now we can write a function that gets the position of a given tile and finds tiles offset by a certain amount:
+-- Now we can write a function that receives the position of a given tile and finds tiles offset by a certain amount:
 --
 -- @
--- moveBy :: ('Int', 'Int') -> 'Entity' -> 'System' ('Maybe' 'Entity')
--- moveBy (x, y) entity = do
---   'Just' pos <- 'get' ('C' \@Pos) entity
---   let (Pos (x', y')) = 'value' pos
---   getTile (x' + x, y' + y)
+-- moveBy :: ('Int', 'Int') -> Pos -> Grid -> 'Maybe' 'Entity'
+-- moveBy (x, y) (Pos (x', y')) = getTile (x' + x, y' + y)
 -- @
---
--- Queries will be explained in-depth later, but what happens essentially is that, our query returns a @Result Pos@ for the given entity, and
--- we get and unwrap the inner @Pos@ value using the @'value'@ function.
---
--- We can completely bypass this by just using the @Val@ query transformer which unwraps the @Result@ for us:
---
--- @
--- moveBy (x, y) entity = do
---   'Just' (Pos (x', y')) <- 'get' ('Val' ('C' \@Pos)) entity
---   getTile (x' + x, y' + y)
--- @
---
--- We can compress the code even further by using @quasi-queries@. They are macros which allow us to write queries in faster, easier ways.
--- They will be explained in a further chapter, but should be pretty easy to understand at an intuitive level. For instance, we can replace
--- the above @get@ with the @g@ quasi-query:
---
--- @
--- moveBy (x, y) entity = do
---   'Just' (Pos (x', y')) <- ['g'|*Pos|] entity
---   getTile (x' + x, y' + y)
--- @
---
--- The @*@ is the quasi equivalent of @Val@, although it can also just be written as @Val@ or @val@ if you prefer.
 
 -- $player
 -- Our game needs a player, so we should have a component that uniquely identifies it:
@@ -223,17 +196,14 @@ import System.Exit (exitSuccess)
 -- We should also have a relationship to associate an entity to a tile, teling us that it's currently placed on that tile.
 --
 -- @
--- data OnTile = OnTile deriving ('Component')
--- @
+-- data OnTile = OnTile
 --
--- Additionally, an entity should only be able to be on a single tile at a time. Mischief has a convenient way of doing this hidden in the @Component@ class:
---
--- @
 -- instance 'Component' OnTile where
---   'isExclusiveRel' = True
+--   type 'IsExclusiveRel' OnTile = 'True'
 -- @
 --
--- This means that if we insert a new @OnTile@ relationship to the player, the old one will be automatically removed.
+-- Setting @IsExclusiveRel@ to True on the component instance will make it so there can only be one such relationship on an entity at a time.
+-- In our case, this means the player can only be on one tile at a time, and moving them will remove the previous relationship.
 --
 -- Anyway, it's finally time to spawn our player:
 --
@@ -245,23 +215,28 @@ import System.Exit (exitSuccess)
 --   'pure' ()
 -- @
 --
--- @Rel OnTile tile@ inserts the @(OnTile, tile)@ relationship on the player.
+-- @Rel OnTile tile@ inserts the @(OnTile, tile)@ relationship on the player. Tile @(5, 5)@ is just an arbitrary tile I chose.
 --
--- We can avoid the @pure@ by just using @void@ to consume the value of @spawn@:
+-- Note that we can avoid the @pure@ and the @_ \<-@ by using @void@ to consume the value of @spawn@:
 --
 -- @
+-- spawnPlayer :: System ()
 -- spawnPlayer = do
---   'Just' tile <- getTile (5, 5)
---   'void' $ 'spawn' (Player, 'Rel' OnTile tile)
+--   'Just' grid <- 'res' \@Grid
+--   'for_' (getTile (5, 5) grid) $ \\tile -\>
+--     'void' $ 'spawn' (Player, Rel {comp = OnTile, target = tile})
 -- @
 --
 -- Now we can add the player spawning logic to @Startup@:
 --
 -- @
 -- instance 'Plugin' MainPlugin where
---   'Mischief.ECS.App.Plugins.init' _ = do
---     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Startup' spawnPlayer
---     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Startup' spawnGrid
+--   init = do
+--     'systems' spawnGrid
+--       & 'schedule' 'Startup'
+--
+--     'systems' spawnPlayer
+--       & 'schedule' 'Startup'
 -- @
 --
 -- Except there's something really wrong in the logic above!
@@ -273,9 +248,13 @@ import System.Exit (exitSuccess)
 --
 -- @
 -- instance 'Plugin' MainPlugin where
---   'Mischief.ECS.App.Plugins.init' _ = do
---     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Startup' $ spawnPlayer '`after`' spawnGrid
---     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Startup' spawnGrid
+--   init = do
+--     'systems' spawnGrid
+--       & 'schedule' Startup
+--
+--     'systems' spawnPlayer
+--       & 'after' spawnGrid
+--       & 'schedule' Startup
 -- @
 --
 -- The app should now run without issues!
@@ -290,53 +269,50 @@ import System.Exit (exitSuccess)
 -- I've written a system which spawns walls and places them on the tiles around the edge of the grid:
 --
 -- @
--- spawnWall :: ('Int', 'Int') -> 'System' 'Entity'
+-- spawnWall :: ('Int', 'Int') -> 'System' ('Maybe' 'Entity')
 -- spawnWall pos = do
---   'Just' tile <- getTile pos
---   'spawn' (Wall, 'Rel' OnTile tile)
+--   'Just' grid \<- 'res' \@Grid
+--   'for' (getTile pos grid) $ \tile ->
+--     'spawn' (Wall, Rel OnTile tile)
 --
 -- spawnWalls :: 'System' ()
 -- spawnWalls = do
---   'for_' [0 .. gridW - 1] $ \i -> spawnWall (0, i)
---   'for_' [0 .. gridW - 1] $ \i -> spawnWall (gridH - 1, i)
---   'for_' [1 .. gridH - 2] $ \i -> spawnWall (i, 0)
---   'for_' [1 .. gridH - 2] $ \i -> spawnWall (i, gridW - 1)
+--   'for_' [0 .. gridW - 1] $ \\i -> spawnWall (0, i)
+--   'for_' [0 .. gridW - 1] $ \\i -> spawnWall (gridH - 1, i)
+--   'for_' [1 .. gridH - 2] $ \\i -> spawnWall (i, 0)
+--   'for_' [1 .. gridH - 2] $ \\i -> spawnWall (i, gridW - 1)
 -- @
 --
 -- The system also needs to be scheduled to run, so @MainPlugin@ now looks like this:
 --
 -- @
 -- instance 'Plugin' MainPlugin where
---   'Mischief.ECS.App.Plugins.init' _ = do
---     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Startup' spawnPlayer '`after`' spawnGrid
---     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Startup' (spawnGrid, spawnWalls)
+--   init = do
+--     'systems' (spawnGrid, spawnWalls)
+--       & 'schedule' Startup
+--
+--     'systems' spawnPlayer
+--       & 'after' spawnGrid
+--       & 'schedule' Startup
 -- @
 --
 -- Additionally, I wrote a system which checks if a given tile has a wall on it:
 --
 -- @
 -- hasWall :: 'Entity' -> 'System' 'Bool'
--- hasWall tile = do
---   walls <- 'query'' 'E' ('With' ('C' \@Wall, 'R' \@OnTile tile))
---   'pure' $ 'not' $ 'null' walls
+-- hasWall tile =
+--   'not' . 'null' <$> 'query' ('mkQuery'' () ('With' ('C' \@Wall) '`And`' 'With' ('R' \@OnTile tile)))
 -- @
 --
--- @E@ just grabs the Entity of all queried entities. @With@ is a query filter that makes it so the query only iterates over entities which have those components (in this case,
--- they must have @Wall@ and must have a @OnTile@ relationship to this precise tile).
--- Note that @query'@ is the filtered version of @query@.
+-- We are querying for all entities which have a @Wall@ component and a @OnTile@ relationship to the given entity. We just care if this list is not null
+-- so we are not actually querying for any data.
 --
 -- Here's the same system but in quasi-notation:
 --
 -- @
--- hasWall tile = do
---   walls <- ['q'|Entity / With (Wall, OnTile -\> tile)|]
---   'pure' $ 'not' $ 'null' walls
--- @
---
--- We can compress it even further using @\<$\>@:
---
--- @
--- hasWall tile = 'not' . 'null' '<$>' ['q'|Entity / With (Wall, OnTile -\> tile)|]
+-- hasWall :: 'Entity' -> 'System' 'Bool'
+-- hasWall tile =
+--   'not' . 'null' <$> 'query' ['q'|/With Wall, With OnTile -> tile|]
 -- @
 
 -- $move
@@ -347,79 +323,85 @@ import System.Exit (exitSuccess)
 -- @
 -- movePlayerBy :: ('Int', 'Int') -> 'System' ()
 -- movePlayerBy dir = do
---   'Just' player <- 'single'' E ('With' ('C' \@Player))
+--   'Just' grid <- 'res' \@Grid
+--   'Just' (player, tilePos) \<- 'single' $ 'mkQuery'' ('E', 'R' \@OnTile ('Q' ('C' \@Pos))) ('With' ('C' \@Player))
 --
---   'Just' rel <- 'get' ('R' \@OnTile 'Any') player
---   let tile = rel.target
---
---   newTile <- moveBy dir tile
---
---   'for_' newTile $ \t -> do
---     wall <- hasWall t
---     'unless' wall $ 'insert' ('Rel' OnTile t) player
+--   'for_' (moveBy dir tilePos.comp grid) $ \\newTile -> do
+--     wall <- hasWall newTile
+--     'unless' wall $ 'insert' ('Rel' OnTile newTile) player
 -- @
 --
 -- Let's break it down line-by-line.
 --
---
--- First, we get the entity of the player:
---
--- @
--- 'Just' player <- 'single'' E ('With' ('C' \@Player))
--- @
---
--- @single@ is a variant of @query@ which returns a @Maybe@ based on whether there is exactly one entity matching the query or not. We know there is exactly one player, and
--- we know by this point it should be spawned, so doing the @Just player <-@ unwrapping is fine.
---
--- The query could also be writtten as:
+-- First, we get the grid:
 --
 -- @
--- ['s'|Entity / With Player|]
+-- 'Just' grid <- 'res' \@Grid
 -- @
 --
--- Next, we get the entity of the current tile the player is on:
+-- Then, we get the entity of the player, and the position of the tile the player is currently on:
 --
 -- @
--- 'Just' rel <- 'get' ('R' \@OnTile 'Any') player
--- let tile = rel.target
+-- 'Just' (player, tilePos) \<- 'single' $ 'mkQuery'' ('E', 'R' \@OnTile ('Q' ('C' \@Pos))) ('With' ('C' \@Player))
 -- @
 --
--- Querying for @R \OnTile Any@ will give us a list of all @OnTile@ relationships of the player. However, because earlier we set @OnTile@
--- to be @Exclusive@, Mischief knows to only return a single relationship.
+-- @single@ is like @query@ but it returns a @Maybe@ based on whether there is exactly one entity returned or not. We know there is exactly one player, and
+-- we know by this point it should be spawned and placed on a tile, so doing the @Just player <-@ unwrapping is fine.
 --
--- We then use @rel.target@ to get the target entity of the relationship, which, in this case, is the tile we are looking for.
---
--- The @get@ could also be written as:
+-- This line can also be written as:
 --
 -- @
--- ['g'|OnTile -\> *|] player
+-- 'Just' player \<- 'single' ['g'|Entity, OnTile -\> (Pos) / With Player|]
 -- @
 --
--- After, we use the earlier @moveDir@ system to get the new tile the player will be on:
+-- Next, we use our previous function to get the entity of the new tile the player should move to, and we traverse it:
 --
 -- @
--- newTile <- moveBy dir tile
+-- 'for_' (moveBy dir tilePos.comp grid) $ \\newTile -> do
 -- @
 --
--- And finally, we unwrap it (@moveBy@ returns a @Maybe Entity@), check if there is a Wall on it, and if there isn't, move the player to it.
+-- And finally, we check if there is a Wall on the new tile, and if there isn't, move the player to it.
 --
 -- @
--- 'for_' newTile $ \t -> do
---   wall <- hasWall t
---   'unless' wall $ 'insert' ('Rel' OnTile t) player
+-- wall <- hasWall newTile
+-- 'unless' wall $ 'insert' ('Rel' OnTile newTile) player
 -- @
 --
--- This could also be written as:
+-- The entire thing can also be written under this form:
 --
 -- @
--- 'for_' newTile $ \t ->
---  hasWall t '>>=' 'flip' 'unless' ('insert' ('Rel' OnTile t) player)
+-- movePlayerBy' :: ('Int', 'Int') -> 'System' ()
+-- movePlayerBy' dir = do
+--   ['q'|OnTile -> (Pos), Res Grid / With Player|]
+--     & 'qmapMaybe' (\\(pos, Res grid) -> moveBy dir pos.comp grid)
+--     & 'qfilterM' (\\_ newTile -> 'not' <$> hasWall newTile)
+--     & 'qinsert' (\\newTile -> 'Rel' OnTile newTile)
+--     & 'query_'
 -- @
 --
+-- @qmapMaybe@ /tries/ to get the new tile, after which we run a filter to check if we the tile has a wall on it. Finally we @qmap@ the tile to the new relationship.
+-- As you've seen before, @qmap@ automatically runs an insertion of the returned components.
+--
+-- Another thing to note here is that @qfilterM@ also receives as @Entity@ as an argument. That is
+-- the case for most of the @M@ query functions. They provide the current entity that's being iterated so we have a simpler time running insertions and such.
+--
+-- We can also simplify the lambdas quite a lot:
+--
+-- @
+-- movePlayerBy' :: ('Int', 'Int') -> 'System' ()
+-- movePlayerBy' dir = do
+--   ['q'|OnTile -> (Pos), Res Grid / With Player|]
+--     & 'qmapMaybe' (\\(pos, Res grid) -> moveBy dir pos.comp grid)
+--     & 'qfilterM' ('const' $ ('not' <$>) . hasWall)
+--     & 'qinsert' ('Rel' OnTile)
+--     & 'query_'
+-- @
+
+-- $input
 -- We also need to somehow get input from the user. Mischief exposes some useful functions for this in the following module:
 --
 -- @
--- import "Mischief.ECS.Stdin" qualified as [Stdin]("Mischief.ECS.Stdin")
+-- import "Mischief.ECS.Stdin" qualified as Stdin
 -- @
 --
 -- These functions are useful for the purpose of this tutorial but should probably never be used in a released game. Instead, you should import a dedicated
@@ -432,8 +414,8 @@ import System.Exit (exitSuccess)
 -- @
 -- movePlayer :: 'System' ()
 -- movePlayer = do
---   c <- [Stdin]("Mischief.ECS.Stdin").'Mischief.ECS.Stdin.readLast'
---   'for_' c $ \case
+--   c <- Stdin.'Mischief.ECS.Stdin.readLast'
+--   'for_' c $ \\case
 --     \'w\' -> movePlayerBy (-1, 0)
 --     \'s\' -> movePlayerBy (1, 0)
 --     \'a\' -> movePlayerBy (0, -1)
@@ -441,58 +423,62 @@ import System.Exit (exitSuccess)
 --     _ -> 'pure' ()
 -- @
 --
--- The @for_@ just /'iterates/' over the @Maybe@, applying the function if it has a value, and doing nothing otherwise.
+-- The @for_@ just \'iterates\' over the @Maybe@, applying the function if it has a value, and doing nothing otherwise.
 --
 -- At this point the codebase is starting to grow, so I have decided to create a new @PlayerPlugin@ which handles all the player logic (including the new movement system),
 -- and make it a dependency of @MainPlugin@:
 --
 -- @
--- data MainPlugin = MainPlugin deriving ('Eq')
+-- data MainPlugin
 --
 -- instance 'Plugin' MainPlugin where
---   'Mischief.ECS.App.Plugins.init' _ = do
---     [Stdin]("Mischief.ECS.Stdin").'Mischief.ECS.Stdin.init'
---     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Startup' (spawnGrid, spawnWalls)
+--   init = do
+--     'systems' (spawnGrid, spawnWalls)
+--       & 'schedule' 'Startup'
 --
---   'plugins' _ = 'plug' PlayerPlugin
+--   deps = ['dep' \@PlayerPlugin]
 --
--- data PlayerPlugin = PlayerPlugin deriving ('Eq')
+-- data PlayerPlugin
 --
 -- instance 'Plugin' PlayerPlugin where
---   'Mischief.ECS.App.Plugins.init' _ = do
---     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Startup' $ spawnPlayer '`after`' spawnGrid
---     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Update' movePlayer
+--   init = do
+--     'systems spawnPlayer
+--       & 'after spawnGrid
+--       & 'schedule' 'Startup'
+--
+--     'systems' movePlayer
+--       & 'schedule' 'Update'
 -- @
 
 -- $display
--- It's finally time to actually display our game's grid in the terminal!
+-- It's finally time to display our game's grid in the terminal!
 --
 -- You may remember earlier we wrote a system which checks if there is a wall on a given tile.
 --
 -- @
 -- hasWall :: 'Entity' -> 'System' 'Bool'
--- hasWall tile = 'not' . 'null' '<$>' ['q'|Entity / With (Wall, OnTile -\> tile)|]
+-- hasWall tile =
+--   'not' . 'null' <$> 'query' ['q'|/With Wall, With OnTile -> tile|]
 -- @
 --
--- It'd be useful to have something similar but for any arbitrary type of entity. We can write a generic variant of it like this:
+-- It'd be useful to have something similar but for any arbitrary component. We can write a generic variant of it like this:
 --
 -- @
--- tileHas :: forall c. ('QueryType' c) => 'Entity' -> 'System' 'Bool'
--- tileHas tile = 'not' . 'null' '<$>' ['q'|Entity / With (c, OnTile -> tile)|]
+-- tileHas :: forall c. ('Component' c) => 'Entity' -> 'System' 'Bool'
+-- tileHas tile = 'not' . 'null' <$> 'query' ['q'|Entity / With (c, OnTile -> tile)|]
 -- @
 --
--- @QueryType@ is a sort of catch-all constraint that makes sure @c@ is a component and can be queried (so nothing weird like it being a tuple).
---
--- Make sure to add @{-# LANGUAGE AllowAmbiguousTypes #-}@ at the top of your .hs file, otherwise the type system will not like that @c@ can not be inferred from the
--- function's signature (alternatively you can just pass a @Proxy c@ as a workaround but I personally prefer the other way).
+-- Make sure to add @{-# LANGUAGE AllowAmbiguousTypes #-}@ at the top of your .hs file, otherwise the type checker will not like that @c@ can not be inferred from the
+-- function's input (alternatively you can just pass a @Proxy c@ as a workaround but I personally prefer the amiguous types).
 --
 -- We can now write @hasWall@ as just:
 --
 -- @
+-- hasWall :: 'Entity' -> 'System' 'Bool'
 -- hasWall = tileHas \@Wall
 -- @
 --
--- Now it should be easy to write a system that receives a tile and returns a character to represent it:
+-- Now it should be easy to write a system that receives a tile and returns a character to represent it based on what's placed on it:
 --
 -- @
 -- showTile :: 'Entity' -> 'System' 'Char'
@@ -507,9 +493,9 @@ import System.Exit (exitSuccess)
 --       | otherwise -> \'.\'
 -- @
 --
--- This requires the @MultiWayIf@ language extension, but there are many ways to write it without it, it's just a personal preference.
+-- This requires the @MultiWayIf@ language extension, but there are many alternate ways to write it; it's just a personal preference.
 --
--- Next, I've written a system which produces a String for the whole grid by calling the previous function on each tile:
+-- Next, I've written a system which produces a String to represent the whole grid by calling the previous function on each tile:
 --
 -- @
 -- showGrid :: 'System' 'String'
@@ -529,10 +515,14 @@ import System.Exit (exitSuccess)
 --
 -- @
 -- instance 'Plugin' MainPlugin where
---   'Mischief.ECS.App.Plugins.init' _ = do
---     [Stdin]("Mischief.ECS.Stdin").'Mischief.ECS.Stdin.init'
---     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Startup' (spawnGrid, spawnWalls)
---     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Update' printGrid
+--   init = do
+--     Stdin.'Mischief.ECS.Stdin.init'
+--
+--     'systems' (spawnGrid, spawnWalls)
+--       & 'schedule' 'Startup'
+--
+--     'systems' printGrid
+--       & 'schedule' 'Update'
 -- @
 --
 -- If you run the app now, you should see the game's grid and we able to use @wasd@ to move the player around!
@@ -573,13 +563,18 @@ import System.Exit (exitSuccess)
 --
 -- @
 -- instance 'Plugin' MainPlugin where
---   'Mischief.ECS.App.Plugins.init' _ = do
---     [Stdin]("Mischief.ECS.Stdin").'Mischief.ECS.Stdin.init'
---     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Startup' (spawnGrid, spawnWalls)
---     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Update' printGrid
+--   init = do
+--     Stdin.'Mischief.ECS.Stdin.init'
 --
---     'insertRes' '=<<' newGen
+--     'systems' (spawnGrid, spawnWalls)
+--       & 'schedule' 'Startup'
+--
+--     'systems' printGrid
+--       & 'schedule' 'Update'
+--
+--     'insertRes' =<< newGen
 -- @
+--
 --
 -- Now it's possible to write a system that generates a random position on the grid:
 --
@@ -596,10 +591,14 @@ import System.Exit (exitSuccess)
 --
 -- @
 -- randomTile :: 'System' 'Entity'
--- randomTile = 'unwrap' \<$\> getTile randomPos
+-- randomTile = do
+--   'Just' grid <- 'res' \@Grid
+--   randomPos <- randomPos
+--
+--   'pure' . 'unwrap' $ getTile randomPos grid
 -- @
 --
--- @unwrap@ is a utility function provided by Mischief that just grabs the value out of a @Maybe@, or panics if there is no value. But in this case,
+-- @unwrap@ is a utility function provided by Mischief that just grabs the value out of a @Maybe@, or panics if there is no value. In this case,
 -- we know there will be a value since the provided position is valid.
 
 -- $enemies
@@ -648,19 +647,21 @@ import System.Exit (exitSuccess)
 -- Finally, we need a to schedule the enemy spawning, so I've created a new @EnemyPlugin@:
 --
 -- @
--- data EnemyPlugin = EnemyPlugin deriving ('Eq')
+-- data EnemyPlugin
 --
 -- instance 'Plugin' EnemyPlugin where
---   'Mischief.ECS.App.Plugins.init' _ = [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Startup' spawnEnemies
+--   init = do
+--     'systems' spawnEnemies
+--       & 'schedule' Startup
 -- @
 --
 -- And added it to the list of plugins added by @MainPlugin@:
 --
 -- @
 -- instance 'Plugin' MainPlugin where
---   'Mischief.ECS.App.Plugins.init' _ = ...
+--   init = ...
 --
---   'plugins' = 'plug' (PlayerPlugin, EnemyPlugin)
+--   deps = ['dep' \@PlayerPlugin, 'dep' \@EnemyPlugin]
 -- @
 --
 -- You should now see something like this when running the app:
@@ -681,72 +682,83 @@ import System.Exit (exitSuccess)
 -- $moveE
 -- Right now the enemies just sit there. Let's make them move!
 --
--- But first, I'd like to present you a new concept: @transitive queries@.
---
--- Up until now, if we wanted the position of the tile of the player we'd do somehing like:
---
--- @
--- 'Just' tile <- 'single'' ('R' \@OnTile 'Any') ('With' ('C' \@Player))
--- 'Just' pos <- 'get' ('Val' ('C' \@Pos)) tile.target
--- @
---
--- We'd do a query to get the player's relationship to the tile, then do another query on the actual tile to get its position.
---
--- But this could also be written as:
---
--- @
--- 'Just' pos <- 'single'' ('R' \@OnTile ('Q' ('Val' ('C' \@Pos)))) ('With' ('C' \@Player))
--- @
---
--- Instead of getting all relationship, we use the @Q@ marker to run the given query on each target of the relationship. So we transitively
--- get the position of the tile through its relationship to the player.
---
--- If you think this is uglier than just the two queries earlier, don't worry, the quasi notation looks much better:
---
--- @
--- 'Just' pos \<- ['s'|OnTile -\> (*Pos) / With Player|]
--- @
---
--- Don't forget to put the @()@ around @*Pos@!
---
--- You should now be able to understand this system that handles the movement of the enemies:
---
--- @
--- moveEnemies :: 'System' ()
--- moveEnemies = do
---   'Just' pos \<- ['s'|OnTile -\> (*Pos) / With Player|]
---
---   enemies \<- ['q'|Entity, OnTile -\> (Entity, *Pos) / With Enemy|]
---   'for_' enemies $ \(enemy, (enemyTarget, enemyPos)) -> do
---
---   diff <- decideEnemyDir enemyPos pos
---
---   newTile <- moveBy diff enemyTile
---   'for_' newTile $ \t -> do
---     'insert' ('Rel' OnTile t) enemy
--- @
---
--- With this helper function for deciding which direction to move on, based on the player's position.
+-- Fist, I've written this helper @System@ that receives an enemy's position, the player's position, and decides the direction the enemy will move in.
+-- (yes, it technically could be a pure function but you'll see why it's a System a bit later).
 --
 -- @
 -- decideEnemyDir :: Pos -> Pos -> 'System' ('Int', 'Int')
 -- decideEnemyDir (Pos (ex, ey)) (Pos (px, py)) = do
 --   'pure' $
 --     if
---       | ex > px -> (-1, 0)
---       | ey > py -> (0, -1)
---       | ex < px -> (1, 0)
---       | ey < py -> (0, 1)
---       | otherwise -> (0, 0)
+--       \| ex \> px -\> (-1, 0)
+--       \| ey \> py -\> (0, -1)
+--       \| ex \< px -\> (1, 0)
+--       \| ey \< py -\> (0, 1)
+--       \| otherwise -\> (0, 0)
 -- @
 --
--- And don't forget to schedule it:
+-- Then, I wrote this system that grabs the player's position and then iterates over all enemies to move them:
 --
 -- @
+-- moveEnemies :: 'System' ()
+-- moveEnemies = do
+--   'Just' ('From' _ playerPos) \<- 'single' ['q'|OnTile -\> (Pos) / With Player|]
+--
+--   ['q'|OnTile -> (Pos), Res Grid / With Enemy|]
+--     & 'qtraverse' (\\_ (pos, grid) -> (,pos,grid) <$> decideEnemyDir pos.comp playerPos)
+--     & 'qmapMaybe' (\\(diff, pos, Res grid) -> moveBy diff pos.comp grid)
+--     & 'qinsert' (Rel OnTile)
+--     & 'query_'
+-- @
+--
+-- Most of it /should/ be clear to you by now, but let me write some helper comments showing what data is flowing through our query at each point:
+--
+-- @
+-- ['q'|OnTile -> (Pos), Res Grid / With Enemy|]
+--   -- Query (From Pos, Res Grid)
+--   & 'qtraverse' (\\_ (pos, grid) -> (,pos,grid) <$> decideEnemyDir pos.comp playerPos)
+--   -- Query ((Int, Int), From Pos, Res Grid)
+--   & 'qmapMaybe' (\\(diff, pos, Res grid) -> moveBy diff pos.comp grid)
+--   -- Query (Entity)
+--   & 'qinsert' (Rel OnTile)
+--   & 'query_'
+-- @
+--
+-- If the lambdas get overwhelming you can always create intermediary functions that work on queries:
+--
+-- @
+-- qdecideEnemyTile :: Pos -> 'Query' 'System' ('From' Pos, 'Res' Grid) -> 'Query' 'System' 'Entity'
+-- qdecideEnemyTile playerPos x =
+--   x
+--     & 'qtraverse' (\\_ (pos, grid) -> (,pos,grid) <$> decideEnemyDir pos.comp playerPos)
+--     & 'qmapMaybe' (\\(diff, pos, Res grid) -> moveBy diff pos.comp grid)
+-- @
+--
+-- So our system is now just:
+--
+-- @
+-- moveEnemies :: 'System' ()
+-- moveEnemies = do
+--   'Just' ('From' _ playerPos) \<- 'single' ['q'|OnTile -\> (Pos) / With Player|]
+--
+--   ['q'|OnTile -\> (Pos), Res Grid / With Enemy|]
+--     & qdecideEnemyTile playerPos
+--     & 'qinsert' ('Rel' OnTile)
+--     & 'query_'
+-- @
+--
+-- And now to schedule our enemy movement:
+--
+-- @
+-- data EnemyPlugin
+--
 -- instance 'Plugin' EnemyPlugin where
---   'Mischief.ECS.App.Plugins.init' _ = do
---     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Startup' spawnEnemies
---     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Update' moveEnemies
+--   init = do
+--     'systems' spawnEnemies
+--       & 'schedule' 'Startup'
+--
+--     'systems' moveEnemies
+--       & 'schedule' 'Update'
 -- @
 --
 -- Except there's a small problem. If you run the app now, you may notice you don't see any enemies!
@@ -759,22 +771,29 @@ import System.Exit (exitSuccess)
 -- In order to use @Time@ utilities, you need to add the @'TimePlugin'@ to your app, so I'll add it to our @MainPlugin@:
 --
 -- @
--- 'plugins' = 'plug' (PlayerPlugin, EnemyPlugin, TimePlugin)
+-- deps = ['dep' \@PlayerPlugin, 'dep' \@EnemyPlugin, 'dep' \@TimePlugin]
 -- @
 --
--- In any system you can use the @deltaTime@ function to get the number of seconds passed since the last frame.
+-- We'll now import the @Time@ module which contains various utlities for keeping track of time, including @Time.delta@ which returns the time, in seconds,
+-- that has passed between frames.
 --
--- Mischief also provides a hnady way of keeping track of time via the @Timer@.
+-- @
+-- import "Mischief.ECS.Time" qualified as Time
+-- @
+--
+-- Mischief also provides a handy way of keeping track of time via the @Timer@.
 --
 -- @
 -- import "Mischief.ECS.Timer" ('Mischief.ECS.Timer.Timer')
--- import "Mischief.ECS.Timer" qualified as [Timer]("Mischief.ECS.Timer")
+-- import "Mischief.ECS.Timer" qualified as Timer
 -- @
 --
--- We can now create a @Cooldown@ component which stores a Timer.
+-- A Timer is an object that can be ticked down each frame, to trigger certain conditions only once a cerain amount of time has passed.
+--
+-- Let's create a @Cooldown@ component which stores a Timer.
 --
 -- @
--- data Cooldown = Cooldown {timer :: 'Mischief.ECS.Timer'} deriving ('Component')
+-- data Cooldown = Cooldown {timer :: 'Mischief.ECS.Timer.Timer'} deriving ('Component')
 -- @
 --
 -- We want this to always be on every Enemy, so we can make it a required component of the @Enemy@ component.
@@ -788,39 +807,50 @@ import System.Exit (exitSuccess)
 --
 -- @
 -- instance 'Default' Cooldown where
---   'def' = [Timer]("Mischief.ECS.Timer").'Mischief.ECS.Timer.new' 1 [Timer]("Mischief.ECS.Timer").'Mischief.ECS.Timer.Repeat'
+--   'def' = Cooldown $ Timer.'Mischief.ECS.Timer.new' 1 Timer.'Mischief.ECS.Timer.Repeat'
 -- @
 --
 -- @Timer.new@ takes a Float (the duration of the timer), and a @Mode@ which is either @Repeat@ or @Once@.
 --
--- @Cooldown@ should now automatically be on every enemy.
+-- @Cooldown@ should now automatically be added on every enemy with the default value.
 --
 -- We can use the @Timer.tick@ function to advance the state of a timer. It returns the new state, along with a Bool that tells us whether the timer has just finished or not.
 --
--- All that's left is to put all of this together:
+-- All that's left is to put all of this together. I've written this intermediary function to use with queries that will filter the query so that each enemy can only attack when their cooldown has just finished:
+--
+-- @
+-- qfilterCooldown :: 'Query' 'System' a -> 'Query' 'System' a
+-- qfilterCooldown x = do
+--   x
+--     & 'qextend' (,) ['q'|Cooldown|]
+--     & 'qfilterM'
+--       ( \entity (_, Cooldown timer) -> do
+--           delta <- Time.'Mischief.ECS.Time.delta'
+--           let (timer', justFinished) = Timer.'Mischief.ECS.Timer.tick' delta timer
+--           'insert' (Cooldown timer') entity
+--           'pure' justFinished
+--       )
+--     & 'qmap' 'fst'
+-- @
+--
+-- First we use @qextend@ to also query for the @Cooldown@ of the current entity. Then we run a small impure filter that gets the delta,
+-- updates the Timer, modifies the value of Cooldown by re-inserting it on the entity, and filters based on whether the timer had just finished or not.
+--
+-- We also use a final @qmap@ to get the query back to its original data. This makes it extremely generic!
+--
+-- Here's the final @moveEnemies@ function, with the new filter:
 --
 -- @
 -- moveEnemies :: 'System' ()
 -- moveEnemies = do
---   'Just' pos \<- ['s'|OnTile -\> (*Pos) / With Player|]
---   delta <- 'deltaTime'
+--   'Just' ('From' _ playerPos) \<- 'single' ['q'|OnTile -\> (Pos) / With Player|]
 --
---   enemies \<- ['q'|Entity, OnTile -\> (Entity, *Pos), Cooldown / With Enemy|]
---   'for_' enemies $ \(enemy, (enemyTile, enemyPos), cooldown) -> do
---     let (timer, finished) = [Timer]("Mischief.ECS.Timer").'Mischief.ECS.Timer.tick' delta cooldown.timer
---     'set' cooldown $ Cooldown timer
---
---     'when' finished $ do
---       diff <- decideEnemyDir enemyPos pos
---
---       newTile <- moveBy diff enemyTile
---       'for_' newTile $ \t -> do
---         'insert' ('Rel' OnTile t) enemy
+--   ['q'|OnTile -\> (Pos), Res Grid / With Enemy|]
+--     & qfilterCooldown
+--     & qdecideEnemyTile playerPos
+--     & 'qinsert' ('Rel' OnTile)
+--     & 'query_'
 -- @
---
--- Each frame, we tick the cooldown timer of each enemy, and only move them if that timer has just finished. This means every enemy will now move only once per 0.5 seconds.
---
--- Don't forget to use the @set@ to pass the new timer back into the ECS! In Mischief, all variables you use are @immutable@, so you need to explicitly order mutations.
 --
 -- You can now run your app and see the enemies chasing you!
 

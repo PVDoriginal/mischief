@@ -48,6 +48,9 @@ module Mischief.ECS.Tutorial.Startup
     -- * Your First Transitive Query
     -- $trans
 
+    -- * Extra: From
+    -- $from
+
     -- * What's Next?
     -- $next
 
@@ -307,12 +310,12 @@ import Mischief.ECS
 -- updateFlo = do
 --   ['q'|Name / With Person|]
 --     & 'qfilter' (== Name \"Florian\")
---     & 'qmap' (\\_ -> Name \"Florianne\")
+--     & 'qinsert' (\\_ -> Name \"Florianne\")
 --     & 'query_'
 -- @
 --
--- This time we apply a filter over our Query, leaving only those entities with their name set to \"Florian\". We then use @qmap@ to map
--- the old name to the new one.
+-- This time we apply a filter over our Query, leaving only those entities with their name set to \"Florian\". We then use @qinsert@ to
+-- map the old name to the new one and insert it on the entity.
 --
 -- Let's add the new system to a schedule:
 --
@@ -516,8 +519,30 @@ import Mischief.ECS
 -- We should now see these additional lines printed to the terminal:
 --
 -- @
--- [INFO] \"Florianne\" likes [\"Kimberly\"]
--- [INFO] \"Kimberly\"  likes [\"Nicholas\", \"Florianne\"]
+-- [INFO] Florianne likes [From (42v1, Kimberly)]
+-- [INFO] Kimberly likes [From (44v1, Nicholas),From (45v1, Florianne)]
+-- @
+
+-- $from
+-- You may have noticed earlier, when we query for @-> (Name)@ and then print the names, we don't get the actual names, but instead
+-- something that looks like @From (42v1, Kimberly)@.
+--
+-- That's because, when doing transitive queries (either by @-> (..)@ or through functions such as @qrelateMany@), the components come wrapped in this:
+--
+-- @
+-- data From c = From {comp :: c, entity :: Entity}
+-- @
+--
+-- They have a different origin entity than the other components in our query, and this is our main way of keeping track of that.
+--
+-- One cool utility that comes of this is that we can very easily change the values of foreign components by just mapping them to a different value. For instance,
+-- this next query gets all the children of an entity and sets their names to be the same as the main entity:
+--
+-- @
+-- ['q'|Name|]
+--   & 'qrelateMany' (Graph.'Mischief.ECS.Relationships.Graph.incoming' \@ChildOf) (,) ['q'|Name|]
+--   & 'qinsert' (\\(parentName, childNames) -> 'map' (\\(From child _) -> From child parentName) childNames)
+--   & 'query_'
 -- @
 
 -- $next

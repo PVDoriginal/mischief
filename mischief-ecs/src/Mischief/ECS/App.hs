@@ -50,6 +50,8 @@ data App = App
 newApp :: IO App
 newApp = do
   world <- newWorld getTools
+  runSystem (spawnEntity (Entity (# 0##, 0## #)) ()) world
+
   systems <- Systems.newSystems
 
   let app = App {world, systems}

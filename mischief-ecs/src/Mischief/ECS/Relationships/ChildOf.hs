@@ -14,10 +14,10 @@ instance Component ChildOf where
 
 parent :: forall m w. (MonadSystem w m) => Entity -> m (Maybe Entity)
 parent entity = do
-  p <- outgoing @ChildOf entity
+  p <- outgoing' @ChildOf entity
   return $ case p of
     [p] -> Just p
     _ -> Nothing
 
 children :: forall m w. (MonadSystem w m) => Entity -> m [Entity]
-children = outgoing @ChildOf
+children = outgoing' @ChildOf

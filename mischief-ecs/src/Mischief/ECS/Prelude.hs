@@ -55,7 +55,7 @@ import Mischief.ECS.Utils (expect, unwrap)
 import Mischief.ECS.World (System)
 import Mischief.ECS.World.Defer (defer, delay, runAfter)
 import Mischief.ECS.World.Insert (insert, insertIfNeq, insertNew)
-import Mischief.ECS.World.Query (get, get_, mkQuery, mkQuery', query, query_)
+import Mischief.ECS.World.Query (get, get_, mkQuery, mkQuery', query, query_, single)
 import Mischief.ECS.World.Query.Markers (Any (..), C (..), E (..), Has (..), HasR (..), M (..), MR (..), Q (..), Q' (..), R (..), R' (..))
 import Mischief.ECS.World.Query.Pipe
 import Mischief.ECS.World.Query.QueryFilter (QueryFilter (..))

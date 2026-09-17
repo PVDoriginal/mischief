@@ -1,7 +1,10 @@
 module Main where
 
+import Data.Text qualified as T
+import Mischief.ECS (ChildOf (ChildOf))
 import Mischief.ECS.Prelude
 import Mischief.ECS.Relationships.Graph qualified as Graph
+import Mischief.ECS.World.Query
 
 main :: IO ()
 main = do
@@ -14,17 +17,19 @@ data MyPlugin
 instance Plugin MyPlugin where
   init :: System ()
   init = do
-    systems (helloWorld, greetPeople, showLikes)
-      & schedule Update
+    test'
 
-    systems addPeople
-      & schedule Startup
+-- systems (helloWorld, greetPeople, showLikes)
+--   & schedule Update
 
-    systems updateFlo
-      & before greetPeople
-      & schedule Update
+-- systems addPeople
+--   & schedule Startup
 
-    insertRes (Greeting "Hey")
+-- systems updateFlo
+--   & before greetPeople
+--   & schedule Update
+
+-- insertRes (Greeting "Hey")
 
 data Person = Person deriving (Component)
 
@@ -39,6 +44,24 @@ addPeople = do
 
 helloWorld :: System ()
 helloWorld = info "Hello World!"
+
+newtype Pos = Pos Int deriving (Component, Show)
+
+newtype Vel = Vel Int deriving (Component, Show)
+
+test' :: System ()
+test' = do
+  a <- spawn (Name "A", Pos 5, Vel 2)
+  b <- spawn (Name "B", Pos 7, Vel 4)
+  x <- query $ qentity test
+  warn $ T.show x
+
+test :: Query System (Pos, Name)
+test = do
+  x <- [q|Pos, Vel, Name|]
+  let y = (\(Pos p, Vel v, name) -> (Pos (p + v), name)) x
+  z <- qinsert fst (pure y)
+  pure z
 
 data Greeting = Greeting String deriving (Component)
 
@@ -57,7 +80,7 @@ updateFlo :: System ()
 updateFlo = do
   [q|Name|]
     & qfilter (== Name "Florian")
-    & qmap (\_ -> Name "Florianne")
+    & qinsert (\_ -> Name "Florianne")
     & query_
 
 showLikes :: System ()
@@ -65,4 +88,11 @@ showLikes = do
   [q|Name|]
     & qrelateMany (Graph.outgoing @Likes) (,) [q|Name|]
     & qinfo (\(name, likes) -> [i|#{name} likes #{likes}|])
+    & query_
+
+extraFrom :: System ()
+extraFrom = do
+  [q|Name|]
+    & qrelateMany (Graph.incoming @ChildOf) (,) [q|Name|]
+    & qinsert (\(parentName, childNames) -> map (fmap . const $ parentName) childNames)
     & query_

@@ -59,7 +59,7 @@ import Data.Map qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Typeable
-import GHC.Base (Word (W#), Word#, compareWord#, eqWord#, isTrue#)
+import GHC.Base (List, Word (W#), Word#, compareWord#, eqWord#, isTrue#)
 import GHC.Generics
 import Mischief.ECS.Collectable
 import Mischief.ECS.Components.HooksDef
@@ -262,15 +262,25 @@ data ComponentData = ComponentData {value :: ErasedComponent, ticks :: Component
 -- | Type used for querying and inserting relationships.
 data Rel c = Rel {comp :: c, target :: Entity}
 
+instance Functor Rel where
+  fmap f (Rel c target) = Rel (f c) target
+
 instance (Show c) => Show (Rel c) where
   show Rel {comp, target} = "Rel (" ++ show comp ++ ", " ++ show target ++ ")"
 
 data From c = From {entity :: Entity, comp :: c}
 
+instance Functor From where
+  fmap :: (a -> b) -> From a -> From b
+  fmap f (From c x) = From c (f x)
+
 instance (Show c) => Show (From c) where
   show From {entity, comp} = "From (" ++ show entity ++ ", " ++ show comp ++ ")"
 
 newtype Res c = Res c deriving newtype (Show)
+
+instance Functor Res where
+  fmap f (Res c) = Res (f c)
 
 -- | @Meta@ component with the /erased/ default value of this component. Added to components required by other components.
 newtype DefaultValue = DefaultValue ErasedComponent deriving anyclass (Component)
