@@ -56,6 +56,8 @@ instance Plugin PlayerPlugin where
     systems movePlayer
       & schedule Update
 
+    void $ spawn (Observer onDamage)
+
 data EnemyPlugin
 
 instance Plugin EnemyPlugin where
@@ -95,7 +97,10 @@ getTile (x, y) (Grid tiles) = do
 moveBy :: (Int, Int) -> Pos -> Grid -> Maybe Entity
 moveBy (x, y) (Pos (x', y')) = getTile (x' + x, y' + y)
 
-data Player = Player deriving (Component)
+data Player = Player
+
+instance Component Player where
+  required = require @Health
 
 data OnTile = OnTile
 
@@ -133,7 +138,7 @@ movePlayerBy :: (Int, Int) -> System ()
 movePlayerBy dir = do
   [q|OnTile -> (Pos), Res Grid / With Player|]
     & qmapMaybe (\(pos, Res grid) -> moveBy dir pos.comp grid)
-    & qfilterM (const $ (not <$>) . hasWall)
+    & qfilterM (const tileIsFree)
     & qinsert (Rel OnTile)
     & query_
 
@@ -167,7 +172,10 @@ showGrid = do
   pure $ unlines lines
 
 printGrid :: System ()
-printGrid = printClear =<< showGrid
+printGrid = do
+  grid <- showGrid
+  health <- showHealth
+  printClear $ health ++ "\n" ++ grid
 
 data Rand = Rand (IOGenM StdGen) deriving (Component)
 
@@ -237,10 +245,68 @@ qfilterCooldown x = do
 
 decideEnemyDir :: Pos -> Pos -> System (Int, Int)
 decideEnemyDir (Pos (ex, ey)) (Pos (px, py)) = do
+  left <- tileAtPosIsFree (ex - 1, ey)
+  up <- tileAtPosIsFree (ex, ey - 1)
+  right <- tileAtPosIsFree (ex + 1, ey)
+  down <- tileAtPosIsFree (ex, ey + 1)
+
   pure $
     if
-      | ex > px -> (-1, 0)
-      | ey > py -> (0, -1)
-      | ex < px -> (1, 0)
-      | ey < py -> (0, 1)
+      | ex > px && left -> (-1, 0)
+      | ey > py && up -> (0, -1)
+      | ex < px && right -> (1, 0)
+      | ey < py && down -> (0, 1)
       | otherwise -> (0, 0)
+
+tileIsFree :: Entity -> System Bool
+tileIsFree tile = do
+  wall <- tileHas @Wall tile
+  enemy <- tileHas @Enemy tile
+  player <- tileHas @Player tile
+  pure $ not (wall || enemy || player)
+
+tileAtPosIsFree :: (Int, Int) -> System Bool
+tileAtPosIsFree pos = do
+  Just grid <- res @Grid
+  maybe (pure False) tileIsFree (getTile pos grid)
+
+data Health = Health {hp :: Int} deriving (Component)
+
+instance Default Health where
+  def = Health 100
+
+showHealth :: System String
+showHealth = do
+  Just health <- single [q|Health / With Player|]
+  pure $ "Health: " ++ show health.hp
+
+data Damage = Damage {amount :: Int} deriving (Event)
+
+onDamage :: Damage -> System ()
+onDamage dmg = do
+  [q|Health / With Player|]
+    & qinsert (\(Health x) -> Health $ max (x - dmg.amount) 0)
+    & query_
+
+tryDamage :: System ()
+tryDamage = do
+  Just player <- single [q|OnTile -> (Pos) / With Player|]
+  enemies <- query [q|OnTile -> (Pos) / With Enemy|]
+
+  for_ enemies $ \pos -> do
+    when (isAdjacent pos player) $ do
+      trigger (Damage 5)
+
+tryDamage' :: System ()
+tryDamage' = do
+  [q|OnTile -> (Pos) / With Player|]
+    & qjoin isAdjacent (,) [q|OnTile -> (Pos) / With Enemy|]
+    & qtap (\_ _ -> trigger (Damage 5))
+    & single
+  undefined
+
+isAdjacent :: From Pos -> From Pos -> Bool
+isAdjacent (From _ (Pos (x1, y1))) (From _ (Pos (x2, y2))) =
+  let dx = abs (x1 - x2)
+      dy = abs (y1 - y2)
+   in (dx == 1 && dy == 0) || (dx == 0 && dy == 1)

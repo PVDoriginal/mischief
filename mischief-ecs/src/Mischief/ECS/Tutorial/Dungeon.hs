@@ -54,11 +54,11 @@ module Mischief.ECS.Tutorial.Dungeon
     -- * Health
     -- $health
 
-    -- * Quitting
-    -- $quit
-
     -- * Taking Damage
     -- $dmg
+
+    -- * Quitting
+    -- $quit
 
     -- * Spawning Coins
     -- $coins
@@ -852,10 +852,10 @@ import System.Exit (exitSuccess)
 --     & 'query_'
 -- @
 --
--- You can now run your app and see the enemies chasing you!
+-- You can now run the app and see the enemies chasing you!
 
 -- $collision
--- Right now the enemies just kinda overlap each other and go under the player. We can fix that by preventing them to move.
+-- Right now the enemies just kind of overlap each other and go under the player. We can fix that by preventing them to move.
 --
 -- Now, let's write a function that tells us whether a certain tile is free to move on or not:
 --
@@ -873,8 +873,8 @@ import System.Exit (exitSuccess)
 -- @
 -- tileAtPosIsFree :: ('Int', 'Int') -> 'System' 'Bool'
 -- tileAtPosIsFree pos = do
---   tile <- getTile pos
---   'maybe' ('pure' False) tileIsFree tile
+--   'Just' grid \<- 'res' \@Grid
+--   'maybe' ('pure' False) tileIsFree (getTile pos grid)
 -- @
 --
 -- And let's integrate it into the system which decides the enemy's movement direction:
@@ -898,8 +898,17 @@ import System.Exit (exitSuccess)
 --
 -- (There are definitely /much/ better ways to write this but I can't really be bothered, feel free to make it cleaner at home)
 --
--- I've also replaced the @hasWall@ in the @movePlayerBy@ function with @tileIsFree@, so the player can collide with enemies as well
--- (make sure to also replace the @'unless'@ with @'when'@!).
+-- I've also replaced the @hasWall@ in the @movePlayerBy@ function with @tileIsFree@, so the player can collide with enemies as well.
+--
+-- @
+-- movePlayerBy :: ('Int', 'Int') -> 'System' ()
+-- movePlayerBy dir = do
+--   ['q'|OnTile -\> (Pos), Res Grid / With Player|]
+--     & 'qmapMaybe' (\\(pos, 'Res' grid) -> moveBy dir pos.comp grid)
+--     & 'qfilterM' ('const' tileIsFree)
+--     & 'qinsert' ('Rel' OnTile)
+--     & 'query_'
+-- @
 --
 -- The game should now have fullly working collision and feel much more solid!
 
@@ -925,7 +934,7 @@ import System.Exit (exitSuccess)
 -- @
 -- showHealth :: 'System' 'String'
 -- showHealth = do
---   'Just' health <- ['s'|Health / With Player|]
+--   'Just' health <- 'single' ['q'|Health / With Player|]
 --   'pure' $ "Health: " ++ 'show' health.hp
 -- @
 --
@@ -939,7 +948,8 @@ import System.Exit (exitSuccess)
 --   'Mischief.ECS.Stdout.printClear' $ health ++ \"\\n\" ++ grid
 -- @
 --
--- In case you're thinking about it, yes, Health could just be a resource, I just decided to make it a component.
+-- In case you're thinking about it, yes, Health could just be a resource, I've just decided to make it a component in order to showcase
+-- the required component system again.
 --
 -- Your game should now print the health at the top:
 --
@@ -963,7 +973,7 @@ import System.Exit (exitSuccess)
 -- We can create a damage event like this:
 --
 -- @
--- data Damage = Damage deriving ('Event')
+-- data Damage = Damage {amount :: 'Int'} deriving ('Event')
 -- @
 --
 -- We also need an observer system for it:
@@ -971,22 +981,24 @@ import System.Exit (exitSuccess)
 -- @
 -- onDamage :: Damage -> 'System' ()
 -- onDamage dmg = do
---   'Just' health <- ['s'|Health / With Player|]
---   'modify' health $ \(Health x) -> Health $ 'max' (x - dmg.amount) 0
+--   ['q'|Health / With Player|]
+--     & 'qinsert' (\\(Health x) -> Health $ 'max' (x - dmg.amount) 0)
+--     & 'query_'
 -- @
 --
--- In order to activate the system when the event is triggered, we need to spawn an observer for it. I'll do it in the @PlayerPlugin@:
---
--- @
--- import "Mischief.ECS.Observers" as [Observers]("Mischief.ECS.Observers")
--- @
+-- We also need to spawn an observer that listens to the world and triggers the event. I'll do so from the player plugin:
 --
 -- @
 -- instance 'Plugin' PlayerPlugin where
---   'Mischief.ECS.App.Plugins.init' _ = do
---     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Startup' $ spawnPlayer '`after`' spawnGrid
---     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Update' movePlayer
---     'void' $ [Observers]("Mischief.ECS.Observers").'Mischief.ECS.Observers.spawn' onDamage
+--   init = do
+--     'systems' spawnPlayer
+--       & 'after' spawnGrid
+--       & 'schedule' 'Startup'
+--
+--     'systems' movePlayer
+--       & 'schedule' 'Update'
+--
+--     'void' $ 'spawn' ('Observer' onDamage)
 -- @
 --
 -- The last thing we need is a way for enemies to trigger the event. I made a system which checks if an enemy is adjacent to the player and triggers the event:

@@ -134,11 +134,11 @@ tryMetaLocal = do
   component <- liftIO $ getComponentId (typeRep $ Proxy @c) world.components
   return $ fmap (\(ComponentId (# id, _ #)) -> Entity (# id, 0## #)) component
 
--- instance {-# OVERLAPPING #-} (Component c) => GetComponentId (C c) where
 --   getComponentId' _ =
 
 -- instance (Component c) => GetComponentId (R c Entity) where
---   getComponentId' (R e) = fmap (\(Entity (# id, _ #)) -> ComponentId (# id, Just e #)) <$> tryMetaLocal @c
+--   getComponentId' (R e) = fmap (\(Entity (# id, _ #)) -> ComponentId (# id, Just e #)) <$
+-- instance {-# OVERLAPPING #-} (Component c) => GetComponentId (C c) where> tryMetaLocal @c
 
 -- instance (GetResultComponentId' (IsComp c) (Result c)) => GetResultComponentId (Result c) where
 --   getResultComponentId = getResultComponentId' @(IsComp c)
@@ -211,6 +211,7 @@ data Query m a where
   MapQuery :: Query m b -> (Entity -> b -> m a) -> Query m a
   FilterQuery :: Query m a -> (Entity -> a -> m Bool) -> Query m a
   DoQuery :: Query m a -> (Entity -> a -> m b) -> Query m a
+  JoinQuery :: Query m a -> Query m b -> (Entity -> a -> Entity -> b -> m Bool) -> (a -> b -> c) -> Query m c
   PureQuery :: a -> Query m a
   AppQuery :: Query m (a -> b) -> Query m a -> Query m b
   BindQuery :: Query m a -> (a -> Query m b) -> Query m b
@@ -250,6 +251,15 @@ get entity (DoQuery a f) = do
   x <- get entity a
   for_ x (f entity)
   pure x
+get entity (JoinQuery a b f f') = do
+  a <- get entity a
+  case a of
+    Nothing -> pure Nothing
+    Just a -> do
+      b <- qrun' b
+      bs <- filterM (uncurry (f entity a)) b
+
+      undefined
 get _ (PureQuery a) = pure $ Just a
 get entity (AppQuery f a) = do
   f <- get entity f

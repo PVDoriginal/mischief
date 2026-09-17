@@ -28,6 +28,7 @@ module Mischief.ECS.Prelude
     module Mischief.ECS.Components.Bundle,
     module Mischief.ECS.Timer,
     module Mischief.ECS.World.Query.Pipe,
+    module Mischief.ECS.Observer,
     module Data.Function,
   )
 where
@@ -47,6 +48,7 @@ import Mischief.ECS.Events (OnAdd (..), OnAddRel (..), OnRemove (..), OnRemoveRe
 import Mischief.ECS.Exports
 import Mischief.ECS.Hooks (hook, hookRel)
 import Mischief.ECS.Log
+import Mischief.ECS.Observer (Observer (..))
 import Mischief.ECS.Resources (insertRes, res, resOrInsert)
 import Mischief.ECS.Systems (after, before, order, schedule, systems, unschedule)
 import Mischief.ECS.Time (Time, TimePlugin)
@@ -55,7 +57,7 @@ import Mischief.ECS.Utils (expect, unwrap)
 import Mischief.ECS.World (System)
 import Mischief.ECS.World.Defer (defer, delay, runAfter)
 import Mischief.ECS.World.Insert (insert, insertIfNeq, insertNew)
-import Mischief.ECS.World.Query (get, get_, mkQuery, mkQuery', query, query_, single)
+import Mischief.ECS.World.Query (Query, get, get_, mkQuery, mkQuery', query, query_, single)
 import Mischief.ECS.World.Query.Markers (Any (..), C (..), E (..), Has (..), HasR (..), M (..), MR (..), Q (..), Q' (..), R (..), R' (..))
 import Mischief.ECS.World.Query.Pipe
 import Mischief.ECS.World.Query.QueryFilter (QueryFilter (..))
