@@ -244,5 +244,3 @@ handleWindowClose = do
 -- # or
 -- \$env:PKG_CONFIG_PATH="path\to\SDL3\lib\pkgconfig"
 -- @
---
--- Many thanks to [klukaszek](https://github.com/klukaszek) for the SDL3 bindings!
