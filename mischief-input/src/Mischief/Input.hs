@@ -11,4 +11,4 @@ import Mischief.Input.Keys (KeysPlugin (..))
 data InputPlugin = InputPlugin deriving (Eq)
 
 instance Plugin InputPlugin where
-  plugins _ = plug KeysPlugin
+  deps = [dep @KeysPlugin]

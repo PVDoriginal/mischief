@@ -6,6 +6,7 @@
 module Main where
 
 import Control.Monad
+import Control.Monad.IO.Class
 import Data.Default
 import Data.Foldable
 import Data.List ((!?))
@@ -20,6 +21,7 @@ import Mischief.ECS.Time qualified as Time
 import Mischief.ECS.Timer (Timer)
 import Mischief.ECS.Timer qualified as Timer
 import Mischief.ECS.World.Query
+import System.Exit (exitSuccess)
 import System.Random
 import System.Random.Stateful
 
@@ -41,7 +43,10 @@ instance Plugin MainPlugin where
     systems printGrid
       & schedule Update
 
+    interval <- Interval.start 2000000 spawnCoin
+
     insertRes =<< newGen
+    insertRes (Coins 0)
 
   deps = [dep @PlayerPlugin, dep @EnemyPlugin, dep @TimePlugin]
 
@@ -56,6 +61,10 @@ instance Plugin PlayerPlugin where
     systems movePlayer
       & schedule Update
 
+    systems collectCoins
+      & after movePlayer
+      & schedule Update
+
     void $ spawn (Observer onDamage)
 
 data EnemyPlugin
@@ -66,6 +75,11 @@ instance Plugin EnemyPlugin where
       & schedule Startup
 
     systems moveEnemies
+      & schedule Update
+
+    systems tryDamage
+      & after moveEnemies
+      & after movePlayer
       & schedule Update
 
 data Tile = Tile deriving (Component)
@@ -157,12 +171,14 @@ showTile tile = do
   player <- tileHas @Player tile
   enemy <- tileHas @Enemy tile
   wall <- tileHas @Wall tile
+  coin <- tileHas @Coin tile
 
   pure $
     if
       | player -> '@'
       | wall -> '#'
       | enemy -> '!'
+      | coin -> '$'
       | otherwise -> '.'
 
 showGrid :: System String
@@ -171,11 +187,17 @@ showGrid = do
   lines <- for tiles $ traverse showTile
   pure $ unlines lines
 
+showCoins :: System String
+showCoins = do
+  Just (Coins c) <- res @Coins
+  pure $ "Coins: " ++ show c
+
 printGrid :: System ()
 printGrid = do
   grid <- showGrid
   health <- showHealth
-  printClear $ health ++ "\n" ++ grid
+  coins <- showCoins
+  printClear $ health ++ "\n" ++ grid ++ "\n" ++ coins ++ "\n"
 
 data Rand = Rand (IOGenM StdGen) deriving (Component)
 
@@ -219,7 +241,7 @@ moveEnemies = do
   Just (From _ playerPos) <- single [q|OnTile -> (Pos) / With Player|]
 
   [q|OnTile -> (Pos), Res Grid / With Enemy|]
-    & qfilterCooldown
+    & Timer.qtimer (.timer) Cooldown
     & qdecideEnemyTile playerPos
     & qinsert (Rel OnTile)
     & query_
@@ -233,7 +255,8 @@ qdecideEnemyTile playerPos x =
 qfilterCooldown :: Query System a -> Query System a
 qfilterCooldown x = do
   x
-    & qextend (,) [q|Cooldown|]
+    & qextend [q|Cooldown|]
+    & qjoin (,)
     & qfilterM
       ( \entity (_, Cooldown timer) -> do
           delta <- Time.delta
@@ -284,29 +307,75 @@ data Damage = Damage {amount :: Int} deriving (Event)
 
 onDamage :: Damage -> System ()
 onDamage dmg = do
-  [q|Health / With Player|]
-    & qinsert (\(Health x) -> Health $ max (x - dmg.amount) 0)
+  [q|Health / With Player, Without Invincible|]
+    & qmodify (\(Health x) -> (Health $ max (x - dmg.amount) 0, Invincible))
+    & qtap
+      ( \e (Health hp, _) -> do
+          delay 1000000 $ remove (C @Invincible) e
+          when (hp == 0) $ liftIO exitSuccess
+      )
     & query_
+
+-- tryDamage :: System ()
+-- tryDamage = do
+--   Just player <- single [q|OnTile -> (Pos) / With Player|]
+--   enemies <- query [q|OnTile -> (Pos) / With Enemy|]
+
+--   for_ enemies $ \pos -> do
+--     when (isAdjacent pos player) $ do
+--       trigger (Damage 5)
 
 tryDamage :: System ()
 tryDamage = do
-  Just player <- single [q|OnTile -> (Pos) / With Player|]
-  enemies <- query [q|OnTile -> (Pos) / With Enemy|]
+  adjacentEnemies <-
+    [q|OnTile -> (Pos) / With Player|]
+      & qcross isAdjacent [q|OnTile -> (Pos) / With Enemy|]
+      & qjoin (,)
+      & query
 
-  for_ enemies $ \pos -> do
-    when (isAdjacent pos player) $ do
-      trigger (Damage 5)
-
-tryDamage' :: System ()
-tryDamage' = do
-  [q|OnTile -> (Pos) / With Player|]
-    & qjoin isAdjacent (,) [q|OnTile -> (Pos) / With Enemy|]
-    & qtap (\_ _ -> trigger (Damage 5))
-    & single
-  undefined
+  unless (null adjacentEnemies) $ do
+    trigger $ Damage 5
 
 isAdjacent :: From Pos -> From Pos -> Bool
 isAdjacent (From _ (Pos (x1, y1))) (From _ (Pos (x2, y2))) =
   let dx = abs (x1 - x2)
       dy = abs (y1 - y2)
    in (dx == 1 && dy == 0) || (dx == 0 && dy == 1)
+
+data Invincible = Invincible deriving (Component)
+
+data Coin = Coin deriving (Component)
+
+spawnCoin :: System ()
+spawnCoin = do
+  tile <- randomTile
+  free <- tileIsFree tile
+  if free
+    then
+      void $ spawn (Coin, Rel OnTile tile)
+    else
+      spawnCoin
+
+data Coins = Coins Int deriving (Component)
+
+collectCoins :: System ()
+collectCoins = do
+  Just (Coins c) <- res @Coins
+
+  coins <-
+    [q|OnTile -> * / With Player|]
+      & qthen (\(Rel _ playerTile) -> [q|Entity / With Coin, With OnTile -> playerTile|])
+      & query
+
+  for_ coins despawn
+  insertRes (Coins (c + length coins))
+
+extra :: System ()
+extra = do
+  let playerQ = [q|OnTile -> * / With Player|]
+
+  coins <- query $ do
+    (Rel _ playerTile) <- playerQ
+    [q|Entity / With Coin, With OnTile -> playerTile|]
+
+  pure ()

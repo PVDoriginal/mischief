@@ -30,11 +30,11 @@ instance Default WindowTitle where
 
 handleNewWindow :: HookContext -> System ()
 handleNewWindow (HookContext entity) = do
-  Just (WindowSize w h, WindowTitle title) <- [g|*WindowSize, *WindowTitle|] entity
+  Just (WindowSize w h, WindowTitle title) <- get entity [q|WindowSize, WindowTitle|]
   window <- liftIO $ withCString title $ \title -> SDL3.createWindow (ConstPtr title) (fromIntegral w) (fromIntegral h) 0
   insert (SDLWindow window) entity
 
 handleWindowRemove :: HookContext -> System ()
 handleWindowRemove (HookContext entity) = do
-  Just (SDLWindow p) <- [g|*SDLWindow|] entity
+  Just (SDLWindow p) <- get entity [q|SDLWindow|]
   liftIO $ SDL3.destroyWindow p

@@ -21,9 +21,6 @@ module Mischief.ECS.Tutorial.Components
     -- * Operations
     -- $ops
 
-    -- * Query Results
-    -- $results
-
     -- * Change Detection
     -- $change
 
@@ -39,10 +36,7 @@ module Mischief.ECS.Tutorial.Components
     -- * Registering Components
     -- $reg
 
-    -- * Examples
-    -- $examples
-
-    -- * [Next Chapter: Relationship]("Mischief.ECS.Tutorial.Relationships")
+    -- * [Next Chapter: Relationships]("Mischief.ECS.Tutorial.Relationships")
   )
 where
 
@@ -81,7 +75,7 @@ import Mischief.ECS
 --
 -- @
 -- printName :: 'Entity' -> 'System' ()
--- printName e = 'info' . 'text' '=<<' 'get' ('C' \@'Name') e
+-- printName e = 'info' . T.'Data.Text.show' '=<<' 'get' e ['q'|Name|]
 -- @
 --
 -- Notice how the Names behave here:
@@ -104,8 +98,7 @@ import Mischief.ECS
 -- @
 
 -- $ops
---
--- Mischief offers various @operations@ for inserting and manipulating data into the ECS:
+-- Mischief offers various operations for inserting and manipulating data into the World:
 --
 -- * You can spawn entities as bundles of components:
 --
@@ -135,116 +128,9 @@ import Mischief.ECS
 --
 -- * @'insertNew'@ only inserts components that aren't already on the entity.
 -- * @'insertIfNeq'@ only insert components if they aren't on the entity of if their value differs from the current one.
-
--- $results
--- A @Result c@ is a wrapper around the component @c@ that's produced by a query. We will discuss querying itself more in the [Query Chapter]("Mischief.ECS.Tutorial.Queries").
 --
--- @
--- health <- 'get' ('C' \@Health) player
--- @
---
--- @
--- health :: 'Result' Health
--- @
---
--- There are a number of useful operations that can be done on a @Result@:
---
--- * Set a new value for this component.
---
--- @
--- 'set' health (Health 100)
--- @
---
--- * Modify the value of this component.
---
--- @
--- 'modify' health (\(Health x) -> Health (x + 1))
--- @
---
--- * Remove the component from the entity.
---
--- @
--- 'delete' health
--- @
---
--- Note that these functions just call the @insert@, @remove@, etc. operations.
---
--- So these two are equivalent, performance-wise:
---
--- @
--- health <- 'query' ('C' \@Health)
---
--- 'for_' health $ \(health) -> do
---   'modify' health $ \(Health x) -> Health (x + 1)
--- @
---
--- @
--- health <- 'query' ('C' \@Health, 'E')
---
--- 'for_' health $ \((Health x), entity) -> dox
---   'insert' (Health (x + 1)) entity
--- @
---
--- Or, if you prefer compact code:
---
--- @
--- 'query' ('C' \@Health) '>>=' 'traverse_' ('`modify`' (\(Health x) -> Health (x + 1)))
--- @
---
--- You can use the @value@ function to obtain the inner value of a Result.
---
--- @
--- 'value' :: 'Result' c -> c
--- @
---
--- For instance:
---
--- @
--- 'Just' name <- 'get' ('C' \@Name) e
--- let name' = 'value' name
--- @
---
--- @
--- name  :: 'Result' Name
--- name' :: Name
--- @
---
--- You can also use @Val@ to automatically unwrap the value of a Result:
---
--- @
--- 'Just' name <- 'get' ('C' \@Name) e
--- @
---
--- @
--- name :: Name
--- @
---
--- If the component has record fields, every field will be inherited by the 'Result' (via a 'HasField' instance)
---
--- @
--- data Pos = Pos {x :: 'Float', y :: 'Float'}
--- @
---
--- @
--- 'Just' pos <- 'get' @Pos e
--- let x = pos.x
--- let y = pos.y
--- @
---
--- @
--- pos :: 'Result' Pos
--- x   :: 'Float'
--- y   :: 'Float'
--- @
---
--- Some typeclasses, namely 'Show', 'Eq', 'Ord' are also implemented for a @Result c@ if they are for the underlying @c@.
---
--- Note that the value of a @Result@ is the value gotten at the time of querying. It could be outdated, in case the live value
--- was changed after querying. You can use @update@ to get the live value for a Result:
---
--- @
--- name <- 'update' name
--- @
+-- Note that, unlike other ECS's, Mischief exposes an immutable API to the user. This means that component values cannot be
+-- mutated in any other way, other than re-inserting them to change their previous value.
 
 -- $meta
 -- Each component has a corresponding entity in the World.
@@ -287,11 +173,15 @@ import Mischief.ECS
 --
 -- Resources are implemented by inserting a component's value on its own meta entity.
 --
--- @'res' \@MyRes@ is the same as doing:
+-- @
+-- 'res' \@MyRes
+-- @
+--
+-- Is equivalent to:
 --
 -- @
 -- m <- 'meta' \@MyRes
--- 'get' ('C' \@MyRes) m
+-- 'get' m [q|MyRes|]
 -- @
 
 -- $required
@@ -321,7 +211,7 @@ import Mischief.ECS
 --
 -- Requirements are transitive (if @A requires B@ and @B requires C@, then @A requires C@) and /can/ contain cycles.
 --
--- A requirement is added to the ECS as a @'RequiredBy'@ \/ @'Requires'@ relationship between the components' entities.
+-- A requirement is added to the ECS as a @'RequiredBy'@ \/ @'Requires'@ relationship between the components' meta entities.
 
 -- $reg
 -- @Registering@ a component involves spawning its meta entity and adding the corresponding data.
@@ -329,9 +219,9 @@ import Mischief.ECS
 -- Each component is registered automatically the first time it is inserted on an Entity, so you don't usually
 -- have to worry about registration.
 --
--- Queries are also smart about components; if you query or filter for a component hasn't been registered yet, they will just
+-- Queries are also smart about components; if you query or filter for a component that hasn't been registered yet, they will just
 -- assume that component can't be be on any Entity. Queries can't perform registration themselves, because they're not allowed to mutate
--- the world in any way
+-- the world in any way.
 --
 -- However, there may be /extremely/ niche situations where you want to register components earlier than normal, which is where manual registration comes in:
 --
@@ -339,21 +229,27 @@ import Mischief.ECS
 -- 'register' \@(Player, Health, Position)
 -- @
 --
--- One such situation could be wanting to check the requirements in-between multiple components.
+-- One such situation could be wanting to check the requirements between multiple components on runtime.
 -- If a component hasn't been registered yet, it won't show up when you query for components that require a specific component.
 
 -- $change
--- @Change detection@ can be done in two ways: @Observers@ and @Filters@.
+-- Change detection can be done in two ways: @Observers@ and @Filters@.
 --
 -- === Observers
 --
--- Observers can listen to the @'OnInsert'@ and @'OnRemove'@ event:
+-- Observers can listen to the @OnAdd@, @OnSet@, and @OnRemove@ event:
 --
--- * @OnInsert c@ is triggered each time @c@ is inserted on an entity. This event is also triggered when a
--- component is re-inserted / changed, meaning this isn't a reliable way to determine if a component was just added.
+-- * @OnAdd c@ is triggered when the component c is added to an entity that didn't previously have it.
 --
 -- @
--- onNameInsert :: 'OnInsert' 'Name' -> 'System' ()
+-- onNameAdd :: 'OnAdd' 'Name' -> 'System' ()
+-- @
+--
+-- * @OnSet c@ is triggered each time @c@ is inserted on an entity, whether it's for the first time or it's a
+-- re-insertion to change its value.
+--
+-- @
+-- onNameSet :: 'OnInsert' 'Name' -> 'System' ()
 -- @
 --
 -- * @OnRemove@ is triggered when a component is removed from an entity.
@@ -362,51 +258,68 @@ import Mischief.ECS
 -- onNameRemove :: 'OnRemove' 'Name' -> 'System' ()
 -- @
 --
--- Both events have a @.entity@ field you can use to obtain the entity which it happened on.
+-- All of these events have a @.entity@ field you can use to obtain the entity which the event was triggered on.
 --
 -- @
 -- onNameRemove :: 'OnRemove' 'Name' -> 'System' ()
--- onNameRemove event = 'info' $ show event.entity <> \" has their name removed!\"
+-- onNameRemove event = 'info' $ T.'Data.Text.show' event.entity <> \" had their name removed!\"
 -- @
 --
--- Don't forget to spawn an Observer to listen to each event.
+-- Don't forget to spawn an Observer to listen for each event.
 --
 -- @
--- import "Mischief.ECS.Observers" qualified as [Observers]("Mischief.ECS.Observers")
+-- 'void' $ 'spawn' ('Observer' onNameAdd)
+-- 'void' $ 'spawn' ('Observer' onNameRemove)
 -- @
 --
--- @
--- 'void' $ [Observers]("Mischief.ECS.Observers").'Mischief.ECS.Observers.spawn' onNameInsert
--- 'void' $ [Observers]("Mischief.ECS.Observers").'Mischief.ECS.Observers.spawn' onNameRemove
--- @
+-- The order these events are triggered in is also an important detail:
 --
--- @OnInsert@ is always triggered /after/ a component has been inserted, while @OnRemove@ is triggered /before/. This
--- allows you to query for the component and get its value.
+-- * /After/ a component has been added, @OnAdd@ is triggered, followed by @OnSet@.
+-- * /After/ a component has been re-inserted, @OnSet@ is triggered.
+-- * /Before/ a component is removed, @OnRemove@ is triggered.
 --
--- You can find more details on Observers and Events in the corresponding [Chapter]("Mischief.ECS.Tutorial.Events")
+-- You can find more details on Observers and Events in the corresponding [Chapter]("Mischief.ECS.Tutorial.Events").
 --
 -- === Filters
 --
--- Now for the other way of doing change detection: the @'Changed'@ and @'Added'@ query filters.
+-- Now for the other way of reacting to changes: the @Changed@ and @Added@ filters.
 --
--- With the following query:
+-- With the following query we can query the name of all entities that have had the @Player@ component added in the last frame:
 --
 -- @
--- 'query' ('C' \@'Name') ('Added' ('C' \@Player))
+-- 'mkQuery' ('C' \@Name)
+--   & 'qcheck' ('Added' ('C' \@Player))
+--   & 'query'
 -- @
 --
--- You will only obtain the name of entities which had the @Player@ component added to them since the current (scheduled) system last ran.
+-- Or
 --
--- @Added c@ will catch entities that just had @c@ added to them, while @Changed c@ will catch any insertion, similar to @OnInsert@.
+-- @
+-- ['q'|Name|]
+--   & 'qcheck' ['f'|Added Player|]
+--   & 'query'
+-- @
+--
+-- @Added c@ will catch entities that just had @c@ added to them, while @Changed c@ will catch any insertion.
 -- If you wish to query for entities that have had a component changed but it wasn't just added, you can do:
 --
 -- @
--- 'query' ('C' \@'Name') ('Changed' ('C' \@Player), 'Not' ('Added' ('C' \@Player)))
+-- 'mkQuery' ('C' \@Name)
+--   & 'qcheck' ('Changed' ('C' \@Player) '`And`' (`Not` ('Added' ('C' \@Player))))
+--   & 'query'
+-- @
+--
+-- Or
+--
+-- @
+-- ['q'|Name|]
+--   & 'qcheck' ['f'|Changed Player, !Added Player|]
+--   & 'query'
 -- @
 --
 -- === Note on listening to changes
 --
--- One essential detail to be aware of here is that insertion (@OnInsert@ or @Changed@) doesn't necessarily mean a component's value has been changed!
+-- One essential detail to be aware of here is that insertion (@OnSet@ or @Changed@) doesn't necessarily mean a component's value has been changed!
 --
 -- The following @insert@ /will/ trigger change detection:
 --
@@ -415,159 +328,29 @@ import Mischief.ECS
 -- 'insert' (Health 100) p
 -- @
 --
--- To avoid this, you can derive 'Eq' on your components and use @'insertIfNeq'@ and @'setIfNeq'@, which will only perform insertion if the value of the component is different
+-- To avoid this, you can derive 'Eq' on your components and use @'insertIfNeq'@, which will only perform insertion if the value of the component is different
 -- from the current one.
 
 -- $hooks
 -- @Component hooks@ are events associated directly to a Component instance.
 --
 -- @
--- instance Component Foo where
---   hooks :: 'Hooks' Foo
---   hooks = 'collect' (onInsertFoo, onRemoveFoo, customFoo)
+-- instance 'Component' Foo where
+--   onAdd = [hook onAddFoo]
+--   onSet = [hook onSetFoo]
+--   onRemove = [hook onRemoveFoo]
 --
--- onInsertFoo :: 'OnInsert' Foo -> 'System' ()
--- onInsertFoo = ...
+-- onAddFoo :: 'HookContext' -> 'System' ()
+-- onAddFoo = ...
 --
--- onRemoveFoo :: 'OnRemove' Foo -> 'System' ()
+-- onSetFoo :: 'HookContext' -> 'System' ()
+-- onSetFoo = ...
+--
+-- onRemoveFoo :: 'HookContext' -> 'System' ()
 -- onRemoveFoo = ...
---
--- data SomeCustomEvent a deriving ('Event')
--- customFoo :: SomeCustomEvent Foo -> 'System' ()
--- customFoo = ...
 -- @
 --
--- A Hook on component @c@ can be any function that looks like @('Event' e) => e c -> 'System' ()@.
+-- Similar to change events, @HookContext@ has a @.entity@ field.
 --
--- Hooks are registered along with their respective component.
-
--- $examples
---
--- This section contains a few chunkier examples that combine the notions from this entire chapter.
---
--- === __Example 1__
---
---
--- An example showing different operations that spawn and alter entities.
---
--- @
--- import "Mischief.ECS.Prelude"
---
--- data CompA = CompA 'Int' 'Int' deriving ('Component', 'Show')
---
--- data CompB = CompB 'String' deriving ('Component', 'Show')
---
--- data CompC = CompC deriving ('Component', 'Show')
---
--- main :: 'IO' ()
--- main = do
---   app <- 'newApp' MainPlugin
---   'runApp' app
---
--- data MainPlugin = MainPlugin deriving ('Eq')
---
--- instance 'Plugin' MainPlugin where
---   'Mischief.ECS.App.Plugins.init' _ = do
---     foo <- 'spawn' (Name \"Foo\", CompA 10 10, CompB \"Component B on Foo\", CompC)
---     bar <- 'spawn' (Name \"Bar\", CompA 15 3,  CompB \"Component B on Bar\")
---     baz <- 'spawn' (Name \"Baz\", CompA 0 0,   CompB \"Component B on Baz\", CompC)
---
---     'info' . 'text' '=<<' 'query' ('C' \@Name, 'C' \@CompA, 'M' \@CompB, 'M' \@CompC)
---
---     'insert' (Name \"Foo2\", CompA 100 100, CompC) foo
---     'remove' ('C' \@CompC, 'C' \@CompB) baz
---     'despawn' bar
---
---     'info' . 'text' '=<<' 'query' ('C' \@Name, 'C' \@CompA, 'M' \@CompB, 'M' \@CompC)
--- @
---
--- @
--- >> [Info] [
---   (\"Foo\", CompA 10 10, Just CompB \"Component B on Foo\", Just CompC),
---   (\"Baz\", CompA 0 0,   Just CompB \"Component B on Baz\", Just CompC),
---   (\"Bar\", CompA 15 3,  Just CompB \"Component B on Bar\", Nothing)
--- ]
---
--- >> [Info] [
---   ("\Foo2\", CompA 100 100, Just CompB \"Component B on Foo\", Just CompC),
---   (\"Baz\",  CompA 0 0,     Nothing, Nothing)
--- ]
--- @
---
--- === __Example 2__
---
--- This example shows you how to make a resource that independently tracks the number of Players in the World.
---
--- @
--- data PlayerCount = PlayerCount 'Int' deriving ('Component', 'Show')
---
--- changeCount :: 'Int' -> PlayerCount -> PlayerCount
--- changeCount n (PlayerCount x) = PlayerCount (x + n)
--- @
---
--- We need to write a system that queries all entities that have had a @Player@ component added to them and updates @PlayerCount@ accordingly:
---
--- @
--- updateCount :: 'System' ()
--- updateCount = do
---   x <- 'query'' 'E' ('Added' \@Player)
---
---   count <- 'res' \@PlayerCount
---   'modify' count $ changeCount ('length' x)
--- @
---
--- We couldn't have used an observer for this since 'OnInsert' also catches re-insertions.
---
--- We'll also make an Observer that listens to the @OnRemove@ event to update @PlayerCount@:
---
--- @
--- handlePlayerRemove :: 'OnRemove' Player -> 'System' ()
--- handlePlayerRemove _ = do
---   count <- 'res' \@PlayerCount
---   'modify' count $ changecount (-1)
--- @
---
--- I also wrote this system that spawns 3 Players and despawns one of them each frame, to make sure both the previous sytems works fine.
---
--- @
--- spawnPlayers :: 'System' ()
--- spawnPlayers = do
---   ('info' . 'text') '=<<' 'res' \@PlayerCount
---
---   p <- 'spawn' Player
---   'void' $ 'spawn' Player
---   'void' $ 'spawn' Player
---
---   'despawn' p
--- @
---
--- Now let's write a a simple app that makes use of these systems:
---
--- @
--- import "Mischief.ECS.Systems" qualified as [Systems]("Mischief.ECS.Systems")
--- import "Mischief.ECS.Observers" qualified as [Observers]("Mischief.ECS.Observers")
---
--- data Player = Player deriving ('Component')
---
--- main :: 'IO' ()
--- main = do
---   app <- 'newApp' MainPlugin
---   'runApp' app
---
--- data MainPlugin = MainPlugin deriving ('Eq')
---
--- instance 'Plugin' MainPlugin where
---   'Mischief.ECS.App.Plugins.init' _ = do
---     'insertRes' $ PlayerCount 0
---     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Update' (updateCount, spawnPlayers)
---     'void' $ [Observers]("Mischief.ECS.Observers").'Mischief.ECS.Observers.spawn' handlePlayerRemove
--- @
---
--- Running it will result in:
---
--- @
--- [INFO] Just (PlayerCount 0)
--- [INFO] Just (PlayerCount 2)
--- [INFO] Just (PlayerCount 4)
--- ...
--- @
+-- The @onAdd@ and @ohSet@ hooks will always run before @OnAdd@ and @OnSet@ events on that component.
+-- @onRemove@ hooks will always run after @OnRemove@ events.

@@ -17,19 +17,17 @@ data MyPlugin
 instance Plugin MyPlugin where
   init :: System ()
   init = do
-    test'
+    systems (helloWorld, greetPeople, showLikes)
+      & schedule Update
 
--- systems (helloWorld, greetPeople, showLikes)
---   & schedule Update
+    systems addPeople
+      & schedule Startup
 
--- systems addPeople
---   & schedule Startup
+    systems updateFlo
+      & before greetPeople
+      & schedule Update
 
--- systems updateFlo
---   & before greetPeople
---   & schedule Update
-
--- insertRes (Greeting "Hey")
+    insertRes (Greeting "Hey")
 
 data Person = Person deriving (Component)
 
@@ -48,20 +46,6 @@ helloWorld = info "Hello World!"
 newtype Pos = Pos Int deriving (Component, Show)
 
 newtype Vel = Vel Int deriving (Component, Show)
-
-test' :: System ()
-test' = do
-  a <- spawn (Name "A", Pos 5, Vel 2)
-  b <- spawn (Name "B", Pos 7, Vel 4)
-  x <- query $ qentity test
-  warn $ T.show x
-
-test :: Query System (Pos, Name)
-test = do
-  x <- [q|Pos, Vel, Name|]
-  let y = (\(Pos p, Vel v, name) -> (Pos (p + v), name)) x
-  z <- qinsert fst (pure y)
-  pure z
 
 data Greeting = Greeting String deriving (Component)
 
@@ -86,13 +70,15 @@ updateFlo = do
 showLikes :: System ()
 showLikes = do
   [q|Name|]
-    & qrelateMany (Graph.outgoing @Likes) (,) [q|Name|]
+    & qrelateMany (Graph.outgoing @Likes) [q|Name|]
+    & qjoin (,)
     & qinfo (\(name, likes) -> [i|#{name} likes #{likes}|])
     & query_
 
 extraFrom :: System ()
 extraFrom = do
   [q|Name|]
-    & qrelateMany (Graph.incoming @ChildOf) (,) [q|Name|]
+    & qrelateMany (Graph.incoming @ChildOf) [q|Name|]
+    & qjoin (,)
     & qinsert (\(parentName, childNames) -> map (fmap . const $ parentName) childNames)
     & query_

@@ -197,12 +197,13 @@ data KeyState = Pressed | JustPressed | Released | JustReleased
 data KeysPlugin = KeysPlugin deriving (Eq)
 
 instance Plugin KeysPlugin where
-  init _ = do
+  init = do
     insertRes (def @Keys)
     insertRes (def @HotKeys)
-    Systems.add First readEvents
+    systems readEvents
+      & schedule First
 
-  plugins _ = plug SDLPlugin
+  deps = [dep @SDLPlugin]
 
 readEvents :: System ()
 readEvents = do

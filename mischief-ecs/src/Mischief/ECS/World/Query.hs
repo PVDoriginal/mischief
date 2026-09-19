@@ -13,7 +13,7 @@ import Data.Map qualified as Map
 import Data.Maybe
 import Data.Set qualified as Set
 import Data.Traversable
-import GHC.Base (Int (..), Type, eqWord#, isTrue#)
+import GHC.Base (Int (..), List, Type, eqWord#, isTrue#)
 import GHC.Stack
 import GHC.TypeLits
 import Mischief.ECS.App.SystemDef
@@ -211,7 +211,6 @@ data Query m a where
   MapQuery :: Query m b -> (Entity -> b -> m a) -> Query m a
   FilterQuery :: Query m a -> (Entity -> a -> m Bool) -> Query m a
   DoQuery :: Query m a -> (Entity -> a -> m b) -> Query m a
-  JoinQuery :: Query m a -> Query m b -> (Entity -> a -> Entity -> b -> m Bool) -> (a -> b -> c) -> Query m c
   PureQuery :: a -> Query m a
   AppQuery :: Query m (a -> b) -> Query m a -> Query m b
   BindQuery :: Query m a -> (a -> Query m b) -> Query m b
@@ -251,15 +250,6 @@ get entity (DoQuery a f) = do
   x <- get entity a
   for_ x (f entity)
   pure x
-get entity (JoinQuery a b f f') = do
-  a <- get entity a
-  case a of
-    Nothing -> pure Nothing
-    Just a -> do
-      b <- qrun' b
-      bs <- filterM (uncurry (f entity a)) b
-
-      undefined
 get _ (PureQuery a) = pure $ Just a
 get entity (AppQuery f a) = do
   f <- get entity f

@@ -14,7 +14,6 @@ import Data.Text qualified as T
 import Data.Vector.Internal.Check
 import GHC.Generics
 import GHC.TypeLits (KnownNat, Nat, natVal, type (-))
-import Mischief.ECS.Log (text)
 import Mischief.Render.Shader.Singletons
 import Unsafe.Coerce (unsafeCoerce)
 import Prelude hiding (cos, sin)

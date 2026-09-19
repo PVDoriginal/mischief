@@ -260,7 +260,7 @@ data ComponentTicks = ComponentTicks {changed :: Tick, added :: Tick} deriving (
 data ComponentData = ComponentData {value :: ErasedComponent, ticks :: ComponentTicks}
 
 -- | Type used for querying and inserting relationships.
-data Rel c = Rel {comp :: c, target :: Entity}
+data Rel c = Rel {comp :: c, target :: Entity} deriving (Eq)
 
 instance Functor Rel where
   fmap f (Rel c target) = Rel (f c) target
@@ -268,7 +268,7 @@ instance Functor Rel where
 instance (Show c) => Show (Rel c) where
   show Rel {comp, target} = "Rel (" ++ show comp ++ ", " ++ show target ++ ")"
 
-data From c = From {entity :: Entity, comp :: c}
+data From c = From {entity :: Entity, comp :: c} deriving (Eq)
 
 instance Functor From where
   fmap :: (a -> b) -> From a -> From b
@@ -277,7 +277,7 @@ instance Functor From where
 instance (Show c) => Show (From c) where
   show From {entity, comp} = "From (" ++ show entity ++ ", " ++ show comp ++ ")"
 
-newtype Res c = Res c deriving newtype (Show)
+newtype Res c = Res {comp :: c} deriving newtype (Show, Eq)
 
 instance Functor Res where
   fmap f (Res c) = Res (f c)

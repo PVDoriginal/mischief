@@ -22,6 +22,7 @@ import Mischief.Assets (AssetSource (..), Image (..), load)
 import Mischief.ECS
 import Mischief.ECS.Prelude
 import Mischief.ECS.Systems qualified as S
+import Mischief.ECS.Time qualified as Time
 import Mischief.ECS.Timer (Timer)
 import Mischief.ECS.Timer qualified as Timer
 import Mischief.Input (InputPlugin (InputPlugin))
@@ -53,19 +54,28 @@ import System.Exit (exitSuccess)
 import System.IO (hFlush, stdout)
 
 main :: IO ()
-main = runApp =<< newApp MainPlugin
+main = do
+  app <- newApp
+  addPlugin @MainPlugin app
+  runApp app
 
-data MainPlugin = MainPlugin deriving (Eq)
+data MainPlugin
 
 instance Plugin MainPlugin where
-  init _ = do
-    S.add Startup setup
-    S.add Update moveSprite
-    S.add Update $ animSprite `after` moveSprite
+  init = do
+    systems setup
+      & schedule Startup
+
+    systems moveSprite
+      & schedule Update
+
+    systems animSprite
+      & after moveSprite
+      & schedule Update
 
     insertRes $ AssetSource "../assets/"
 
-  plugins _ = plug (RenderPlugin, InputPlugin, TimePlugin)
+  deps = [dep @RenderPlugin, dep @InputPlugin, dep @TimePlugin]
 
 setup :: System ()
 setup = do
@@ -83,11 +93,11 @@ setup = do
 
 moveSprite :: System ()
 moveSprite = do
-  sprites <- [q|E, *Character, Transform, SpriteFlip / With Sprite|]
+  sprites <- query [q|E, Character, Transform / With Sprite|]
   Just keys <- res @Keys
 
-  for_ sprites $ \(entity, character, sprite, flip) -> do
-    delta <- deltaTime
+  for_ sprites $ \(entity, character, sprite) -> do
+    delta <- Time.delta
     let speed = 150
 
     dir <- liftIO $ newIORef (V2 0 0)
@@ -113,11 +123,11 @@ moveSprite = do
         insertIfNeq (CurrentSlices (idleAnims character)) entity
 
     if
-      | dir.x < 0 -> set flip SpriteFlip {x = True, y = False}
-      | dir.x > 0 -> set flip SpriteFlip {x = False, y = False}
+      | dir.x < 0 -> insert SpriteFlip {x = True, y = False} entity
+      | dir.x > 0 -> insert SpriteFlip {x = False, y = False} entity
       | otherwise -> pure ()
 
-    modify sprite $ Transform.translate (V3 dir.x dir.y 0)
+    insert (Transform.translate (V3 dir.x dir.y 0) sprite) entity
 
 newtype CurrentSlices = CurrentSlices [SpriteSlice]
   deriving stock (Eq)
@@ -132,8 +142,8 @@ newtype AnimTimer = AnimTimer (Int, Timer) deriving anyclass (Component)
 
 animSprite :: System ()
 animSprite = do
-  sprites <- [q|Entity, *AnimTimer, *CurrentSlices|]
-  delta <- deltaTime
+  sprites <- query [q|Entity, AnimTimer, CurrentSlices|]
+  delta <- Time.delta
 
   for_ sprites $ \(entity, AnimTimer (frame, timer), CurrentSlices slices) -> do
     let (timer', justFinished) = Timer.tick delta timer

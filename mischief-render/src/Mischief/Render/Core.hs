@@ -31,7 +31,7 @@ newtype RenderSurface = RenderSurface (Ptr WGPUSurface)
 instance Component RenderSurface where
   onRemove =
     [ hook $ \(HookContext entity) -> do
-        Just (RenderSurface surface) <- [g|*RenderSurface|] entity
+        Just (RenderSurface surface) <- get entity [q|RenderSurface|]
         liftIO $ wgpuSurfaceRelease surface
     ]
 
@@ -40,7 +40,7 @@ newtype RenderDevice = RenderDevice (Ptr WGPUDevice)
 instance Component RenderDevice where
   onRemove =
     [ hook $ \(HookContext entity) -> do
-        Just (RenderDevice device) <- [g|*RenderDevice|] entity
+        Just (RenderDevice device) <- get entity [q|RenderDevice|]
         liftIO $ wgpuDeviceRelease device
     ]
 
@@ -49,7 +49,7 @@ newtype RenderAdapter = RenderAdapter (Ptr WGPUAdapter)
 instance Component RenderAdapter where
   onRemove =
     [ hook $ \(HookContext entity) -> do
-        Just (RenderAdapter adapter) <- [g|*RenderAdapter|] entity
+        Just (RenderAdapter adapter) <- get entity [q|RenderAdapter|]
         liftIO $ wgpuAdapterRelease adapter
     ]
 
@@ -58,14 +58,14 @@ newtype RenderQueue = RenderQueue (Ptr WGPUQueue)
 instance Component RenderQueue where
   onRemove =
     [ hook $ \(HookContext entity) -> do
-        Just (RenderQueue queue) <- [g|*RenderQueue|] entity
+        Just (RenderQueue queue) <- get entity [q|RenderQueue|]
         liftIO $ wgpuQueueRelease queue
     ]
 
 -- | Creates a WGPU Surface, Adapter, and Device for each new window. Inserts them as components.
 onAddWindow :: OnAdd SDLWindow -> System ()
 onAddWindow (OnAdd entity) = do
-  Just (SDLWindow window, WindowSize w h) <- [g|*SDLWindow, *WindowSize|] entity
+  Just (SDLWindow window, WindowSize w h) <- get entity [q|SDLWindow, WindowSize|]
 
   windowProps <- liftIO $ SDL3.getWindowProperties window
   driver <- liftIO (peekCString . unConstPtr =<< SDL3.getCurrentVideoDriver)

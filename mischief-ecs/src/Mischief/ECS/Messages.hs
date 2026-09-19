@@ -15,6 +15,7 @@ import Data.IORef
 import Data.Kind
 import Data.Map (Map)
 import Data.Map qualified as Map
+import Data.Text qualified as T
 import Mischief.ECS.App
 import Mischief.ECS.App.SystemDef
 import Mischief.ECS.App.Systems
@@ -67,8 +68,9 @@ write !message = do
   Just currentSystemTick <- get loc $ mkQuery (C @SystemTick)
 
   let message' = (frame, currentSystemTick.inner, message)
-  insertRes $ (\Messages {messages, readers} -> Messages {messages = message' : messages, readers}) messages
-  clearOldMessages messages
+  let newMessages = (\Messages {messages, readers} -> Messages {messages = message' : messages, readers}) messages
+  insertRes newMessages
+  clearOldMessages newMessages
 
 -- | Read all the messages that haven't been read by the current system.
 read :: forall m. (Message m) => System [m]

@@ -12,7 +12,6 @@ import Data.Text (Text)
 import Data.Text qualified as T
 import GHC.Generics
 import GHC.TypeLits (KnownNat, Nat, natVal)
-import Mischief.ECS.Log (text)
 import Mischief.Render.Core
 import Mischief.Render.Shader.Bindings
 import Mischief.Render.Shader.Functions

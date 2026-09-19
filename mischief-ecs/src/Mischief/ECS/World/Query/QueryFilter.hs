@@ -50,8 +50,6 @@ instance (Component c) => ToFilterComponent (R c Entity) where
 instance (Component c) => ToFilterComponent (R c Any) where
   toFilterComponent _ = FilterComponent (typeRep $ Proxy @c, Nothing, Just Any)
 
--- With ::
-
 instance Semigroup (QueryFilter f) where
   (<>) :: QueryFilter f -> QueryFilter f -> QueryFilter f
   (<>) = And

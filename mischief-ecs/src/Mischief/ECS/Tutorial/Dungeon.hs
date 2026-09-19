@@ -66,6 +66,9 @@ module Mischief.ECS.Tutorial.Dungeon
     -- * Collecting Coins
     -- $collect
 
+    -- * Extra: Monad
+    -- $monad
+
     -- * Next Steps
     -- $next
 
@@ -838,7 +841,7 @@ import System.Exit (exitSuccess)
 --
 -- We also use a final @qmap@ to get the query back to its original data. This makes it extremely generic!
 --
--- Here's the final @moveEnemies@ function, with the new filter:
+-- Here's the new @moveEnemies@ function, with the timer-based filter:
 --
 -- @
 -- moveEnemies :: 'System' ()
@@ -847,6 +850,22 @@ import System.Exit (exitSuccess)
 --
 --   ['q'|OnTile -\> (Pos), Res Grid / With Enemy|]
 --     & qfilterCooldown
+--     & qdecideEnemyTile playerPos
+--     & 'qinsert' ('Rel' OnTile)
+--     & 'query_'
+-- @
+--
+-- Mischief's Query system is meant to be extremely modular and easy to generalize. You could probably write a
+-- much more generic cooldown filter that works for any component. In fact, such a function is already defined inside the @Timer@ module!
+-- Here's how you can use it if you're curious:
+--
+-- @
+-- moveEnemies :: 'System' ()
+-- moveEnemies = do
+--   'Just' ('From' _ playerPos) \<- 'single' ['q'|OnTile -\> (Pos) / With Player|]
+--
+--   ['q'|OnTile -\> (Pos), Res Grid / With Enemy|]
+--     & Timer.'Mischief.ECS.Timer.qtimer' (.timer) Cooldown
 --     & qdecideEnemyTile playerPos
 --     & 'qinsert' ('Rel' OnTile)
 --     & 'query_'
@@ -910,7 +929,7 @@ import System.Exit (exitSuccess)
 --     & 'query_'
 -- @
 --
--- The game should now have fullly working collision and feel much more solid!
+-- The game should now have fully working collision and feel much more solid!
 
 -- $health
 -- Here's a simple one: let's add a @Health@ component to the player and have it be displayed under the grid each frame.
@@ -1003,16 +1022,16 @@ import System.Exit (exitSuccess)
 --
 -- The last thing we need is a way for enemies to trigger the event. I made a system which checks if an enemy is adjacent to the player and triggers the event:
 --
--- @
 -- tryDamage :: 'System' ()
 -- tryDamage = do
---   'Just' player \<- ['s'|OnTile -\> (*Pos) / With Player|]
---   enemies \<- ['q'|OnTile -\> (*Pos) / With Enemy|]
+--   adjacentEnemies \<-
+--     ['q'|OnTile -\> (Pos) / With Player|]
+--       & 'qcross' isAdjacent ['q'|OnTile -\> (Pos) / With Enemy|]
+--       & 'qjoin' (,)
+--       & 'query'
 --
---   'for_' enemies $ \pos -> do
---     'when' (isAdjacent pos player) $ do
---       'trigger' (Damage 5)
--- @
+--   'unless' ('null' adjacentEnemies) $ do
+--     'trigger' $ Damage 5
 --
 -- With this helper function:
 --
@@ -1024,20 +1043,31 @@ import System.Exit (exitSuccess)
 --    in (dx == 1 && dy == 0) || (dx == 0 && dy == 1)
 -- @
 --
+-- The @qcross@ function iterates over both queries and matches the elements that fulfill the given condition. In our case, they match
+-- the player with all enemies that are adjacent to it. Due to @qjoin@ being a strict /inner/ join, the resulting list will only have elements
+-- if there is at least one enemy next to the player. In which case, we trigger the Damage event.
+--
 -- I've scheduled @tryDamage@ to happen every frame, after both the player and enemies have moved:
 --
 -- @
 -- instance 'Plugin' EnemyPlugin where
---   'Mischief.ECS.App.Plugins.init' _ = do
---     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Startup' spawnEnemies
---     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Update' moveEnemies
---     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Update' $ tryDamage '`after`' moveEnemies '`after`' movePlayer
+--   init = do
+--     'systems' spawnEnemies
+--       & 'schedule' 'Startup'
+--
+--     'systems' moveEnemies
+--       & 'schedule' 'Update'
+--
+--     'systems' tryDamage
+--       & 'after' moveEnemies
+--       & 'after' movePlayer
+--       & 'schedule' 'Update'
 -- @
 --
--- This now /technically/ works, except that the enemies almost instantly kill the player on contact. That's because they deal damage every frame,
+-- This now /technically/ works, except that the enemies almost instantly defeat the player on contact. That's because they deal damage every frame,
 -- the same issue we had when they were moving each frame.
 --
--- I'll show you a different way to solve this problem. We can add an @Invincible@ component on the player after being hit once,
+-- I'll show you a new way to solve this problem. We'll add an @Invincible@ component on the player after being hit once,
 -- which causes it to not receive damage, and which is removed after a delay.
 --
 -- @
@@ -1049,69 +1079,49 @@ import System.Exit (exitSuccess)
 -- @
 -- onDamage :: Damage -> 'System' ()
 -- onDamage dmg = do
---   player <- ['s'|(Entity, Health) / With Player, Without Invincible|]
---
---   'for_' player $ \(entity, health) -> do
---     'modify' health $ \(Health x) -> Health $ max (x - dmg.amount) 0
---
---     'insert' Invincible entity
---     'delay' 1000000 $ 'remove' ('C' \@Invincible) entity
+--   ['q'|Health / With Player, Without Invincible|]
+--     & 'qinsert' (\\(Health x) -> (Health $ 'max' (x - dmg.amount) 0, Invincible))
+--     & 'qtap' (\\e _ -> 'delay' 1000000 $ 'remove' ('C' \@Invincible) e)
+--     & 'query_'
 -- @
 --
--- Let's analyze it.
---
--- This line queries the player's Entity and Health, but only if they don't have the @Invincible@ component.
---
--- @
--- player <- ['s'|(Entity, Health) / With Player, Without Invincible|]
--- @
---
--- If the query returned something (if the player isn't invincible), it will take damage.
---
--- @
--- 'modify' health $ \(Health x) -\> Health $ max (x - dmg.amount) 0
--- @
---
--- Then the @Invincible@ component will be inserted on the player.
---
--- @
--- 'insert' Invincible entity
--- @
---
--- And finally, we use the @delay@ async function to tell Mischief to run remove the component after a delay (in miliseconds):
---
--- @
--- 'delay' 1000000 $ 'remove' ('C' \@Invincible) entity
--- @
+-- We are now only querying the player only if they  are not invincible. We are then inserting the @Invincible@ components on them, and
+-- removing it after a fixed delay of 1 second. @qtap@ is the function used to apply an arbitrary side effect over the query's elements.
 --
 -- Now, the player will only be able to take damage once per second!
 
 -- $quit
--- It feels weird that the player can reach 0 health but the game just keeps running. So let's add some logic for quitting:
---
+-- It feels weird that the player can reach 0 health but the game just keeps running. So I've added an
+-- extra instruction into our @qtap@ exits the program when the hp reaches 0.
 --
 -- @
--- onDamage :: Damage -> 'System' ()
+-- onDamage :: Damage -> System ()
 -- onDamage dmg = do
---   player <- ['s'|(Entity, Health) / With Player, Without Invincible|]
---
---   'for_' player $ \(entity, health) -> do
---     'modify' health $ \(Health x) -> Health $ max (x - dmg.amount) 0
---
---     'insert' Invincible entity
---     'delay' 1000000 $ 'remove' ('C' \@Invincible) entity
---
---     'when' (health.hp == 0) $ 'liftIO' 'exitSuccess'
+--   ['q'|Health / With Player, Without Invincible|]
+--     & 'qinsert' (\\(Health x) -> (Health $ 'max' (x - dmg.amount) 0, Invincible))
+--     & 'qtap'
+--       ( \\e (Health hp) -> do
+--           'delay' 1000000 $ 'remove' ('C' \@Invincible) e
+--           'when' (hp == 0) $ 'liftIO' 'exitSuccess'
+--       )
+--     & 'query_'
 -- @
 --
--- But you may notice, the player actually takes an extra hit before that condition is triggered. That's because the @health@ variable is immutable.
--- When we call @modify@, we update the live value of the component, but our local variable stays as it is.
---
--- We can use @update@ to get the live value:
+-- But you may notice, the player actually takes an extra hit before that condition is triggered. That's because the result of the function
+-- from @qinsert@ is not actually propagated further in the query. If you look at the signature of @qinsert@ you'll notice it actually ends in:
+-- @Query m a -> Query m a@. We can instead use the @qmodify@ function which maps the values, inserts them, and propagates them:
 --
 -- @
--- 'Just' health <- 'update' health
--- 'when' (health.hp == 0) $ 'liftIO' 'exitSuccess'
+-- onDamage :: Damage -> System ()
+-- onDamage dmg = do
+--   ['q'|Health / With Player, Without Invincible|]
+--     & 'qmodify' (\\(Health x) -> (Health $ 'max' (x - dmg.amount) 0, Invincible))
+--     & 'qtap'
+--       ( \\e (Health hp, _) -> do
+--           'delay' 1000000 $ 'remove' ('C' \@Invincible) e
+--           'when' (hp == 0) $ 'liftIO' 'exitSuccess'
+--       )
+--     & 'query_'
 -- @
 --
 -- The logic should now work as expected.
@@ -1141,23 +1151,26 @@ import System.Exit (exitSuccess)
 --
 -- (If the tile is not free, it will just keep looping and generating tiles until it finds one that is).
 --
--- Third, we can use intervals to make the system repeat every two seconds.
+-- Third, we can use intervals to make the system repeat every two seconds. They're a convenient utility provided by Mischief.
 --
 -- @
--- import "Mischief.ECS.Interval" qualified as [Interval]("Mischief.ECS.Interval")
+-- import "Mischief.ECS.Interval" qualified as Interval
 -- @
---
 --
 -- @
 -- instance 'Plugin' MainPlugin where
---   'Mischief.ECS.App.Plugins.init' _ = do
---     [Stdin]("Mischief.ECS.Stdin").'Mischief.ECS.Stdin.init'
---     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Startup' (spawnGrid, spawnWalls)
---     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Update' printGrid
+--   init = do
+--     Stdin.'Mischief.ECS.Stdin.init'
 --
---     interval <- [Interval]("Mischief.ECS.Interval").'Mischief.ECS.Interval.start' 2000000 spawnCoin
+--     'systems' (spawnGrid, spawnWalls)
+--       & 'schedule' 'Startup'
 --
---     'insertRes' '=<<' newGen
+--     'systems' printGrid
+--       & 'schedule' 'Update'
+--
+--     interval <- Interval.'Mischief.ECS.Internval.start' 2000000 spawnCoin
+--
+--     'insertRes' =<< newGen
 -- @
 --
 -- You can also use @Interval.stop@ on the returned value to stop the interval at any point, but I won't be doing that here.
@@ -1182,7 +1195,7 @@ import System.Exit (exitSuccess)
 -- @
 
 -- $collect
--- All that's left is letting the player collect coins and keeping track of how many they got.
+-- All that's left is letting the player collect coins and keeping track of how many they have collected.
 --
 -- I'll do this via a resource this time.
 --
@@ -1194,15 +1207,19 @@ import System.Exit (exitSuccess)
 --
 -- @
 -- instance 'Plugin' MainPlugin where
---   'Mischief.ECS.App.Plugins.init' _ = do
---     [Stdin]("Mischief.ECS.Stdin").'Mischief.ECS.Stdin.init'
---     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Startup' (spawnGrid, spawnWalls)
---     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Update' printGrid
+--   init = do
+--     Stdin.'Mischief.ECS.Stdin.init'
 --
---     interval <- [Interval]("Mischief.ECS.Interval").'Mischief.ECS.Interval.start' 2000000 spawnCoin
+--     'systems' (spawnGrid, spawnWalls)
+--       & 'schedule' 'Startup'
 --
---     'insertRes' '=<<' newGen
---     'insertRes' $ Coins 0
+--     'systems' printGrid
+--       & 'schedule' 'Update'
+--
+--     interval <- Interval.'Mischief.ECS.Internval.start' 2000000 spawnCoin
+--
+--     'insertRes' =<< newGen
+--     'insertRes' (Coins 0)
 -- @
 --
 -- And I'll update the display to also show the number of coins:
@@ -1228,25 +1245,36 @@ import System.Exit (exitSuccess)
 -- @
 -- collectCoins :: 'System' ()
 -- collectCoins = do
---   'Just' playerTile <- ['s'|OnTile -> (Entity) / With Player|]
---   coins <- ['q'|Entity / With OnTile -> playerTile, With Coin|]
---
 --   'Just' (Coins c) <- 'res' \@Coins
---   'insertRes' $ Coins $ c + 'length' coins
 --
---   'for_' coins despawn
+--   coins <-
+--     ['q'|OnTile -\> * / With Player|]
+--       & 'qthen' (\\('Rel' _ playerTile) -\> ['q'|Entity / With Coin, With OnTile -\> playerTile|])
+--       & 'query'
+--
+--   'for_' coins 'despawn'
+--   'insertRes' (Coins (c + length coins))
 -- @
 --
--- And I'll schedule it:
+-- @qthen@ maps each element of the query to a whole other query and then flattens the results.
+--
+-- Now to schedule it:
 --
 -- @
 -- instance 'Plugin' PlayerPlugin where
---   'Mischief.ECS.App.Plugins.init' _ = do
---     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Startup' $ spawnPlayer '`after`' spawnGrid
---     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Update' movePlayer
---     [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Update' $ collectCoins '`after`' movePlayer
+--   init = do
+--     'systems' spawnPlayer
+--       & 'after' spawnGrid
+--       & 'schedule' 'Startup'
 --
---     'void' $ [Observers]("Mischief.ECS.Observers").'Mischief.ECS.Observers.spawn' onDamage
+--     'systems' movePlayer
+--       & 'schedule' 'Update'
+--
+--     'systems' collectCoins
+--       & 'after' movePlayer
+--       & 'schedule' 'Update'
+--
+--     'void' $ 'spawn' ('Observer' onDamage)
 -- @
 --
 -- And that's it! Out player should now be able to collect coins!
@@ -1265,6 +1293,35 @@ import System.Exit (exitSuccess)
 -- ####################
 -- Coins: 16
 -- @
+
+-- $monad
+-- If you're an experienced Haskeller you may have picked up on something in the previous chapter.
+--
+-- More specifically, look at the signature of @qthen@:
+--
+-- @
+-- qthen :: (a -> Query m b) -> Query m a -> Query m b
+-- @
+--
+-- It's oddly similar to another function you may know:
+--
+-- @
+-- (>>=) :: m a -> (a -> m b) -> m b
+-- @
+--
+-- Yes! @qthen@ is just the flipped monad bind operator.
+--
+-- In fact, another way to write the earlier query is:
+--
+-- @
+-- let playerQ = ['q'|OnTile -\> * / With Player|]
+--
+-- coins \<- 'query' $ do
+--   ('Rel' _ playerTile) \<- playerQ
+--   ['q'|Entity / With Coin, With OnTile -\> playerTile|]
+-- @
+--
+-- Have fun thinking of the implications of this!
 
 -- $next
 -- Don't worry if there are various details that you haven't fully understood yet. The next chapters will go into detail over the many aspects of the ECS. This chapter was just meant

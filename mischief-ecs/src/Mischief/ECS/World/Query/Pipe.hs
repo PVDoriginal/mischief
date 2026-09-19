@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# OPTIONS_GHC -Wno-partial-fields #-}
 
 module Mischief.ECS.World.Query.Pipe
@@ -5,9 +6,14 @@ module Mischief.ECS.World.Query.Pipe
     qtraverse,
     qtap,
 
+    -- * Chaining
+    qthen,
+
     -- * Mapping
     qmap,
+    qmapM,
     qmapMaybe,
+    qmapMaybeM,
 
     -- * Filtering
     qcheck,
@@ -28,14 +34,18 @@ module Mischief.ECS.World.Query.Pipe
     qentity,
 
     -- * Traversal
-    qappendOne,
-    qappendOneM,
-    qappendMany,
-    qappendManyM,
-    qrelateOne,
+    qget,
+    qgetM,
+    qgetMany,
+    qgetManyM,
+    qrelate,
     qrelateMany,
+    qcross,
+    qcrossM,
+
+    -- * Joins
     qjoin,
-    qjoinM,
+    qjoinOuter,
 
     -- * Logging
     qinfo,
@@ -47,11 +57,16 @@ where
 import Control.Monad (filterM)
 import Control.Monad.IO.Class
 import Data.Foldable
+import Data.Function
+import Data.List (List)
 import Data.Maybe
 import Data.Text (Text)
+import Data.Traversable
 import GHC.Stack
+import Language.Haskell.TH (Extension (AllowAmbiguousTypes))
 import Mischief.ECS.Components
 import Mischief.ECS.Components.Bundle
+import Mischief.ECS.Components.Common
 import Mischief.ECS.Entities
 import Mischief.ECS.Log
 import Mischief.ECS.World
@@ -64,6 +79,9 @@ import Mischief.ECS.World.Query.Queryable
 {-# RULES
 "qmap/qmap" forall f g xs. qmap f (qmap g xs) = qmap (f . g) xs
   #-}
+
+qthen :: (MonadSystem w m) => (a -> Query m b) -> Query m a -> Query m b
+qthen = flip BindQuery
 
 -- | Maps @Query m a@ to @Query m b@. Same as 'fmap'.
 --
@@ -78,8 +96,12 @@ qmap :: (MonadSystem w m) => (a -> b) -> Query m a -> Query m b
 qmap = fmap
 {-# INLINE [1] qmap #-}
 
-mapFilterQuery :: (MonadSystem w m) => Query m a -> (Entity -> a -> m (Maybe b)) -> Query m b
-mapFilterQuery b f = MapQuery (FilterQuery (MapQuery b f) (\_ x -> pure (isJust x))) (\_ x -> pure (fromMaybe undefined x))
+-- | Same as 'qtraverse'.
+qmapM :: (MonadSystem w m) => (Entity -> a -> m b) -> Query m a -> Query m b
+qmapM = qtraverse
+
+qmapMaybeM :: (MonadSystem w m) => (Entity -> a -> m (Maybe b)) -> Query m a -> Query m b
+qmapMaybeM f b = MapQuery (FilterQuery (MapQuery b f) (\_ x -> pure (isJust x))) (\_ x -> pure (fromMaybe undefined x))
 
 -- | Possibly maps each element from @Query m a@ to an element from @Query m b@. If Nothing, will filter this Entity out of the Query.
 --
@@ -235,39 +257,34 @@ qcheck f = qfilterM (\e _ -> check f e)
 --
 -- @
 -- [q|Sprite|]
---   qappendOne (\\sprite -> sprite.image) (,) [q|Image|]
+--   qget (\\sprite -> sprite.image) (,) [q|Image|]
 --   & query
 -- @
-qappendOne :: (MonadSystem w m) => (a -> Maybe Entity) -> (a -> From b -> c) -> Query m b -> Query m a -> Query m c
-qappendOne f f' y x =
-  mapFilterQuery
-    x
+qget :: (MonadSystem w m) => (a -> Maybe Entity) -> Query m b -> Query m a -> Join m a Maybe (From b)
+qget f b a =
+  Join
+    a
     ( \_ x -> do
         let entity = f x
         case entity of
           Nothing -> pure Nothing
           Just entity -> do
-            y <- get entity y
-            case y of
-              Nothing -> pure Nothing
-              Just y -> pure $ Just (f' x (From entity y))
+            bs <- get entity b
+            pure $ fmap (From entity) bs
     )
 
--- Like 'qappendOne' but with side-effects in the function which provides the entity.
-qappendOneM :: (MonadSystem w m) => (Entity -> a -> m (Maybe Entity)) -> (a -> From b -> c) -> Query m b -> Query m a -> Query m c
-qappendOneM f f' y x =
-  mapFilterQuery
-    x
+-- Like 'qget' but with side-effects in the function which provides the entity.
+qgetM :: (MonadSystem w m) => (Entity -> a -> m (Maybe Entity)) -> Query m b -> Query m a -> Join m a Maybe (From b)
+qgetM f b a =
+  Join
+    a
     ( \e x -> do
         entity <- f e x
         case entity of
           Nothing -> pure Nothing
           Just entity -> do
-            y <- get entity y
-            case y of
-              Nothing -> pure Nothing
-              Just y -> do
-                pure . Just $ f' x (From entity y)
+            bs <- get entity b
+            pure $ fmap (From entity) bs
     )
 
 -- | Grab specific entities from another query. If the first function returns an empty list, will filter this entity out of the query.
@@ -280,32 +297,28 @@ qappendOneM f f' y x =
 --
 -- @
 -- [q|Images|]
---   & qappendMany (.images) (,) [q|Image|]
+--   & qgetMany (.images) (,) [q|Image|]
 --   & query
 -- @
-qappendMany :: (MonadSystem w m) => (a -> [Entity]) -> (a -> [From b] -> c) -> Query m b -> Query m a -> Query m c
-qappendMany f f' y x =
-  mapFilterQuery
-    x
+qgetMany :: (MonadSystem w m) => (a -> [Entity]) -> Query m b -> Query m a -> Join m a List (From b)
+qgetMany f b a =
+  Join
+    a
     ( \_ x -> do
         let entities = f x
-        y <- catMaybes <$> mapM (\e -> fmap (e,) <$> get e y) entities
-        case y of
-          [] -> pure Nothing
-          y -> pure $ Just $ f' x (map (uncurry From) y)
+        y <- catMaybes <$> mapM (\e -> fmap (e,) <$> get e b) entities
+        pure $ map (uncurry From) y
     )
 
--- | Like 'qappendMany' but with side-effects in the function which provides the entities.
-qappendManyM :: (MonadSystem w m) => (Entity -> a -> m [Entity]) -> (a -> [From b] -> c) -> Query m b -> Query m a -> Query m c
-qappendManyM f f' y x =
-  mapFilterQuery
-    x
-    ( \e x -> do
-        entities <- f e x
-        y <- catMaybes <$> mapM (\e -> fmap (e,) <$> get e y) entities
-        case y of
-          [] -> pure Nothing
-          y -> pure . Just $ f' x (map (uncurry From) y)
+-- | Like 'qgetMany' but with side-effects in the function which provides the entities.
+qgetManyM :: (MonadSystem w m) => (a -> m [Entity]) -> Query m b -> Query m a -> Join m a List (From b)
+qgetManyM f b a =
+  Join
+    a
+    ( \_ x -> do
+        entities <- f x
+        y <- catMaybes <$> mapM (\e -> fmap (e,) <$> get e b) entities
+        pure $ map (uncurry From) y
     )
 
 -- | Very similar to 'qappendOneM'. This is a helper function mainly intended to make relationship traversals easier.
@@ -322,19 +335,17 @@ qappendManyM f f' y x =
 --   & qinfo (\\(child, parent) -> [i|#{child} is child of #{parent}|])
 --   & query_
 -- @
-qrelateOne :: (MonadSystem w m) => (Entity -> m (Maybe Entity)) -> (a -> From b -> c) -> Query m b -> Query m a -> Query m c
-qrelateOne f f' y x =
-  mapFilterQuery
-    x
-    ( \e x -> do
+qrelate :: (MonadSystem w m) => (Entity -> m (Maybe Entity)) -> Query m b -> Query m a -> Join m a Maybe (From b)
+qrelate f b a =
+  Join
+    a
+    ( \e _ -> do
         entity <- f e
         case entity of
           Nothing -> pure Nothing
           Just entity -> do
-            y <- get entity y
-            case y of
-              Nothing -> pure Nothing
-              Just y -> pure $ Just (f' x (From entity y))
+            y <- get entity b
+            pure $ fmap (From entity) y
     )
 
 -- | Very similar to 'qappendManyM'. This is a helper function mainly intended to make relationship traversals easier.
@@ -351,20 +362,36 @@ qrelateOne f f' y x =
 --   & qinfo (\\(parent, children) -> [i|#{parent} is parent of #{children}|])
 --   & query_
 -- @
-qrelateMany :: (MonadSystem w m, Foldable t) => (Entity -> m (t Entity)) -> (a -> [From b] -> c) -> Query m b -> Query m a -> Query m c
-qrelateMany f f' y x =
-  mapFilterQuery
-    x
-    ( \e x -> do
+qrelateMany :: (MonadSystem w m) => (Entity -> m [Entity]) -> Query m b -> Query m a -> Join m a List (From b)
+qrelateMany f b a =
+  Join
+    a
+    ( \e _ -> do
         entities <- f e
-        y <- catMaybes <$> mapM (\e -> fmap (e,) <$> get e y) (toList entities)
-        case y of
-          [] -> pure Nothing
-          y -> pure . Just $ f' x (map (uncurry From) y)
+        y <- catMaybes <$> mapM (\e -> fmap (e,) <$> get e b) (toList entities)
+        pure $ map (uncurry From) y
     )
 
+-- qjoin :: (MonadSystem w m) => (a -> b -> Bool) -> (a -> From b -> c) -> Query m b -> Query m a -> Query m [c]
+-- qjoin f f' a b =
+--   mapFilterQuery
+--     b
+--     ( \_ x -> do
+--         y <- query (qentity a)
+--         let b = map (\(e, y) -> f' x (From e y)) $ filter (f x . snd) y
+--         case b of
+--           [] -> pure Nothing
+--           b -> pure $ Just b
+--     )
+
+-- t :: Query m ()
+-- t = do
+--   let x :: [a] = undefined
+--   for x $ \x -> undefined
+--   undefined
+
 -- | Grab the elements from another query that meet a certain condition in relation to this query. Map them together.
--- The entities for which the list is empty will /not/ be filtered out.
+-- The entities for which the list is empty will be filtered out.
 --
 -- __Example__
 --
@@ -374,27 +401,25 @@ qrelateMany f f' y x =
 --   & qinfo (\\((e1, name), (e2, _)) -> [i|#{e1} and #{e2} are both named #{name}|])
 --   & query_
 -- @
-qjoin :: (MonadSystem w m) => (a -> b -> Bool) -> (a -> [From b] -> c) -> Query m b -> Query m a -> Query m c
-qjoin f f' a b =
-  mapFilterQuery
-    b
-    ( \_ x -> do
-        y <- query (qentity a)
-        let b = filter (f x . snd) y
-        let c = f' x (map (uncurry From) b)
-        pure $ Just c
+qcross :: (MonadSystem w m) => (a -> b -> Bool) -> Query m b -> Query m a -> Join m a List (From b)
+qcross f b a =
+  Join
+    a
+    ( \_ a -> do
+        y <- query (qentity b)
+        let y' = filter (\(_, b) -> f a b) y
+        pure $ map (uncurry From) y'
     )
 
--- | Same as 'qjoin' but with side effects in the function which matches the elements of the two queries.
-qjoinM :: (MonadSystem w m) => (a -> b -> m Bool) -> (Entity -> a -> [From b] -> c) -> Query m b -> Query m a -> Query m c
-qjoinM f f' a b =
-  mapFilterQuery
-    b
-    ( \e x -> do
-        y <- query (qentity a)
-        b <- filterM (f x . snd) y
-        let c = f' e x (map (uncurry From) b)
-        pure $ Just c
+-- | Same as 'qcross' but with side effects in the function which matches the elements of the two queries.
+qcrossM :: (MonadSystem w m) => (Entity -> a -> Entity -> b -> m Bool) -> Query m b -> Query m a -> Join m a List (From b)
+qcrossM f b a =
+  Join
+    a
+    ( \e a -> do
+        y <- query (qentity b)
+        y' <- filterM (uncurry (f e a)) y
+        pure $ map (uncurry From) y'
     )
 
 -- | Extends the query with new elements, grabbed in O(1).
@@ -406,16 +431,8 @@ qjoinM f f' a b =
 --   & qextend (,) [q|Position|]
 --   & query
 -- @
-qextend :: (MonadSystem w m) => (a -> b -> c) -> Query m b -> Query m a -> Query m c
-qextend f y x =
-  mapFilterQuery
-    x
-    ( \e x -> do
-        y <- get e y
-        case y of
-          Nothing -> pure Nothing
-          Just y -> pure $ Just $ f x y
-    )
+qextend :: (MonadSystem w m) => Query m b -> Query m a -> Join m a Maybe b
+qextend b a = Join a (\e _ -> get e b)
 
 -- | Maps a resource into the query. If the resource doesn't exist, the query will stop.
 --
@@ -428,12 +445,12 @@ qextend f y x =
 --   & qres \@SomeResource (,)
 --   & query
 -- @
-qres :: forall r m a b w. (MonadSystem w m, Component r) => (a -> Res r -> b) -> Query m a -> Query m b
-qres f = qextend f (mkQuery (Res @r))
+qres :: forall r m a w. (MonadSystem w m, Component r) => Query m a -> Join m a Maybe (Res r)
+qres = qextend (mkQuery (Res @r))
 
 -- | Pairs the query's elements with their entity. Same as @qextend (flip (,)) [q|Entity|]@.
 qentity :: (MonadSystem w m) => Query m a -> Query m (Entity, a)
-qentity = qextend (flip (,)) (mkQuery E)
+qentity a = qextend (mkQuery E) a & qjoin (flip (,))
 
 -- mapFilterQuery
 --   a
@@ -448,6 +465,9 @@ qentity = qextend (flip (,)) (mkQuery E)
 --             Just r -> pure $ Just $ f a r
 --   )
 
+-- qtry :: (MonadSystem w m) => ((a -> b -> c) -> Query m a -> Query m c) -> Query m a ->
+-- qtry = undefined
+
 -- | Logs an INFO message.
 qinfo :: (HasCallStack, MonadSystem w m) => (a -> Text) -> Query m a -> Query m a
 qinfo f a = withFrozenCallStack $ qtap (\_ x -> info (f x)) a
@@ -460,60 +480,71 @@ qwarn f a = withFrozenCallStack $ qtap (\_ x -> warn (f x)) a
 qerr :: (HasCallStack, MonadSystem w m) => (a -> Text) -> Query m a -> Query m a
 qerr f a = withFrozenCallStack $ qtap (\_ x -> err (f x)) a
 
--- data Position = Position Int deriving (Component, Num)
+data Join m a t b = Join (Query m a) (Entity -> a -> m (t b))
 
--- data Velocity = Velocity Int deriving (Component, Show)
+data JoinType = InnerJoin | OuterJoin
 
--- data TC = TC Int deriving (Component)
+class DoJoin (flag :: JoinType) t b out | flag t b -> out where
+  doJoin :: (MonadSystem w m) => (a -> out -> c) -> Join m a t b -> Query m c
 
--- data RenderDevice = RenderDevice deriving (Component)
+instance DoJoin InnerJoin Maybe b b where
+  doJoin f (Join a f') =
+    qmapMaybeM
+      ( \e a -> do
+          r <- f' e a
+          case r of
+            Nothing -> pure Nothing
+            Just r -> pure $ Just $ f a r
+      )
+      a
 
--- data Likes = Likes deriving (Component)
+instance DoJoin InnerJoin List (b) [b] where
+  doJoin f (Join a f') =
+    qmapMaybeM
+      ( \e a -> do
+          r <- f' e a
+          case r of
+            [] -> pure Nothing
+            r -> pure $ Just $ f a r
+      )
+      a
 
--- data Player = Player deriving (Component)
+instance DoJoin OuterJoin Maybe b (Maybe b) where
+  doJoin f (Join a f') =
+    qmapMaybeM
+      ( \e a -> do
+          r <- f' e a
+          pure $ Just $ f a r
+      )
+      a
 
--- data Name = Name String deriving (Component, Show)
+instance DoJoin OuterJoin List b [b] where
+  doJoin f (Join a f') =
+    qmapMaybeM
+      ( \e a -> do
+          r <- f' e a
+          pure $ Just $ f a r
+      )
+      a
 
--- data Child = Child deriving (Component, Show)
+qjoin :: (MonadSystem w m, DoJoin InnerJoin t b out) => (a -> out -> c) -> Join m a t b -> Query m c
+qjoin = doJoin @InnerJoin
 
--- test :: System ()
--- test = do
---   query_
---     . qmap (\(Position x, Velocity y) -> Position (x + y))
---     . qfilter (\(_, Velocity y) -> y > 5)
---     $ [q|Position, Velocity / With Player|]
+qjoinOuter :: (MonadSystem w m, DoJoin OuterJoin t b out) => (a -> out -> c) -> Join m a t b -> Query m c
+qjoinOuter = doJoin @OuterJoin
 
---   query_
---     . qmapM
---       ( \_ (name, vel) -> do
---           info $ "My name is " <> text name
---           info $ "My velocity is " <> text vel
---       )
---     . qextend (,) [q|Velocity|]
---     $ [q|Name|]
+test :: System [(Name, [From Name])]
+test = do
+  mkQuery (C @Name)
+    & qcross (==) (mkQuery (C @Name))
+    & qjoin (,)
+    & query
 
---   query_
---     . qmap (\(parentPos, children) -> map (\(From child pos) -> From child (pos + parentPos)) children)
---     . qcheck [f|Changed Position|]
---     $ [q|Position, Child -> (Position)|]
+data Pos = Pos Int deriving (Component)
 
---   [q|Velocity|]
---     & qjoin (\(Velocity v) (Position p) -> v == p) (,) [q|Position|]
---     & qmap (\(Velocity v, positions) -> map (\(From e (Position p)) -> From e (Position (p + v))) positions)
---     & query_
-
---   x <- query $ qcheck [f|Changed Position|] [q|Position, Child -> (Position)|]
-
---   let player = undefined :: Entity
---   y <- get player [q|Name|]
-
---   undefined
-
--- -- test' :: ParSystem ()
--- -- test' = do
--- --   let e = undefined :: Entity
--- --   x <- query . qfilter (\(Position x, _, _) -> x > 5) $ mkQuery (C @Position, C @Velocity, R @Velocity e)
-
--- --   qrun
--- --     . qmap (\(Position x, Velocity y) -> Velocity (x + y))
--- --     $ mkQuery (C @Position, C @Velocity)
+test' :: System [(Name, Maybe Pos)]
+test' = do
+  mkQuery (C @Name)
+    & qextend (mkQuery (C @Pos))
+    & qjoinOuter (,)
+    & query

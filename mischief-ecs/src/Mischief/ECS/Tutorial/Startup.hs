@@ -449,7 +449,7 @@ import Mischief.ECS
 -- we can use the @get@ function. It's the same as @query@, but it runs our queries for a single given Entity. So we can put this inside the @for_@ to get the names:
 --
 -- @
--- names \<- 'for' likes $ \\Rel{target} -\> 'get' target ['q'|Name|]
+-- names \<- 'for' likes $ \\'Rel'{target} -\> 'get' target ['q'|Name|]
 -- @
 --
 -- But.. that's already very convoluted. Luckily, the queries give us a few ways out of this:
@@ -464,18 +464,19 @@ import Mischief.ECS
 -- showLikes :: 'System' ()
 -- showLikes = do
 --   ['q'|Name|]
---     & 'qrelateMany' (Graph.[outgoing]('Mischief.ECS.Relationships.Graph') \@Likes) (,) ['q'|Name|]
+--     & 'qrelateMany' (Graph.[outgoing]('Mischief.ECS.Relationships.Graph') \@Likes) ['q'|Name|]
+--     & 'qjoin' (,)
 --     & 'qinfo' (\\(name, likes) -\> [i|#{name} likes #{likes}|])
 --     & 'query_'
 -- @
 --
--- @qRelateMany@ is a query function that expects three things:
+-- @qrelateMany@ expects an @Entity -> m (Maybe Entity)@ function (which is exactly what @Graph.outgoing@ gives us) and another query.
+-- It will return a @Join@ between our two queries, matching each element from the main query with a set of elements from the second query (the name
+-- of each entity, with the names of the entities it likes).
 --
--- (1) A @Entity -> System [Entity]@ function, which is exactly what @outgoing@ provides. In our case, it will return all entities targeted by the current one's @Likes@ relationship.
--- (2) A mapping function, which combines our query data (The name of our entity) with the new data flowing (The names of the targeted entities). Here we just use @(,)@.
--- (3) A query which determines what information to extract from our new entities (Their names).
+-- Then we use @qjoin@ to apply the join, specifying  how the elements of the two queries should be merged. In this case we just pair them together using @(,)@.
 --
--- Second, there is a mechanism we can make use of called a @transitive query@, which looks like this:
+-- And second, there is a mechanism we can make use of called a @transitive query@, which looks like this:
 --
 -- @
 -- showLikes :: 'System' ()
@@ -540,7 +541,8 @@ import Mischief.ECS
 --
 -- @
 -- ['q'|Name|]
---   & 'qrelateMany' (Graph.'Mischief.ECS.Relationships.Graph.incoming' \@ChildOf) (,) ['q'|Name|]
+--   & 'qrelateMany' (Graph.'Mischief.ECS.Relationships.Graph.incoming' \@ChildOf) ['q'|Name|]
+--   & 'qjoin' (,)
 --   & 'qinsert' (\\(parentName, childNames) -> 'map' (\\(From child _) -> From child parentName) childNames)
 --   & 'query_'
 -- @

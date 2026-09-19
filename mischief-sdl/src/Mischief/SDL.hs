@@ -2,7 +2,7 @@
 
 module Mischief.SDL
   ( -- $intro
-    SDLPlugin (..),
+    SDLPlugin,
     SDLMessage (..),
     SDLWindow (..),
   )
@@ -16,6 +16,7 @@ import Foreign (Storable (peek), alloca, castPtr)
 import Foreign.C
 import Foreign.C.ConstPtr
 import GHC.Records
+import Mischief.ECS.App.Schedules (First (..))
 import Mischief.ECS.Foreign as F
 import Mischief.ECS.Messages (Message)
 import Mischief.ECS.Messages qualified as Messages
@@ -60,14 +61,18 @@ data SDLMessage e = SDLMessage {eventType :: SDL3.SDL_EventType, event :: e}
   deriving anyclass (Message)
   deriving stock (Show)
 
-data SDLPlugin = SDLPlugin deriving (Eq)
+data SDLPlugin
 
 instance Plugin SDLPlugin where
-  init _ = do
+  init = do
     liftIO initSdl
-    -- void $ spawn (SDLWindow window)
-    Systems.add First handleEvents
-    Systems.add First $ (handleQuit, handleWindowClose) `after` handleEvents
+
+    systems handleEvents
+      & schedule First
+
+    systems (handleQuit, handleWindowClose)
+      & after handleEvents
+      & schedule First
 
 -- addMessage @(SDLMessage SDL3.SDL_DisplayEvent)
 -- addMessage @(SDLMessage SDl3.SDL_WindowEvent)
@@ -207,7 +212,14 @@ handleWindowClose = do
     window <- liftIO $ SDL3.getWindowFromID windowID
     unless (window == nullPtr) $ do
       liftIO $ destroyWindow window
-      [s|Entity / Check (\(SDLWindow p) -> p == window)|] >>= traverse_ despawn
+
+      a <-
+        [q|(Entity, SDLWindow) / With SDLWindow|]
+          & qfilter (\(_, SDLWindow p) -> p == window)
+          & qmap fst
+          & single
+
+      traverse_ despawn a
 
 -- $intro
 -- This package provides the 'sdlPlugin' for @Mischief@, along with a few components.

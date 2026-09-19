@@ -41,25 +41,27 @@ data Camera = Camera deriving (Component)
 data OutputTo = OutputTo
 
 instance Component OutputTo where
-  type RelExclusivity OutputTo = Exclusive
+  type IsExclusiveRel OutputTo = True
 
 newtype CameraTexture = CameraTexture Texture
 
 instance Component CameraTexture where
   onRemove =
     [ hook $ \(HookContext entity) -> do
-        Just (CameraTexture (Texture {texture})) <- [g|*CameraTexture|] entity
+        Just (CameraTexture (Texture {texture})) <- get entity [q|CameraTexture|]
         liftIO $ wgpuTextureRelease texture
     ]
 
 newtype CameraMatrices = CameraMatrices (Buffer Matrices) deriving anyclass (Component)
 
-data CameraPlugin = CameraPlugin deriving (Eq)
+data CameraPlugin
 
 instance Plugin CameraPlugin where
-  init _ = do
+  init = do
     void $ Observers.spawn onAddCameraOutputTo
-    S.add Update updateCameraMatrices
+
+    systems updateCameraMatrices
+      & schedule Update
 
 updateCameraMatrices :: System ()
 updateCameraMatrices = do
@@ -69,7 +71,7 @@ updateCameraMatrices = do
   where
     go :: (RenderDevice, RenderQueue) -> System ()
     go (device, queue) = do
-      cameras <- [q|Entity, *Maybe CameraMatrices, *Transform / With Camera|]
+      cameras <- query [q|Entity, Maybe CameraMatrices, Transform / With Camera|]
       for_ cameras $ \(entity, buffer, transform) -> do
         buffer <- case buffer of
           Just (CameraMatrices b) -> pure b
@@ -87,7 +89,7 @@ onAddCameraOutputTo (OnAddRel entity target) = updateCameraTexture entity target
 updateCameraTexture :: Entity -> Entity -> System ()
 updateCameraTexture camera window = do
   Just device <- res @RenderDevice
-  window <- [g|*WindowSize|] window
+  window <- get window [q|WindowSize|]
   case window of
     Nothing -> warn "Camera output window not found."
     Just (WindowSize width height) -> do

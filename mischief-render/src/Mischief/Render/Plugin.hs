@@ -36,7 +36,7 @@ import Mischief.WGPU.Types.General
 data RenderPlugin = RenderPlugin deriving (Eq)
 
 instance Plugin RenderPlugin where
-  init _ = do
+  init = do
     first <- scheduleEntity RenderFirst
     update <- scheduleEntity RenderUpdate
     last <- scheduleEntity RenderLast
@@ -51,9 +51,11 @@ instance Plugin RenderPlugin where
 
     insertRes =<< liftIO (RenderInstance <$> wgpuCreateInstance)
     void $ Observers.spawn onAddWindow
-    Systems.add RenderLast renderCameras
 
-  plugins _ = plug (SDLPlugin, SpritePlugin, CameraPlugin)
+    systems renderCameras
+      & schedule RenderLast
+
+  deps = [dep @SDLPlugin, dep @SpritePlugin, dep @CameraPlugin]
 
 renderCameras :: System ()
 renderCameras = do
@@ -61,8 +63,8 @@ renderCameras = do
   case resources of
     Nothing -> pure ()
     Just (adapter, device, queue) -> do
-      cameras <- [q|*CameraTexture, OutputTo -> (*RenderSurface)|]
-      for_ cameras $ \(CameraTexture Texture {texture}, surface) -> do
+      cameras <- query [q|CameraTexture, OutputTo -> (RenderSurface)|]
+      for_ cameras $ \(CameraTexture Texture {texture}, From _ surface) -> do
         format <- getFormat surface adapter
         withSurfaceTexture surface $ \output -> do
           let material = Material {vertex, fragment, format}

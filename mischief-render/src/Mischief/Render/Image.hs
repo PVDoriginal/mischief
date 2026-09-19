@@ -21,18 +21,19 @@ newtype ImageTexture = ImageTexture Texture deriving anyclass (Component)
 
 newtype ImageTextureView = ImageTextureView TextureView deriving anyclass (Component)
 
-data ImageUploadingPlugin = ImageUploadingPlugin deriving (Eq)
+data ImageUploadingPlugin
 
 data QueueUpload = QueueUpload deriving (Component)
 
 instance Plugin ImageUploadingPlugin where
-  init _ = do
-    S.add Update uploadImages
+  init = do
+    systems uploadImages
+      & schedule Update
     enableImageUploadOnLoad
 
 uploadImages :: System ()
 uploadImages = do
-  images <- [q|Entity, *Image / With QueueUpload|]
+  images <- query [q|Entity, Image / With QueueUpload|]
   for_ images $ \(e, _) -> remove (C @QueueUpload) e
 
   device <- res @RenderDevice
@@ -61,4 +62,4 @@ enableImageUploadOnLoad :: System ()
 enableImageUploadOnLoad = void $ spawn (Observer queueUploadOnLoad, ImageObserver)
 
 disableImageUploadOnLoad :: System ()
-disableImageUploadOnLoad = [s|Entity / With ImageObserver|] >>= despawn . unwrap
+disableImageUploadOnLoad = single [q|Entity / With ImageObserver|] >>= despawn . unwrap

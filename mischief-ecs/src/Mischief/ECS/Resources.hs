@@ -3,6 +3,7 @@ module Mischief.ECS.Resources where
 import Mischief.ECS.Components
 import Mischief.ECS.Components.Bundle
 import Mischief.ECS.Components.Spawn
+import Mischief.ECS.Log
 import Mischief.ECS.Tables
 import Mischief.ECS.World
 import Mischief.ECS.World.Insert
