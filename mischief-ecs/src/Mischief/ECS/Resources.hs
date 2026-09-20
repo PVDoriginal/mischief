@@ -21,7 +21,7 @@ insertRes res = do
 res :: forall c. (Component c) => System (Maybe c)
 res = do
   meta <- meta @c
-  get meta $ mkQuery (C @c)
+  single $ mkGet meta (C @c)
 
 -- resOrInsert :: forall r. (Component r, Updateable (Result r), Bundle r) => r -> System (Result r)
 -- resOrInsert r = do
@@ -31,7 +31,7 @@ res = do
 resOrInsert :: forall r. (Component r, Bundle r) => r -> System r
 resOrInsert r = do
   meta <- meta @r
-  x <- get meta $ mkQuery (C @r)
+  x <- single $ mkGet meta (C @r)
   case x of
     Nothing -> do
       insertRes r

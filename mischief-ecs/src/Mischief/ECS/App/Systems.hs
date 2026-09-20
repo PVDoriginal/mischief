@@ -103,7 +103,7 @@ getSystemTicks world = do
   let (SystemId sys) = world.systemId
   runSystem
     ( do
-        Just (a, b) <- get sys $ mkQuery (C @LastSystemTick, C @SystemTick)
+        Just (a, b) <- single $ mkGet sys (C @LastSystemTick, C @SystemTick)
         return (a.inner, b.inner)
     )
     world

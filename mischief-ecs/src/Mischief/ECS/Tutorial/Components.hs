@@ -21,6 +21,9 @@ module Mischief.ECS.Tutorial.Components
     -- * Operations
     -- $ops
 
+    -- * Querying
+    -- $query
+
     -- * Change Detection
     -- $change
 
@@ -29,6 +32,9 @@ module Mischief.ECS.Tutorial.Components
 
     -- * Resources
     -- $resources
+
+    -- * From
+    -- $from
 
     -- * Required Components
     -- $required
@@ -148,6 +154,67 @@ import Mischief.ECS
 -- Most users should avoid tinkering with Meta Components unless they have a good reason to,
 -- and should absolutely never remove or change any components added to them by the @ECS@.
 
+-- $query
+-- Components can be queried using the @'C'@, @'M'@, and @'Has'@ markers.
+--
+-- @'C'@ simply returns the component, and makes the query ignore all entities that don't have it:
+--
+-- @
+-- x \<- 'query' $ 'mkQuery' ('C' \@Name, 'C' \@Health)
+-- @
+--
+-- @
+-- x \<- ['q'|Name, Health|]
+-- @
+--
+-- @
+-- x :: [(Name, Health)]
+-- @
+--
+-- @'M'@ is short for @Maybe@ and makes the component optional. It may return Nothing, and the query will also include entities that don't have it.
+--
+-- @
+-- x \<- 'query' $ 'mkQuery' ('C' \@Name, 'M' \@Health)
+-- @
+--
+-- @
+-- x \<- ['q'|Name, Maybe Health|]
+-- @
+--
+-- @
+-- x :: [(Name, 'Maybe' Health)]
+-- @
+--
+-- @'Has'@ is similar to @'M'@ but it will return a bool saying whether the component is present or not.
+--
+-- @
+-- x \<- 'query' $ 'mkQuery' ('C' \@Name, 'Has' \@Health)
+-- @
+--
+-- @
+-- x \<- ['q'|Name, Has Health]
+-- @
+--
+-- @
+-- x :: [(Name, 'Bool')]
+-- @
+--
+-- Additionally, the @mkQuery'@ function (or @q@ quasi-quoter, with a separating @\/@) accepts an expression of @With@ / @Without@ filters that limit the entities looked at by the query.
+--
+-- Getting the name of all entities that are @Player@ and either don't have @Enemy@ or have @Health@:
+--
+-- @
+-- x \<- 'query' $ 'mkQuery'' ('C' \@Name) ('With' ('C' \@Player) '`And`' ('Without' ('C' \@Enemy) '`Or`' 'With' ('C' \@Health)))
+-- @
+--
+-- Or
+--
+-- @
+-- x \<- 'query' ['q'|Name / With Player, (Without Enemy || With Health)|]
+-- @
+--
+-- Note that these filters limit the /archetypes/ that the query will look at, rather than filtering the entities themselves, making them significantly faster than other filters.
+
 -- $resources
 -- @Resources@ are singleton components that can be easily accessed and modified from any system.
 --
@@ -183,6 +250,78 @@ import Mischief.ECS
 -- m <- 'meta' \@MyRes
 -- 'get' m [q|MyRes|]
 -- @
+--
+-- Besides using @insertRes@, resources can be inserted as part of a bundle through the @Res@ type.
+--
+-- The following will spawn an entity, insert a @Name@ on it, and additioanlly insert a resource into the world.
+--
+-- @
+-- a <- 'spawn' ()
+-- 'insert' (Name "A", 'Res' $ SomeRes 5) a
+-- @
+--
+-- It's equivalent to:
+--
+-- @
+-- a <- 'spawn' ()
+-- 'insert' (Name \"A\") a
+-- 'insertRes' (SomeRes 5)
+-- @
+--
+-- @Res@ can also be used in queries to grab a resource:
+--
+-- @
+-- 'mkQuery' ('C' \@Name, 'Res' \@SomeRes)
+-- @
+--
+-- Or
+--
+-- @
+-- ['q'|Name, Res SomeRes|]
+-- @
+--
+-- This will query the name of all entities, and attach @Res SomeRes@ to all of them.
+
+-- $from
+-- From is a special type in Mischief:
+--
+-- @
+-- data From c = From {entity :: 'Entity', comp :: c}
+-- @
+--
+-- It symbolizes the idea of a foreign component. A component belonging to an external entity that we store alongside it.
+--
+-- From can be inserted in any bundle, inserting the component @c@ on the entity stored /inside/ it. For instance, the following code
+-- will insert the name \"B2\" on @b@ and the name \"A2\" on @a@:
+--
+-- @
+-- a \<- 'spawn' (Name \"A\")
+-- b \<- 'spawn' (Name \"B\")
+--
+-- 'insert' (Name \"B2\", 'From' a (Name \"A2\")) b
+-- @
+--
+-- Equivalent to:
+--
+-- @
+-- a \<- 'spawn' (Name \"A\")
+-- b \<- 'spawn' (Name \"B\")
+--
+-- 'insert' (Name \"B2\") b
+-- 'insert' (Name \"A2\") a
+-- @
+--
+-- From is generally returned from traversal queries such as:
+--
+-- @
+-- x \<- 'query' ['q'|Name, ChildOf -\> (Name)|]
+-- @
+--
+-- @
+-- x :: [Name, From Name]
+-- @
+--
+-- Where @Name@ will be the name of each entity and @From Name@ will be the name of their parent.
 
 -- $required
 -- Each component can @require@ a bundle of other components.

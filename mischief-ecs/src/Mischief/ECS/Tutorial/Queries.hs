@@ -37,8 +37,27 @@ where
 import Mischief.ECS
 
 -- $intro
--- Queries are the main way we read component data. They are fully type-checked and based on archetypes, making them quite fast.
+-- If you've been following this tutorial you have already seen a lot of queries. @query@ or @get@ or @single@ followed by @mkQuery@ or the @q@ quoter.
 --
+-- @
+-- x <- 'query' $ [q|Name|]
+-- @
+--
+-- But this isn't really the intended workflow for Mischief. Grabbing data and then manually iterating over it to apply mutations is a very imperative action.
+-- You are free to do it, but it goes quite a bit against the functional programming paradigm of Haskell.
+--
+-- I won't insist on @mkQuery (...)@ and @[q|...|]@. Those were already presented in the previous two chapters. It's time to finally focus on some cool
+-- functional querying.
+
+-- $query
+-- Queries always start from the @mkQuery@ function (or the @q@ quasi-quoter). This function takes a description of what you are querying for, and produces a @Query m a@ object.
+--
+-- * The @m@ is the system monad the query will be ran in, you can just think of this as being @System@ for now.
+--
+-- * The @a@ is the current data flowing through the query. @Query m Int@ will be a query for manipulating a flow of Ints.
+--
+-- j
+
 -- Each query associates an output type to the types you put into it.
 --
 -- For instance,

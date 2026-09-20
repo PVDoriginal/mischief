@@ -27,11 +27,11 @@ module Mischief.ECS.Tutorial.Relationships
     -- * Transitive Querying
     -- $trans
 
+    -- * Exclusivity
+    -- $exclusive
+
     -- * Hooks
     -- $hooks
-
-    -- * Examples
-    -- $examples
 
     -- * [Next Chapter: Queries]("Mischief.ECS.Tutorial.Queries")
   )
@@ -110,131 +110,141 @@ import Mischief.ECS
 -- Relationships can be queried using the @R@ marker.
 --
 -- @
--- x <- 'query' ('R' \@Likes alice)
+-- x <- 'query' $ 'mkQuery' ('R' \@Likes alice)
 -- @
 --
 -- @
--- x :: ['Result' ('Rel' Likes)]
+-- x :: ['Rel' Likes]
 -- @
 --
--- In quasi-queries, this becomes:
+-- In quasi-notation, this becomes:
 --
 -- @
--- x \<- ['q'|Likes -\> alice|]
+-- x \<- 'query' ['q'|Likes -\> alice|]
 -- @
---
--- @Result (Rel c)@ is the return type of @R \@c e@. It can be used in most Result-based operation discussed in the previous chapter, such as @'set'@ and @'delete'@.
 --
 -- Querying can also be done using the @Any@ wildcard:
 --
 -- @
--- x <- 'query' ('R' \@Likes Any)
+-- x \<- 'query' $ 'mkQuery' ('R' \@Likes Any)
 -- @
 --
 -- @
--- x :: [['Result' ('Rel' Likes)]]
+-- x :: [['Rel' Likes]]
 -- @
 --
 -- In quasi-queries, @Any@ is symbolized by @*@:
 --
 -- @
--- x \<- ['q'|Likes -\> *|]
+-- x \<- 'query' ['q'|Likes -\> *|]
 -- @
 --
--- As you can see, the return type of @'R' \@c Any@ is @[Result (Rel c)]@. It's returning a list of relationships, rather than a single relationship (unless the
+-- As you can see, the return type of @'R' \@c Any@ is @[Rel c]@. It's returning a list of relationships, rather than a single relationship (unless the
 -- relationship is exclusive, but more on that in a bit).
---
--- Remember that the fields of the inner type of a Result are inherited by the Result itself. So we can just use @.comp@ and @.target@ to get the component and target of a @Result (Rel c)@.
---
--- @
--- 'Just' x <- 'get' ('R' \@Likes alice) bob
--- @
---
--- @
--- x.target :: Entity
--- x.comp   :: Likes
--- @
---
--- In the case of querying for @R c Any@, the query will only match entities that have at least one such relationship. The resulting @[Result (Rel c)]@ should never be empty.
+-- In the case of querying for @R c Any@, the query will only match entities that have at least one such relationship. The resulting @[Rel c]@ should never be empty.
 --
 -- If you wish to also include entities that do not have those relationships, you can use @`MR`@ (short for @Maybe Relationships@), the relational equivalent of @'M'@.
 --
 -- @
--- x <- 'query' ('MR' \@Likes alice)
+-- x \<- 'query' ('MR' \@Likes alice)
+-- @
+--
+-- @
+-- x \<- ['q'|Maybe Likes -\> alice|]
 -- @
 --
 -- @
 -- x :: ['Maybe' ('Result' ('Rel' c))]
 -- @
 --
--- Which is this in quasi form:
+-- @'HasR'@ (or just \"Has\"" in quasi-notation) is also supported as the relational equivalent of @'Has'@.
+--
+-- Filter-wise, relationships allow the same archetype filters as normal components, through the @R@ marker.
+-- This is how we get the name of all entities that like alice:
 --
 -- @
--- x <- ['q'|Maybe Likes -> alice|]
+-- x \<- 'query' $ 'mkQuery'' ('C' \@Name) ('With' ('R' \@Likes alice))
+-- @
+--
+-- @
+-- x \<- 'query' ['q'|Name / With Likes -\> alice|]
+-- @
+--
+-- This is how we get the name of all entities that like at least one other entity:
+--
+-- @
+-- x \<- 'query' $ 'mkQuery'' ('C' \@Name) ('With' ('R' \@Likes Any))
+-- @
+--
+-- @
+-- x \<- 'query' ['q'|Name / With Likes -\> *|]
 -- @
 
 -- $exclusive
--- A relationship can be made exclusive by setting the following associated type on its component instance:
+-- A relationship can be made exclusive by setting the following associated Bool on its component instance:
 --
 -- @
 -- instance 'Component' FooRel where
---   type 'RelExclusivity' FooRel = 'Exclusive'
+--   type 'IsExclusiveRel' FooRel = 'True'
 -- @
 --
 -- This will make it so only one instance of a relationship can exist on an entity at once.
 --
 -- @
--- insert (Rel (FooRel, a)) c
--- insert (Rel (FooRel, b)) c
+-- 'insert' ('Rel' (FooRel, a)) c
+-- 'insert' ('Rel' (FooRel, b)) c
 -- @
 --
 -- Will result in just @Rel (FooRel, b)@ being on @c@.
 --
--- It also changes the result of @R \@FooRel Any@ queries to be of the form:
---
--- @
--- 'Result ('Rel' FooRel)
--- @
---
--- Instead of:
---
--- @
--- ['Result ('Rel' FooRel)]
--- @
+-- It also changes the result of @R \@FooRel Any@ and @R \@FooRel (Q (...))@ queries to return a single item rather than a list.
 
 -- $trans
--- Transitive queries are a powerful primitive which allow us to easily query components based on relational connections.
+-- Transitive queries are a powerful primitive which allow us to easily query components based on relationships between them.
 --
 -- For instance, this is how we can get the name of each entity, along with the names of all entities they like:
 --
 -- @
--- x <- 'query' ('C' \@Name, 'R' \@Likes ('Q' ('C' \@Name)))
+-- x \<- 'query' $ 'mkQuery' ('C' \@Name, 'R' \@Likes ('Q' ('C' \@Name)))
 -- @
 --
 -- @
--- x :: [(Result Name, [Result Name])]
+-- x :: [(Name, [Name])]
 -- @
 --
 -- They /tend/ to look much better when written as quasi-queries (don't forget the @()@!):
 --
 -- @
--- x \<- ['q'|Name, Likes -\> (Name)]
+-- x \<- 'query' ['q'|Name, Likes -\> (Name)]
 -- @
 --
--- Note that transitive queries can be nested as much as you want:
+-- Note that transitive queries can be nested indefinitely:
 --
 -- @
--- x \<- ['q'|Name, Likes -\> (Name, Likes -\> (Name))|]
+-- x \<- query ['q'|Name, Likes -\> (Name, Likes -\> (Name))|]
 -- @
 --
 -- @
--- x :: [(Result Name, [(Result Name, [Result Name])])]
+-- x :: [(Name, [(Name, [Name])])]
 -- @
+--
+-- Same as querying for @R \@Likes Any@ (@Likes -> *@), entities that don't have any entity matching the relationship will be ignored by the query.
 
 -- $hooks
--- There are a number of predefined hooks that are useful when working with relationships, which can be found in "Mischief.ECS.Hooks".
+-- Relationship support dedicated hooks, named @onAddRel@, @onSetRel@, @onRemoveRel@, following the same rules as the normal hooks.
 --
--- For instance, @relComplementary@ can be used to automate adding a complementary relationship on the target of a relationship.
+-- This is how we can log a message each time @Likes@ is added between two entities:
+--
+-- @
+-- instance 'Component' Likes where
+--   onAddRel = ['hookRel' onLikesAdd]
+--
+-- onLikesAdd :: 'HookContextRel' -> 'System' ()
+-- onLikesAdd HookContextRel {entity, target} = 'info' ['i'|#{entity} now likes #{target}!|]
+-- @
+--
+-- There are a number of predefined hooks that are useful when working with relationships, which can be found in "Mischief.ECS.HooksRel".
+-- For instance, @addOther@ can be used to automate adding a complementary relationship on the target of a relationship.
 --
 -- As a quick example of why this is useful, let's create a @Before@/@After@ relationship between entities:
 --
@@ -243,10 +253,10 @@ import Mischief.ECS
 -- data After = After
 --
 -- instance 'Component' Before where
---   'hooks' = 'relComplementary' ('const' After)
+--   onAddRel =  [HooksRel.'Mischief.ECS.HooksRel.addOther' ('const' After)]
 --
 -- instance 'Component' After where
---   'hooks' = 'relComplementary' ('const' Before)
+--   'hooks' = [HooksRel.'Mischief.ECS.HooksRel.addOther' ('const' Before)]
 -- @
 --
 -- Now, when we do:
@@ -257,66 +267,11 @@ import Mischief.ECS
 --
 -- A @Rel After b@ will be inserted automatically on @a@.
 --
--- And when we do:
---
--- @
--- 'remove' ('R' \@Before) b
--- @
---
--- @Rel After b@ will be removed from @a@.
---
 -- And vice versa.
 --
--- There are also @'relCleanupRemove'@ and @'relCleanupDespawn'@ for automatically removing a relationship (or ,respectively, despawning its entity) when its target has been despawned. And a
--- more generic @'relCleanup'@ which allows adding custom cleanup behavior.
+-- There are other interesting hooks, such as ones for automatically cleaning up a relationship when an entity is despawned. Check out "Mischief.ECS.HooksRel" for details!
 
--- The 'WithR' query filter lets us easily query for components of entities that have a certain relationship with a certain entity.
---
--- Getting a list of all entities that like bob.
---
--- @
--- x <- 'query'' 'E' ('WithR' @Likes bob)
--- @
---
--- Getting a list of all entities that like anyone.
---
--- @
--- x <- 'query'' 'E' ('WithR' @Likes Any)
--- @
---
--- We can also modify @Likes@ to have an @Int@ as well, representing how much an entity likes another:
---
--- @
--- data Likes = Likes 'Int' deriving ('Component')
--- @
---
--- @
--- 'insert' ('Rel' (Likes 5, alice), 'Rel' (Likes 8, charlie)) bob
--- @
---
--- The 'R' marker type can be used in a query to get a @['Result' ('Rel' c)]@ for each entity.
---
--- Getting the name and all the Likes relationships of all entities.
---
--- @
--- x <- query (C \@Name, 'R' \@Likes Any)
--- @
---
--- @
--- x :: [('Result' Name, ['Result' ('Rel' Likes)])]
--- @
---
---
--- Getting the name and the Like relationship with bob for all entities.
---
--- @
--- x <- query (C \@Name, 'R' \@Likes bob)
--- @
---
--- @
--- x :: [('Result' Name, 'Result' ('Rel' Likes))]
--- @
---
+-- $exclusive
 -- Note that @'R' \@Likes@ will limit the query to only the archetypes that contain any relation with @Likes@.
 -- You can also use @'MR'@ (Maybe relationship) to also include the entities that don't contain such relationships.
 --
@@ -339,64 +294,3 @@ import Mischief.ECS
 -- @(Likes, charlie)@ will overwrite @(Likes, alice)@.
 --
 -- This is useful for relationships such as 'ChildOf', since an entity can only have one parent at a time.
-
--- $examples
---
--- === __Example 1__
---
---
--- An example showing different operations on relationships, and the @relCleanupRemove@ hook.
---
--- @
--- import "Mischief.ECS.Prelude"
--- import "Mischief.ECS.Hooks" qualified as [Hooks]("Mischief.ECS.Hooks")
--- import "Mischief.ECS.Systems" qualified as [Systems]("Mischief.ECS.Systems")
---
--- data Likes = Likes 'Int' deriving ('Show')
---
--- instance 'Component' Likes where
---   'hooks' = [Hooks]("Mischief.ECS.Hooks").'Mischief.ECS.Hooks.relCleanupRemove'
---
--- main :: 'IO' ()
--- main = do
---   app <- 'newApp' MainPlugin
---   'runApp' app
---
--- data MainPlugin = MainPlugin deriving ('Eq')
---
--- instance 'Plugin' MainPlugin where
---   init _ = [Systems]("Mischief.ECS.Systems").'Mischief.ECS.Systems.add' 'Startup' test
---
--- test :: 'System' ()
--- test = do
---   alice <- 'spawn' ('Name' \"Alice\")
---   bob <- 'spawn' ('Name' \"Bob\")
---   charlie <- 'spawn' ('Name' \"Charlie\")
---
---   'insert' ('Rel' (Likes 5) alice, 'Rel' (Likes 10) bob) charlie
---   'insert' ('Rel' (Likes 7) alice) bob
---   'insert' ('Rel' (Likes 9) bob, 'Rel' (Likes 5) charlie) alice
---
---   ('info' . 'text') =<< 'query' ('C' \@Name, 'R' \@Likes alice)
---   ('info' . 'text') =<< 'query' ('C' \@Name, 'R' \@Likes bob)
---   ('info' . 'text') =<< 'query' ('C' \@Name, 'R' \@Likes charlie)
---
---   'remove' ('R' \@Likes 'Any') alice
---   'despawn' bob
---
---   ('info' . 'text') =<< 'query' ('C' \@Name, 'R' \@Likes alice)
---   ('info' . 'text') =<< 'query' ('C' \@Name, 'R' \@Likes bob)
---   ('info' . 'text') =<< 'query' ('C' \@Name, 'R' \@Likes charlie)
--- @
---
--- @
--- > [INFO] [(\"Bob\",Rel {comp = Likes 7, target = 28v1}),(\"Charlie\",Rel {comp = Likes 5, target = 28v1})]
--- > [INFO] [(\"Alice\",Rel {comp = Likes 9, target = 29v1}),(\"Charlie\",Rel {comp = Likes 10, target = 29v1})]
--- > [INFO] [(\"Alice\",Rel {comp = Likes 5, target = 30v1})]
---
--- > [INFO] [(\"Charlie\",Rel {comp = Likes 5, target = 28v1})]
--- > [INFO] []
--- > [INFO] []
--- @
---
--- You can see in the second set of prints that nobody likes Bob anymore, since he "died", and the cleanup hook made it so any "Likes -> Bob" relationships were automatically removed.

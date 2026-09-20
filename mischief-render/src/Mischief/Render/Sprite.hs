@@ -102,9 +102,9 @@ renderSprites = do
       render device queue material texture (catMaybes commands)
 
 renderSprites' :: System ()
-renderSprites' = do
-  cameras <- query [q|CameraTexture, CameraMatrices, Res RenderDevice, Res RenderQueue|]
-  for_ cameras $ \(CameraTexture texture, CameraMatrices matrices, Res device, Res queue) ->
+renderSprites' =
+  query_ $ do
+    (cam, CameraTexture texture, CameraMatrices matrices, Res device, Res queue) <- [q|E, CameraTexture, CameraMatrices, Res RenderDevice, Res RenderQueue|]
     [q|Sprite, (Transform, Maybe SpriteSlice, SpriteFlip, Maybe SpriteBuffer)|]
       & qget (\(Sprite {image}, _) -> Just image) [q|ImageTexture, ImageTextureView|]
       & qjoin (\(_, b) image -> (image.comp, b))
@@ -137,8 +137,11 @@ renderSprites' = do
             sampler <- newSampler device
             pure $ Draw Bindings {matrices = matrices, sprite = buffer, sampler, texture = imageView} 6
         )
-      & query
-      >>= render device queue Material {vertex, fragment, format = TextureFormat wGPUTextureFormat_RGBA8Unorm} texture
+      & qcollect cam
+      & qtraverse
+        ( \_ commands -> do
+            render device queue Material {vertex, fragment, format = TextureFormat wGPUTextureFormat_RGBA8Unorm} texture commands
+        )
 
 data VertexOutput f = VertexOutput
   { pos :: BuiltIn f "position" Vec4f,

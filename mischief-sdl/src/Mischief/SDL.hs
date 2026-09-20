@@ -12,6 +12,7 @@ import Control.Monad
 import Control.Monad.IO.Class
 import Data.Foldable
 import Data.Primitive.Ptr
+import Data.Void
 import Foreign (Storable (peek), alloca, castPtr)
 import Foreign.C
 import Foreign.C.ConstPtr

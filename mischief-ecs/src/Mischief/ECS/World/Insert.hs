@@ -122,7 +122,7 @@ insertNew bundle entity =
       Just currentPointer -> do
         for_ resources $ \BundleElement {component = ErasedComponent (val :: c)} -> do
           m <- meta @c
-          r <- get m $ mkQuery (C @c)
+          r <- single $ mkGet m (C @c)
           case r of
             Just _ -> pure ()
             Nothing -> insert val m
@@ -153,8 +153,8 @@ insertIfNeq b entity = do
 
   comps <- flip filterM (Set.toList elements) $ \BundleElement {rep, component = ErasedComponentEq (val :: c)} -> do
     val' <- case rep of
-      PairRep (_, target) -> fmap (\x -> x.comp) <$> get entity (mkQuery (R @c target))
-      _ -> get entity (mkQuery (C @c))
+      PairRep (_, target) -> fmap (\x -> x.comp) <$> single (mkGet entity (R @c target))
+      _ -> single (mkGet entity (C @c))
 
     case val' of
       Nothing -> return True
@@ -163,7 +163,7 @@ insertIfNeq b entity = do
   resources <- flip filterM (Set.toList resources) $ \BundleElement {rep, component = ErasedComponentEq (val :: c)} -> do
     e <- meta @c
     val' <- case rep of
-      ComponentRep _ -> get e $ mkQuery (C @c)
+      ComponentRep _ -> single $ mkGet e (C @c)
       _ -> undefined
 
     case val' of
@@ -206,7 +206,7 @@ triggerAddEventC (ErasedComponent (_ :: c)) entity = do
   let context = HookContext {entity}
 
   m <- meta @c
-  hooks <- get m $ mkQuery (C @ComponentAddHooks)
+  hooks <- single $ mkGet m (C @ComponentAddHooks)
   for_ hooks $ \(ComponentAddHooks h) -> do
     for_ h $ \h -> h context
 
@@ -217,7 +217,7 @@ triggerAddEventR (ErasedComponent (_ :: c)) target entity = do
   let context = HookContextRel {entity, target}
 
   m <- meta @c
-  Just hooks <- get m $ mkQuery (M @ComponentAddHooksRel)
+  Just hooks <- single $ mkGet m (M @ComponentAddHooksRel)
   for_ hooks $ \(ComponentAddHooksRel h) -> do
     for_ h $ \h -> h context
 
@@ -238,7 +238,7 @@ triggerSetEventC (ErasedComponent (_ :: c)) entity = do
   let context = HookContext {entity}
 
   m <- meta @c
-  Just hooks <- get m $ mkQuery (M @ComponentSetHooks)
+  Just hooks <- single $ mkGet m (M @ComponentSetHooks)
   for_ hooks $ \(ComponentSetHooks h) -> do
     for_ h $ \h -> h context
 
@@ -249,7 +249,7 @@ triggerSetEventR (ErasedComponent (_ :: c)) target entity = do
   let context = HookContextRel {entity, target}
 
   m <- meta @c
-  Just hooks <- get m $ mkQuery (M @ComponentSetHooksRel)
+  Just hooks <- single $ mkGet m (M @ComponentSetHooksRel)
   for_ hooks $ \(ComponentSetHooksRel h) -> do
     for_ h $ \h -> h context
 

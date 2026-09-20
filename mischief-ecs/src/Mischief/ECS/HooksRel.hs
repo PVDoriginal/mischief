@@ -35,10 +35,10 @@ import Mischief.ECS.World.Spawn
 -- data Before = Before
 --
 -- instance 'Component' Before where
---   onAdd = addOther ('const' After)
+--   onAddRel = [addOther ('const' After)]
 --
 -- instance 'Component' After where
---   onAdd = addOther ('const' Before)
+--   onAddRel = [addOther ('const' Before)]
 -- @
 addOther :: forall (a :: Type) b. (Component a, Component b) => (a -> b) -> HookRel a
 addOther f = hookRel $ insertComplementary f
@@ -54,15 +54,15 @@ addOther f = hookRel $ insertComplementary f
 -- data LikedBy = LikedBy deriving (Component)
 --
 -- instance 'Component' Likes where
---   onAdd = addOther ('const' Likes)
---   onRemove = removeOther \@Likes
+--   onAddRel = [addOther ('const' Likes)]
+--   onRemoveRel = [removeOther \@Likes]
 -- @`
 removeOther :: forall a b. (Component b) => HookRel a
 removeOther = hookRel $ removeComplementary @b
 
 insertComplementary :: forall (a :: Type) b. (Component b, Component a) => (a -> b) -> HookContextRel -> System ()
 insertComplementary f event = do
-  Just val <- get event.entity $ mkQuery (R @a event.target)
+  Just val <- single $ mkGet event.entity (R @a event.target)
   insert (Rel (f val.comp) event.entity) event.target
 
 removeComplementary :: forall b. (Component b) => HookContextRel -> System ()
@@ -113,5 +113,5 @@ instance (Component c) => Component (CleanupWatcher c) where
 
 triggerCleanup :: forall c. (Component c) => HookContextRel -> System ()
 triggerCleanup e = do
-  Just watcher <- get e.entity $ mkQuery (R @(CleanupWatcher c) e.target)
+  Just watcher <- single $ mkGet e.entity (R @(CleanupWatcher c) e.target)
   watcher.comp.function CleanupRequest {entity = e.target, target = e.entity}

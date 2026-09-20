@@ -93,7 +93,7 @@ runSchedule' schedule = do
   systems <- orderEntities =<< query (mkQuery' E (With (R @ScheduledIn schedule)))
 
   for_ systems $ \systemId -> do
-    Just (systemFunction, lastSystemTick) <- get systemId $ mkQuery (C @SystemFunction, C @SystemTick)
+    Just (systemFunction, lastSystemTick) <- single $ mkGet systemId (C @SystemFunction, C @SystemTick)
     currentSystemTick <- liftIO $ readIORef world.tick
 
     insert (SystemTick currentSystemTick) systemId
@@ -155,13 +155,13 @@ getTools =
     }
 
 toolsGet :: forall c m w. (MonadSystem w m, Component c) => Proxy c -> Entity -> m (Maybe c)
-toolsGet _ e = get e $ mkQuery (C @c)
+toolsGet _ e = single $ mkGet e (C @c)
 
 toolsSet :: forall c. (Bundle c) => c -> Entity -> System ()
 toolsSet = insert
 
 toolsGetRAny :: forall c m w. (Component c, MonadSystem w m, IsExclusiveRel c ~ False) => Proxy c -> Entity -> m (Maybe [Rel c])
-toolsGetRAny _ e = get e $ mkQuery (R @c Any)
+toolsGetRAny _ e = single $ mkGet e (R @c Any)
 
 toolsSpawnByInsert :: forall b. (Bundle b) => Entity -> b -> System ()
 toolsSpawnByInsert = spawnEntityByInsert

@@ -12,6 +12,7 @@ import Data.IORef
 import Data.Map qualified as Map
 import Data.Maybe
 import Data.Set qualified as Set
+import Data.Text qualified as T
 import Data.Traversable
 import GHC.Base (Int (..), List, Type, eqWord#, isTrue#)
 import GHC.Stack
@@ -175,7 +176,7 @@ addedChanged f (FilterComponent (c, _, Just _)) e = do
     Nothing -> return False
     Just (ComponentId (# id, _ #)) -> do
       Just (ComponentType (_ :: Proxy a)) <- liftIO $ runQueryEntity (C @ComponentType) world (Entity (# id, 0## #))
-      rels <- get e $ mkQuery (R' @a Any)
+      rels <- single $ mkGet e (R' @a Any)
       case rels of
         Nothing -> pure False
         Just rels -> do
@@ -207,13 +208,16 @@ has c e = do
 -- newtype Query a = Query [(Entity, a)]
 
 data Query m a where
-  BuildQuery :: (Queryable qd out) => qd -> QueryFilter ArchetypeFilter -> Query m out
+  BuildQuery :: (Queryable qd out) => qd -> QueryFilter ArchetypeFilter -> Maybe [Entity] -> Query m out
   MapQuery :: Query m b -> (Entity -> b -> m a) -> Query m a
   FilterQuery :: Query m a -> (Entity -> a -> m Bool) -> Query m a
+  PairEntityQuery :: Query m a -> Query m (Entity, a)
   DoQuery :: Query m a -> (Entity -> a -> m b) -> Query m a
+  FoldQuery :: Query m a -> Entity -> (From a -> b -> b) -> b -> Query m b
   PureQuery :: a -> Query m a
   AppQuery :: Query m (a -> b) -> Query m a -> Query m b
   BindQuery :: Query m a -> (a -> Query m b) -> Query m b
+  EmptyQuery :: Query m a
 
 instance (MonadSystem w m) => Functor (Query m) where
   fmap :: (a -> b) -> Query m a -> Query m b
@@ -229,68 +233,99 @@ instance (MonadSystem w m) => Monad (Query m) where
   (>>=) :: (MonadSystem w m) => Query m a -> (a -> Query m b) -> Query m b
   (>>=) = BindQuery
 
-get :: (MonadSystem w m) => Entity -> Query m out -> m (Maybe out)
-get entity (BuildQuery qd qf) = do
-  world <- unsafeGetWorld
-  b <- liftIO $ filterEntity qf world entity
-  if b then entityQuery qd entity else pure Nothing
-get entity (MapQuery a f) = do
-  x <- get entity a
-  case x of
-    Nothing -> pure Nothing
-    Just x -> Just <$> f entity x
-get entity (FilterQuery a f) = do
-  x <- get entity a
-  case x of
-    Nothing -> pure Nothing
-    Just x -> do
-      b <- f entity x
-      if b then pure $ Just x else pure Nothing
-get entity (DoQuery a f) = do
-  x <- get entity a
-  for_ x (f entity)
-  pure x
-get _ (PureQuery a) = pure $ Just a
-get entity (AppQuery f a) = do
-  f <- get entity f
-  a <- get entity a
-  case (,) <$> f <*> a of
-    Nothing -> pure Nothing
-    Just (f, a) -> pure $ Just $ f a
-get entity (BindQuery f a) = do
-  x <- get entity f
-  case x of
-    Nothing -> pure Nothing
-    Just x -> get entity (a x)
+-- grun :: (MonadSystem w m) => Entity -> Query m out -> m (Maybe (Entity, out))
+-- grun entity (BuildQuery qd qf e) = do
+--   world <- unsafeGetWorld
+--   b <- liftIO $ filterEntity qf world entity
+--   if b then fmap (entity,) <$> entityQuery qd entity else pure Nothing
+-- grun entity (MapQuery a f) = do
+--   x <- grun entity a
+--   case x of
+--     Nothing -> pure Nothing
+--     Just (e, x) -> fmap (e,) . Just <$> f entity x
+-- grun entity (FilterQuery a f) = do
+--   x <- grun entity a
+--   case x of
+--     Nothing -> pure Nothing
+--     Just (e, x) -> do
+--       b <- f entity x
+--       if b then pure $ Just (e, x) else pure Nothing
+-- grun entity (DoQuery a f) = do
+--   x <- grun entity a
+--   for_ x $ uncurry f
+--   pure x
+-- grun _ (FoldQuery a e f i) = do
+--   x <- map snd <$> qrun a
+--   let x' = foldr f i x
+--   pure $ Just (e, x')
+-- grun _ (PureQuery a) = pure $ Just (Entity (# 0##, 0## #), a)
+-- grun entity (AppQuery f a) = do
+--   f <- grun entity f
+--   a <- grun entity a
+--   case (,) <$> f <*> a of
+--     Nothing -> pure Nothing
+--     Just ((_, f), (e', a)) -> pure $ Just (e', f a)
+-- grun entity (BindQuery f a) = do
+--   x <- grun entity f
+--   case x of
+--     Nothing -> pure Nothing
+--     Just (_, x) -> grun entity (a x)
 
-get_ :: (MonadSystem w m) => Entity -> Query m out -> m ()
-get_ a b = void $ get a b
+-- get :: (MonadSystem w m) => Entity -> Query m out -> m (Maybe out)
+-- get e a = fmap snd <$> grun e a
 
-qrun' :: (MonadSystem w m) => Query m out -> m [(Entity, out)]
-qrun' (BuildQuery qd qf) = do
+-- get_ :: (MonadSystem w m) => Entity -> Query m out -> m ()
+-- get_ a b = void $ get a b
+
+qrun :: (MonadSystem w m) => Query m out -> m [(Entity, out)]
+qrun (BuildQuery qd qf Nothing) = do
   world <- unsafeGetWorld
   archetypes' <- findArchetypes qd
   archetypes <- liftIO (filterM (filterArchetype qf world . fst) archetypes')
   x <- liftIO $ runQueryInternal (E, qd) (map snd archetypes) world
   pure $ mapMaybe (\case (_, False, _) -> Nothing; (_, True, x) -> Just x) x
-qrun' (MapQuery a f) = do
-  x <- qrun' a
+qrun (BuildQuery qd qf (Just [entity])) = do
+  world <- unsafeGetWorld
+  b <- liftIO $ filterEntity qf world entity
+  if not b
+    then pure []
+    else do
+      e <- entityQuery qd entity
+      case e of
+        Nothing -> pure []
+        Just e -> pure [(entity, e)]
+qrun (BuildQuery qd qf (Just entities)) = concat <$> mapM (\e -> qrun (BuildQuery qd qf (Just [e]))) entities
+qrun (MapQuery a f) = do
+  x <- qrun a
   mapM (\(e, x) -> (e,) <$> f e x) x
-qrun' (FilterQuery a f) = do
-  x <- qrun' a
+qrun (FilterQuery a f) = do
+  x <- qrun a
   filterM (uncurry f) x
-qrun' (DoQuery a f) = do
-  x <- qrun' a
+qrun (PairEntityQuery a) = do
+  x <- qrun a
+  pure $ map (\(e, a) -> (e, (e, a))) x
+qrun (DoQuery a f) = do
+  x <- qrun a
   for_ x (uncurry f)
   pure x
-qrun' (PureQuery a) = pure [(Entity (# 0##, 0## #), a)]
-qrun' (AppQuery f a) = do
-  f <- qrun' f
-  a <- qrun' a
+qrun (FoldQuery a e f i) = do
+  a <- map (uncurry From) <$> qrun a
+  pure [(e, foldr f i a)]
+qrun (PureQuery a) = pure [(Entity (# 0##, 0## #), a)]
+qrun (AppQuery f a) = do
+  f <- qrun f
+  a <- qrun a
   pure $ catMaybes $ [tryJoin a f | a <- a, f <- f]
-qrun' (BindQuery a f) = do
-  x <- qrun' a
-  concatMap (\(a, b) -> map (a,) b) <$> traverse (\(e, x) -> (e,) <$> query (f x)) x
+qrun (BindQuery a f) = do
+  x <- qrun a
+  -- concatMap (\(a, b) -> map (a,) b) <$> traverse (\(e, x) -> do (e,) <$> query (f x)) x
+  concat
+    <$> traverse
+      ( \(_, x) -> do
+          qrun (f x)
+      )
+      x
+qrun EmptyQuery = pure []
 
 tryJoin :: (Entity, a) -> (Entity, a -> b) -> Maybe (Entity, b)
 tryJoin (Entity (# 0##, 0## #), a) (e, f) = Just (e, f a)
@@ -300,10 +335,10 @@ tryJoin (e, a) (e', f)
   | otherwise = Nothing
 
 query :: (MonadSystem w m) => Query m out -> m [out]
-query a = map snd <$> qrun' a
+query a = map snd <$> qrun a
 
 query_ :: (MonadSystem w m) => Query m out -> m ()
-query_ a = void $ qrun' a
+query_ a = void $ qrun a
 
 single :: (MonadSystem w m) => Query m out -> m (Maybe out)
 single a = do
@@ -316,4 +351,10 @@ mkQuery :: (Queryable qd out) => qd -> Query m out
 mkQuery x = mkQuery' x NoFilter
 
 mkQuery' :: (Queryable qd out) => qd -> QueryFilter ArchetypeFilter -> Query m out
-mkQuery' = BuildQuery
+mkQuery' a b = BuildQuery a b Nothing
+
+mkGet :: (Queryable qd out) => Entity -> qd -> Query m out
+mkGet x a = mkGet' x a NoFilter
+
+mkGet' :: (Queryable qd out) => Entity -> qd -> QueryFilter ArchetypeFilter -> Query m out
+mkGet' a b c = BuildQuery b c (Just [a])

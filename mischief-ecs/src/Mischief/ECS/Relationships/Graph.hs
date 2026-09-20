@@ -30,7 +30,7 @@ instance ListToOutgoing [Entity] where
 
 outgoing' :: forall c m w. (Component c, MonadSystem w m) => Entity -> m [Entity]
 outgoing' entity = do
-  next <- get entity $ mkQuery (R' @c Any)
+  next <- single $ mkGet entity (R' @c Any)
   return $ case next of
     Nothing -> []
     Just next -> map (\x -> x.target) next

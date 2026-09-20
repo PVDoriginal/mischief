@@ -27,7 +27,7 @@ import Mischief.ECS.Utils
 import Mischief.ECS.World
 import Mischief.ECS.World.Insert
 import Mischief.ECS.World.Modify
-import Mischief.ECS.World.Query (get, mkQuery)
+import Mischief.ECS.World.Query (mkGet, mkQuery, single)
 import Mischief.ECS.World.Query.Markers
 import Mischief.ECS.World.Query.Queryable
 import Prelude hiding (read)
@@ -65,7 +65,7 @@ write !message = do
   frame <- liftIO $ readIORef world.frame
 
   loc <- self
-  Just currentSystemTick <- get loc $ mkQuery (C @SystemTick)
+  Just currentSystemTick <- single $ mkGet loc (C @SystemTick)
 
   let message' = (frame, currentSystemTick.inner, message)
   let newMessages = (\Messages {messages, readers} -> Messages {messages = message' : messages, readers}) messages
@@ -83,7 +83,7 @@ read = do
       readerTick <- liftIO $ readIORef tick
 
       loc <- self
-      Just currentSystemTick <- get loc $ mkQuery (C @SystemTick)
+      Just currentSystemTick <- single $ mkGet loc (C @SystemTick)
 
       let newMessages = map (\(_, _, x) -> x) $ filter (\(_, tick, _) -> tick < currentSystemTick.inner && tick > readerTick) m.messages
       liftIO $ writeIORef tick currentSystemTick.inner

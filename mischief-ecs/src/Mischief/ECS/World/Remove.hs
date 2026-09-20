@@ -114,7 +114,7 @@ removeFromEntity components entity = do
 triggerRemoveEvent :: [ComponentId] -> Entity -> System ()
 triggerRemoveEvent components entity = do
   for_ components $ \(ComponentId (# id, target #)) -> do
-    Just t <- get (Entity (# id, 0## #)) $ mkQuery (C @ComponentType)
+    Just t <- single $ mkGet (Entity (# id, 0## #)) (C @ComponentType)
     case target of
       Nothing -> triggerRemoveEventC t entity
       Just target -> triggerRemoveEventR t target entity
@@ -125,7 +125,7 @@ triggerRemoveEventC (ComponentType (_ :: Proxy t)) entity = do
 
   let context = HookContext {entity}
   m <- meta @t
-  Just hooks <- get m $ mkQuery (M @ComponentRemoveHooks)
+  Just hooks <- single $ mkGet m (M @ComponentRemoveHooks)
   for_ hooks $ \(ComponentRemoveHooks h) -> do
     for_ h $ \h -> h context
 
@@ -136,6 +136,6 @@ triggerRemoveEventR (ComponentType (_ :: Proxy t)) target entity = do
   let context = HookContextRel {entity, target}
 
   m <- meta @t
-  Just hooks <- get m $ mkQuery (M @ComponentRemoveHooksRel)
+  Just hooks <- single $ mkGet m (M @ComponentRemoveHooksRel)
   for_ hooks $ \(ComponentRemoveHooksRel h) -> do
     for_ h $ \h -> h context

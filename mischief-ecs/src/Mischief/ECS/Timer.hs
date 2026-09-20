@@ -27,8 +27,7 @@ tick x Timer {duration, elapsed, mode = Repeat} = (Timer {duration, elapsed = el
 qtimer :: forall b a. (Bundle b, Component b) => (b -> Timer) -> (Timer -> b) -> Query System a -> Query System a
 qtimer f f' x =
   x
-    & qextend (mkQuery (C @b))
-    & qjoin (,)
+    & qextend (C @b) (,)
     & qfilterM
       ( \entity (_, a) -> do
           let timer = f a
@@ -42,8 +41,7 @@ qtimer f f' x =
 qtimer' :: forall b a. (Bundle b, Component b) => (b -> Timer) -> (Timer -> b) -> Float -> Query System a -> Query System a
 qtimer' f f' delta x =
   x
-    & qextend (mkQuery (C @b))
-    & qjoin (,)
+    & qextend (C @b) (,)
     & qfilterM
       ( \entity (_, a) -> do
           let timer = f a
