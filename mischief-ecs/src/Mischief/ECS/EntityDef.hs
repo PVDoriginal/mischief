@@ -42,3 +42,6 @@ compareEntity# (Entity# (# id1, gen1 #)) (Entity# (# id2, gen2 #)) =
   case compareWord# id1 id2 of
     EQ -> compareWord# gen1 gen2
     x -> x
+
+nullEntity :: Entity
+nullEntity = Entity (# 0##, 0## #)

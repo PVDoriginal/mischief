@@ -608,16 +608,6 @@ instance (Component c, Queryable q out) => Queryable (HasR c (Q' q (QueryFilter 
 
   queryTypes _ = Set.empty
 
--- instance (Queryable qd out, Mappable MapQueryVal out out') => Queryable (Val qd) out' where
---   runQueryEntity (Val qd) b c = do
---     x <- runQueryEntity qd b c
---     return $ fmap (mapTuple @MapQueryVal) x
---   runQueryInternal (Val qd) b c = do
---     x <- runQueryInternal qd b c
---     return $ map (\(a, b, c) -> (a, b, mapTuple @MapQueryVal c)) x
-
---   queryTypes (Val qd) = queryTypes qd
-
 filterEntity' :: FilterComponent -> Entity -> World -> IO Bool
 filterEntity' (FilterComponent (x, Nothing, Nothing)) entity world = do
   comp <- getComponentId x world.components
@@ -651,95 +641,6 @@ filterEntity (Without x) world entity = not <$> filterEntity' (toFilterComponent
 filterEntity (Not a) world entity = not <$> filterEntity a world entity
 filterEntity (And a b) world entity = (&&) <$> filterEntity a world entity <*> filterEntity b world entity
 filterEntity (Or a b) world entity = (||) <$> filterEntity a world entity <*> filterEntity b world entity
-
--- filterEntity :: QueryFilter -> Entity -> World -> IO Bool
--- filterEntity NoFilter _ _ = pure True
--- filterEntity ()
-
--- filterQuery :: (MonadSystem w m) => QueryFilter a -> Entity -> m Bool
--- filterQuery NoFilter _ = pure True
--- filterQuery (QFWith (x, Nothing)) entity = do
---   world <- unsafeGetWorld
---   comp <- liftIO $ getComponentId x world.components
---   case comp of
---     Nothing -> return False
---     Just (ComponentId (# id, _ #)) -> do
---       Just (ComponentType (_ :: Proxy a)) <- liftIO $ runQueryEntity (C @ComponentType) world (Entity (# id, 0## #))
---       a <- liftIO $ runQueryEntity (Has @a) world entity
---       pure $ fromMaybe False a
--- filterQuery (QFWith (x, Just e)) entity = do
---   world <- unsafeGetWorld
---   comp <- liftIO $ getComponentId x world.components
---   case comp of
---     Nothing -> return False
---     Just (ComponentId (# id, _ #)) -> do
---       Just (ComponentType (_ :: Proxy a)) <- liftIO $ runQueryEntity (C @ComponentType) world (Entity (# id, 0## #))
---       a <- liftIO $ runQueryEntity (HasR @a e) world entity
---       pure $ fromMaybe False a
--- filterQuery (QFWithRelAny x) entity = do
---   world <- unsafeGetWorld
---   comp <- liftIO $ getComponentId x world.components
---   case comp of
---     Nothing -> return False
---     Just (ComponentId (# id, _ #)) -> do
---       Just (ComponentType (_ :: Proxy a)) <- liftIO $ runQueryEntity (C @ComponentType) world (Entity (# id, 0## #))
---       a <- liftIO $ runQueryEntity (HasR @a Any) world entity
---       pure $ fromMaybe False a
--- filterQuery (QFChanged (x, Nothing) f) entity = do
---   world <- unsafeGetWorld
---   comp <- liftIO $ getComponentId x world.components
---   case comp of
---     Nothing -> return False
---     Just comp -> do
---       addedChanged' f comp entity
--- filterQuery (QFChanged (x, Just e) f) entity = do
---   world <- unsafeGetWorld
---   comp <- liftIO $ getComponentId x world.components
---   case comp of
---     Nothing -> return False
---     Just comp -> do
---       addedChanged' f (setCompIdTarget (Just e) comp) entity
--- filterQuery (QFChangedRelAny x f) entity = do
---   world <- unsafeGetWorld
---   comp <- liftIO $ getComponentId x world.components
---   case comp of
---     Nothing -> return False
---     Just (ComponentId (# id, _ #)) -> do
---       components <- liftIO $ findComponentsOfEntity world entity
---       case components of
---         Nothing -> return True
---         Just components' -> do
---           let components = filter (\(ComponentId (# id', a #)) -> isJust a && isTrue# (eqWord# id id')) components'
---           and <$> mapM (\c -> addedChanged' f c entity) components
--- filterQuery (QFCheckRaw (_, Nothing, ErasedCheck (f :: (c -> Bool)))) entity = do
---   w <- unsafeGetWorld
---   a <- liftIO $ runQueryEntity (C @c) w entity
---   pure $ case a of
---     Nothing -> False
---     Just a -> f a
--- filterQuery (QFCheckRaw (_, Just e, ErasedCheck (f :: (c -> Bool)))) entity = do
---   world <- unsafeGetWorld
---   a <- liftIO $ runQueryEntity (R @c e) world entity
---   pure $ case a of
---     Nothing -> False
---     Just a -> f a.comp
--- filterQuery (QFCheckRawRelAny (_, ErasedCheck (f :: (c -> Bool)))) entity = do
---   world <- unsafeGetWorld
---   a <- liftIO $ runQueryEntity (R' @c Any) world entity
---   pure $ case a of
---     Nothing -> False
---     Just a -> any (\x -> f x.comp) a
--- filterQuery (a `QFAnd` b) entity = do
---   a <- filterQuery a entity
---   b <- filterQuery b entity
---   pure $ a && b
--- filterQuery (a `QFOr` b) entity = do
---   a <- filterQuery a entity
---   b <- filterQuery b entity
---   pure $ a || b
--- filterQuery (QFNot a) entity = do
---   a <- filterQuery a entity
---   pure $ not a
 
 findComponentsOfEntity :: World -> Entity -> IO (Maybe [ComponentId])
 findComponentsOfEntity world entity = do

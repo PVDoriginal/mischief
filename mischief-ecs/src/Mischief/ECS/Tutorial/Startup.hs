@@ -11,6 +11,7 @@
 -- [Main Page]("Mischief.ECS")
 module Mischief.ECS.Tutorial.Startup
   ( -- * Learn You an ECS for Great Mischief! - 1. Startup Guide
+    -- $intro
 
     -- * What do I need to know?
     -- $know
@@ -21,11 +22,11 @@ module Mischief.ECS.Tutorial.Startup
     -- * Text
     -- $text
 
-    -- * The App
-    -- $app
-
     -- * The ECS
     -- $ecs
+
+    -- * The App
+    -- $app
 
     -- * Your First System
     -- $firstSystem
@@ -48,7 +49,7 @@ module Mischief.ECS.Tutorial.Startup
     -- * Your First Transitive Query
     -- $trans
 
-    -- * Extra: From
+    -- * Explanation: From
     -- $from
 
     -- * What's Next?
@@ -62,6 +63,9 @@ import Control.Monad (when)
 import Data.Foldable (for_)
 import Data.Traversable (for)
 import Mischief.ECS
+
+-- $intro
+-- This chapter will guide you through setting up a working Mischief app and performing some simple operations on data.
 
 -- $know
 -- This book doesn't assume any knowledge of other game engines or programming paradigms, but it does expect some Haskell knowledge.
@@ -94,10 +98,10 @@ import Mischief.ECS
 --
 -- @QuasiQuotes@ and @OverloadedStrings@ are especially important because some Mischief features are not available without them (namely quasi-queries and logging).
 -- The rest of the extensions are highly optional.
+--
 -- You can paste these extensions in the @default-extensions@ field of your @.cabal@ file.
 
 -- $text
---
 -- Mischief uses @Text@ instead of @String@ where possible, including in its logging system.
 -- The 'i' macro from @string-interpolate@ is re-exported by Mischief and will be often used for logging in this tutorial.
 --
@@ -107,8 +111,31 @@ import Mischief.ECS
 -- import "Data.Text" qualified as T
 -- @
 
+-- $ecs
+-- Mischief's ECS logic is designed to be very approachable and simple to write.
+--
+-- @Components@ are just types deriving the @Component@ typeclass.
+--
+-- @
+-- data Position = Position {x :: 'Float', y :: 'Float'} deriving ('Component')
+-- @
+--
+-- @Systems@ are functions in the @System@ monad.
+--
+-- @
+-- printPositions :: 'System' ()
+-- printPositions = do
+--   'info' . T.'Data.Text.show' =<< ['q'|Position|]
+-- @
+--
+-- @Entities@ are opaque ids used to represent and manipulate data.
+--
+-- @
+-- data Entity = Entity 'Int'
+-- @
+
 -- $app
--- A Mischief program usually starts with creating an app and adding a plugin to it.
+-- A Mischief program usually starts with creating an App and adding a plugin to it. So let's do that!
 --
 -- @
 -- import "Mischief.ECS.Prelude"
@@ -123,44 +150,16 @@ import Mischief.ECS
 --
 -- instance 'Plugin' MyPlugin
 -- @
---
--- If you copy this code into your project and run it using @cabal run@, your app will start! Although we haven't told it to do anything yet.
---
--- The @App@ is a wrapper around our @World@, which is the structure containing all data stored by the ECS. It allows us to add
--- initializition instructions and to plug additional logic into our game through @Plugins@.
-
--- $ecs
--- Mischief's ECS logic is designed to be very approachat@ble and simple to write.
---
--- @Components@ are just types deriving the @Componen typeclass.
---
--- @
--- data Position = Position {x :: 'Float', y :: 'Float'} deriving ('Component')
--- @
---
--- @Systems@ are functions in the @System@ monad.
---
--- @
--- printPositions :: 'System' ()
--- printPositions = do
---   'info' . T.'Data.Text.show' =<< ['q'|Position|]
--- @
---
--- @Entities@ are ids used to represent and manipulate data.
---
--- @
--- data Entity = Entity 'Int'
--- @
 
 -- $firstSystem
--- Paste the following function into your module:
+-- Copy the following function into your file:
 --
 -- @
 -- helloWorld :: 'System' ()
 -- helloWorld = 'info' "Hello World!"
 -- @
 --
--- This will be our first system. The only remaining step is to schedule it to run!
+-- This will be our first system. It just logs a message saying /"Hello World!"/. The only remaining step is to schedule it to run!
 --
 -- @
 -- instance 'Plugin' MyPlugin where
@@ -172,10 +171,6 @@ import Mischief.ECS
 --
 -- The @systems@ function will grab the system for us, and @schedule Update@ will add it to the Update schedule,
 -- making it run once per frame. If you run your app again, you will see \"Hello World!\" printed to your terminal many, many times.
---
--- As you may have noticed, the @init@ we give to the Plugin is, in itself, a system! There's nothing differentiating
--- the logic you write here from the logic ran at any point in your app's runtime. @init@ is just a convenient way of
--- adding some initialization that happens before anything else, but we'll get into that later.
 
 -- $firstComp
 -- Let's do a little more than greeting the whole world, let's greet some individual people!
@@ -193,7 +188,7 @@ import Mischief.ECS
 -- data Name = Name 'String' deriving ('Component')
 -- @
 --
--- No need to define it though, since this exact @Name@ is already defined internally by Mischief and exported by the Prelude.
+-- No need to write this one though, since this exact @Name@ is already defined internally by Mischief and exported by the Prelude.
 --
 -- Now that we can represent people with names, let's make a system that spawns some:
 --
@@ -223,7 +218,7 @@ import Mischief.ECS
 -- @
 -- greetPeople :: 'System' ()
 -- greetPeople = do
---   people <- 'query' ('mkQuery' ('C' \@Name, 'C' \@Person))
+--   people <- 'query' [q|Name, Person|]
 --   'for_' people $ \\(name, _) -> do
 --     'info' ['i'|Hello #{name}!|]
 -- @
@@ -236,22 +231,13 @@ import Mischief.ECS
 -- @
 -- greetPeople :: 'System' ()
 -- greetPeople = do
---   people <- 'query' ('mkQuery'' ('C' \@Name) ('With' ('C' \@Person)))
+--   people <- 'query' [q|Name / With Person|]
 --   'for_' people $ \\name ->
 --     'info' ['i'|Hello #{name}!|]
 -- @
 --
--- @(With (C \@Person))@ is a filter, telling our query builder to only select entities with the @Person@ component. @mkQuery'@ is a
--- variant of @mkQuery@ that also takes a filter.
---
--- Mischief has two equivalent ways of writing queries. The normal way that you've seen above, and the quasi way:
---
--- @
--- people <- 'query' ['q'|Name / With Person|]
--- @
---
--- Quasi-queries are macros meant to simplify writing queries. They'll become especially helpful once we start dealing
--- with relationships and transitive queries.
+-- @With Person@ is a filter, telling our query builder to only select entities with the @Person@ component. We use @/@ to separate
+-- the data that we're querying from the filters.
 --
 -- Additionally, Mischief lets you write and process queries by piping dedicated functions into each other. For instance, our earlier function is equivalent to:
 --
@@ -264,7 +250,7 @@ import Mischief.ECS
 -- @
 --
 -- The quasi-query (@[q|..|]@) produces our query, we then use @qinfo@ to display a message to the terminal for each element in the query,
--- and finally we use @query_@ to run all the commands and discard the results (@query@ returns the results).
+-- and finally we use @query_@ to run all the commands and discard the results (the normal @query@ returns the results).
 --
 -- Now we can schedule this system to also run:
 --
@@ -294,16 +280,16 @@ import Mischief.ECS
 -- @
 -- updateFlo :: 'System' ()
 -- updateFlo = do
---   people <- 'query' ['q'|E, Name / With Person|]
+--   people <- 'query' ['q'|Entity, Name / With Person|]
 --   'for_' people $ \\(entity, name) -> do
 --     'when' (name == Name \"Florian\") $
 --       'insert' (Name \"Florianne\") entity
 -- @
 --
--- We are querying the name of each entity (@Name@), along with its actual id (@E@). We then iterate over all the names, and once we see \"Florian\", we
--- re-insert the component, changing its value to \"Florianne\".
+-- We are querying the name of each entity (@Name@), along with its actual id (@Entity@). We then iterate over all the names, and once we see \"Florian\", we
+-- re-insert the component, changing its value to \"Florianne\". Re-insertion is the main way to mutate data in Mischief.
 --
--- Although.. that feels awfully imperative doesn't it? We can also write the same system as:
+-- Although.. that feels awfully imperative doesn't it? Let's rewrite the same system, this time using piping:
 --
 -- @
 -- updateFlo :: 'System' ()
@@ -332,7 +318,8 @@ import Mischief.ECS
 --      & 'schedule' Update
 -- @
 --
--- Note that we have explicitly ordered @updateFlo@ to happen /before/ @greetPeople@. We want to only greet Flo after their name has changed!
+-- Note that we have explicitly ordered @updateFlo@ to happen /before/ @greetPeople@. We want to only greet Flo after their name has changed! Running the app
+-- should now show \"Hello Florianne!\" instead of \"Florian\".
 
 -- $res
 -- Resources are a great way to store global information that can be easily written to and read in any system.
@@ -343,14 +330,14 @@ import Mischief.ECS
 -- data Greeting = Greeting 'String' deriving ('Component')
 -- @
 --
+-- Yes, resources are just normal components!
+--
 -- We'll also give it a @Show@ instance to make printing it easier:
 --
 -- @
 -- instance 'Show' Greeting where
 --   'show' (Greeting a) = a
 -- @
---
--- Yes, resources are just normal components! Any component can be stored and retrieved as a resource by using @insertRes@ and @res@.
 --
 -- Let's insert a greeting from our init system:
 --
@@ -369,6 +356,8 @@ import Mischief.ECS
 --   'insertRes' (Greeting \"Hey\")
 -- @
 --
+-- @insertRes@ inserts the corresponding resource into the World.
+--
 -- And let's modify @greetPeople@ so that it uses the current greeting from the resource:
 --
 -- @
@@ -380,20 +369,6 @@ import Mischief.ECS
 --     & 'qinfo' (\\name -> ['i'|#{greeting} #{name}!|])
 --     & 'query_'
 -- @
---
--- We are using @res@ to ask the world for the resource, which may or may not exist at that time. In our case it will always exist, because the plugin's @init@ runs before
--- any scheduled system, so it is safe to assume the result will be a @Just@. But what if we don't want to take that risk?
---
--- @
--- greetPeople :: 'System' ()
--- greetPeople = do
---   ['q'|Name, Res Greeting / With Person|]
---     & 'qinfo' (\\(name, greeting) -\> ['i'|#{greeting} #{name}!|])
---     & 'query_'
--- @
---
--- We have now included the resource itself in our query. This will make the query simply return no elements if the resource doesn't exist,
--- saving us the trouble of having to treat that case.
 --
 -- You should now see this when running the app:
 --
@@ -431,62 +406,7 @@ import Mischief.ECS
 -- $trans
 -- We now have relationships but we aren't doing much with them. What about having a system that displays the name of each entity, along with the name of all entities they like?
 --
--- As an intermediary step, let's not display the names, but just the id's of the entities:
---
--- @
--- showLikes :: 'System' ()
--- showLikes = do
---   people <- 'query' $ 'mkQuery' ('C' \@Name, 'R' \@Likes Any)
---
---   'for_' people $ \\(name, likes) -> do
---     info [i|#{name} likes #{'map' (.target) likes}|]
--- @
---
--- We are are querying the @Name@ as well as /Any/ @Likes@ relationships that an entity has. The @R \@Likes Any@ will return a @[Rel Likes]@.
--- Each @Rel@ has two fields: @.target@ and @.comp@, one for the target entity, and one for the actual data of the relationship.
---
--- As shown above, we can just map each @Rel Likes@ in the list to its @.target@, and display those. If we want to also grab the name of each of those entities,
--- we can use the @get@ function. It's the same as @query@, but it runs our queries for a single given Entity. So we can put this inside the @for_@ to get the names:
---
--- @
--- names \<- 'for' likes $ \\'Rel'{target} -\> 'get' target ['q'|Name|]
--- @
---
--- But.. that's already very convoluted. Luckily, the queries give us a few ways out of this:
---
--- First, we have the @outgoing@ traversal:
---
--- @
--- import "Mischief.ECS.Relationships.Graph" qualified as Graph
--- @
---
--- @
--- showLikes :: 'System' ()
--- showLikes = do
---   ['q'|Name|]
---     & 'qrelateMany' (Graph.[outgoing]('Mischief.ECS.Relationships.Graph') \@Likes) ['q'|Name|]
---     & 'qjoin' (,)
---     & 'qinfo' (\\(name, likes) -\> [i|#{name} likes #{likes}|])
---     & 'query_'
--- @
---
--- @qrelateMany@ expects an @Entity -> m (Maybe Entity)@ function (which is exactly what @Graph.outgoing@ gives us) and another query.
--- It will return a @Join@ between our two queries, matching each element from the main query with a set of elements from the second query (the name
--- of each entity, with the names of the entities it likes).
---
--- Then we use @qjoin@ to apply the join, specifying  how the elements of the two queries should be merged. In this case we just pair them together using @(,)@.
---
--- And second, there is a mechanism we can make use of called a @transitive query@, which looks like this:
---
--- @
--- showLikes :: 'System' ()
--- showLikes = do
---   'mkQuery' ('C' \@Name, 'R' \@Likes ('Q' ('C' \@Name)))
---     & 'qinfo' (\\(name, likes) -\> [i|#{name} likes #{likes}|])
---     & 'query_'
--- @
---
--- Or, in quasi-notation:
+-- We can make use of a mechanism called a @transitive query@, which look like this:
 --
 -- @
 -- showLikes :: 'System' ()
@@ -496,9 +416,7 @@ import Mischief.ECS
 --     & 'query_'
 -- @
 --
--- Pretty nice, huh?
---
--- The transitive query grabs the specified components from the targets of our relationship, doing exactly what @qrelateMany@ does.
+-- Pretty cool, huh?
 --
 -- Now let's schedule our new system to run:
 --
@@ -528,30 +446,32 @@ import Mischief.ECS
 -- You may have noticed earlier, when we query for @-> (Name)@ and then print the names, we don't get the actual names, but instead
 -- something that looks like @From (42v1, Kimberly)@.
 --
--- That's because, when doing transitive queries (either by @-> (..)@ or through functions such as @qrelateMany@), the components come wrapped in this:
+-- That's because, when doing transitive queries, the components come wrapped in this:
 --
 -- @
 -- data From c = From {comp :: c, entity :: Entity}
 -- @
 --
--- They have a different origin entity than the other components in our query, and this is our main way of keeping track of that.
+-- They have a different origin entity than the other components in the query, and this is our main way of keeping track of that.
 --
--- One cool utility that comes of this is that we can very easily change the values of foreign components by just mapping them to a different value. For instance,
--- this next query gets all the children of an entity and sets their names to be the same as the main entity:
+-- To get rid of the wrapper we can just change the query to this:
 --
 -- @
--- ['q'|Name|]
---   & 'qrelateMany' (Graph.'Mischief.ECS.Relationships.Graph.incoming' \@ChildOf) ['q'|Name|]
---   & 'qjoin' (,)
---   & 'qinsert' (\\(parentName, childNames) -> 'map' (\\(From child _) -> From child parentName) childNames)
---   & 'query_'
+-- showLikes :: 'System' ()
+-- showLikes = do
+--   ['q'|Name, Likes -\> (Name)|]
+--     & 'qinfo' (\\(name, likes) -\> [i|#{name} likes #{'map' (.comp) likes}|])
+--     & 'query_'
 -- @
+--
+-- You can find more information on this in the [Components Chapter]("Mischief.ECS.Tutorial.Components").
 
 -- $next
 -- What you learn next is up to you.
 --
--- The next chapter will have you working on a little dungeon game in the terminal and introduce you to more notions. If you prefer to learn by example it's recommended to
--- go check that out.
+-- The [next chapter]("Mischief.ECS.Tutorial.Dungeon") will have you working on a little dungeon game in the terminal and introduce you to more notions. If you prefer to learn by example I would recommended
+-- checking that out.
 --
--- After that, the next chapters go into detail on various topics (Components, Queries, Systems, etc.), so you may choose to just read those directly, and maybe come
--- back to the game later.
+-- Then there's a [chapter]("Mischief.ECS.Tutorial.HowTo") which goes over different situations and problems you may encounter and describes various solutions to them.
+--
+-- After that, there are chapters giving you a technical overview for various parts of the ECS (Components, Queries, Systems, and so on).

@@ -51,7 +51,7 @@ module Mischief.ECS.World.Query.Pipe
     -- qcrossM,
 
     -- * Joins
-
+    qjoin,
     -- qjoin,
     -- qjoinOuter,
 

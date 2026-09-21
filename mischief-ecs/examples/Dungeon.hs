@@ -13,7 +13,6 @@ import Data.List ((!?))
 import Data.Text qualified as T
 import Data.Traversable
 import Mischief.ECS.Interval qualified as Interval
-import Mischief.ECS.Observers qualified as Observers
 import Mischief.ECS.Prelude
 import Mischief.ECS.Stdin qualified as Stdin
 import Mischief.ECS.Stdout
@@ -255,8 +254,7 @@ qdecideEnemyTile playerPos x =
 qfilterCooldown :: Query System a -> Query System a
 qfilterCooldown x = do
   x
-    & qextend [q|Cooldown|]
-    & qjoin (,)
+    & qextend [qd|Cooldown|] (,)
     & qfilterM
       ( \entity (_, Cooldown timer) -> do
           delta <- Time.delta
@@ -329,8 +327,7 @@ tryDamage :: System ()
 tryDamage = do
   adjacentEnemies <-
     [q|OnTile -> (Pos) / With Player|]
-      & qcross isAdjacent [q|OnTile -> (Pos) / With Enemy|]
-      & qjoin (,)
+      & qjoin (\pos -> [q|OnTile -> (Pos) / With Enemy|] & qfilter (isAdjacent pos)) (,)
       & query
 
   unless (null adjacentEnemies) $ do

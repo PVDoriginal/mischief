@@ -102,6 +102,7 @@ library
     Mischief.ECS.Tutorial.Dungeon
     Mischief.ECS.Tutorial.Events
     Mischief.ECS.Tutorial.Queries
+    Mischief.ECS.Tutorial.HowTo
     Mischief.ECS.Tutorial.Relationships
     Mischief.ECS.Tutorial.Startup
     Mischief.ECS.Tutorial.Systems
@@ -215,7 +216,9 @@ test-suite mischief-test
   hs-source-dirs: test
   -- The entrypoint to the test suite.
   main-is: Main.hs
-  other-modules: Relationships
+  other-modules: 
+    Relationships
+    Utils 
   -- Test dependencies.
   build-depends:
     base,

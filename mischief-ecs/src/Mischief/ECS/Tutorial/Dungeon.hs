@@ -8,7 +8,7 @@
 --
 -- [Previous Chapter: Startup Guide]("Mischief.ECS.Tutorial.Startup")
 --
--- [Next Chapter: App and Plugins]("Mischief.ECS.Tutorial.App")
+-- [Next Chapter: How To. Common Problems and Patterns.]("Mischief.ECS.Tutorial.App")
 --
 -- [Main Page]("Mischief.ECS")
 module Mischief.ECS.Tutorial.Dungeon
@@ -30,14 +30,14 @@ module Mischief.ECS.Tutorial.Dungeon
     -- * Adding Walls
     -- $walls
 
+    -- * Displaying the Grid
+    -- $display
+
     -- * Moving the Player
     -- $move
 
     -- * Receiving Input
     -- $input
-
-    -- * Displaying the Grid
-    -- $display
 
     -- * Generating Random Positions
     -- $rand
@@ -90,14 +90,14 @@ import System.Exit (exitSuccess)
 -- The goal is to have a player which we can freely move on a 2D grid, as well as various objects placed on tiles,
 -- such as enemies, coins, obstacles, etc.
 --
--- If you'd rather go straight to learning about particular features rather than learning by example, feel free to skip to the next chapters.
+-- If you'd rather go straight to learning about particular solutions or technical details rather than learning by example, feel free to skip to the next chapters.
 -- You can always come back to this one once you have a better understanding of things.
 --
 -- Each section in this chapter adds its own isolated mechanics to the game, so there's no harm in reading up to a point and taking a break or
 -- starting another chapter.
 
 -- $creation
--- Let's start by creating our App and a Main Plugin which will serve as the starting point of all our logic.
+-- Let's start by creating our App and a main Plugin which will serve as the starting point of all our logic.
 --
 -- @
 -- import "Mischief.ECS.Prelude"
@@ -113,12 +113,14 @@ import System.Exit (exitSuccess)
 -- instance 'Plugin' MainPlugin where
 --   init = 'pure' ()
 -- @
+--
+-- You can already run your program and it should work! Although it doesn't do or print anything.
 
 -- $grid
 -- The game will play out on a small 2D grid. There are many ways of representing this Mischief, the way I've chosen to do it
 -- is by having each tile of the grid be an entity, and the full list of entities stored in a global resource.
 --
--- The @Tile@ component will be used to mark which entities are tiles:
+-- We'll use this @Tile@ component to mark which entities are tiles:
 --
 -- @
 -- data Tile = Tile deriving ('Component')
@@ -130,13 +132,13 @@ import System.Exit (exitSuccess)
 -- data Pos = Pos ('Int', 'Int') deriving ('Component')
 -- @
 --
--- @Grid@ will be the resource containing the (bidimensional) list of all tile entities:
+-- Let's make a resource that stores the list of all tile entities, and call it @Grid@:
 --
 -- @
 -- data Grid = Grid [['Entity']] deriving ('Component')
 -- @
 --
--- I've written two functions returning the width and height of the grid:
+-- We're also writing these two helper functions returning the width and height of the grid:
 --
 -- @
 -- gridH :: 'Int'
@@ -182,7 +184,7 @@ import System.Exit (exitSuccess)
 --   line !? y
 -- @
 --
--- Now we can write a function that receives the position of a given tile and finds tiles offset by a certain amount:
+-- Now we can write a function that receives the position of a given tile, the grid, and finds tiles offset by a certain amount:
 --
 -- @
 -- moveBy :: ('Int', 'Int') -> Pos -> Grid -> 'Maybe' 'Entity'
@@ -208,29 +210,19 @@ import System.Exit (exitSuccess)
 -- Setting @IsExclusiveRel@ to True on the component instance will make it so there can only be one such relationship on an entity at a time.
 -- In our case, this means the player can only be on one tile at a time, and moving them will remove the previous relationship.
 --
--- Anyway, it's finally time to spawn our player:
+-- Now it's finally time to spawn our player:
 --
 -- @
 -- spawnPlayer :: 'System' ()
 -- spawnPlayer = do
---   'Just' tile <- getTile (5, 5)
---   _ <- 'spawn' (Player, 'Rel' OnTile tile)
---   'pure' ()
+--   'Just' grid \<- res \@Grid
+--   'Just' tile \<- getTile (5, 5) grid
+--   'void' $ 'spawn' (Player, 'Rel' OnTile tile)
 -- @
 --
--- @Rel OnTile tile@ inserts the @(OnTile, tile)@ relationship on the player. Tile @(5, 5)@ is just an arbitrary tile I chose.
+-- @Rel OnTile tile@ inserts the @(OnTile, tile)@ relationship on the player. Tile @(5, 5)@ is just an arbitrary tile I chose to place the player on.
 --
--- Note that we can avoid the @pure@ and the @_ \<-@ by using @void@ to consume the value of @spawn@:
---
--- @
--- spawnPlayer :: System ()
--- spawnPlayer = do
---   'Just' grid <- 'res' \@Grid
---   'for_' (getTile (5, 5) grid) $ \\tile -\>
---     'void' $ 'spawn' (Player, Rel {comp = OnTile, target = tile})
--- @
---
--- Now we can add the player spawning logic to @Startup@:
+-- Now we can schedule the player spawning logic to @Startup@:
 --
 -- @
 -- instance 'Plugin' MainPlugin where
@@ -243,8 +235,8 @@ import System.Exit (exitSuccess)
 -- @
 --
 -- Except there's something really wrong in the logic above!
--- If we run the app, we will get an error pointing us to the @Just tile <-@ in @spawnPlayer@.
--- That system assumes @getTile@ will produce a valid result, but that will only happen if the grid is already initialized. Which means we want
+-- If we run the app, we will get an error pointing us to the @Just grid <-@ in @spawnPlayer@.
+-- We are assuming the grid already exists when that system runs, Which means we want
 -- to guarantee that @spawnPlayer@ happens /after/ @spawnGrid@.
 --
 -- We can do this by providing an explicit order when scheduling:
@@ -253,23 +245,23 @@ import System.Exit (exitSuccess)
 -- instance 'Plugin' MainPlugin where
 --   init = do
 --     'systems' spawnGrid
---       & 'schedule' Startup
+--       & 'schedule' 'Startup'
 --
 --     'systems' spawnPlayer
 --       & 'after' spawnGrid
---       & 'schedule' Startup
+--       & 'schedule' 'Startup'
 -- @
 --
 -- The app should now run without issues!
 
 -- $walls
--- Our game will also have Walls which can block the player's movement.
+-- Our game will also have Walls which can block the player's movement. We'll make yet another marker component to represent them:
 --
 -- @
 -- data Wall = Wall deriving ('Component')
 -- @
 --
--- I've written a system which spawns walls and places them on the tiles around the edge of the grid:
+-- Let's write a system which spawns a wall on a specific position:
 --
 -- @
 -- spawnWall :: ('Int', 'Int') -> 'System' ('Maybe' 'Entity')
@@ -277,7 +269,11 @@ import System.Exit (exitSuccess)
 --   'Just' grid \<- 'res' \@Grid
 --   'for' (getTile pos grid) $ \tile ->
 --     'spawn' (Wall, Rel OnTile tile)
+-- @
 --
+-- And another system that spawns walls on all the tiles at the edge of the grid:
+--
+-- @
 -- spawnWalls :: 'System' ()
 -- spawnWalls = do
 --   'for_' [0 .. gridW - 1] $ \\i -> spawnWall (0, i)
@@ -292,30 +288,105 @@ import System.Exit (exitSuccess)
 -- instance 'Plugin' MainPlugin where
 --   init = do
 --     'systems' (spawnGrid, spawnWalls)
---       & 'schedule' Startup
+--       & 'schedule' 'Startup'
 --
 --     'systems' spawnPlayer
 --       & 'after' spawnGrid
---       & 'schedule' Startup
+--       & 'schedule' 'Startup'
 -- @
 --
--- Additionally, I wrote a system which checks if a given tile has a wall on it:
---
--- @
--- hasWall :: 'Entity' -> 'System' 'Bool'
--- hasWall tile =
---   'not' . 'null' <$> 'query' ('mkQuery'' () ('With' ('C' \@Wall) '`And`' 'With' ('R' \@OnTile tile)))
--- @
---
--- We are querying for all entities which have a @Wall@ component and a @OnTile@ relationship to the given entity. We just care if this list is not null
--- so we are not actually querying for any data.
---
--- Here's the same system but in quasi-notation:
+-- Additionally, it would be helpful to write a system which checks if a given tile has a wall on it:
 --
 -- @
 -- hasWall :: 'Entity' -> 'System' 'Bool'
 -- hasWall tile =
 --   'not' . 'null' <$> 'query' ['q'|/With Wall, With OnTile -> tile|]
+-- @
+--
+-- We are querying for all entities which have a @Wall@ component and a @OnTile@ relationship to the given entity, and checking whether the list is not null or not.
+--
+-- But it would be even more useful to have something similar but for any arbitrary component. We can write a generic variant of it like this:
+--
+-- @
+-- tileHas :: forall c. ('Component' c) => 'Entity' -> 'System' 'Bool'
+-- tileHas tile = 'not' . 'null' <$> 'query' ['q'|Entity / With (c, OnTile -> tile)|]
+-- @
+--
+-- Make sure to add @{-# LANGUAGE AllowAmbiguousTypes #-}@ at the top of your .hs file, otherwise the type checker will not like that @c@ can not be inferred from the
+-- function's input.
+--
+-- We can now write @hasWall@ as just:
+--
+-- @
+-- hasWall :: 'Entity' -> 'System' 'Bool'
+-- hasWall = tileHas \@Wall
+-- @
+
+-- $display
+-- It's finally time to display our game's grid in the terminal!
+--
+-- Let's start by writing a system that receives a tile and returns a character to represent it based on what's placed on it:
+--
+-- @
+-- showTile :: 'Entity' -> 'System' 'Char'
+-- showTile tile = do
+--   player <- tileHas \@Player tile
+--   wall <- tileHas \@Wall tile
+--
+--   'pure' $
+--     if
+--       | player -> \'@\'
+--       | wall -> \'#\'
+--       | otherwise -> \'.\'
+-- @
+--
+-- This requires the @MultiWayIf@ language extension, but there are many alternate ways to write it; it's just a personal preference.
+--
+-- Next, let's write a system which produces a String to represent the whole grid by calling the previous function on each tile:
+--
+-- @
+-- showGrid :: 'System' 'String'
+-- showGrid = do
+--   'Just' (Grid tiles) <- 'res' \@Grid
+--   lines <- 'for' tiles $ 'traverse' showTile
+--   'pure' $ 'unlines' lines
+-- @
+--
+-- All that's left is to write a system that prints the string, and schedule it to happen each frame. We'll do the actual
+-- printing via the @printClear@ function of "Mischief.ECS.Stdout", which automatically clears the terminal, after each print.
+--
+-- @
+-- printGrid :: 'System' ()
+-- printGrid = 'Mischief.ECS.Stdout.printClear' '=<<' showGrid
+-- @
+--
+-- And we need to schedule if, of course.
+--
+-- @
+-- instance 'Plugin' MainPlugin where
+--   init = do
+--     Stdin.'Mischief.ECS.Stdin.init'
+--
+--     'systems' (spawnGrid, spawnWalls)
+--       & 'schedule' 'Startup'
+--
+--     'systems' printGrid
+--       & 'schedule' 'Update'
+-- @
+--
+-- If you run the app now, you should see the game's grid in your terminal!
+--
+-- @
+-- ####################
+-- \#..................#
+-- \#..................#
+-- \#..................#
+-- \#..................#
+-- \#....\@.............#
+-- \#..................#
+-- \#..................#
+-- \#..................#
+-- ####################
 -- @
 
 -- $move
@@ -327,56 +398,8 @@ import System.Exit (exitSuccess)
 -- movePlayerBy :: ('Int', 'Int') -> 'System' ()
 -- movePlayerBy dir = do
 --   'Just' grid <- 'res' \@Grid
---   'Just' (player, tilePos) \<- 'single' $ 'mkQuery'' ('E', 'R' \@OnTile ('Q' ('C' \@Pos))) ('With' ('C' \@Player))
---
---   'for_' (moveBy dir tilePos.comp grid) $ \\newTile -> do
---     wall <- hasWall newTile
---     'unless' wall $ 'insert' ('Rel' OnTile newTile) player
--- @
---
--- Let's break it down line-by-line.
---
--- First, we get the grid:
---
--- @
--- 'Just' grid <- 'res' \@Grid
--- @
---
--- Then, we get the entity of the player, and the position of the tile the player is currently on:
---
--- @
--- 'Just' (player, tilePos) \<- 'single' $ 'mkQuery'' ('E', 'R' \@OnTile ('Q' ('C' \@Pos))) ('With' ('C' \@Player))
--- @
---
--- @single@ is like @query@ but it returns a @Maybe@ based on whether there is exactly one entity returned or not. We know there is exactly one player, and
--- we know by this point it should be spawned and placed on a tile, so doing the @Just player <-@ unwrapping is fine.
---
--- This line can also be written as:
---
--- @
--- 'Just' player \<- 'single' ['g'|Entity, OnTile -\> (Pos) / With Player|]
--- @
---
--- Next, we use our previous function to get the entity of the new tile the player should move to, and we traverse it:
---
--- @
--- 'for_' (moveBy dir tilePos.comp grid) $ \\newTile -> do
--- @
---
--- And finally, we check if there is a Wall on the new tile, and if there isn't, move the player to it.
---
--- @
--- wall <- hasWall newTile
--- 'unless' wall $ 'insert' ('Rel' OnTile newTile) player
--- @
---
--- The entire thing can also be written under this form:
---
--- @
--- movePlayerBy' :: ('Int', 'Int') -> 'System' ()
--- movePlayerBy' dir = do
---   ['q'|OnTile -> (Pos), Res Grid / With Player|]
---     & 'qmapMaybe' (\\(pos, Res grid) -> moveBy dir pos.comp grid)
+--   ['q'|OnTile -> (Pos) / With Player|]
+--     & 'qmapMaybe' (\\pos -> moveBy dir pos.comp grid)
 --     & 'qfilterM' (\\_ newTile -> 'not' <$> hasWall newTile)
 --     & 'qinsert' (\\newTile -> 'Rel' OnTile newTile)
 --     & 'query_'
@@ -384,21 +407,6 @@ import System.Exit (exitSuccess)
 --
 -- @qmapMaybe@ /tries/ to get the new tile, after which we run a filter to check if we the tile has a wall on it. Finally we @qmap@ the tile to the new relationship.
 -- As you've seen before, @qmap@ automatically runs an insertion of the returned components.
---
--- Another thing to note here is that @qfilterM@ also receives as @Entity@ as an argument. That is
--- the case for most of the @M@ query functions. They provide the current entity that's being iterated so we have a simpler time running insertions and such.
---
--- We can also simplify the lambdas quite a lot:
---
--- @
--- movePlayerBy' :: ('Int', 'Int') -> 'System' ()
--- movePlayerBy' dir = do
---   ['q'|OnTile -> (Pos), Res Grid / With Player|]
---     & 'qmapMaybe' (\\(pos, Res grid) -> moveBy dir pos.comp grid)
---     & 'qfilterM' ('const' $ ('not' <$>) . hasWall)
---     & 'qinsert' ('Rel' OnTile)
---     & 'query_'
--- @
 
 -- $input
 -- We also need to somehow get input from the user. Mischief exposes some useful functions for this in the following module:
@@ -451,96 +459,6 @@ import System.Exit (exitSuccess)
 --
 --     'systems' movePlayer
 --       & 'schedule' 'Update'
--- @
-
--- $display
--- It's finally time to display our game's grid in the terminal!
---
--- You may remember earlier we wrote a system which checks if there is a wall on a given tile.
---
--- @
--- hasWall :: 'Entity' -> 'System' 'Bool'
--- hasWall tile =
---   'not' . 'null' <$> 'query' ['q'|/With Wall, With OnTile -> tile|]
--- @
---
--- It'd be useful to have something similar but for any arbitrary component. We can write a generic variant of it like this:
---
--- @
--- tileHas :: forall c. ('Component' c) => 'Entity' -> 'System' 'Bool'
--- tileHas tile = 'not' . 'null' <$> 'query' ['q'|Entity / With (c, OnTile -> tile)|]
--- @
---
--- Make sure to add @{-# LANGUAGE AllowAmbiguousTypes #-}@ at the top of your .hs file, otherwise the type checker will not like that @c@ can not be inferred from the
--- function's input (alternatively you can just pass a @Proxy c@ as a workaround but I personally prefer the amiguous types).
---
--- We can now write @hasWall@ as just:
---
--- @
--- hasWall :: 'Entity' -> 'System' 'Bool'
--- hasWall = tileHas \@Wall
--- @
---
--- Now it should be easy to write a system that receives a tile and returns a character to represent it based on what's placed on it:
---
--- @
--- showTile :: 'Entity' -> 'System' 'Char'
--- showTile tile = do
---   player <- tileHas \@Player tile
---   wall <- tileHas \@Wall tile
---
---   'pure' $
---     if
---       | player -> \'@\'
---       | wall -> \'#\'
---       | otherwise -> \'.\'
--- @
---
--- This requires the @MultiWayIf@ language extension, but there are many alternate ways to write it; it's just a personal preference.
---
--- Next, I've written a system which produces a String to represent the whole grid by calling the previous function on each tile:
---
--- @
--- showGrid :: 'System' 'String'
--- showGrid = do
---   'Just' (Grid tiles) <- 'res' \@Grid
---   lines <- 'for' tiles $ 'traverse' showTile
---   'pure' $ 'unlines' lines
--- @
---
--- All that's left is to write a system that prints the string, and schedule it to happen each frame. We'll do the actual
--- printing via the @printClear@ function of "Mischief.ECS.Stdout", which automatically clears the terminal.
---
--- @
--- printGrid :: 'System' ()
--- printGrid = 'Mischief.ECS.Stdout.printClear' '=<<' showGrid
--- @
---
--- @
--- instance 'Plugin' MainPlugin where
---   init = do
---     Stdin.'Mischief.ECS.Stdin.init'
---
---     'systems' (spawnGrid, spawnWalls)
---       & 'schedule' 'Startup'
---
---     'systems' printGrid
---       & 'schedule' 'Update'
--- @
---
--- If you run the app now, you should see the game's grid and we able to use @wasd@ to move the player around!
---
--- @
--- ####################
--- \#..................#
--- \#..................#
--- \#..................#
--- \#..................#
--- \#....\@.............#
--- \#..................#
--- \#..................#
--- \#..................#
--- ####################
 -- @
 
 -- $rand

@@ -1,115 +1,114 @@
 module Main where
 
+import Data.Foldable
 import Mischief.ECS.Prelude
+import Mischief.ECS.Relationships.ChildOf
 import Mischief.ECS.Relationships.Graph qualified as Graph
+import Utils
 
 main :: IO ()
 main = do
-  app <- newApp
-  addPlugin @MyPlugin app
-  runApp app
+  runTests
+    [ test1,
+      test2,
+      test3,
+      test4,
+      test5
+    ]
 
-data MyPlugin
+test1 :: System ()
+test1 = do
+  a <- spawn (Name "A", Comp1)
+  b <- spawn (Name "B", Comp1)
+  c <- spawn (Name "C", Comp1, Comp2)
+  d <- spawn (Name "D", Comp2)
+  e <- spawn (Name "E", Comp2)
+  f <- spawn (Name "F", Comp1, Comp3)
+  g <- spawn (Name "G", Comp2, Comp3)
 
-instance Plugin MyPlugin where
-  init :: System ()
-  init = do
-    systems (helloWorld, greetPeople, showLikes)
-      & schedule Update
+  assertqWith
+    [q|Name / With Comp1|]
+    [(a, Name "A"), (b, Name "B"), (c, Name "C"), (f, Name "F")]
 
-    systems addPeople
-      & schedule Startup
+  assertqWith
+    [q|Name / With Comp2|]
+    [(c, Name "C"), (d, Name "D"), (e, Name "E"), (g, Name "G")]
 
-    systems updateFlo
-      & before greetPeople
-      & schedule Update
+  assertqWith
+    [q|Name / With Comp3|]
+    [(f, Name "F"), (g, Name "G")]
 
-    insertRes (Greeting "Hey")
+  assertqWith
+    [q|Name / With Comp3, Without Comp2|]
+    [(f, Name "F")]
 
-data Person = Person deriving (Component)
+  assertqWith
+    [q|Name / With Comp1, With Comp2|]
+    [(c, Name "C")]
 
-addPeople :: System ()
-addPeople = do
-  kim <- spawn (Person, Name "Kimberly")
-  nick <- spawn (Person, Name "Nicholas")
-  flo <- spawn (Person, Name "Florian")
+test2 :: System ()
+test2 = do
+  a <- spawn (Pos 3, Velocity 2, Comp1)
+  b <- spawn (Pos 4, Velocity 2, Comp2, Comp3)
+  c <- spawn (Pos 5, Velocity 3)
 
-  insert (Rel Likes kim) flo
-  insert (Rel Likes nick, Rel Likes flo) kim
-
-helloWorld :: System ()
-helloWorld = info "Hello World!"
-
-data Greeting = Greeting String deriving (Component)
-
-instance Show Greeting where
-  show (Greeting a) = a
-
-data Likes = Likes deriving (Component)
-
-greetPeople :: System ()
-greetPeople = do
-  [q|Name, Res Greeting / With Person|]
-    & qinfo (\(name, greeting) -> [i|#{greeting} #{name}!|])
+  [q|Pos, Velocity / With Comp1 || (With Comp2, With Comp3)|]
+    & qinsert (\(Pos p, Velocity v) -> Pos $ p + v)
     & query_
 
-updateFlo :: System ()
-updateFlo = do
-  [q|Name|]
-    & qfilter (== Name "Florian")
-    & qmap (\_ -> Name "Florianne")
+  assertqWith
+    [q|Pos|]
+    [(a, Pos 5), (b, Pos 6), (c, Pos 5)]
+
+test3 :: System ()
+test3 = do
+  a <- spawn (Pos 3, Velocity 5)
+  insert (Rel (Likes 1) a) a
+  b <- spawn (Pos 4, Velocity 2, Rel (Likes 5) a)
+  c <- spawn (Pos 2, Velocity 1, Rel (Likes 1) a, Rel (Likes 2) b)
+  d <- spawn (Pos 3, Rel (Likes 2) a, Rel (Likes 3) c)
+
+  query_ $ do
+    (e, Pos p, r) <- [q|Entity, Pos, Likes -> *|]
+
+    [q|Entity, Velocity|]
+      & qmapMaybe (\(entity, v) -> fmap ((v,) . (.comp)) (find ((== entity) . (.target)) r))
+      & qfoldr (\(From _ (Velocity x, Likes l)) y -> x * l + y) 0 e
+      & qinsert (\x -> Pos $ x + p)
+
+  assertqWith
+    [q|Pos|]
+    [(a, Pos 8), (b, Pos 29), (c, Pos 11), (d, Pos 16)]
+
+test4 :: System ()
+test4 = do
+  a <- spawn (Name "A", Comp1)
+  b <- spawn (Name "B", Rel ChildOf a, Comp1)
+  c <- spawn (Name "C", Rel ChildOf a, Comp1)
+  d <- spawn (Name "D", Comp1)
+  e <- spawn (Name "E", Rel ChildOf d, Comp1)
+
+  query_ $ do
+    (e, name) <- [q|Entity, Name / With Comp1|]
+    [q|/ With ChildOf -> e|]
+      & qinsert (const name)
+
+  assertqWith
+    [q|Name / With Comp1|]
+    [(a, Name "A"), (b, Name "A"), (c, Name "A"), (d, Name "D"), (e, Name "D")]
+
+test5 :: System ()
+test5 = do
+  a <- spawn (Name "A", Comp1)
+  b <- spawn (Name "B", Rel ChildOf a, Comp1)
+  c <- spawn (Name "C", Rel ChildOf a, Comp1)
+  d <- spawn (Name "D", Comp1)
+  e <- spawn (Name "E", Rel ChildOf d, Comp1)
+
+  [q|ChildOf -> (Name) / With Comp1|]
+    & qinsert (\(From _ n) -> n)
     & query_
 
-showLikes :: System ()
-showLikes = do
-  [q|Name|]
-    & qrelateMany (Graph.outgoing @Likes) (,) [q|Name|]
-    & qinfo (\(name, likes) -> [i|#{name} likes #{likes}|])
-    & query_
-
--- people <- query [q|E, Name / With Person|]
--- for_ people $ \(entity, name) -> do
---   when (name == Name "Florian") $
---     insert (Name "Florianne") entity
-
-data Comp1 = Comp1 Int deriving (Component, Show)
-
-data Position = Position Int deriving (Component, Show)
-
-data Velocity = Velocity Int deriving (Component, Show)
-
--- instance Plugin MainPlugin where
---   init = do
---     -- a <- spawn (Name "A", Comp1 5, Position 2)
---     -- b <- spawn (Name "B", Velocity 3, Rel ChildOf a)
-
---     -- replicateM_ 10 $ qrun $ qmap (\(Velocity x, From a (Position y)) -> From a (Position $ x + y)) [q|Velocity, ChildOf -> (Position)|]
---     -- warn . text =<< get a [q|Name, Comp1, Position|]
-
---     a <- spawn (Name "A")
---     b <- spawn (Name "B", Rel ChildOf a)
---     c <- spawn (Name "C", Rel ChildOf a)
---     d <- spawn (Name "D", Rel ChildOf b)
---     e <- spawn (Name "E", Rel ChildOf b)
---     f <- spawn (Name "F", Rel ChildOf c)
-
---     g <- spawn (Name "G")
---     h <- spawn (Name "H", Rel ChildOf g)
---     i <- spawn (Name "I", Rel ChildOf g)
-
---     [q||]
---       & qrelateOne (Tree.root @ChildOf) (const id) [q|Name|]
---       & qinfo (("Root: " <>) . text)
---       & get_ i
-
---     [q||]
---       & qrelateMany (Tree.leaves @ChildOf) (const id) [q|Name|]
---       & qinfo (("Leaves: " <>) . text)
---       & get_ b
-
---     [q|Name|]
---       & qrelateOne ChildOf.parent (,) [q|Name|]
---       & qinfo (\(child, parent) -> text child <> " is child of " <> text parent)
---       & query_
-
---   deps = [dep @TimePlugin]
+  assertqWith
+    [q|Name / With Comp1|]
+    [(a, Name "A"), (b, Name "A"), (c, Name "A"), (d, Name "D"), (e, Name "D")]
