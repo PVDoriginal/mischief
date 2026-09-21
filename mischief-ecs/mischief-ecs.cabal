@@ -102,7 +102,7 @@ library
     Mischief.ECS.Tutorial.Dungeon
     Mischief.ECS.Tutorial.Events
     Mischief.ECS.Tutorial.Queries
-    Mischief.ECS.Tutorial.HowTo
+    Mischief.ECS.Tutorial.Patterns 
     Mischief.ECS.Tutorial.Relationships
     Mischief.ECS.Tutorial.Startup
     Mischief.ECS.Tutorial.Systems

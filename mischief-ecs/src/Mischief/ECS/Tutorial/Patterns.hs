@@ -9,7 +9,7 @@
 -- [Next Chapter: Systems]("Mischief.ECS.Tutorial.Systems")
 --
 -- [Main Page]("Mischief.ECS")
-module Mischief.ECS.Tutoria.HowTo
+module Mischief.ECS.Tutorial.Patterns
   ( -- * Learn You an ECS for Great Mischief! - 6. Queries
     -- $intro
 

@@ -161,8 +161,6 @@ import System.Exit (exitSuccess)
 --   'insertRes' $ Grid tiles
 -- @
 --
--- @insertRes@ inserts the component as a singleton resource into the ECS. We can grab its value at any time by using @res \@Grid@.
---
 -- Now we just need to modify @MainPlugin@ so that it schedules @spawnGrid@ to happen when the app starts.
 --
 -- @
@@ -216,7 +214,7 @@ import System.Exit (exitSuccess)
 -- spawnPlayer :: 'System' ()
 -- spawnPlayer = do
 --   'Just' grid \<- res \@Grid
---   'Just' tile \<- getTile (5, 5) grid
+--   let 'Just' tile = getTile (5, 5) grid
 --   'void' $ 'spawn' (Player, 'Rel' OnTile tile)
 -- @
 --
@@ -267,7 +265,7 @@ import System.Exit (exitSuccess)
 -- spawnWall :: ('Int', 'Int') -> 'System' ('Maybe' 'Entity')
 -- spawnWall pos = do
 --   'Just' grid \<- 'res' \@Grid
---   'for' (getTile pos grid) $ \tile ->
+--   'for' (getTile pos grid) $ \\tile ->
 --     'spawn' (Wall, Rel OnTile tile)
 -- @
 --
@@ -287,10 +285,10 @@ import System.Exit (exitSuccess)
 -- @
 -- instance 'Plugin' MainPlugin where
 --   init = do
---     'systems' (spawnGrid, spawnWalls)
+--     'systems' spawnGrid
 --       & 'schedule' 'Startup'
 --
---     'systems' spawnPlayer
+--     'systems' (spawnPlayer, spawnWalls)
 --       & 'after' spawnGrid
 --       & 'schedule' 'Startup'
 -- @
@@ -299,8 +297,7 @@ import System.Exit (exitSuccess)
 --
 -- @
 -- hasWall :: 'Entity' -> 'System' 'Bool'
--- hasWall tile =
---   'not' . 'null' <$> 'query' ['q'|/With Wall, With OnTile -> tile|]
+-- hasWall tile = 'not' . 'null' \<$\> 'query' ['q'|/With Wall, With OnTile -> tile|]
 -- @
 --
 -- We are querying for all entities which have a @Wall@ component and a @OnTile@ relationship to the given entity, and checking whether the list is not null or not.
@@ -309,7 +306,7 @@ import System.Exit (exitSuccess)
 --
 -- @
 -- tileHas :: forall c. ('Component' c) => 'Entity' -> 'System' 'Bool'
--- tileHas tile = 'not' . 'null' <$> 'query' ['q'|Entity / With (c, OnTile -> tile)|]
+-- tileHas tile = 'not' . 'null' \<$\> 'query' ['q'|Entity / With (c, OnTile -> tile)|]
 -- @
 --
 -- Make sure to add @{-# LANGUAGE AllowAmbiguousTypes #-}@ at the top of your .hs file, otherwise the type checker will not like that @c@ can not be inferred from the
@@ -367,7 +364,11 @@ import System.Exit (exitSuccess)
 --   init = do
 --     Stdin.'Mischief.ECS.Stdin.init'
 --
---     'systems' (spawnGrid, spawnWalls)
+--     'systems' spawnGrid
+--       & 'schedule' 'Startup'
+--
+--     'systems' (spawnPlayer, spawnWalls)
+--       & 'after' spawnGrid
 --       & 'schedule' 'Startup'
 --
 --     'systems' printGrid
@@ -400,7 +401,7 @@ import System.Exit (exitSuccess)
 --   'Just' grid <- 'res' \@Grid
 --   ['q'|OnTile -> (Pos) / With Player|]
 --     & 'qmapMaybe' (\\pos -> moveBy dir pos.comp grid)
---     & 'qfilterM' (\\_ newTile -> 'not' <$> hasWall newTile)
+--     & 'qfilterM' (\\_ newTile -> 'not' \<$\> hasWall newTile)
 --     & 'qinsert' (\\newTile -> 'Rel' OnTile newTile)
 --     & 'query_'
 -- @
@@ -444,8 +445,15 @@ import System.Exit (exitSuccess)
 --
 -- instance 'Plugin' MainPlugin where
 --   init = do
---     'systems' (spawnGrid, spawnWalls)
+--     'systems' spawnGrid
 --       & 'schedule' 'Startup'
+--
+--     'systems' spawnWalls
+--       & 'after' spawnGrid
+--       & 'schedule' 'Startup'
+--
+--     'systems' printGrid
+--       & 'schedule' 'Update'
 --
 --   deps = ['dep' \@PlayerPlugin]
 --
@@ -453,13 +461,15 @@ import System.Exit (exitSuccess)
 --
 -- instance 'Plugin' PlayerPlugin where
 --   init = do
---     'systems spawnPlayer
---       & 'after spawnGrid
+--     'systems' spawnPlayer
+--       & 'after' spawnGrid
 --       & 'schedule' 'Startup'
 --
 --     'systems' movePlayer
 --       & 'schedule' 'Update'
 -- @
+--
+-- You should now be able to move the player around when running the game!
 
 -- $rand
 -- For some of the next sections, an ability to choose random tiles would be very useful. So let's work on that.
@@ -487,7 +497,11 @@ import System.Exit (exitSuccess)
 --   init = do
 --     Stdin.'Mischief.ECS.Stdin.init'
 --
---     'systems' (spawnGrid, spawnWalls)
+--     'systems' spawnGrid
+--       & 'schedule' 'Startup'
+--
+--     'systems' spawnWalls
+--       & 'after spawnGrid
 --       & 'schedule' 'Startup'
 --
 --     'systems' printGrid
@@ -632,19 +646,6 @@ import System.Exit (exitSuccess)
 --     & 'query_'
 -- @
 --
--- Most of it /should/ be clear to you by now, but let me write some helper comments showing what data is flowing through our query at each point:
---
--- @
--- ['q'|OnTile -> (Pos), Res Grid / With Enemy|]
---   -- Query (From Pos, Res Grid)
---   & 'qtraverse' (\\_ (pos, grid) -> (,pos,grid) <$> decideEnemyDir pos.comp playerPos)
---   -- Query ((Int, Int), From Pos, Res Grid)
---   & 'qmapMaybe' (\\(diff, pos, Res grid) -> moveBy diff pos.comp grid)
---   -- Query (Entity)
---   & 'qinsert' (Rel OnTile)
---   & 'query_'
--- @
---
 -- If the lambdas get overwhelming you can always create intermediary functions that work on queries:
 --
 -- @
@@ -743,7 +744,7 @@ import System.Exit (exitSuccess)
 -- qfilterCooldown :: 'Query' 'System' a -> 'Query' 'System' a
 -- qfilterCooldown x = do
 --   x
---     & 'qextend' (,) ['q'|Cooldown|]
+--     & 'qextend' ['q'|Cooldown|] (,)
 --     & 'qfilterM'
 --       ( \entity (_, Cooldown timer) -> do
 --           delta <- Time.'Mischief.ECS.Time.delta'
@@ -768,22 +769,6 @@ import System.Exit (exitSuccess)
 --
 --   ['q'|OnTile -\> (Pos), Res Grid / With Enemy|]
 --     & qfilterCooldown
---     & qdecideEnemyTile playerPos
---     & 'qinsert' ('Rel' OnTile)
---     & 'query_'
--- @
---
--- Mischief's Query system is meant to be extremely modular and easy to generalize. You could probably write a
--- much more generic cooldown filter that works for any component. In fact, such a function is already defined inside the @Timer@ module!
--- Here's how you can use it if you're curious:
---
--- @
--- moveEnemies :: 'System' ()
--- moveEnemies = do
---   'Just' ('From' _ playerPos) \<- 'single' ['q'|OnTile -\> (Pos) / With Player|]
---
---   ['q'|OnTile -\> (Pos), Res Grid / With Enemy|]
---     & Timer.'Mischief.ECS.Timer.qtimer' (.timer) Cooldown
 --     & qdecideEnemyTile playerPos
 --     & 'qinsert' ('Rel' OnTile)
 --     & 'query_'
@@ -833,15 +818,16 @@ import System.Exit (exitSuccess)
 --       | otherwise -> (0, 0)
 -- @
 --
--- (There are definitely /much/ better ways to write this but I can't really be bothered, feel free to make it cleaner at home)
+-- (There are definitely /much/ better ways to write this, feel free to experiment and make it cleaner at home!)
 --
 -- I've also replaced the @hasWall@ in the @movePlayerBy@ function with @tileIsFree@, so the player can collide with enemies as well.
 --
 -- @
 -- movePlayerBy :: ('Int', 'Int') -> 'System' ()
 -- movePlayerBy dir = do
---   ['q'|OnTile -\> (Pos), Res Grid / With Player|]
---     & 'qmapMaybe' (\\(pos, 'Res' grid) -> moveBy dir pos.comp grid)
+--   'Just' grid \<- 'res' \@Grid
+--   ['q'|OnTile -\> (Pos) / With Player|]
+--     & 'qmapMaybe' (\\pos -> moveBy dir pos.comp grid)
 --     & 'qfilterM' ('const' tileIsFree)
 --     & 'qinsert' ('Rel' OnTile)
 --     & 'query_'
@@ -938,18 +924,19 @@ import System.Exit (exitSuccess)
 --     'void' $ 'spawn' ('Observer' onDamage)
 -- @
 --
--- The last thing we need is a way for enemies to trigger the event. I made a system which checks if an enemy is adjacent to the player and triggers the event:
+-- The last thing we need is a way for enemies to trigger the event. Let us make a system which checks if an enemy is adjacent to the player and triggers the event:
 --
+-- @
 -- tryDamage :: 'System' ()
 -- tryDamage = do
---   adjacentEnemies \<-
+--   adjacentEnemies <-
 --     ['q'|OnTile -\> (Pos) / With Player|]
---       & 'qcross' isAdjacent ['q'|OnTile -\> (Pos) / With Enemy|]
---       & 'qjoin' (,)
+--       & 'qjoin' (\\pos -\> ['q'|OnTile -\> (Pos) / With Enemy|] & 'qfilter' (isAdjacent pos)) (,)
 --       & 'query'
 --
 --   'unless' ('null' adjacentEnemies) $ do
 --     'trigger' $ Damage 5
+-- @
 --
 -- With this helper function:
 --
@@ -961,9 +948,8 @@ import System.Exit (exitSuccess)
 --    in (dx == 1 && dy == 0) || (dx == 0 && dy == 1)
 -- @
 --
--- The @qcross@ function iterates over both queries and matches the elements that fulfill the given condition. In our case, they match
--- the player with all enemies that are adjacent to it. Due to @qjoin@ being a strict /inner/ join, the resulting list will only have elements
--- if there is at least one enemy next to the player. In which case, we trigger the Damage event.
+-- The @qjoin@ function maps each of our positions into an entirely new query, filtering the entities of that query
+-- based on the position. This is actually a less powerful bind operation, as we'll see in the next chapter.
 --
 -- I've scheduled @tryDamage@ to happen every frame, after both the player and enemies have moved:
 --
@@ -1047,10 +1033,10 @@ import System.Exit (exitSuccess)
 -- $coins
 -- Now, for our last bit of logic, we should add a reason for the player to not die. Let's spawn a bunch of coins!
 --
--- First, we need a marker component for the coins:
+-- First, we need a marker component for the coins. Each containing a value:
 --
 -- @
--- data Coin = Coin deriving ('Component')
+-- data Coin = Coin Int deriving ('Component')
 -- @
 --
 -- Second, here's a system that spawns a coin on a random free tile:
@@ -1080,13 +1066,17 @@ import System.Exit (exitSuccess)
 --   init = do
 --     Stdin.'Mischief.ECS.Stdin.init'
 --
---     'systems' (spawnGrid, spawnWalls)
+--     'systems' spawnGrid
+--       & 'schedule' 'Startup'
+--
+--     'systems' spawnWalls
+--       & 'after spawnGrid
 --       & 'schedule' 'Startup'
 --
 --     'systems' printGrid
 --       & 'schedule' 'Update'
 --
---     interval <- Interval.'Mischief.ECS.Internval.start' 2000000 spawnCoin
+--     interval <- Interval.'Mischief.ECS.Interval.start' 2000000 spawnCoin
 --
 --     'insertRes' =<< newGen
 -- @
@@ -1115,37 +1105,25 @@ import System.Exit (exitSuccess)
 -- $collect
 -- All that's left is letting the player collect coins and keeping track of how many they have collected.
 --
--- I'll do this via a resource this time.
+-- Let's make another component which will be held on the player, containing the total amount of coins they've collected:
 --
 -- @
--- data Coins = Coins 'Int' deriving ('Component')
+-- data Coins = Coins 'Int' deriving ('Component', 'Generic', 'Default')
 -- @
 --
--- I'll insert the resource in @MainPlugin@:
+-- And make it another required component of @Player@:
 --
 -- @
--- instance 'Plugin' MainPlugin where
---   init = do
---     Stdin.'Mischief.ECS.Stdin.init'
---
---     'systems' (spawnGrid, spawnWalls)
---       & 'schedule' 'Startup'
---
---     'systems' printGrid
---       & 'schedule' 'Update'
---
---     interval <- Interval.'Mischief.ECS.Internval.start' 2000000 spawnCoin
---
---     'insertRes' =<< newGen
---     'insertRes' (Coins 0)
+-- instance 'Component' Player where
+--   required = 'require' \@(Health, Coins)
 -- @
 --
--- And I'll update the display to also show the number of coins:
+-- And then update the display to also show the number of coins:
 --
 -- @
 -- showCoins :: 'System' 'String'
 -- showCoins = do
---   'Just' (Coins c) <- 'res' \@Coins
+--   'Just' (Coins c) <- 'single' $ ['q'|Coins|]
 --   'pure' $ \"Coins: \" ++ show c
 -- @
 --
@@ -1163,18 +1141,19 @@ import System.Exit (exitSuccess)
 -- @
 -- collectCoins :: 'System' ()
 -- collectCoins = do
---   'Just' (Coins c) <- 'res' \@Coins
+--   players \<- 'query' ['q'|Entity, OnTile -\> (Entity), Coins / With Player|]
+--   'for_' players $ \\(player, 'From' _ tile, Coins coins) -> do
+--     collected <-
+--       ['q'|Coin / With OnTile -> tile|]
+--         & 'qtap' (\e _ -> despawn e)
+--         & 'query'
 --
---   coins <-
---     ['q'|OnTile -\> * / With Player|]
---       & 'qthen' (\\('Rel' _ playerTile) -\> ['q'|Entity / With Coin, With OnTile -\> playerTile|])
---       & 'query'
---
---   'for_' coins 'despawn'
---   'insertRes' (Coins (c + length coins))
+--     'insert' (Coins $ 'foldr' (\(Coin x) -> (+ x)) coins collected) player
 -- @
 --
--- @qthen@ maps each element of the query to a whole other query and then flattens the results.
+-- We iterate over all players, then query all coins that share the same tile as the current player, while despawning them. We
+-- then do a @foldr@ to sum the value of all coins over the @Coins@ of the player and re-insert it. There are much cleaner,
+-- less imperative, ways of writing this, some of which will be covered in the next chapter.
 --
 -- Now to schedule it:
 --
@@ -1211,35 +1190,6 @@ import System.Exit (exitSuccess)
 -- ####################
 -- Coins: 16
 -- @
-
--- $monad
--- If you're an experienced Haskeller you may have picked up on something in the previous chapter.
---
--- More specifically, look at the signature of @qthen@:
---
--- @
--- qthen :: (a -> Query m b) -> Query m a -> Query m b
--- @
---
--- It's oddly similar to another function you may know:
---
--- @
--- (>>=) :: m a -> (a -> m b) -> m b
--- @
---
--- Yes! @qthen@ is just the flipped monad bind operator.
---
--- In fact, another way to write the earlier query is:
---
--- @
--- let playerQ = ['q'|OnTile -\> * / With Player|]
---
--- coins \<- 'query' $ do
---   ('Rel' _ playerTile) \<- playerQ
---   ['q'|Entity / With Coin, With OnTile -\> playerTile|]
--- @
---
--- Have fun thinking of the implications of this!
 
 -- $next
 -- Don't worry if there are various details that you haven't fully understood yet. The next chapters will go into detail over the many aspects of the ECS. This chapter was just meant
