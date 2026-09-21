@@ -1,33 +1,26 @@
-module Mischief.ECS.Resources where
+module Mischief.ECS.Resources (insertRes, res, resOrInsert) where
 
 import Mischief.ECS.Components
 import Mischief.ECS.Components.Bundle
 import Mischief.ECS.Components.Spawn
-import Mischief.ECS.Log
-import Mischief.ECS.Tables
 import Mischief.ECS.World
 import Mischief.ECS.World.Insert
 import Mischief.ECS.World.Query
 import Mischief.ECS.World.Query.Markers
-import Mischief.ECS.World.Query.QueryType
-import Mischief.ECS.World.Query.Queryable
 
--- | Insert a resource into this world. If the resource already exists, its value will be overwritten.
+-- | Insert a resource into the World. If the resource already exists, its value will be overwritten.
 insertRes :: forall r. (Component r, Bundle r) => r -> System ()
 insertRes res = do
   entity <- meta @r
   insert res entity
 
+-- | Get the value of a resource from the World.
 res :: forall c. (Component c) => System (Maybe c)
 res = do
   meta <- meta @c
   single $ mkGet meta (C @c)
 
--- resOrInsert :: forall r. (Component r, Updateable (Result r), Bundle r) => r -> System (Result r)
--- resOrInsert r = do
---   meta <- meta @r
---   getOrInsert r meta
-
+-- | Get the value of a resource, or insert a value if it doesn't exist.
 resOrInsert :: forall r. (Component r, Bundle r) => r -> System r
 resOrInsert r = do
   meta <- meta @r

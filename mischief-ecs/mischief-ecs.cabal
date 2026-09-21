@@ -60,7 +60,6 @@ library
     Mischief.ECS.App
     Mischief.ECS.App.Plugins
     Mischief.ECS.App.Schedules
-    Mischief.ECS.App.SystemConfig
     Mischief.ECS.App.SystemDef
     Mischief.ECS.App.Systems
     Mischief.ECS.Archetypes
@@ -72,7 +71,6 @@ library
     Mischief.ECS.Components.Common
     Mischief.ECS.Components.HooksDef
     Mischief.ECS.Components.Required
-    Mischief.ECS.Components.Runnable
     Mischief.ECS.Components.Spawn
     Mischief.ECS.Entities
     Mischief.ECS.EntityDef
@@ -80,17 +78,13 @@ library
     Mischief.ECS.Events
     Mischief.ECS.Exports
     Mischief.ECS.Foreign
-    Mischief.ECS.Graph
     Mischief.ECS.Hooks
     Mischief.ECS.HooksRel
     Mischief.ECS.Interval
     Mischief.ECS.Log
-    Mischief.ECS.Mappable
     Mischief.ECS.Messages
     Mischief.ECS.Observer
-    Mischief.ECS.Observers
     Mischief.ECS.Prelude
-    Mischief.ECS.Relationships
     Mischief.ECS.Relationships.ChildOf
     Mischief.ECS.Relationships.Graph
     Mischief.ECS.Relationships.Order
@@ -117,7 +111,6 @@ library
     Mischief.ECS.World.Change
     Mischief.ECS.World.Defer
     Mischief.ECS.World.Insert
-    Mischief.ECS.World.Modify
     Mischief.ECS.World.Par
     Mischief.ECS.World.Prefs
     Mischief.ECS.World.Query
@@ -125,14 +118,12 @@ library
     Mischief.ECS.World.Query.Pipe
     Mischief.ECS.World.Query.Queryable
     Mischief.ECS.World.Query.QueryFilter
-    Mischief.ECS.World.Query.QueryType
     Mischief.ECS.World.Query.TH
     Mischief.ECS.World.Query.TH.Common
     Mischief.ECS.World.Query.TH.QD
     Mischief.ECS.World.Query.TH.QF
     Mischief.ECS.World.Remove
     Mischief.ECS.World.Spawn
-    Mischief.ECS.World.Systems
     Mischief.ECS.World.Utils
 
   -- Modules included in this library but not exported.

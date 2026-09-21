@@ -3,30 +3,21 @@
 -- and scheduling systems.
 module Mischief.ECS.Systems where
 
-import Control.Monad.IO.Class
-import Control.Monad.Reader (runReaderT)
 import Data.Foldable
-import Data.Kind
-import GHC.Stack.Types
 import Mischief.ECS.App.Schedules
-import Mischief.ECS.App.SystemConfig
-import Mischief.ECS.App.Systems (ScheduledIn (ScheduledIn), SystemFunction (SystemFunction), removeSystemFromMap, systemEntity)
+import Mischief.ECS.App.Systems (ScheduledIn, SystemFunction (SystemFunction), removeSystemFromMap, systemEntity)
 import Mischief.ECS.Collectable
 import Mischief.ECS.Components
 import Mischief.ECS.Entities
-import Mischief.ECS.Hidden
-import Mischief.ECS.Mappable
 import Mischief.ECS.Relationships.Order
 import Mischief.ECS.World
 import Mischief.ECS.World.Insert
 import Mischief.ECS.World.Query
 import Mischief.ECS.World.Query.Markers
 import Mischief.ECS.World.Query.QueryFilter
-import Mischief.ECS.World.Query.Queryable
 import Mischief.ECS.World.Remove
 import Mischief.ECS.World.Spawn
 import Mischief.ECS.World.Spawn qualified as Spawn
-import Mischief.ECS.World.Utils
 
 data SystemConfig = SystemConfig
   { systems :: [System ()],
@@ -94,13 +85,6 @@ spawn = Spawn.spawn . SystemFunction
 
 get :: (Schedule sc) => sc -> System () -> System Entity
 get = systemEntity
-
--- schedule :: (Schedule sc) => sc -> System () -> System ()
--- schedule sch s = do
---   s' <- Mischief.ECS.Systems.get sch s
---   sch' <- scheduleEntity sch
-
---   insert (Rel ScheduledIn sch') s'
 
 unschedule :: (Schedule sc, ToSystems a) => sc -> a -> System ()
 unschedule sch s = do

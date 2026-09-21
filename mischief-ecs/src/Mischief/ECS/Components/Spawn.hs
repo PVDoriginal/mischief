@@ -4,7 +4,6 @@ module Mischief.ECS.Components.Spawn where
 
 import Control.Monad
 import Control.Monad.IO.Class
-import Control.Monad.Reader
 import Data.Data
 import Data.Default
 import Data.Foldable
@@ -15,22 +14,12 @@ import Data.Foldable
 -- import Mischief.ECS.Events
 
 import Data.HashTable.IO qualified as H
-import Data.IORef
-import Data.Kind
-import Data.Map qualified as Map
-import Data.Maybe
-import Data.Set qualified as Set
 import GHC.Base (Word (..))
 import Mischief.ECS.Components
-import Mischief.ECS.Components.Bundle
 import Mischief.ECS.Components.Common
 import Mischief.ECS.Components.HooksDef
 import Mischief.ECS.Components.Required (requireAll)
 import Mischief.ECS.Entities
-import Mischief.ECS.EntityDef
-import Mischief.ECS.Log
-import Mischief.ECS.Observer
-import Mischief.ECS.Relationships
 import Mischief.ECS.World
 import Mischief.ECS.World.Prefs
 

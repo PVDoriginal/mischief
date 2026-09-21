@@ -2,13 +2,10 @@ module Mischief.ECS.Archetypes.Graph where
 
 import Control.Monad
 import Control.Monad.IO.Class
-import Control.Monad.Primitive
-import Control.Monad.Reader
 import Data.Data
 import Data.Foldable
 import Data.IORef
 import Data.List
-import Data.Map (Map, mapMaybe)
 import Data.Map qualified as Map
 import Data.Maybe
 import Data.Set (Set)
@@ -16,18 +13,10 @@ import Data.Set qualified as Set
 import GHC.Base (eqWord#, isTrue#)
 import Mischief.ECS.Archetypes
 import Mischief.ECS.Components
-import Mischief.ECS.Components.Common
 import Mischief.ECS.Entities
-import Mischief.ECS.EntityDef
-import Mischief.ECS.Log
-import Mischief.ECS.Relationships
 import Mischief.ECS.Tables
-import Mischief.ECS.Utils
-import Mischief.ECS.Vec (IOVec)
 import Mischief.ECS.Vec qualified as Vec
 import Mischief.ECS.World
-import Mischief.ECS.World (SystemTools (get))
-import Mischief.ECS.World.Query.Queryable
 
 data ArchetypeTransition = Inserted ComponentId | Removed ComponentId
 

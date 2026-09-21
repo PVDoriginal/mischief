@@ -3,6 +3,7 @@
 -- adds new elements at the end of vector.
 --
 -- We reallocate vector with 1.5x length to get amortized append.
+{- HLINT ignore "Use camelCase" -}
 module Mischief.ECS.Vec
   ( Vec (..),
     IOVec,
@@ -66,7 +67,6 @@ import Data.Vector (Vector)
 import Data.Vector qualified as Vector
 import Data.Vector.Mutable (MVector)
 import Data.Vector.Mutable qualified as MVector
-import Debug.Trace (traceShow)
 import GHC.Generics
 import GHC.Stack (HasCallStack)
 import Prelude hiding (length, null, read)

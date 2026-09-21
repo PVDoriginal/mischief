@@ -3,31 +3,22 @@
 module Mischief.ECS.App.Systems where
 
 import Control.Monad.IO.Class
-import Control.Monad.Reader
-import Data.Default
 import Data.Foldable
 import Data.IORef
 import Data.Map (Map)
 import Data.Map qualified as Map
-import GHC.Generics
 import GHC.StableName (StableName, eqStableName, hashStableName, makeStableName)
 import GHC.Stack.Types
 import Mischief.ECS.App.Schedules
 import Mischief.ECS.App.SystemDef
 import Mischief.ECS.Components
-import Mischief.ECS.Components.Bundle
 import Mischief.ECS.Components.Required
 import Mischief.ECS.Entities
-import Mischief.ECS.Log
-import Mischief.ECS.Relationships.Order
 import Mischief.ECS.Resources
-import Mischief.ECS.Tables
 import Mischief.ECS.Utils
 import Mischief.ECS.World
-import Mischief.ECS.World.Insert
 import Mischief.ECS.World.Query
 import Mischief.ECS.World.Query.Markers
-import Mischief.ECS.World.Query.Queryable
 import Mischief.ECS.World.Spawn
 
 newtype Systems = Systems

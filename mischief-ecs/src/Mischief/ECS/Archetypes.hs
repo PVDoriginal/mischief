@@ -1,12 +1,8 @@
 module Mischief.ECS.Archetypes where
 
-import Control.Monad
-import Data.Foldable
 import Data.IORef
-import Data.List
 import Data.Map (Map)
 import Data.Map qualified as Map
-import Data.Maybe
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Mischief.ECS.Components

@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wno-unused-imports #-}
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
 -- |
@@ -19,7 +20,6 @@ module Mischief.ECS
     module Mischief.ECS.App,
     module Mischief.ECS.App.Plugins,
     module Mischief.ECS.App.Schedules,
-    module Mischief.ECS.App.SystemConfig,
     module Mischief.ECS.App.Systems,
     module Mischief.ECS.Archetypes,
     module Mischief.ECS.Archetypes.Graph,
@@ -29,16 +29,13 @@ module Mischief.ECS
     module Mischief.ECS.Components.BundleTypes,
     module Mischief.ECS.Components.Common,
     module Mischief.ECS.Components.Required,
-    module Mischief.ECS.Components.Runnable,
     module Mischief.ECS.Components.Spawn,
     module Mischief.ECS.Entities,
     module Mischief.ECS.Events,
     module Mischief.ECS.Hooks,
     module Mischief.ECS.Log,
-    module Mischief.ECS.Mappable,
     module Mischief.ECS.Messages,
     module Mischief.ECS.Prelude,
-    module Mischief.ECS.Relationships,
     module Mischief.ECS.Relationships.ChildOf,
     module Mischief.ECS.Relationships.Graph,
     module Mischief.ECS.Relationships.Order,
@@ -50,7 +47,6 @@ module Mischief.ECS
     module Mischief.ECS.World.Change,
     module Mischief.ECS.World.Defer,
     module Mischief.ECS.World.Insert,
-    module Mischief.ECS.World.Modify,
     module Mischief.ECS.World.Par,
     module Mischief.ECS.World.Prefs,
     module Mischief.ECS.Resources,
@@ -63,7 +59,6 @@ module Mischief.ECS
     module Mischief.ECS.World.Remove,
     module Mischief.ECS.World.Spawn,
     module Mischief.ECS.World.Utils,
-    TestTest (..),
   )
 where
 
@@ -76,7 +71,6 @@ import Language.Haskell.TH.Syntax
 import Mischief.ECS.App
 import Mischief.ECS.App.Plugins
 import Mischief.ECS.App.Schedules
-import Mischief.ECS.App.SystemConfig
 import Mischief.ECS.App.Systems
 import Mischief.ECS.Archetypes
 import Mischief.ECS.Archetypes.Graph
@@ -86,19 +80,15 @@ import Mischief.ECS.Components.Bundle
 import Mischief.ECS.Components.BundleTypes
 import Mischief.ECS.Components.Common
 import Mischief.ECS.Components.Required
-import Mischief.ECS.Components.Runnable
 import Mischief.ECS.Components.Spawn
 import Mischief.ECS.Entities
 import Mischief.ECS.EventDef
 import Mischief.ECS.Events
 import Mischief.ECS.Exports
-import Mischief.ECS.Graph
 import Mischief.ECS.Hooks
 import Mischief.ECS.Log
-import Mischief.ECS.Mappable
 import Mischief.ECS.Messages (Message)
 import Mischief.ECS.Prelude
-import Mischief.ECS.Relationships
 import Mischief.ECS.Relationships.ChildOf
 import Mischief.ECS.Relationships.Graph
 import Mischief.ECS.Relationships.Order
@@ -113,7 +103,6 @@ import Mischief.ECS.World
 import Mischief.ECS.World.Change
 import Mischief.ECS.World.Defer
 import Mischief.ECS.World.Insert
-import Mischief.ECS.World.Modify
 import Mischief.ECS.World.Par
 import Mischief.ECS.World.Prefs
 import Mischief.ECS.World.Query
@@ -123,19 +112,7 @@ import Mischief.ECS.World.Query.Queryable
 import Mischief.ECS.World.Query.TH
 import Mischief.ECS.World.Remove
 import Mischief.ECS.World.Spawn
-import Mischief.ECS.World.Systems
 import Mischief.ECS.World.Utils
-
-data TestTest = TestTest
-
--- x = quoteD
-
--- x = $quoteE
-
-qq :: System ()
-qq = do
-  -- x <- $(quoteC ''ChildOf)
-  undefined
 
 -- $pre
 -- This version of Mischief isn't meant for public use. It's just a pre-release published mostly to showcase the documentation.

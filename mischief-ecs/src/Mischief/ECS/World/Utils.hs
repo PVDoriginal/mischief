@@ -2,37 +2,19 @@
 
 module Mischief.ECS.World.Utils where
 
-import Control.Concurrent.STM
-import Control.Monad
 import Control.Monad.IO.Class (MonadIO (liftIO))
-import Control.Monad.Primitive (PrimMonad (..))
-import Control.Monad.Reader.Class (MonadReader (..), asks)
-import Control.Monad.Trans (MonadTrans (..))
-import Control.Monad.Trans.Reader (ReaderT (runReaderT))
 import Data.Bifunctor qualified
 import Data.IORef
-import Data.List
-import Data.Map qualified as Map
-import Data.Maybe (fromMaybe, isNothing)
 import Data.Proxy
 import Data.Set (Set)
 import Data.Set qualified as Set
-import Data.Text (Text)
 import Data.Typeable
-import GHC.Stack
-import Mischief.ECS.Archetypes
 import Mischief.ECS.Components
 import Mischief.ECS.Components.Bundle
 import Mischief.ECS.Components.Spawn
 import Mischief.ECS.Entities
-import Mischief.ECS.EntityDef
-import Mischief.ECS.EventDef
-import Mischief.ECS.Hidden
-import Mischief.ECS.Log
 import Mischief.ECS.Tables
-import Mischief.ECS.Utils
 import Mischief.ECS.World
-import Mischief.ECS.World.Prefs
 
 -- | Process a 'BundleElement', turning its 'TypeRep' into a 'ComponentId'.
 processBundleElement :: World -> ComponentTicks -> (BundleElement ErasedComponent) -> IO ProcessedBundleElement

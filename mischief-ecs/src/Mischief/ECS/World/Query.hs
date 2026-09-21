@@ -7,27 +7,12 @@ import Control.Monad
 import Control.Monad.IO.Class
 import Data.Data
 import Data.Foldable
-import Data.Foldable hiding (and)
-import Data.IORef
-import Data.Map qualified as Map
 import Data.Maybe
 import Data.Set qualified as Set
-import Data.Text qualified as T
 import Data.Traversable
-import GHC.Base (Int (..), List, Type, eqWord#, isTrue#)
-import GHC.Stack
-import GHC.TypeLits
-import Mischief.ECS.App.SystemDef
 import Mischief.ECS.Archetypes.Graph
-import Mischief.ECS.Collectable
 import Mischief.ECS.Components
-import Mischief.ECS.Components.BundleTypes
-import Mischief.ECS.Components.Common
 import Mischief.ECS.Entities
-import Mischief.ECS.EntityDef
-import Mischief.ECS.Log
-import Mischief.ECS.Tables
-import Mischief.ECS.Vec qualified as Vec
 import Mischief.ECS.World
 import Mischief.ECS.World.Query.Markers
 import Mischief.ECS.World.Query.QueryFilter
@@ -144,7 +129,7 @@ tryMetaLocal = do
 -- instance (GetResultComponentId' (IsComp c) (Result c)) => GetResultComponentId (Result c) where
 --   getResultComponentId = getResultComponentId' @(IsComp c)
 
-addedChanged :: forall c m w. (MonadSystem w m) => (ComponentTicks -> Tick -> Tick -> Bool) -> FilterComponent -> Entity -> m Bool
+addedChanged :: forall m w. (MonadSystem w m) => (ComponentTicks -> Tick -> Tick -> Bool) -> FilterComponent -> Entity -> m Bool
 addedChanged f (FilterComponent (c, Nothing, Nothing)) e = do
   world <- unsafeGetWorld
   id <- liftIO $ getComponentId c world.components

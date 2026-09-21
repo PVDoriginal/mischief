@@ -24,4 +24,4 @@ warn msg = withFrozenCallStack $ do
 err :: (HasCallStack) => (MonadSystem w m) => Text -> m ()
 err msg = withFrozenCallStack $ do
   world <- unsafeGetWorld
-  liftIO $ Colog.usingLoggerT world.logger $ Colog.logError msg
+  liftIO $ Colog.usingLoggerT world.loggerErr $ Colog.logError msg

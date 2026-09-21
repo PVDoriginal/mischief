@@ -7,39 +7,31 @@ module Mischief.ECS.App where
 
 import Control.Monad (forever, void)
 import Control.Monad.IO.Class (MonadIO (liftIO))
-import Control.Monad.Reader (MonadReader (..), asks)
-import Control.Monad.Trans.Reader (ReaderT (..))
+import Control.Monad.Reader (MonadReader (..))
 import Data.Data
 import Data.Default
 import Data.Foldable
 import Data.IORef
 import Mischief.ECS.App.Plugins
 import Mischief.ECS.App.Schedules
-import Mischief.ECS.App.SystemConfig hiding (Before)
 import Mischief.ECS.App.SystemDef
-import Mischief.ECS.App.Systems (ScheduledIn (ScheduledIn), SystemFunction (SystemFunction), Systems, systemEntity)
+import Mischief.ECS.App.Systems (ScheduledIn, SystemFunction, Systems)
 import Mischief.ECS.App.Systems qualified as Systems
 import Mischief.ECS.Components
 import Mischief.ECS.Components.Bundle
-import Mischief.ECS.Components.Runnable (Runnable, runFor)
-import Mischief.ECS.Components.Spawn (getOrAddComponentId, meta)
+import Mischief.ECS.Components.Spawn (getOrAddComponentId)
 import Mischief.ECS.Entities
 import Mischief.ECS.Events
 import Mischief.ECS.Hidden
 import Mischief.ECS.Log
-import Mischief.ECS.Mappable
 import Mischief.ECS.Relationships.Order
 import Mischief.ECS.Resources
-import Mischief.ECS.Systems qualified as Systems
-import Mischief.ECS.Tables
 import Mischief.ECS.World
 import Mischief.ECS.World.Defer
 import Mischief.ECS.World.Insert
 import Mischief.ECS.World.Query
 import Mischief.ECS.World.Query.Markers
 import Mischief.ECS.World.Query.QueryFilter
-import Mischief.ECS.World.Query.QueryType
-import Mischief.ECS.World.Query.Queryable
 import Mischief.ECS.World.Spawn
 
 data App = App
@@ -137,8 +129,8 @@ appInit = do
   insert (Rel Before post) update
   insert (Rel Before last) post
 
-register :: forall c. (Runnable c) => System ()
-register = runFor @c registerComponent
+register :: forall c. (Component c) => System ()
+register = registerComponent $ Proxy @c
 
 registerComponent :: forall c. (Component c) => Proxy c -> System ()
 registerComponent c = do

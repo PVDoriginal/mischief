@@ -1,6 +1,5 @@
 module Mischief.ECS.World.Par where
 
-import Control.Concurrent (forkIO)
 import Control.Concurrent.Async (async, wait)
 import Control.Monad
 import Control.Monad.IO.Class

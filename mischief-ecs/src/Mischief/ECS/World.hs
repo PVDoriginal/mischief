@@ -35,13 +35,12 @@ import Control.Monad.Reader.Class (MonadReader (..), asks)
 import Control.Monad.Trans (MonadTrans (..))
 import Control.Monad.Trans.Reader (ReaderT (runReaderT))
 import Data.Data
-import Data.IORef (IORef, modifyIORef', newIORef, readIORef)
+import Data.IORef (IORef, newIORef)
 import Mischief.ECS.Archetypes (Archetypes, emptyArchetypes)
 import Mischief.ECS.Collectable
 import Mischief.ECS.Components
   ( Component (IsExclusiveRel),
     Components,
-    Exclusivity (..),
     Rel,
     Tick (Tick),
     emptyComponents,
@@ -54,10 +53,8 @@ import Mischief.ECS.Entities
   )
 import Mischief.ECS.EventDef
 import Mischief.ECS.Hidden
-import Mischief.ECS.Mappable
 import Mischief.ECS.Tables (Tables, emptyTables)
 import Mischief.ECS.World.Prefs (WorldPrefs, newPrefs)
-import Mischief.ECS.World.Query.QueryType
 
 -- | @The World@ is the main data structure storing the entities, components, archetypes, and everything else that lives in our app.
 data World = World
@@ -85,6 +82,7 @@ data World = World
     -- | Certain toggleable settings.
     prefs :: WorldPrefs,
     logger :: Colog.LogAction IO Colog.Message,
+    loggerErr :: Colog.LogAction IO Colog.Message,
     tools :: SystemTools
   }
 
@@ -108,6 +106,7 @@ newWorld tools = do
   let prefs = newPrefs
 
   let logger = Colog.cmap Colog.fmtMessage Colog.logTextStdout
+  let loggerErr = Colog.cmap Colog.fmtMessage Colog.logTextStderr
 
   return
     World
@@ -123,6 +122,7 @@ newWorld tools = do
         frame,
         prefs,
         logger,
+        loggerErr,
         tools
       }
 
@@ -138,11 +138,12 @@ setDeferred deferred world = world {deferred}
 setPrefs :: WorldPrefs -> World -> World
 setPrefs prefs world = world {prefs}
 
--- | A System is a set of instructions applied over a World.
--- It can be added to the App to be ran on a certain Schedule.
+-- | A System is a monad that mutates the World.
 --
--- A system is actually a wrapper around @'ReaderT' 'World' 'IO'@, meaning you can 'ask' for the World,
--- or do IO operations by using 'liftIO'.
+-- It can be added to a certain schedule and ordered with other systems.
+-- It also offers IO access via 'liftIO'.
+--
+-- Read the [tutorial]("Mischief.ECS.Tutorial.Systems") on systems for more details.
 newtype System a = System (ReaderT (Hidden World) IO a)
   deriving newtype (Functor, Applicative, Monad, MonadIO, MonadReader (Hidden World), MonadFail)
 
@@ -197,6 +198,7 @@ instance MonadSystem (Hidden World) System
 
 instance MonadSystem ParWorld ParSystem
 
+-- Grab the World. DO NOT USE THIS.
 unsafeGetWorld :: (MonadSystem w m) => m World
 unsafeGetWorld = do
   asks (unhide . getWorld)

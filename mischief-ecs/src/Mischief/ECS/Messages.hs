@@ -9,27 +9,18 @@ module Mischief.ECS.Messages
 where
 
 import Control.Monad.IO.Class
-import Control.Monad.Reader (MonadReader (..))
 import Data.Data (Typeable)
 import Data.IORef
 import Data.Kind
 import Data.Map (Map)
 import Data.Map qualified as Map
-import Data.Text qualified as T
-import Mischief.ECS.App
 import Mischief.ECS.App.SystemDef
 import Mischief.ECS.App.Systems
 import Mischief.ECS.Components
-import Mischief.ECS.Log
 import Mischief.ECS.Resources
-import Mischief.ECS.Tables
-import Mischief.ECS.Utils
 import Mischief.ECS.World
-import Mischief.ECS.World.Insert
-import Mischief.ECS.World.Modify
-import Mischief.ECS.World.Query (mkGet, mkQuery, single)
+import Mischief.ECS.World.Query (mkGet, single)
 import Mischief.ECS.World.Query.Markers
-import Mischief.ECS.World.Query.Queryable
 import Prelude hiding (read)
 
 -- | Message typeclass.

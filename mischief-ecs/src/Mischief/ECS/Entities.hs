@@ -21,12 +21,8 @@ where
 import Control.Concurrent.STM.TVar
 import Control.Monad
 import Data.IORef
-import Data.Map (Map)
-import Data.Map qualified as Map
-import Data.Maybe (isJust)
 import GHC.Base
 import GHC.Conc
-import Mischief.ECS.Components
 import Mischief.ECS.EntityDef
 import Mischief.ECS.Vec (IOVec)
 import Mischief.ECS.Vec qualified as Vec

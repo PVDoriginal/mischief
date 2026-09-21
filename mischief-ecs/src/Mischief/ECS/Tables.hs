@@ -3,24 +3,19 @@
 module Mischief.ECS.Tables where
 
 import Control.Monad (forM, when)
-import Data.Foldable (Foldable (toList), find, for_)
+import Data.Bifunctor qualified
+import Data.Foldable (Foldable (toList), for_)
 import Data.IORef
-import Data.Kind
 import Data.List (transpose)
 import Data.Map (Map)
 import Data.Map qualified as Map
-import Data.Maybe (catMaybes, fromMaybe, isJust, isNothing)
+import Data.Maybe (catMaybes)
 import Data.Traversable (for)
-import Data.Typeable (Proxy (Proxy), eqT, typeRep, type (:~:) (Refl))
 import Data.Vector qualified as Vector
-import GHC.Base (Int (..), Word (W#), eqWord#, isTrue#)
-import GHC.Records
-import GHC.TypeLits
+import GHC.Base (Int (..), eqWord#, isTrue#)
 import Mischief.ECS.Components
 import Mischief.ECS.Components.Bundle
 import Mischief.ECS.Entities
-import Mischief.ECS.EntityDef (Entity# (Entity#), eqEntity#, liftEntity)
-import Mischief.ECS.Utils
 import Mischief.ECS.Vec (IOVec)
 import Mischief.ECS.Vec qualified as Vec
 
@@ -93,14 +88,14 @@ replaceComponentsIntoMap ::
   EntityPointer ->
   Map ComponentId Column ->
   IO ()
-replaceComponentsIntoMap bundle tick (EntityPointer (# archetypeId, rowIndex #)) tableMap = do
+replaceComponentsIntoMap bundle tick (EntityPointer (# _, rowIndex #)) tableMap = do
   for_ bundle.elements $ \el ->
     tapMap tableMap el.id $ \(Column col) ->
       case tick of
         Just tick ->
-          Vec.modify_ col (I# rowIndex) (\ComponentData {value, ticks = ComponentTicks {changed, added}} -> ComponentData {value = el.component.value, ticks = ComponentTicks {changed = tick, added}})
+          Vec.modify_ col (I# rowIndex) (\ComponentData {ticks = ComponentTicks {added}} -> ComponentData {value = el.component.value, ticks = ComponentTicks {changed = tick, added}})
         Nothing ->
-          Vec.modify_ col (I# rowIndex) (\ComponentData {value, ticks} -> ComponentData {value = el.component.value, ticks})
+          Vec.modify_ col (I# rowIndex) (\ComponentData {ticks} -> ComponentData {value = el.component.value, ticks})
 
 --   foldl' modifyMap tableMap bundle.elements
 --  where
@@ -205,7 +200,7 @@ tryGetComponentFromColumn (Column components) (EntityPointer (# _, rowIndex #)) 
   pure $ tryGetComponent element.value
 
 tryGetRelCollectionFromTable :: forall c. (Component c) => Table -> Entity -> EntityPointer -> ComponentId -> IO (Maybe [(Entity, Rel c)])
-tryGetRelCollectionFromTable table entity pointer (ComponentId (# id, target #)) =
+tryGetRelCollectionFromTable table entity pointer (ComponentId (# id, _ #)) =
   do
     columns <- readIORef table.columns
     -- TODO: improve lookup performance for partial tuples
@@ -303,7 +298,7 @@ tryGetComponentsFromColumn (Column components) = do
   pure $ maybe [] Vector.toList x
 
 tryGetRelCollectionsFromTable :: forall c. (Component c) => Table -> ComponentId -> IO [(Entity, [Rel c])]
-tryGetRelCollectionsFromTable table (ComponentId (# id, target #)) =
+tryGetRelCollectionsFromTable table (ComponentId (# id, _ #)) =
   do
     -- let Just entity = componentId.entity
     columns <- readIORef table.columns
@@ -323,7 +318,7 @@ tryGetRelCollectionsFromTable table (ComponentId (# id, target #)) =
     let components'' = zip (map fst entities) $ transpose $ catMaybes components'
     return $
       map
-        (\(entity, components) -> (entity, map (\(value, target) -> Rel value target) components))
+        (Data.Bifunctor.second (map (uncurry Rel)))
         components''
 
 tryGetComponentsFromTable :: forall c. (Component c) => Table -> ComponentId -> IO [(Entity, c)]

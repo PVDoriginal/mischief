@@ -7,31 +7,22 @@ import Control.Monad.Reader
 import Data.Data
 import Data.Foldable
 import Data.IORef
-import Data.Map qualified as Map
-import Data.Maybe
-import Data.Set (Set)
-import Data.Set qualified as Set
 import Data.Text qualified as T
 import GHC.Base (Int (..), eqWord#, isTrue#)
-import Mischief.ECS.Archetypes
 import Mischief.ECS.Archetypes.Graph
 import Mischief.ECS.Collectable
 import Mischief.ECS.Components
-import Mischief.ECS.Components.Common
 import Mischief.ECS.Components.HooksDef (HookContext (..), HookContextRel (..))
 import Mischief.ECS.Components.Spawn
 import Mischief.ECS.Entities
-import Mischief.ECS.EntityDef
 import Mischief.ECS.EventDef
 import Mischief.ECS.Events
 import Mischief.ECS.Log
-import Mischief.ECS.Tables
 import Mischief.ECS.World
 import Mischief.ECS.World.Change (changeArchetype)
 import Mischief.ECS.World.Query
 import Mischief.ECS.World.Query.Markers
 import Mischief.ECS.World.Query.Queryable
-import Mischief.ECS.World.Utils
 
 newtype ToRemove = ToRemove {inner :: [(ComponentType, Maybe Entity, Maybe Any)]} deriving newtype (Semigroup)
 
@@ -43,28 +34,6 @@ instance (Component c) => EraseIntoStorage (R c Entity) ToRemove where
 
 instance (Component c) => EraseIntoStorage (R c Any) ToRemove where
   erase _ = ToRemove [(ComponentType $ Proxy @c, Nothing, Just Any)]
-
--- remove :: forall r. (Removable r) => Entity -> System ()
--- remove entity = do
---   types <- getTypes (Proxy @r)
---   removeFromEntity (Set.toList types) entity
-
--- class Delete r where
---   delete :: r -> System ()
-
--- class Delete' r isRel where
---   delete' :: r -> System ()
-
--- instance (Delete' (Result r) (IsComp r)) => Delete (Result r) where
---   delete = delete' @(Result r) @(IsComp r)
-
--- instance (Component c) => Delete' (Result c) True where
---   delete' :: Result c -> System ()
---   delete' result = remove (C @c) (entityOf result)
-
--- instance (Component c) => Delete' (Result (Rel c)) False where
---   delete' :: Result (Rel c) -> System ()
---   delete' result = remove (R @c result.target) (entityOf result)
 
 remove :: (Collectable c ToRemove) => c -> Entity -> System ()
 remove c entity = do

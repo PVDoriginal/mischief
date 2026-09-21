@@ -3,31 +3,16 @@
 module Mischief.ECS.World.Query.TH (q, qd, qf) where
 
 import Control.Monad
-import Control.Monad.IO.Class
-import Data.Maybe
 import Data.Text (Text)
 import Data.Text qualified as T
-import Data.Void
 import Language.Haskell.TH
-import Language.Haskell.TH qualified
 import Language.Haskell.TH.Quote
-import Language.Haskell.TH.Syntax
-import Mischief.ECS.Collectable
-import Mischief.ECS.Components
-import Mischief.ECS.Components.Common hiding (Name)
-import Mischief.ECS.Entities
-import Mischief.ECS.Hidden
-import Mischief.ECS.Log
-import Mischief.ECS.Utils
 import Mischief.ECS.World.Query
-import Mischief.ECS.World.Query.QueryFilter
-import Mischief.ECS.World.Query.Queryable hiding (Q)
 import Mischief.ECS.World.Query.TH.Common
 import Mischief.ECS.World.Query.TH.QD
 import Mischief.ECS.World.Query.TH.QF (Qf, pQf, quoteQf)
-import Text.Megaparsec (MonadParsec (eof, try), Parsec, choice, optional, parse, parseTest, runParserT, some, (<|>))
+import Text.Megaparsec (MonadParsec (eof, try), optional, parse, some, (<|>))
 import Text.Megaparsec.Char
-import Text.Megaparsec.Char.Lexer qualified as L
 
 q :: QuasiQuoter
 q =

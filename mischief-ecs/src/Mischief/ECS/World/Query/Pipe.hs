@@ -62,7 +62,7 @@ module Mischief.ECS.World.Query.Pipe
   )
 where
 
-import Control.Monad (filterM)
+import Control.Monad (filterM, void)
 import Control.Monad.IO.Class
 import Data.Foldable
 import Data.Function
@@ -83,6 +83,8 @@ import Mischief.ECS.World.Query
 import Mischief.ECS.World.Query.Markers
 import Mischief.ECS.World.Query.QueryFilter
 import Mischief.ECS.World.Query.Queryable
+import Mischief.ECS.World.Query.TH (q)
+import Mischief.ECS.World.Spawn
 
 {-# RULES
 "qmap/qmap" forall f g xs. qmap f (qmap g xs) = qmap (f . g) xs
@@ -436,13 +438,13 @@ qcheck f = qfilterM (\e _ -> check f e)
 --         pure $ map (uncurry From) y'
 --     )
 
--- | Extends the query with new elements, grabbed in O(1).
+-- | Extends the query with new elements.
 --
 -- __Example__
 --
 -- @
 -- [q|Name|]
---   & qextend (,) [q|Position|]
+--   & qextend [qd|Position|] (,)
 --   & query
 -- @
 qextend :: (MonadSystem w m, Queryable qd out) => qd -> (a -> out -> c) -> Query m a -> Query m c
@@ -473,9 +475,7 @@ qrelateMany f qd f' a = do
           & qmap (map (.comp))
       pure $ f' a as
 
--- | Maps a resource into the query. If the resource doesn't exist, the query will stop.
---
--- Same as @qextend f [q|Res \@r|]@.
+-- | Maps a resource into the query.
 --
 -- __Example__
 --
@@ -486,6 +486,8 @@ qrelateMany f qd f' a = do
 -- @
 -- qres :: forall r m a w. (MonadSystem w m, Component r) => Query m a -> Join m a Maybe (Res r)
 -- qres = qextend (mkQuery (Res @r))
+qres :: forall c m a w. (MonadSystem w m, Component c) => Query m (Res c)
+qres = qget (Entity (# 0##, 0## #)) (Res @c)
 
 -- -- | Pairs the query's elements with their entity. Same as @qextend (flip (,)) [q|Entity|]@.
 qentity :: (MonadSystem w m) => Query m a -> Query m (Entity, a)
@@ -540,6 +542,50 @@ test = do
 -- & qjoin (,)
 
 data Pos = Pos Int deriving (Component)
+
+data Res1 = Res1 deriving (Component)
+
+data Res2 = Res2 deriving (Component)
+
+data Res3 = Res3 deriving (Component)
+
+data Player = Player deriving (Component)
+
+newtype Coins = Coins Int deriving (Component)
+
+data Coin = Coin Int deriving (Component)
+
+data OnTile = OnTile
+
+instance Component OnTile where
+  type IsExclusiveRel OnTile = True
+
+gatherCoins :: From Coin -> Int -> Int
+gatherCoins (From _ (Coin value)) total = total + value
+
+qcollectCoins :: Query System ()
+qcollectCoins = do
+  (player, coins, From _ tile) <- [q|Entity, Coins, OnTile -> (Entity) / With Player|]
+
+  coinsValue <-
+    [q|Coin / With OnTile -> tile|]
+      & qtap (\e _ -> despawn e)
+      & qfoldr gatherCoins 0 player
+
+  pure coins
+    & qinsert (\(Coins x) -> Coins $ x + coinsValue)
+    & void
+
+test' :: System ()
+test' = do
+  query_ $ do
+    name <- mkQuery (C @Name)
+
+    res1 <- qres @Res1
+    res2 <- qres @Res2
+    res3 <- qres @Res3
+
+    undefined
 
 -- test' :: System [(Name, Maybe Pos)]
 -- test' = do

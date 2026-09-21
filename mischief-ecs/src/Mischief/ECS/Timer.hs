@@ -9,7 +9,6 @@ import Mischief.ECS.World.Insert
 import Mischief.ECS.World.Query
 import Mischief.ECS.World.Query.Markers
 import Mischief.ECS.World.Query.Pipe
-import Mischief.ECS.World.Query.Queryable
 
 data Timer = Timer {duration :: Float, elapsed :: Float, mode :: Mode}
 

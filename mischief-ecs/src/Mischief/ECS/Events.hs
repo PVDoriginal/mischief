@@ -1,25 +1,15 @@
 module Mischief.ECS.Events where
 
 import Control.Monad.IO.Class
-import Control.Monad.Reader (MonadReader (..))
-import Data.Data (Typeable)
-import Data.Default (Default)
 import Data.Foldable (for_)
 import Data.IORef (modifyIORef', readIORef, writeIORef)
 import Data.List
-import GHC.Generics (Generic)
-import GHC.Records
-import Mischief.ECS.Components
-import Mischief.ECS.Components.Bundle
-import Mischief.ECS.Components.Required (require)
 import Mischief.ECS.Entities
 import Mischief.ECS.EventDef
 import Mischief.ECS.Observer
-import Mischief.ECS.Tables
 import Mischief.ECS.World
 import Mischief.ECS.World.Query
 import Mischief.ECS.World.Query.Markers
-import Mischief.ECS.World.Query.Queryable
 
 trigger :: (Event e) => e -> System ()
 trigger event = do

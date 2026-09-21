@@ -11,11 +11,9 @@ module Mischief.ECS.HooksRel
 where
 
 import Data.Kind
-import Mischief.ECS.Collectable
 import Mischief.ECS.Components
 import Mischief.ECS.Components.HooksDef
 import Mischief.ECS.EntityDef
-import Mischief.ECS.Events
 import Mischief.ECS.Hooks
 import Mischief.ECS.World
 import Mischief.ECS.World.Insert

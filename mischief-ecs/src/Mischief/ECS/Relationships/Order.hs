@@ -6,18 +6,13 @@ import Data.Set (Set)
 import Data.Set qualified as Set
 import Mischief.ECS.Components
 import Mischief.ECS.Entities
-import Mischief.ECS.Log
-import Mischief.ECS.Tables
 import Mischief.ECS.Utils
 import Mischief.ECS.World
 import Mischief.ECS.World.Insert
 import Mischief.ECS.World.Query
 import Mischief.ECS.World.Query.Markers
 import Mischief.ECS.World.Query.QueryFilter
-import Mischief.ECS.World.Query.Queryable
 import Mischief.ECS.World.Remove
-import Mischief.ECS.World.Spawn
-import Mischief.ECS.World.Utils
 
 data Before = Before deriving (Component)
 

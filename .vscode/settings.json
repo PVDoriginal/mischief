@@ -2,5 +2,6 @@
   "editor.detectIndentation": false,
   "editor.indentSize": 2,
 "editor.formatOnSave": true,
-"editor.defaultFormatter": "haskell.haskell"
+"editor.defaultFormatter": "haskell.haskell",
+"chat.agent.maxRequests": 0
 }

@@ -1,26 +1,15 @@
 module Mischief.ECS.World.Query.TH.QD where
 
 import Control.Monad
-import Control.Monad.IO.Class
-import Data.Maybe
 import Data.Text (Text)
 import Data.Text qualified as T
-import Data.Void
-import Language.Haskell.Meta.Parse as M
 import Language.Haskell.TH
-import Language.Haskell.TH qualified
-import Language.Haskell.TH.Quote
-import Language.Haskell.TH.Syntax
 import Mischief.ECS.Components (Component, Res (Res))
-import Mischief.ECS.World.Query
 import Mischief.ECS.World.Query.Markers hiding (Q)
 import Mischief.ECS.World.Query.Markers qualified as Markers
-import Mischief.ECS.World.Query.QueryFilter
-import Mischief.ECS.World.Query.Queryable
-import Mischief.ECS.World.Query.Queryable qualified as Queryable
 import Mischief.ECS.World.Query.TH.Common
 import Mischief.ECS.World.Query.TH.QF qualified as QF
-import Text.Megaparsec (MonadParsec (eof, lookAhead, notFollowedBy, try), Parsec, choice, many, manyTill, noneOf, optional, parseTest, some, (<|>))
+import Text.Megaparsec (MonadParsec (notFollowedBy, try), choice, manyTill, optional, some, (<|>))
 import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer qualified as L
 

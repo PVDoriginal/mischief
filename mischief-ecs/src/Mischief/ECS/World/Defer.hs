@@ -1,33 +1,13 @@
 module Mischief.ECS.World.Defer where
 
 import Control.Concurrent
-import Control.Concurrent.Async
 import Control.Concurrent.STM
-import Control.Exception
 import Control.Monad.IO.Class
 import Control.Monad.Reader
 import Data.Foldable
 import Data.Functor
 import Data.IORef
-import Mischief.ECS.Hidden
 import Mischief.ECS.World
-
--- class Defer s where
---   -- | Defer a command to be ran after the current 'System' is finished,
---   -- or when 'flush' is called.
---   defer :: System a -> s
-
--- instance Defer (System ()) where
---   defer :: System a -> System ()
---   defer !system = do
---     world <- ask
---     liftIO $ modifyIORef' world.deferred (++ [system $> ()])
-
--- instance Defer (ParSystem ()) where
---   defer :: System a -> ParSystem ()
---   defer !system = do
---     ParWorld {deferred} <- ask
---     liftIO $ modifyIORef' deferred (++ [system $> ()])
 
 class Defer m where
   defer :: System a -> m ()
@@ -82,20 +62,6 @@ forkDefer s = do
   deferred <- liftIO $ readIORef deferred
   liftIO $ modifyIORef' world.deferred (++ deferred)
   return a
-
--- let world' =
-
--- forkSystem :: ParSystem () -> System ()
--- forkSystem (ParSystem !x) = do
---   world <- ask
---   _ <- liftIO $ forkIO $ do
---     deferred <- newIORef []
---     runReaderT x ParWorld {world, deferred}
---     deferred' <- readIORef deferred
-
---     atomically $ modifyTVar' world.deferredAsync (++ deferred')
-
---   return ()
 
 runAfter :: (MonadSystem w m) => IO a -> (a -> System ()) -> m ()
 runAfter !function !system = do

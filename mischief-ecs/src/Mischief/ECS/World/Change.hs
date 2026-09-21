@@ -1,27 +1,22 @@
 module Mischief.ECS.World.Change where
 
-import Control.Monad.Reader (MonadIO (liftIO), ask)
+import Control.Monad.Reader (MonadIO (liftIO))
 import Data.Foldable
 import Data.IORef
-import Data.Map qualified as Map
 import Data.Maybe
 import Data.Set qualified as Set
-import GHC.Base (Int (..), when)
+import GHC.Base (Int (..))
 import GHC.Stack (HasCallStack)
 import Mischief.ECS.App.SystemDef
 import Mischief.ECS.Archetypes
 import Mischief.ECS.Components
 import Mischief.ECS.Components.Bundle
 import Mischief.ECS.Entities
-import Mischief.ECS.EntityDef
-import Mischief.ECS.Events
-import Mischief.ECS.Log
 import Mischief.ECS.Tables
 import Mischief.ECS.Vec qualified as Vec
 import Mischief.ECS.World
 import Mischief.ECS.World.Query
 import Mischief.ECS.World.Query.Markers
-import Mischief.ECS.World.Query.Queryable
 import Mischief.ECS.World.Utils
 
 data ChangeResult = ChangeResult

@@ -12,12 +12,10 @@ import Data.Maybe
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Traversable
-import GHC.Base (Int (I#), eqWord#, isTrue#)
+import GHC.Base (Int (I#))
 import Mischief.ECS.App.SystemDef
-import Mischief.ECS.Collectable
 import Mischief.ECS.Components
 import Mischief.ECS.Entities
-import Mischief.ECS.Mappable
 import Mischief.ECS.Tables
 import Mischief.ECS.Vec qualified as Vec
 import Mischief.ECS.World
@@ -28,9 +26,6 @@ import Mischief.ECS.World.Utils
 data TypeQuery = CompQ | RelQ | RelQ' Entity deriving (Eq, Ord, Show)
 
 data RelTarget = AnyTarget | RelTargets [Entities]
-
--- filterQueryIO :: QueryFilter -> World -> Entity -> IO Bool
--- filterQueryIO a w e = runSystem (filterQuery a e) w
 
 class Queryable qd output | qd -> output where
   runQueryEntity :: qd -> World -> Entity -> IO (Maybe output)

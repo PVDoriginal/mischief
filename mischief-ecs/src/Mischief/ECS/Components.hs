@@ -46,20 +46,19 @@ module Mischief.ECS.Components
     IsExclusive (..),
     isPair,
     setCompIdTarget,
+    IsExclusiveRelationship (..),
   )
 where
 
 import Data.Default
 import Data.HashTable.IO qualified as H
-import Data.IORef
 import Data.Kind
 import Data.List qualified as List
 import Data.Map (Map)
-import Data.Map qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Typeable
-import GHC.Base (List, Word (W#), Word#, compareWord#, eqWord#, isTrue#)
+import GHC.Base (Word (W#), Word#, compareWord#, eqWord#, isTrue#)
 import GHC.Generics
 import Mischief.ECS.Collectable
 import Mischief.ECS.Components.HooksDef
@@ -364,3 +363,5 @@ instance GetRep DefaultComponentType where
 newtype Tick = Tick (Int, Int)
   deriving stock (Show, Eq, Ord)
   deriving newtype (Default)
+
+data IsExclusiveRelationship = IsExclusiveRelationship deriving (Show, Component)

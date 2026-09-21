@@ -6,29 +6,21 @@ module Mischief.ECS.World.Insert where
 import Control.Exception
 import Control.Monad
 import Control.Monad.IO.Class
-import Control.Monad.Reader (MonadReader (..))
-import Data.Data
 import Data.Foldable (for_)
 import Data.IORef
 import Data.List hiding (insert)
-import Data.Map qualified as Map
-import Data.Maybe (fromMaybe, isJust)
 import Data.Set qualified as Set
 import Data.Text qualified as T
-import Data.Text qualified as Text
 import GHC.Base (Int (..))
 import GHC.Stack
-import Mischief.ECS.Archetypes
 import Mischief.ECS.Archetypes.Graph
   ( getArchetypeOnInsert,
   )
 import Mischief.ECS.Components
 import Mischief.ECS.Components.Bundle
-import Mischief.ECS.Components.Common
 import Mischief.ECS.Components.HooksDef (HookContext (..), HookContextRel (..))
 import Mischief.ECS.Components.Spawn (ComponentAddHooks (ComponentAddHooks), ComponentAddHooksRel (ComponentAddHooksRel), ComponentSetHooks (ComponentSetHooks), ComponentSetHooksRel (ComponentSetHooksRel), meta)
 import Mischief.ECS.Entities
-import Mischief.ECS.EntityDef
 import Mischief.ECS.EventDef
 import Mischief.ECS.Events
 import Mischief.ECS.Log
@@ -39,7 +31,6 @@ import Mischief.ECS.World.Change
 import Mischief.ECS.World.Prefs
 import Mischief.ECS.World.Query
 import Mischief.ECS.World.Query.Markers
-import Mischief.ECS.World.Query.Queryable
 import Mischief.ECS.World.Utils
 
 data Exception' = Exception' deriving (Show)
@@ -93,15 +84,6 @@ insert bundle entity =
           triggerAddEvent (ProcessedBundleData requiredComponentsAdded) entity
           triggerSetEvent bundleData entity
           triggerSetEvent (ProcessedBundleData requiredComponentsAdded) entity
-
--- getOrInsert :: forall qd. (Updateable (Result qd), Bundle qd) => qd -> Entity -> System (Result qd)
--- getOrInsert val entity = do
---   g <- update (Result (val, entity))
---   case g of
---     Just g -> return g
---     Nothing -> do
---       insert val entity
---       return $ Result (val, entity)
 
 -- | Insert a bundle of components on an Entity.
 --
@@ -175,21 +157,6 @@ insertIfNeq b entity = do
     undefined
 
   insert (bundleEqToSimple $ BundleData (Set.fromList comps) (Set.fromList resources) Set.empty) entity
-
--- class Settable c i | c -> i where
---   setInner :: c -> i -> System ()
-
---   setIfNeqInner :: (Eq i) => c -> i -> System ()
-
--- class Settable' isRel c i | isRel c -> i where
---   setInner' :: c -> i -> System ()
---   setIfNeqInner' :: (Eq i) => c -> i -> System ()
-
--- set :: (Settable c i) => c -> i -> System ()
--- set = setInner
-
--- setIfNeq :: (Eq i, Settable c i) => c -> i -> System ()
--- setIfNeq = setIfNeqInner
 
 triggerAddEvent :: ProcessedBundleData -> Entity -> System ()
 triggerAddEvent bundle entity =
