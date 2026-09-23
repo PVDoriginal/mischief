@@ -1,5 +1,3 @@
-This acts both as a policy and a standard for the community. 
-
 "AI" refers to: 
   - Generative AI, such as diffusion models and LLMs. 
   - Any other Machine-Learning tools meant to automate programming, creating assets, and other forms of art.
