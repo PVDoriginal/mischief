@@ -15,8 +15,8 @@ It doesn't refer to:
 
 ### What About Rubber-Ducking?
 
-Using a chat-bot as part of trying to think of a solution to a problem is generally allowed. We don't recommend or encourage it, and may actively frown upon it 
-(especially if you've paid money for it!) but it doesn't directly go against this policy. As long as the "AI" was used purely as a search engine and 
+Using a chat-bot as part of trying to think of a solution to a problem, or to provide criticism, is generally allowed. We don't recommend or encourage it, and may actively frown upon it 
+(especially if you've paid money for it!) but it doesn't directly go against this policy. As long as the "AI" was used purely as a search engine or review pass and 
 you didn't copy its output, let it think for you, or were otherwise influenced by it.  
 
 ### "AI-Sober"
