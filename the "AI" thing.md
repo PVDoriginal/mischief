@@ -1,7 +1,13 @@
 This acts both as a policy and a standard for the community. 
 
-When I say "AI", you know what I mean. Whether you call it LLMs, or agentic coding, or content generation. I don't like saying it without the 
-quotes because it feels like an insult to AI as a field. But I'm sure you know exactly the sort of thing I'm referring to. 
+"AI" refers to: 
+  - Generative AI, such as diffusion models and LLMs. 
+  - Any other Machine-Learning tools meant to automate programming, creating assets, and other forms of art.
+
+It doesn't refer to: 
+  - Game AI (NPC's, pathfinding, etc.)
+  - AI as an academical field.
+  - Tools meant to assist writing and creating, such as "replace all X with Y" in an IDE, or paintbrushes in a painting program.  
 
 ### Mischief does not, and will never, accept "AI" contributions
 
