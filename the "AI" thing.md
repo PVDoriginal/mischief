@@ -12,7 +12,7 @@ quotes because it feels like an insult to AI as a field. But I'm sure you know e
   
 ## How is this Enforceable?
 
-It's not. It can't be. No rule is fully enforceable. The point of this document to prove some alleged purity, but to set clear standards and goals for the community and the engine.  
+It's not. It can't be. No rule is fully enforceable. The point of this document is not to prove some alleged purity, but to set clear standards and goals for the community and the engine.  
 
 ## What About Rubber-Ducking?
 
