@@ -1,16 +1,12 @@
 {-# OPTIONS_GHC -Wno-unused-imports #-}
 
 -- |
--- Module: Events and Messages Tutorial
--- Description: Tutorial on using @Events and Messages@
 --
--- This module contains a more in-depth tutorial on using @Events and Messages@.
---
--- [Previous Chapter: Systems]("Mischief.ECS.Tutorial.Systems")
+-- [Previous Chapter: (Docs) Systems]("Mischief.ECS.Tutorial.Documentation.Systems")
 --
 -- [Main Page]("Mischief.ECS")
-module Mischief.ECS.Tutorial.Events
-  ( -- * Learn You an ECS for Great Mischief! - 8. Events and Messages
+module Mischief.ECS.Tutorial.Documentation.Events
+  ( -- * Learn You an ECS for Great Mischief! - 3.6. (Docs) Events and Messages
     -- $intro
 
     -- * Events

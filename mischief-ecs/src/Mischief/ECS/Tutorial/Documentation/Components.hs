@@ -6,13 +6,13 @@
 --
 -- This module contains a more in-depth tutorial on @Mischief Components@.
 --
--- [Previous Chapter: App and Plugins]("Mischief.ECS.Tutorial.App")
+-- [Previous Chapter: (Docs) App and Plugins]("Mischief.ECS.Tutorial.Documentation.App")
 --
--- [Next Chapter: Relationships]("Mischief.ECS.Tutorial.Relationships")
+-- [Next Chapter: (Docs) Relationships]("Mischief.ECS.Tutorial.Documentation.Relationships")
 --
 -- [Main Page]("Mischief.ECS")
-module Mischief.ECS.Tutorial.Components
-  ( -- * Learn You an ECS for Great Mischief! - 4. Components
+module Mischief.ECS.Tutorial.Documentation.Components
+  ( -- * Learn You an ECS for Great Mischief! - 3.2. (Docs) Components
     -- $introduction
 
     -- * The Name Component
@@ -42,7 +42,7 @@ module Mischief.ECS.Tutorial.Components
     -- * Registering Components
     -- $reg
 
-    -- * [Next Chapter: Relationships]("Mischief.ECS.Tutorial.Relationships")
+    -- * [Next Chapter: (Docs) Relationships]("Mischief.ECS.Tutorial.Documentation.Relationships")
   )
 where
 
@@ -71,36 +71,10 @@ import Mischief.ECS
 
 -- $name
 -- @Name@ is a special component provided by Mischief that is internally added to every spawned entity, based on its @Entity@ index,
--- if none is provided on spawn. It can be, of course, changed at any time.
+-- if none is provided on spawn.
 --
 -- @
 -- newtype Name = Name 'String' deriving ('Component')
--- @
---
--- Consider this system that prints the name of a given Entity:
---
--- @
--- printName :: 'Entity' -> 'System' ()
--- printName e = 'info' . T.'Data.Text.show' '=<<' 'get' e ['q'|Name|]
--- @
---
--- Notice how the Names behave here:
---
--- @
--- foo <- 'spawn' ()
--- printName foo
---
--- insert ('Name' \"Foo\") foo
--- printName foo
---
--- bar <- 'spawn' ('Name' \"Bar\")
--- printName bar
--- @
---
--- @
--- >> [INFO] Just \"Entity 15v1\"
--- >> [INFO] Just \"Foo\"
--- >> [INFO] Just \"Bar\"
 -- @
 
 -- $ops
@@ -155,7 +129,7 @@ import Mischief.ECS
 -- and should absolutely never remove or change any components added to them by the @ECS@.
 
 -- $query
--- Components can be queried using the @'C'@, @'M'@, and @'Has'@ markers.
+-- Components can be queried using the @'C'@, @'M'@, and @'Has'@ markers. The corresponding quasi-notation is shown next to each example.
 --
 -- @'C'@ simply returns the component, and makes the query ignore all entities that don't have it:
 --
@@ -236,9 +210,7 @@ import Mischief.ECS
 -- 'Just' myRes <- 'res' \@MyRes
 -- @
 --
--- @res r@ returns a @'Maybe' r@ because it's possible for the resource to not have been inserted yet.
---
--- Resources are implemented by inserting a component's value on its own meta entity.
+-- Resources are implemented by inserting a component's value on its own meta entity. Which means:
 --
 -- @
 -- 'res' \@MyRes
@@ -248,12 +220,12 @@ import Mischief.ECS
 --
 -- @
 -- m <- 'meta' \@MyRes
--- 'get' m [q|MyRes|]
+-- 'single' $ [q|m. MyRes|]
 -- @
 --
 -- Besides using @insertRes@, resources can be inserted as part of a bundle through the @Res@ type.
 --
--- The following will spawn an entity, insert a @Name@ on it, and additioanlly insert a resource into the world.
+-- The following will spawn an entity, insert a @Name@ on it, and additionally insert a resource into the world.
 --
 -- @
 -- a <- 'spawn' ()

@@ -58,7 +58,7 @@ addPlugin app = runSystem (addPluginRec @p) app.world
 
 runApp :: App -> IO ()
 runApp app = flip runSystem app.world $ do
-  x <- scheduleEntity Init
+  x <- scheduleEntity @Init
   liftIO $ runSchedules [x]
 
   startups <- orderEntities =<< query (mkQuery' E (With (C @StartupSchedule)))
@@ -76,8 +76,8 @@ runApp app = flip runSystem app.world $ do
       for_ schedules $ \schedule -> do
         runSystem (runSchedule' schedule) app.world
 
-runSchedule :: (Schedule sch) => sch -> System ()
-runSchedule sch = scheduleEntity sch >>= runSchedule'
+runSchedule :: forall sch. (Schedule sch) => System ()
+runSchedule = scheduleEntity @sch >>= runSchedule'
 
 runSchedule' :: Entity -> System ()
 runSchedule' schedule = do
@@ -105,22 +105,20 @@ appInit = do
   systems <- liftIO Systems.newSystems
   insertRes systems
 
-  void $ scheduleEntity Init
-  pre <- scheduleEntity PreStartup
-  startup <- scheduleEntity Startup
-  post <- scheduleEntity PostStartup
+  pre <- scheduleEntity @PreStartup
+  startup <- scheduleEntity @Startup
+  post <- scheduleEntity @PostStartup
 
   for_ [pre, startup, post] $ insert StartupSchedule
 
-  -- insert (Rel Before pre) init
   insert (Rel Before startup) pre
   insert (Rel Before post) startup
 
-  first <- scheduleEntity First
-  pre <- scheduleEntity PreUpdate
-  update <- scheduleEntity Update
-  post <- scheduleEntity PostUpdate
-  last <- scheduleEntity Last
+  first <- scheduleEntity @First
+  pre <- scheduleEntity @PreUpdate
+  update <- scheduleEntity @Update
+  post <- scheduleEntity @PostUpdate
+  last <- scheduleEntity @Last
 
   for_ [first, pre, update, post, last] $ insert UpdateSchedule
 

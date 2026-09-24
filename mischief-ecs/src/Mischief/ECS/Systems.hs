@@ -1,9 +1,12 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
+
 -- |
 -- Module with utility functions for creating
 -- and scheduling systems.
 module Mischief.ECS.Systems where
 
 import Data.Foldable
+import Language.Haskell.TH (Extension (AllowAmbiguousTypes))
 import Mischief.ECS.App.Schedules
 import Mischief.ECS.App.Systems (ScheduledIn, SystemFunction (SystemFunction), removeSystemFromMap, systemEntity)
 import Mischief.ECS.Collectable
@@ -46,22 +49,22 @@ before a s =
   let Systems systems = collect a
    in SystemConfig {systems = s.systems, edges = s.edges ++ zip s.systems systems}
 
-schedule :: (Schedule sc) => sc -> SystemConfig -> System ()
-schedule schedule SystemConfig {systems, edges} = do
-  for_ systems $ \system -> systemEntity schedule system
+schedule :: forall sc. (Schedule sc) => SystemConfig -> System ()
+schedule SystemConfig {systems, edges} = do
+  for_ systems $ \system -> systemEntity @sc system
 
   for_ edges $ \(s1, s2) -> do
-    id1 <- systemEntity schedule s1
-    id2 <- systemEntity schedule s2
+    id1 <- systemEntity @sc s1
+    id2 <- systemEntity @sc s2
     insert (Rel Before id2) id1
 
-remove :: (Schedule sc, ToSystems a) => sc -> a -> System ()
-remove schedule systems = do
-  sch <- scheduleEntity schedule
+remove :: forall sc a. (Schedule sc, ToSystems a) => a -> System ()
+remove systems = do
+  sch <- scheduleEntity @sc
 
   let Systems y = collect systems
   for_ y $ \system -> do
-    s <- Mischief.ECS.Systems.get schedule system
+    s <- Mischief.ECS.Systems.get @sc system
     removeSystemFromMap (ScheduleId sch) system
 
     despawn s
@@ -69,29 +72,29 @@ remove schedule systems = do
     query (mkQuery' E (With (R @Before s)))
       >>= traverse_ (removeRel @Before s)
 
-order :: (Schedule sc, ToSystems a, ToSystems b) => sc -> (a, b) -> System ()
-order schedule (s1, s2) = do
+order :: forall sc a b. (Schedule sc, ToSystems a, ToSystems b) => (a, b) -> System ()
+order (s1, s2) = do
   let Systems systems1 = collect s1
   let Systems systems2 = collect s2
 
   for_ systems1 $ \s1 -> for_ systems2 $ \s2 -> do
-    s1 <- Mischief.ECS.Systems.get schedule s1
-    s2 <- Mischief.ECS.Systems.get schedule s2
+    s1 <- Mischief.ECS.Systems.get @sc s1
+    s2 <- Mischief.ECS.Systems.get @sc s2
 
     insert (Rel Before s2) s1
 
 spawn :: System () -> System Entity
 spawn = Spawn.spawn . SystemFunction
 
-get :: (Schedule sc) => sc -> System () -> System Entity
-get = systemEntity
+get :: forall sc. (Schedule sc) => System () -> System Entity
+get = systemEntity @sc
 
-unschedule :: (Schedule sc, ToSystems a) => sc -> a -> System ()
-unschedule sch s = do
-  sch' <- scheduleEntity sch
+unschedule :: forall sc a. (Schedule sc, ToSystems a) => a -> System ()
+unschedule s = do
+  sch' <- scheduleEntity @sc
 
   let Systems systems = collect s
   for_ systems $ \s -> do
-    s' <- Mischief.ECS.Systems.get sch s
+    s' <- Mischief.ECS.Systems.get @sc s
 
     removeRel @ScheduledIn sch' s'

@@ -6,11 +6,11 @@
 --
 -- This module walks the user through setting up Mischief and creating a simple app.
 --
--- [Next Chapter: Coding a Dungeon Game]("Mischief.ECS.Tutorial.Dungeon")
+-- [Next Chapter: Coding a Dungeon Game]("Mischief.ECS.Tutorial.Introduction.Dungeon")
 --
 -- [Main Page]("Mischief.ECS")
-module Mischief.ECS.Tutorial.Startup
-  ( -- * Learn You an ECS for Great Mischief! - 1. Startup Guide
+module Mischief.ECS.Tutorial.Introduction.Startup
+  ( -- * Learn You an ECS for Great Mischief! - 1.1. Startup Guide
     -- $intro
 
     -- * What do I need to know?
@@ -123,9 +123,11 @@ import Mischief.ECS
 -- @Systems@ are functions in the @System@ monad.
 --
 -- @
--- printPositions :: 'System' ()
--- printPositions = do
---   'info' . T.'Data.Text.show' =<< ['q'|Position|]
+-- updatePositions :: 'System' ()
+-- updatePosition =
+--   ['q'|Position, Velocity|]
+--     & 'qinsert' (\(Position p, Velocity v) -> (Position p + v))
+--     & 'query_'
 -- @
 --
 -- @Entities@ are opaque ids used to represent and manipulate data.
@@ -166,10 +168,10 @@ import Mischief.ECS
 --   'Mischief.ECS.App.Plugins.init' :: 'System' ()
 --   'Mischief.ECS.App.Plugins.init' = do
 --      'systems' helloWorld
---        & 'schedule' Update
+--        & 'schedule' \@Update
 -- @
 --
--- The @systems@ function will grab the system for us, and @schedule Update@ will add it to the Update schedule,
+-- The @systems@ function will grab the system for us, and @schedule \@Update@ will add it to the Update schedule,
 -- making it run once per frame. If you run your app again, you will see \"Hello World!\" printed to your terminal many, many times.
 
 -- $firstComp
@@ -204,12 +206,13 @@ import Mischief.ECS
 -- You can register it to run on the app's Startup schedule, making it run only once, at the start:
 --
 -- @
--- 'Mischief.ECS.App.Plugins.init' _ = do
---    'systems' helloWorld
---      & 'schedule' Update
+-- instance 'Plugin' MyPlugin where
+--   init = do
+--     'systems' helloWorld
+--       & 'schedule' \@Update
 --
---    'systems' addPeople
---      & 'schedule' Startup
+--     'systems' addPeople
+--       & 'schedule' \@Startup
 -- @
 
 -- $firstQuery
@@ -255,12 +258,13 @@ import Mischief.ECS
 -- Now we can schedule this system to also run:
 --
 -- @
--- 'Mischief.ECS.App.Plugins.init' = do
---    'systems' (helloWorld, greetPeople)
---      & 'schedule' Update
+-- instance 'Plugin' MyPlugin where
+--   init = do
+--     'systems' (helloWorld, greePeople)
+--       & 'schedule' \@Update
 --
---    'systems' addPeople
---      & 'schedule' Startup
+--     'systems' addPeople
+--       & 'schedule' \@Startup
 -- @
 --
 -- Running our app will result in the following output:
@@ -308,14 +312,14 @@ import Mischief.ECS
 -- @
 -- 'Mischief.ECS.App.Plugins.init' = do
 --    'systems' (helloWorld, greetPeople)
---      & 'schedule' Update
+--      & 'schedule' \@Update
 --
 --    'systems' addPeople
---      & 'schedule' Startup
+--      & 'schedule' \@Startup
 --
 --    'systems' updateFlo
 --      & 'before' greetPeople
---      & 'schedule' Update
+--      & 'schedule' \@Update
 -- @
 --
 -- Note that we have explicitly ordered @updateFlo@ to happen /before/ @greetPeople@. We want to only greet Flo after their name has changed! Running the app
@@ -344,14 +348,14 @@ import Mischief.ECS
 -- @
 -- 'Mischief.ECS.App.Plugins.init' = do
 --    'systems' (helloWorld, greetPeople)
---      & 'schedule' Update
+--      & 'schedule' \@Update
 --
 --    'systems' addPeople
---      & 'schedule' Startup
+--      & 'schedule' \@Startup
 --
 --    'systems' updateFlo
 --      & 'before' greetPeople
---      & 'schedule' Update
+--      & 'schedule' \@Update
 --
 --   'insertRes' (Greeting \"Hey\")
 -- @
@@ -423,14 +427,14 @@ import Mischief.ECS
 -- @
 -- 'Mischief.ECS.App.Plugins.init' = do
 --    'systems' (helloWorld, greetPeople, showLikes)
---      & 'schedule' Update
+--      & 'schedule' \@Update
 --
 --    'systems' addPeople
---      & 'schedule' Startup
+--      & 'schedule' \@Startup
 --
 --    'systems' updateFlo
 --      & 'before' (greetPeople, showLikes)
---      & 'schedule' Update
+--      & 'schedule' \@Update
 --
 --   'insertRes' (Greeting \"Hey\")
 -- @

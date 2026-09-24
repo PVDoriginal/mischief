@@ -1,0 +1,321 @@
+-- |
+-- Module: Queries Tutorial
+-- Description: How To Mischief.
+--
+-- [Previous Chapter: Improving Queries]("Mischief.ECS.Tutorial.Guides.ImprovingQueries")
+--
+-- [Next Chapter: Keeping Track of Time]("Mischief.ECS.Tutorial.Guides.Time")
+--
+-- [Main Page]("Mischief.ECS")
+module Mischief.ECS.Tutorial.Guides.Scheduling
+  ( -- * Learn You an ECS for Great Mischief! - 2.7. Scheduling and Running Systems
+    -- $intro
+
+    -- * Organizing Your Code
+    -- $org
+
+    -- * The Query Bind Pattern
+    -- $join
+
+    -- * Extending Queries
+    -- $extend
+
+    -- * [Next Chapter: Keeping Track of Time]("Mischief.ECS.Tutorial.Guides.Time")
+  )
+where
+
+import Control.Monad (void)
+import Data.Foldable (for_)
+import Data.Traversable (for)
+import Mischief.ECS
+
+-- $intro
+-- This module attmepts to capture a few common problems one may encounter when working with Mischief, and various patterns and solutions for solving them.
+
+-- $org
+-- It's a common problem when working with a game framework to wonder where and how to organize your logic. Luckily, Mischief comes with a few tips and guidelines on the subject:
+--
+-- ===Modularity
+--
+-- Modularily is highly encouraged in everything you do. You should strive to design your codebase so that each
+-- part of it can be easily plugged in and out without affecting the functionality of anything outside of it.
+--
+-- For instance, you may have a @PhysicsPlugin@ that adds physics to your game, a @RenderPlugin@ which renders objects, a @LevelPlugin@ that spawns your levels.
+--
+-- @
+-- main :: 'IO' ()
+-- main = do
+--   app <- 'newApp'
+--   'addPlugin' \@PhysicsPlugin
+--   'addPlugin' \@RenderPlugin
+--   'addPlugin' \@LevelPlugin
+-- @
+--
+-- Ideally, each of these plugins add their own independent features. So if you were to remove @physicsPlugin@, your entities simply wouldn't
+-- move and collide anymore, but the rest of the app would work just fine. Dependencies between plugins at the same level should be avoided.
+-- For instance, @PhysicsPlugin@ should not ever depend on @RenderPlugin@.
+--
+-- Internally, @PhsyicsPlugin@ could also be subdivided into its own plugins with separate roles:
+--
+-- @
+-- data PhysicsPlugin
+--
+-- instance 'Plugin' PhysicsPlugin where
+--   deps = ['dep' \@CollisionPlugin, 'dep' \@MovePlugin]
+-- @
+--
+-- And these should follow the same principle of independence.
+--
+-- Of course, complete modulariy may just not be possible or desireable at points, but we consider it to be a great standard to look up to.
+--
+-- ===Files
+--
+-- File-wise, we generally encourage placing each plugin in a separate module / file. It's also desireable for the module hierarchy to
+-- follow the follow the plugin dependency. If the @Player@ plugin in @MyGame.Player@ depends on the @Health@ plugin, the latter
+-- is ideally placed in a @MyGame.Player.Health@ module.
+--
+-- We also encourage defining components locally in the module that uses them most. If multiple modules at the same level use the
+-- same component, consider placing it in a separete @Common@ module.
+--
+-- Even if you don't follow these conventions, it's still important that at you are at least being consistent in these areas.
+
+-- $join
+-- To re-use the context from the previous chapter, consider that you have players marked by a @Player@ component, each with
+-- a @Coins Int@ component storing how many coins they have collected. You have coins in the world, marked by @Coin Int@, and want to
+-- iterate over all players, then over all coins, and, if the coin is in range of the player, despawn the entity and add its value to the
+-- total collected by the player.
+--
+-- This \"nested query\" is a problem you may encounter in a lot of places. You've already seen how it's solved imperatively, by actually nesting the queries,
+-- but that solution isn't great. It's highly imperative and mutable, and the indentation gets bad as you need to nest more and more queries.
+--
+-- @
+-- collectCoins :: 'System' ()
+-- collectCoins = do
+--   players \<- 'query' ['q'|Entity, OnTile -\> (Entity), Coins / With Player|]
+--   'for_' players $ \\(player, 'From' _ tile, Coins coins) -> do
+--     collected <-
+--       ['q'|Coin / With OnTile -> tile|]
+--         & 'qtap' (\\e _ -> despawn e)
+--         & 'query'
+--
+--     'insert' (Coins $ 'foldr' (\\(Coin x) -> (+ x)) coins collected) player
+-- @
+--
+-- The annoying part of the code above is that you're pulling /all/ entities out of the query, iterating over them, then performing another query and
+-- iterating over even more entities.
+--
+-- This is where the monadic part of the queries comes in. The goal is to perform all those operations /inside/ the same query, smartly chaining them using /do/.
+--
+-- As a first step it's often helpful to start with a code like this:
+--
+-- @
+-- 'query_' $ do
+--   (entity, 'From' _ tile, Coins coins) \<- ['q'|Entity, OnTile -\> (Entity), Coins / With Player|]
+--   'pure' ()
+-- @
+--
+-- Just copy the main query that you're iterating over. And /bind/ the data out of it using @<-@.
+-- Wrap it in a @do@ folllwing a @query_@ or @query@.
+--
+-- At this point, you've put your hand on a slice of the data flowing through the query. What you do with this data
+-- dictates what will happen with all data.
+--
+-- Next, try replacing the @pure@ with another query, typically the second query that you're iterating over:
+--
+-- @
+-- 'query_' $ do
+--   (entity, 'From' _ tile, Coins coins) \<- ['q'|Entity, OnTile -\> (Entity), Coins / With Player|]
+--
+--   ['q'|Coin / With OnTile -\> tile|]
+--     & 'qtap' (\\e _ -> 'despawn' e)
+-- @
+--
+-- This is already a valid query. You're iterating over all the coins that are on each player's tile. You've changed the source, or subject,
+-- from being the players to being the coins. But in this case that's not really what you want. You want to somehow collect or aggregate
+-- the coins to use them in the larger query.
+--
+-- Let's try collecting them first:
+--
+-- @
+-- 'query_' $ do
+--   (entity, 'From' _ tile, Coins coins) \<- ['q'|Entity, OnTile -\> (Entity), Coins / With Player|]
+--
+--   collectedCoins <-
+--     ['q'|Coin / With OnTile -\> tile|]
+--       & 'qtap' (\\e _ -> 'despawn' e)
+--       & 'qcollect' entity
+--
+--   pure ()
+-- @
+--
+-- The @qcollect@ function takes an entity, and converts the entire query into just a single element, belonging to that entity.
+-- You may see that @collectedCoins@ has type @[From Coin]@.
+--
+-- Your first instinct here may be to take @collectedCoins@ and start another query instead of the @pure ()@, thinking that you're continuing the original
+-- query. But that's wrong. That would just create another level of nesting. That's the big fallacy present in this monad.
+-- Instead, what you want is to continue from the @qcollect@. /This/ is the continuation of the original query. With the @qcollect@ we've changed the subject
+-- back to the players. We are looking at the coins from above, as symbolized by the @From Coin@ type.
+--
+-- So this is what you want to be doing instead:
+--
+-- @
+-- 'query_' $ do
+--   (entity, 'From' _ tile, Coins coins) \<- ['q'|Entity, OnTile -\> (Entity), Coins / With Player|]
+--
+--   ['q'|Coin / With OnTile -\> tile|]
+--     & 'qtap' (\\e _ -> 'despawn' e)
+--     & 'qcollect' entity
+--     & 'qinsert' (\\collectedCoins -> Coins $ 'foldr' (\\('From' _ (Coin x)) -> (+ x)) coins collectedCoins)
+-- @
+--
+-- That's it! The coins are now folded and added to the total held by the player.
+--
+-- The only thing to add is that there's actually an alternative to @qcollect@. You can use @qfoldr@ to fold the elements directly:
+--
+-- @
+-- 'query_' $ do
+--   (entity, 'From' _ tile, Coins coins) \<- ['q'|Entity, OnTile -\> (Entity), Coins / With Player|]
+--
+--   ['q'|Coin / With OnTile -\> tile|]
+--     & 'qtap' (\\e _ -> 'despawn' e)
+--     & 'qfoldr' (\\('From' _ (Coin x)) -> (+ x)) coins entity
+--     & 'qinsert' Coins
+-- @
+--
+-- You have successfully turned a collection of nested mutations into one pure computation!
+--
+-- ===Appendix: Pure-ing out
+--
+-- Alright, so I've lied to you. There is an escape hatch via @pure@, it just requires more explanation and attention.
+--
+-- Let's consider this:
+--
+-- @
+-- 'query_' $ do
+--   (entity, 'From' _ tile, Coins coins) \<- ['q'|Entity, OnTile -\> (Entity), Coins / With Player|]
+--
+--   value <- ['q'|Coin / With OnTile -\> tile|]
+--     & 'qtap' (\\e _ -> 'despawn' e)
+--     & 'qfoldr' (\\('From' _ (Coin x)) -> (+ x)) 0 entity
+--
+--   -- some other operations
+--
+--   -- TODO: add @value@ to @coins@ on each player.
+-- @
+--
+-- You've taken the value out of the second query. You now want to add it to the total number of coins. But you can't chain it directly to
+-- @qfoldr@, because, for instance, you may have other operations you need to perform first (see the next section for such a situation).
+--
+-- What you want is to somehow connect this back to the player:
+--
+-- @
+-- 'qinsert' (const $ Coins $ coins + value)
+-- @
+--
+-- A natural thing to try would be:
+--
+-- @
+-- 'pure' ()
+--   & 'qinsert' ('const' $ Coins $ coins + value)
+-- @
+--
+-- And this will compile, but it won't have the effect that you want. What @pure@ does is that creates a query with a single element in it, focusing on
+-- something called the \"null entity\". That insert will run for each player, but it will always insert the component on that entity instead.
+--
+-- The correct way out is to use @qrefocus@, which can force every element in the query to refer to a given entity:
+--
+-- @
+-- 'pure' ()
+--   & 'qrefocus' entity
+--   & 'qinsert' ('const' $ Coins $ coins + value)
+-- @
+--
+-- This /will/ now work as expected. In an imperative way, what you're doing is essentially:
+--
+-- @
+-- for (entity, Coins coins) in players:
+--   value = 0
+--   for x in coins:
+--     value += x
+--
+--   for entity in [entity]:
+--     insert (Coins (coins + value)) entity
+-- @
+--
+-- The @pure@ is just that one-element query at the end that you're forcing to look at @entity@.
+--
+-- The same can also be achieved by using @qpure@:
+--
+-- @
+-- 'qpure' entity
+--   & 'qinsert' ('const' $ Coins $ coins + value)
+-- @
+
+-- $extend
+-- One annoying problem when writing complex systems is having to query and unwrap new data.
+--
+-- @
+-- players \<- 'query' ['q'|Name / With Player|]
+-- 'for_' players $ \\name -\> do
+--   someRes \<- 'res' \@SomeRes
+--   'for_' someRes $ \\someRes -> do
+--     someOhterRes \<- 'res' \@SomeOtherRes
+--     'for_' someOhterRes $ \\someOhterRes -> do
+--       position \<- 'single' ['q'|player. Position|]
+--       'for_' position $ \\position -> do
+--         -- do something
+-- @
+--
+-- When writing imperative code it's easy to fall into a pattern where you keep needing more data and having to iterate over Maybes in order to only run
+-- the code if it's all there.
+--
+-- There are 3 main patterns to help solve this problem:
+--
+-- ===1. Internalizing
+--
+-- When possible, you can try internalizing all data you need into the same query. Transitive and local components, as well as resources, can be queried at once:
+--
+-- @
+-- players \<- 'query' ['q'|Entity, Position, Name, Res SomeRes, Res SomeOtherRes / With Player|]
+-- 'for_' players $ \\(player, position, name, someRes, someOtherRes) -> do
+--   -- do something
+-- @
+--
+-- This is often a nice fix. Although, if you need to grab a lot of external data, the query might start to feel uncomfortably large. Plus, this will not always
+-- work for more complex queries.
+--
+-- ===2. Piping
+--
+-- Sometimes piping can work wonders.
+--
+-- @
+-- players \<-
+--   ['q'|Entity, Name / With Player|]
+--     & 'qextend' \['qd'|Res SomeRes, Res SomeOtherRes, Position|] (,)
+--     & 'query'
+--
+-- 'for_' players $ \\((player, name), (someRes, someOhterRes, position)) -> do
+--   -- do something
+-- @
+--
+-- You're now using @qextend@ to query new data and map it into the other data. This may allow for more complex
+-- queries (through methods such as @qjoin@, and @qrelateMany@), but you still suffer from having to
+-- list all the data when iterating.
+--
+-- ===3. Binding
+--
+-- Once again, the @Query@ monad saves the day. You can use @qres@ and @qget@ to seamlessly chain data into your flow.
+--
+-- @
+-- 'query_' $ do
+--   (player, name) \<- ['q'|Entity, Name / With Player|]
+--   someRes \<- 'qres' \@SomeRes
+--   someOtherRes \<- 'qres' \@SomeOtherRes
+--   position \<- 'qget' player ['qd'|Position|]
+--
+--   'qpure' player
+--     & -- do something
+-- @
+--
+-- You now have a fully functional and pure chain of operations. You don't need to ever re-list your variable, since they're all already bound in the current scope.
+-- If a resource doesn't exist, @qres@ will just naturally null your whole query. Same with @qget@. This method also lets you write any complex queries.

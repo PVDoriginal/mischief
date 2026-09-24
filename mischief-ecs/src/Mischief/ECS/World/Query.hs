@@ -203,6 +203,7 @@ data Query m a where
   AppQuery :: Query m (a -> b) -> Query m a -> Query m b
   BindQuery :: Query m a -> (a -> Query m b) -> Query m b
   EmptyQuery :: Query m a
+  RefocusQuery :: Query m a -> Entity -> Query m a
 
 instance (MonadSystem w m) => Functor (Query m) where
   fmap :: (a -> b) -> Query m a -> Query m b
@@ -311,6 +312,9 @@ qrun (BindQuery a f) = do
       )
       x
 qrun EmptyQuery = pure []
+qrun (RefocusQuery a e) = do
+  x <- qrun a
+  pure $ map (\(_, a') -> (e, a')) x
 
 tryJoin :: (Entity, a) -> (Entity, a -> b) -> Maybe (Entity, b)
 tryJoin (Entity (# 0##, 0## #), a) (e, f) = Just (e, f a)

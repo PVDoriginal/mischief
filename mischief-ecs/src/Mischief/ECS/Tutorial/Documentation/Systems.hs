@@ -1,18 +1,13 @@
 {-# OPTIONS_GHC -Wno-unused-imports #-}
 
 -- |
--- Module: Systems Tutorial
--- Description: Tutorial on using @Systems@
+-- [Previous Chapter: (Docs) Queries]("Mischief.ECS.Tutorial.Documentation.Queries")
 --
--- This module contains a more in-depth tutorial on using @Mischief Systems@.
---
--- [Previous Chapter: Queries]("Mischief.ECS.Tutorial.Queries")
---
--- [Next Chapter: Events and Messages]("Mischief.ECS.Tutorial.Events")
+-- [Next Chapter: (Docs) Events and Messages]("Mischief.ECS.Tutorial.Documentation.Events")
 --
 -- [Main Page]("Mischief.ECS")
-module Mischief.ECS.Tutorial.Systems
-  ( -- * Learn You an ECS for Great Mischief! - 7. Systems
+module Mischief.ECS.Tutorial.Documentation.Systems
+  ( -- * Learn You an ECS for Great Mischief! - 3.5. (Docs) Systems
     -- $intro
 
     -- * Scheduling
@@ -30,7 +25,7 @@ module Mischief.ECS.Tutorial.Systems
     -- * Asynchronicity
     -- $async
 
-    -- * [Next Chapter: Events and Messages]("Mischief.ECS.Tutorial.Events")
+    -- * [Next Chapter: (Docs) Events and Messages]("Mischief.ECS.Tutorial.Documentation.Events")
   )
 where
 

@@ -6,13 +6,13 @@
 --
 -- This module contains a more in-depth tutorial on @Mischief Relationships@.
 --
--- [Previous Chapter: Components]("Mischief.ECS.Tutorial.Components")
+-- [Previous Chapter: (Docs) Components]("Mischief.ECS.Tutorial.Documentation.Components")
 --
--- [Next Chapter: Queries]("Mischief.ECS.Tutorial.Queries")
+-- [Next Chapter: (Docs) Queries]("Mischief.ECS.Tutorial.Documentation.Queries")
 --
 -- [Main Page]("Mischief.ECS")
-module Mischief.ECS.Tutorial.Relationships
-  ( -- * Learn You an ECS for Great Mischief! - 5. Relationships
+module Mischief.ECS.Tutorial.Documentation.Relationships
+  ( -- * Learn You an ECS for Great Mischief! - 3.3. (Docs) Relationships
     -- $intro
 
     -- * Insertion
@@ -33,7 +33,7 @@ module Mischief.ECS.Tutorial.Relationships
     -- * Hooks
     -- $hooks
 
-    -- * [Next Chapter: Queries]("Mischief.ECS.Tutorial.Queries")
+    -- * [Next Chapter: (Docs) Queries]("Mischief.ECS.Tutorial.Documentation.Queries")
   )
 where
 

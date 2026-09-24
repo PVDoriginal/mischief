@@ -49,7 +49,7 @@ instance Plugin TimePlugin where
   init = do
     currentTime <- liftIO $ getTime Monotonic
     insertRes $ VirtualTime {virtualDelta = TimeSpec {sec = 0, nsec = 0}, virtualElapsed = currentTime}
-    schedule First (systems updateTime)
+    schedule @First (systems updateTime)
 
 updateTime :: System ()
 updateTime = do

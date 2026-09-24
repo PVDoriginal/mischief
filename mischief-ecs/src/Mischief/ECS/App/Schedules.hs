@@ -1,3 +1,5 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
+
 module Mischief.ECS.App.Schedules where
 
 import Data.Data
@@ -17,23 +19,23 @@ newtype ScheduleLabel = ScheduleLabel {rep :: TypeRep}
 
 class (Typeable s) => Schedule s
 
-data Init = Init deriving (Schedule, Show)
+data Init deriving (Schedule, Show)
 
-data PreStartup = PreStartup deriving (Schedule)
+data PreStartup deriving (Schedule)
 
-data Startup = Startup deriving (Schedule, Show)
+data Startup deriving (Schedule, Show)
 
-data PostStartup = PostStartup deriving (Schedule)
+data PostStartup deriving (Schedule)
 
-data First = First deriving (Schedule, Show)
+data First deriving (Schedule, Show)
 
-data Update = Update deriving (Schedule, Show)
+data Update deriving (Schedule, Show)
 
-data PreUpdate = PreUpdate deriving (Schedule)
+data PreUpdate deriving (Schedule)
 
-data PostUpdate = PostUpdate deriving (Schedule)
+data PostUpdate deriving (Schedule)
 
-data Last = Last deriving (Schedule)
+data Last deriving (Schedule)
 
 data StartupSchedule = StartupSchedule deriving (Component)
 
@@ -55,7 +57,7 @@ getScheduleId sch = do
       insertRes $ Schedules $ Map.insert sch.rep (ScheduleId e) schedules.inner
       return $ ScheduleId e
 
-scheduleEntity :: (Schedule sch) => sch -> System Entity
-scheduleEntity sch = do
-  ScheduleId id <- getScheduleId $ ScheduleLabel $ typeOf sch
+scheduleEntity :: forall sch. (Schedule sch) => System Entity
+scheduleEntity = do
+  ScheduleId id <- getScheduleId $ ScheduleLabel $ typeRep (Proxy @sch)
   return id

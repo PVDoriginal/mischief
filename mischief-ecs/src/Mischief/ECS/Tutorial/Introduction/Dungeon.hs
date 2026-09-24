@@ -6,13 +6,13 @@
 --
 -- This module walks the user through creating a small game in the terminal.
 --
--- [Previous Chapter: Startup Guide]("Mischief.ECS.Tutorial.Startup")
+-- [Previous Chapter: Startup Guide]("Mischief.ECS.Tutorial.Introduction.Startup")
 --
--- [Next Chapter: How To. Common Problems and Patterns.]("Mischief.ECS.Tutorial.App")
+-- [Next Chapter: Organizing your Project]("Mischief.ECS.Tutorial.Guides.Organizing")
 --
 -- [Main Page]("Mischief.ECS")
-module Mischief.ECS.Tutorial.Dungeon
-  ( -- * Learn You an ECS for Great Mischief! - 2. Coding a Dungeon Game
+module Mischief.ECS.Tutorial.Introduction.Dungeon
+  ( -- * Learn You an ECS for Great Mischief! - 1.2. Coding a Dungeon Game
     -- $intro
 
     -- * Creating an App
@@ -66,13 +66,10 @@ module Mischief.ECS.Tutorial.Dungeon
     -- * Collecting Coins
     -- $collect
 
-    -- * Extra: Monad
-    -- $monad
-
     -- * Next Steps
     -- $next
 
-    -- * [Next Chapter: App and Plugins]("Mischief.ECS.Tutorial.App")
+    -- * [Next Chapter: Common Patterns]("Mischief.ECS.Tutorial.Patterns")
   )
 where
 
@@ -167,7 +164,7 @@ import System.Exit (exitSuccess)
 -- instance 'Plugin' MainPlugin where
 --   init = do
 --     'systems' spawnGrid
---       & 'schedule' 'Startup'
+--       & 'schedule' \@Startup
 -- @
 
 -- $traversing
@@ -226,10 +223,10 @@ import System.Exit (exitSuccess)
 -- instance 'Plugin' MainPlugin where
 --   init = do
 --     'systems' spawnGrid
---       & 'schedule' 'Startup'
+--       & 'schedule' \@Startup
 --
 --     'systems' spawnPlayer
---       & 'schedule' 'Startup'
+--       & 'schedule' \@Startup
 -- @
 --
 -- Except there's something really wrong in the logic above!
@@ -243,11 +240,11 @@ import System.Exit (exitSuccess)
 -- instance 'Plugin' MainPlugin where
 --   init = do
 --     'systems' spawnGrid
---       & 'schedule' 'Startup'
+--       & 'schedule' \@Startup
 --
 --     'systems' spawnPlayer
 --       & 'after' spawnGrid
---       & 'schedule' 'Startup'
+--       & 'schedule' \@Startup
 -- @
 --
 -- The app should now run without issues!
@@ -286,11 +283,11 @@ import System.Exit (exitSuccess)
 -- instance 'Plugin' MainPlugin where
 --   init = do
 --     'systems' spawnGrid
---       & 'schedule' 'Startup'
+--       & 'schedule' \@Startup
 --
 --     'systems' (spawnPlayer, spawnWalls)
 --       & 'after' spawnGrid
---       & 'schedule' 'Startup'
+--       & 'schedule' \@Startup
 -- @
 --
 -- Additionally, it would be helpful to write a system which checks if a given tile has a wall on it:
@@ -365,14 +362,14 @@ import System.Exit (exitSuccess)
 --     Stdin.'Mischief.ECS.Stdin.init'
 --
 --     'systems' spawnGrid
---       & 'schedule' 'Startup'
+--       & 'schedule' \@Startup
 --
 --     'systems' (spawnPlayer, spawnWalls)
 --       & 'after' spawnGrid
---       & 'schedule' 'Startup'
+--       & 'schedule' \@Startup
 --
 --     'systems' printGrid
---       & 'schedule' 'Update'
+--       & 'schedule' \@Update
 -- @
 --
 -- If you run the app now, you should see the game's grid in your terminal!
@@ -445,15 +442,17 @@ import System.Exit (exitSuccess)
 --
 -- instance 'Plugin' MainPlugin where
 --   init = do
+--     Stdin.'Mischief.ECS.Stdin.init'
+--
 --     'systems' spawnGrid
---       & 'schedule' 'Startup'
+--       & 'schedule' \@Startup
 --
 --     'systems' spawnWalls
 --       & 'after' spawnGrid
---       & 'schedule' 'Startup'
+--       & 'schedule' \@Startup
 --
 --     'systems' printGrid
---       & 'schedule' 'Update'
+--       & 'schedule' \@Update
 --
 --   deps = ['dep' \@PlayerPlugin]
 --
@@ -463,10 +462,10 @@ import System.Exit (exitSuccess)
 --   init = do
 --     'systems' spawnPlayer
 --       & 'after' spawnGrid
---       & 'schedule' 'Startup'
+--       & 'schedule' \@Startup
 --
 --     'systems' movePlayer
---       & 'schedule' 'Update'
+--       & 'schedule' \@Update
 -- @
 --
 -- You should now be able to move the player around when running the game!
@@ -498,14 +497,14 @@ import System.Exit (exitSuccess)
 --     Stdin.'Mischief.ECS.Stdin.init'
 --
 --     'systems' spawnGrid
---       & 'schedule' 'Startup'
+--       & 'schedule' \@Startup
 --
 --     'systems' spawnWalls
---       & 'after spawnGrid
---       & 'schedule' 'Startup'
+--       & 'after' spawnGrid
+--       & 'schedule' \@Startup
 --
 --     'systems' printGrid
---       & 'schedule' 'Update'
+--       & 'schedule' \@Update
 --
 --     'insertRes' =<< newGen
 -- @
@@ -587,7 +586,8 @@ import System.Exit (exitSuccess)
 -- instance 'Plugin' EnemyPlugin where
 --   init = do
 --     'systems' spawnEnemies
---       & 'schedule' Startup
+--       & 'after' spawnGrid
+--       & 'schedule' \@Startup
 -- @
 --
 -- And added it to the list of plugins added by @MainPlugin@:
@@ -638,22 +638,23 @@ import System.Exit (exitSuccess)
 -- moveEnemies :: 'System' ()
 -- moveEnemies = do
 --   'Just' ('From' _ playerPos) \<- 'single' ['q'|OnTile -\> (Pos) / With Player|]
+--   'Just' grid <- 'res' \@Grid
 --
---   ['q'|OnTile -> (Pos), Res Grid / With Enemy|]
---     & 'qtraverse' (\\_ (pos, grid) -> (,pos,grid) <$> decideEnemyDir pos.comp playerPos)
---     & 'qmapMaybe' (\\(diff, pos, Res grid) -> moveBy diff pos.comp grid)
---     & 'qinsert' (Rel OnTile)
+--   ['q'|OnTile -> (Pos) / With Enemy|]
+--     & 'qtraverse' (\\_ pos -> (,pos) \<$\> decideEnemyDir pos.comp playerPos)
+--     & 'qmapMaybe' (\\(diff, pos) -\> moveBy diff pos.comp grid)
+--     & 'qinsert' ('Rel' OnTile)
 --     & 'query_'
 -- @
 --
 -- If the lambdas get overwhelming you can always create intermediary functions that work on queries:
 --
 -- @
--- qdecideEnemyTile :: Pos -> 'Query' 'System' ('From' Pos, 'Res' Grid) -> 'Query' 'System' 'Entity'
--- qdecideEnemyTile playerPos x =
+-- qdecideEnemyTile :: Grid -> Pos -> 'Query' 'System' ('From' Pos) -> 'Query' 'System' 'Entity'
+-- qdecideEnemyTile grid playerPos x =
 --   x
---     & 'qtraverse' (\\_ (pos, grid) -> (,pos,grid) <$> decideEnemyDir pos.comp playerPos)
---     & 'qmapMaybe' (\\(diff, pos, Res grid) -> moveBy diff pos.comp grid)
+--     & 'qtraverse' (\\_ pos -> (,pos) \<$\> decideEnemyDir pos.comp playerPos)
+--     & 'qmapMaybe' (\\(diff, pos) -> moveBy diff pos.comp grid)
 -- @
 --
 -- So our system is now just:
@@ -662,9 +663,10 @@ import System.Exit (exitSuccess)
 -- moveEnemies :: 'System' ()
 -- moveEnemies = do
 --   'Just' ('From' _ playerPos) \<- 'single' ['q'|OnTile -\> (Pos) / With Player|]
+--   'Just' grid <- 'res' \@Grid
 --
---   ['q'|OnTile -\> (Pos), Res Grid / With Enemy|]
---     & qdecideEnemyTile playerPos
+--   ['q'|OnTile -\> (Pos) / With Enemy|]
+--     & qdecideEnemyTile grid playerPos
 --     & 'qinsert' ('Rel' OnTile)
 --     & 'query_'
 -- @
@@ -677,14 +679,14 @@ import System.Exit (exitSuccess)
 -- instance 'Plugin' EnemyPlugin where
 --   init = do
 --     'systems' spawnEnemies
---       & 'schedule' 'Startup'
+--       & 'after' spawnGrid
+--       & 'schedule' \@Startup
 --
 --     'systems' moveEnemies
---       & 'schedule' 'Update'
+--       & 'schedule' \@Update
 -- @
 --
 -- Except there's a small problem. If you run the app now, you may notice you don't see any enemies!
---
 -- That's because they all already got to the player and are hiding behind it! We've set @moveEnemies@
 -- to happen every frame, and our frames are happening almost instantly. So we need to add some sort of timing to the enemy's movement.
 --
@@ -703,10 +705,9 @@ import System.Exit (exitSuccess)
 -- import "Mischief.ECS.Time" qualified as Time
 -- @
 --
--- Mischief also provides a handy way of keeping track of time via the @Timer@.
+-- Mischief also provides a handy way of keeping track of time via the @Timer@. This module contains functions to work with it.
 --
 -- @
--- import "Mischief.ECS.Timer" ('Mischief.ECS.Timer.Timer')
 -- import "Mischief.ECS.Timer" qualified as Timer
 -- @
 --
@@ -744,9 +745,9 @@ import System.Exit (exitSuccess)
 -- qfilterCooldown :: 'Query' 'System' a -> 'Query' 'System' a
 -- qfilterCooldown x = do
 --   x
---     & 'qextend' ['q'|Cooldown|] (,)
+--     & 'qextend' \['qd'|Cooldown|] (,)
 --     & 'qfilterM'
---       ( \entity (_, Cooldown timer) -> do
+--       (\\entity (_, Cooldown timer) -> do
 --           delta <- Time.'Mischief.ECS.Time.delta'
 --           let (timer', justFinished) = Timer.'Mischief.ECS.Timer.tick' delta timer
 --           'insert' (Cooldown timer') entity
@@ -758,6 +759,8 @@ import System.Exit (exitSuccess)
 -- First we use @qextend@ to also query for the @Cooldown@ of the current entity. Then we run a small impure filter that gets the delta,
 -- updates the Timer, modifies the value of Cooldown by re-inserting it on the entity, and filters based on whether the timer had just finished or not.
 --
+-- Notice that this time we're using @qd@ instead of @q@. That's because @qextend@ expects a /query data/.
+--
 -- We also use a final @qmap@ to get the query back to its original data. This makes it extremely generic!
 --
 -- Here's the new @moveEnemies@ function, with the timer-based filter:
@@ -766,10 +769,11 @@ import System.Exit (exitSuccess)
 -- moveEnemies :: 'System' ()
 -- moveEnemies = do
 --   'Just' ('From' _ playerPos) \<- 'single' ['q'|OnTile -\> (Pos) / With Player|]
+--   'Just' grid <- 'res' \@Grid
 --
---   ['q'|OnTile -\> (Pos), Res Grid / With Enemy|]
+--   ['q'|OnTile -\> (Pos) / With Enemy|]
 --     & qfilterCooldown
---     & qdecideEnemyTile playerPos
+--     & qdecideEnemyTile grid playerPos
 --     & 'qinsert' ('Rel' OnTile)
 --     & 'query_'
 -- @
@@ -871,9 +875,6 @@ import System.Exit (exitSuccess)
 --   'Mischief.ECS.Stdout.printClear' $ health ++ \"\\n\" ++ grid
 -- @
 --
--- In case you're thinking about it, yes, Health could just be a resource, I've just decided to make it a component in order to showcase
--- the required component system again.
---
 -- Your game should now print the health at the top:
 --
 -- @
@@ -916,10 +917,10 @@ import System.Exit (exitSuccess)
 --   init = do
 --     'systems' spawnPlayer
 --       & 'after' spawnGrid
---       & 'schedule' 'Startup'
+--       & 'schedule' \@Startup
 --
 --     'systems' movePlayer
---       & 'schedule' 'Update'
+--       & 'schedule' \@Update
 --
 --     'void' $ 'spawn' ('Observer' onDamage)
 -- @
@@ -931,7 +932,7 @@ import System.Exit (exitSuccess)
 -- tryDamage = do
 --   adjacentEnemies <-
 --     ['q'|OnTile -\> (Pos) / With Player|]
---       & 'qjoin' (\\pos -\> ['q'|OnTile -\> (Pos) / With Enemy|] & 'qfilter' (isAdjacent pos)) (,)
+--       & 'qjoin' (\\pos -\> ['q'|OnTile -\> (Pos) / With Enemy|] & 'qfilter' (\\a -> isAdjacent a.comp pos.comp)) (,)
 --       & 'query'
 --
 --   'unless' ('null' adjacentEnemies) $ do
@@ -941,7 +942,7 @@ import System.Exit (exitSuccess)
 -- With this helper function:
 --
 -- @
--- isAdjacent :: Pos -> Pos -> 'Bool
+-- isAdjacent :: Pos -> Pos -> 'Bool'
 -- isAdjacent (Pos (x1, y1)) (Pos (x2, y2)) =
 --   let dx = abs (x1 - x2)
 --       dy = abs (y1 - y2)
@@ -957,15 +958,16 @@ import System.Exit (exitSuccess)
 -- instance 'Plugin' EnemyPlugin where
 --   init = do
 --     'systems' spawnEnemies
---       & 'schedule' 'Startup'
+--       & 'after' spawnGrid
+--       & 'schedule' \@Startup
 --
 --     'systems' moveEnemies
---       & 'schedule' 'Update'
+--       & 'schedule' \@Update
 --
 --     'systems' tryDamage
 --       & 'after' moveEnemies
 --       & 'after' movePlayer
---       & 'schedule' 'Update'
+--       & 'schedule' \@Update
 -- @
 --
 -- This now /technically/ works, except that the enemies almost instantly defeat the player on contact. That's because they deal damage every frame,
@@ -1036,7 +1038,7 @@ import System.Exit (exitSuccess)
 -- First, we need a marker component for the coins. Each containing a value:
 --
 -- @
--- data Coin = Coin Int deriving ('Component')
+-- data Coin = Coin 'Int' deriving ('Component')
 -- @
 --
 -- Second, here's a system that spawns a coin on a random free tile:
@@ -1048,7 +1050,7 @@ import System.Exit (exitSuccess)
 --   free <- tileIsFree tile
 --   if free
 --     then
---       'void' $ 'spawn' (Coin, 'Rel' OnTile tile)
+--       'void' $ 'spawn' (Coin 5, 'Rel' OnTile tile)
 --     else
 --       spawnCoin
 -- @
@@ -1067,14 +1069,14 @@ import System.Exit (exitSuccess)
 --     Stdin.'Mischief.ECS.Stdin.init'
 --
 --     'systems' spawnGrid
---       & 'schedule' 'Startup'
+--       & 'schedule' \@Startup
 --
 --     'systems' spawnWalls
---       & 'after spawnGrid
---       & 'schedule' 'Startup'
+--       & 'after' spawnGrid
+--       & 'schedule' \@Startup
 --
 --     'systems' printGrid
---       & 'schedule' 'Update'
+--       & 'schedule' \@Update
 --
 --     interval <- Interval.'Mischief.ECS.Interval.start' 2000000 spawnCoin
 --
@@ -1145,10 +1147,10 @@ import System.Exit (exitSuccess)
 --   'for_' players $ \\(player, 'From' _ tile, Coins coins) -> do
 --     collected <-
 --       ['q'|Coin / With OnTile -> tile|]
---         & 'qtap' (\e _ -> despawn e)
+--         & 'qtap' (\\e _ -> despawn e)
 --         & 'query'
 --
---     'insert' (Coins $ 'foldr' (\(Coin x) -> (+ x)) coins collected) player
+--     'insert' (Coins $ 'foldr' (\\(Coin x) -> (+ x)) coins collected) player
 -- @
 --
 -- We iterate over all players, then query all coins that share the same tile as the current player, while despawning them. We
@@ -1162,14 +1164,14 @@ import System.Exit (exitSuccess)
 --   init = do
 --     'systems' spawnPlayer
 --       & 'after' spawnGrid
---       & 'schedule' 'Startup'
+--       & 'schedule' \@Startup
 --
 --     'systems' movePlayer
---       & 'schedule' 'Update'
+--       & 'schedule' \@Update
 --
 --     'systems' collectCoins
 --       & 'after' movePlayer
---       & 'schedule' 'Update'
+--       & 'schedule' \@Update
 --
 --     'void' $ 'spawn' ('Observer' onDamage)
 -- @

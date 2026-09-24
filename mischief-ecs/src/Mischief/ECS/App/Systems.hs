@@ -75,9 +75,9 @@ removeSystemFromMap sch system = do
     (Map.lookup (sch, hashStableName stableName) systemMap')
     (removeSystemFromMap' stableName)
 
-systemEntity :: (HasCallStack, Schedule sch) => sch -> System () -> System Entity
-systemEntity sch s = do
-  schId <- scheduleEntity sch
+systemEntity :: forall sch. (HasCallStack, Schedule sch) => System () -> System Entity
+systemEntity s = do
+  schId <- scheduleEntity @sch
   x <- getSystemId (ScheduleId schId) s
   return x.id
 

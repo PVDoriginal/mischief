@@ -97,15 +97,25 @@ library
     Mischief.ECS.Tables
     Mischief.ECS.Time
     Mischief.ECS.Timer
-    Mischief.ECS.Tutorial.App
-    Mischief.ECS.Tutorial.Components
-    Mischief.ECS.Tutorial.Dungeon
-    Mischief.ECS.Tutorial.Events
-    Mischief.ECS.Tutorial.Queries
-    Mischief.ECS.Tutorial.Patterns 
-    Mischief.ECS.Tutorial.Relationships
-    Mischief.ECS.Tutorial.Startup
-    Mischief.ECS.Tutorial.Systems
+    Mischief.ECS.Tutorial.Documentation.App
+    Mischief.ECS.Tutorial.Documentation.Components
+    Mischief.ECS.Tutorial.Documentation.Events
+    Mischief.ECS.Tutorial.Documentation.Queries
+    Mischief.ECS.Tutorial.Documentation.Relationships
+    Mischief.ECS.Tutorial.Documentation.Systems
+    Mischief.ECS.Tutorial.Guides.Basics
+    Mischief.ECS.Tutorial.Guides.Change
+    Mischief.ECS.Tutorial.Guides.Events
+    Mischief.ECS.Tutorial.Guides.ImprovingQueries
+    Mischief.ECS.Tutorial.Guides.Organizing
+    Mischief.ECS.Tutorial.Guides.Parallelism
+    Mischief.ECS.Tutorial.Guides.QuasiConversion
+    Mischief.ECS.Tutorial.Guides.QueryBasics
+    Mischief.ECS.Tutorial.Guides.QueryTraversals
+    Mischief.ECS.Tutorial.Guides.Scheduling
+    Mischief.ECS.Tutorial.Guides.Time
+    Mischief.ECS.Tutorial.Introduction.Dungeon
+    Mischief.ECS.Tutorial.Introduction.Startup
     Mischief.ECS.Utils
     Mischief.ECS.Vec
     Mischief.ECS.World
@@ -216,15 +226,16 @@ test-suite mischief-test
   hs-source-dirs: test
   -- The entrypoint to the test suite.
   main-is: Main.hs
-  other-modules: 
+  other-modules:
     Relationships
-    Utils 
+    Utils
+
   -- Test dependencies.
   build-depends:
-    base,
+    base >=4.21.0.0 && <4.22,
     containers,
     data-default,
-    mischief-ecs,
+    mischief-ecs ==0.2.0.0,
     primitive,
     random >=1.3.1 && <1.4,
     text,
@@ -234,10 +245,10 @@ executable example-dungeon
   main-is: Dungeon.hs
   hs-source-dirs: examples
   build-depends:
-    base,
+    base >=4.21.0.0 && <4.22,
     containers,
     data-default,
-    mischief-ecs,
+    mischief-ecs ==0.2.0.0,
     primitive,
     random >=1.3.1 && <1.4,
     text,
@@ -260,12 +271,11 @@ executable example-startup
   main-is: Startup.hs
   hs-source-dirs: examples
   build-depends:
-    base,
+    base >=4.21.0.0 && <4.22,
     containers,
-    data-default,
-    text,
-    mischief-ecs,
+    mischief-ecs ==0.2.0.0,
     primitive,
+    text,
     transformers,
 
   default-language: GHC2024
@@ -287,7 +297,7 @@ benchmark bench-spawn
   hs-source-dirs: benchmarks
   default-language: GHC2024
   build-depends:
-    base,
+    base >=4.21.0.0 && <4.22,
     containers,
     criterion >=1.6.5 && <1.7,
     deepseq >=1.5.1 && <1.6,
@@ -313,7 +323,7 @@ benchmark bench-insert
   hs-source-dirs: benchmarks
   default-language: GHC2024
   build-depends:
-    base,
+    base >=4.21.0.0 && <4.22,
     containers,
     criterion >=1.6.5 && <1.7,
     deepseq >=1.5.1 && <1.6,
@@ -339,7 +349,7 @@ benchmark bench-update
   hs-source-dirs: benchmarks
   default-language: GHC2024
   build-depends:
-    base,
+    base >=4.21.0.0 && <4.22,
     containers,
     criterion >=1.6.5 && <1.7,
     deepseq >=1.5.1 && <1.6,

@@ -66,6 +66,7 @@ import Control.Monad (void)
 import Control.Monad.IO.Class (MonadIO (liftIO))
 import Data.Foldable (for_)
 import Data.Text (Text)
+import GHC.Generics (Generic)
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
 import Mischief.ECS.App
@@ -170,13 +171,46 @@ import Mischief.ECS.World.Utils
 -- there will probably always be a layer of indirection (or 20) that makes it a bit slower, due to the high-level, boxed, nature of Haskell.
 
 -- $tutorials
--- In order to learn how to use Mischief, you can read through the official book:
+-- The official Mischief book is divided into three parts:
 --
--- (1) [Startup Guide]("Mischief.ECS.Tutorial.Startup")
--- (2) [Coding a Dungeon Game]("Mischief.ECS.Tutorial.Dungeon")
--- (3) [App and Plugins]("Mischief.ECS.Tutorial.App")
--- (4) [Components]("Mischief.ECS.Tutorial.Components")
--- (5) [Relationships]("Mischief.ECS.Tutorial.Relationships")
--- (6) [Queries]("Mischief.ECS.Tutorial.Queries")
--- (7) [Systems]("Mischief.ECS.Tutorial.Systems")
--- (8) [Events and Messages]("Mischief.ECS.Tutorial.Events")
+-- @Introduction@ will ease you into writing simple Mischief apps and introduce you to
+-- to various concepts without focusing too much on the technicalities.
+--
+-- @Guides@ contains workflows and patterns helping you achieve various goals in Mischief. From
+-- getting the components of an entity to parallelizing your systems.
+--
+-- @Documentation@ contains a technical list of functions and utilities contained within various parts of the ECS.
+--
+-- Feel free to click all the links to gain more insight and explanations for each type and function. And make sure to
+-- submit an issue if something you want to learn isn't covered!
+--
+-- You can read chapters and subchapters in any order.
+-- The @Startup Guide@ (1.1) is heavily recommended if this is your first time using Mischief.
+--
+-- * 1. Introduction
+--
+--     * 1.1 [Startup Guide]("Mischief.ECS.Tutorial.Introduction.Startup")
+--     * 1.2 [Coding a Dungeon Game]("Mischief.ECS.Tutorial.Introduction.Dungeon")
+--
+-- * 2. Guides
+--
+--     * 2.1 [Organizing your Project]("Mischief.ECS.Tutorial.Guides.Organizing")
+--     * 2.2 [Entities and Components Basics]("Mischief.ECS.Tutorial.Guides.Basics")
+--     * 2.3 [Quasi-Query Conversion]("Mischief.ECS.Tutorial.Guides.QuasiConversion")
+--     * 2.4 [Query Basics]("Mischief.ECS.Tutorial.Guides.QueryBasics")
+--     * 2.5 [Query Traversals]("Mischief.ECS.Tutorial.Guides.QueryTraversals")
+--     * 2.6 [Improving Queries]("Mischief.ECS.Tutorial.Guides.ImprovingQueries")
+--     * 2.7 [Scheduling and Running Systems]("Mischief.ECS.Tutorial.Guides.Scheduling")
+--     * 2.8 [Keeping Track of Time]("Mischief.ECS.Tutorial.Guides.Time")
+--     * 2.9 [Parallelism and Asynchronicity]("Mischief.ECS.Tutorial.Guides.Parallelism")
+--     * 2.10 [Events and Messages]("Mischief.ECS.Tutorial.Guides.Events")
+--     * 2.11 [Change Detection]("Mischief.ECS.Tutorial.Guides.Change")
+--
+-- * 3. Documentation
+--
+--     * 3.1 [App and Plugins]("Mischief.ECS.Tutorial.Documentation.App")
+--     * 3.2 [Components]("Mischief.ECS.Tutorial.Documentation.Components")
+--     * 3.3 [Relationships]("Mischief.ECS.Tutorial.Documentation.Relationships")
+--     * 3.4 [Queries]("Mischief.ECS.Tutorial.Documentation.Queries")
+--     * 3.5 [Systems]("Mischief.ECS.Tutorial.Documentation.Systems")
+--     * 3.6 [Events and Messages]("Mischief.ECS.Tutorial.Documentation.Events")

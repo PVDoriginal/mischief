@@ -1,18 +1,13 @@
 {-# OPTIONS_GHC -Wno-unused-imports #-}
 
 -- |
--- Module: Queries Tutorial
--- Description: Tutorial on using @Queries@
+-- [Previous Chapter: (Docs) Relationships]("Mischief.ECS.Tutorial.Documentation.Relationships")
 --
--- This module contains a more in-depth tutorial on @Mischief Queries@.
---
--- [Previous Chapter: Relationships]("Mischief.ECS.Tutorial.Relationships")
---
--- [Next Chapter: Systems]("Mischief.ECS.Tutorial.Systems")
+-- [Next Chapter: (Docs) Systems]("Mischief.ECS.Tutorial.Documentation.Systems")
 --
 -- [Main Page]("Mischief.ECS")
-module Mischief.ECS.Tutorial.Queries
-  ( -- * Learn You an ECS for Great Mischief! - 6. Queries
+module Mischief.ECS.Tutorial.Documentation.Queries
+  ( -- * Learn You an ECS for Great Mischief! - 3.4. (Docs) Queries
     -- $intro
 
     -- * Outputs
@@ -30,7 +25,7 @@ module Mischief.ECS.Tutorial.Queries
     -- * Quasi-Queries
     -- $quasi
 
-    -- * [Next Chapter: Systems]("Mischief.ECS.Tutorial.Systems")
+    -- * [Next Chapter: (Docs) Systems]("Mischief.ECS.Tutorial.Documentation.Systems")
   )
 where
 

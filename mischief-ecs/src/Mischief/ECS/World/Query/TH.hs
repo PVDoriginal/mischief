@@ -55,7 +55,7 @@ pGet = do
 quoteQuery :: QueryBuilder -> Q Exp
 quoteQuery (QueryBuilder qd Nothing Nothing) = AppE (VarE 'mkQuery) <$> quoteQd qd
 quoteQuery (QueryBuilder qd Nothing (Just e)) = do
-  e <- getTypeName e
+  e <- getValueName e
   qd <- quoteQd qd
   pure $ AppE (AppE (VarE 'mkGet) (VarE e)) qd
 quoteQuery (QueryBuilder qd (Just qf) Nothing) = do
@@ -63,7 +63,7 @@ quoteQuery (QueryBuilder qd (Just qf) Nothing) = do
   qf <- quoteQf qf
   return $ AppE (AppE (VarE 'mkQuery') qd) qf
 quoteQuery (QueryBuilder qd (Just qf) (Just e)) = do
-  e <- getTypeName e
+  e <- getValueName e
   qd <- quoteQd qd
   qf <- quoteQf qf
   return $ AppE (AppE (AppE (VarE 'mkGet') (VarE e)) qd) qf

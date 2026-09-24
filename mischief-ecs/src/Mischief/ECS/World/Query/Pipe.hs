@@ -55,6 +55,10 @@ module Mischief.ECS.World.Query.Pipe
     -- qjoin,
     -- qjoinOuter,
 
+    qrefocus,
+    qres,
+    qpure,
+
     -- * Logging
     qinfo,
     qwarn,
@@ -450,8 +454,9 @@ qcheck f = qfilterM (\e _ -> check f e)
 qextend :: (MonadSystem w m, Queryable qd out) => qd -> (a -> out -> c) -> Query m a -> Query m c
 qextend qd f a = do
   (e, a) <- qentity a
-  out <- qget e qd
-  pure $ f a out
+  qget e qd
+    & qcollect e
+    & qmap (\case [From _ a'] -> f a a'; _ -> undefined)
 
 qrelateOne :: (MonadSystem w m, Queryable qd out) => (Entity -> m (Maybe Entity)) -> qd -> (a -> From out -> c) -> Query m a -> Query m c
 qrelateOne f qd f' a = do
@@ -489,7 +494,13 @@ qrelateMany f qd f' a = do
 qres :: forall c m a w. (MonadSystem w m, Component c) => Query m (Res c)
 qres = qget (Entity (# 0##, 0## #)) (Res @c)
 
--- -- | Pairs the query's elements with their entity. Same as @qextend (flip (,)) [q|Entity|]@.
+qrefocus :: Entity -> Query m a -> Query m a
+qrefocus = flip RefocusQuery
+
+qpure :: (MonadSystem w m) => Entity -> Query m ()
+qpure e = qrefocus e $ pure ()
+
+--  | Pairs the query's elements with their entity. Same as @qextend (flip (,)) [q|Entity|]@.
 qentity :: (MonadSystem w m) => Query m a -> Query m (Entity, a)
 qentity = PairEntityQuery
 
@@ -512,7 +523,7 @@ qentity = PairEntityQuery
 qjoin :: (MonadSystem w m) => (a -> Query m b) -> (a -> [From b] -> c) -> Query m a -> Query m c
 qjoin f f' a = do
   (e, a) <- qentity a
-  f a & qcollect e & qmap (f' a)
+  f a & qcollect e & qfilter (not . null) & qmap (f' a)
 
 qget :: (MonadSystem w m, Queryable qd out) => Entity -> qd -> Query m out
 qget entity qd = BuildQuery qd NoFilter (Just [entity])
