@@ -18,7 +18,7 @@ The following are strictly prohibited:
 
 ### But what if "AI" gets "Better"?
 
-This policy will stay the same, no matter how "good" "AI" outputs is, or how ethical it is. The policy is fully agnostic to any political context or anti / pro "AI" arguments.  
+This policy will stay the same, no matter how "good" "AI" output is, or how ethical it is. The policy is fully agnostic to any political context or anti / pro "AI" arguments.  
 
 ### What about Rubber-Ducking?
 
