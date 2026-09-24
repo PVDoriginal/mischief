@@ -9,9 +9,12 @@ It doesn't refer to:
 
 ### Mischief does not, and will never, accept "AI" contributions
 
-- Contributing "AI"-generated code, documentation, or other type of content is strictly prohibited. No matter how much or little of it was generated, or what the final quality of it is. This extends to using "AI" for translation or simple code changes. 
-- Advertising "AI" products or showcasing content that was, in any part, "AI"-generated is not allowed. It doesn't matter if it's visible art or code.
-- Trying to debate, undermine, or circumvent this policy is not permitted.
+The following are strictly prohibited: 
+
+- Contributing "AI"-generated code, documentation, or other type of content. No matter how much or little of it was generated, or what the final quality of it is. This extends to using "AI" for translation or simple code changes. 
+- Advertising "AI" products or showcasing content that was, in any part, "AI"-generated. It doesn't matter if it's visible art or code.
+- Adding "AI"-based tools into the engine to be used by game developers. This includes, but is not limited to, MCPs and other forms of "AI" integration. 
+- Trying to debate, undermine, or circumvent this policy.
 
 ### But what if "AI" gets "Better"?
 
