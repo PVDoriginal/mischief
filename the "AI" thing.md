@@ -4,7 +4,7 @@
 
 It doesn't refer to: 
   - Game AI (NPCs, pathfinding, etc.)
-  - AI as an academical field.
+  - AI as an academic field.
   - Simple tools meant to assist writing and creating, such as "replace all X with Y" in an IDE, or paintbrushes in a drawing program.  
 
 ### Mischief does not, and will never, accept "AI" contributions
