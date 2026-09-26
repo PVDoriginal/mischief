@@ -219,50 +219,6 @@ instance (MonadSystem w m) => Monad (Query m) where
   (>>=) :: (MonadSystem w m) => Query m a -> (a -> Query m b) -> Query m b
   (>>=) = BindQuery
 
--- grun :: (MonadSystem w m) => Entity -> Query m out -> m (Maybe (Entity, out))
--- grun entity (BuildQuery qd qf e) = do
---   world <- unsafeGetWorld
---   b <- liftIO $ filterEntity qf world entity
---   if b then fmap (entity,) <$> entityQuery qd entity else pure Nothing
--- grun entity (MapQuery a f) = do
---   x <- grun entity a
---   case x of
---     Nothing -> pure Nothing
---     Just (e, x) -> fmap (e,) . Just <$> f entity x
--- grun entity (FilterQuery a f) = do
---   x <- grun entity a
---   case x of
---     Nothing -> pure Nothing
---     Just (e, x) -> do
---       b <- f entity x
---       if b then pure $ Just (e, x) else pure Nothing
--- grun entity (DoQuery a f) = do
---   x <- grun entity a
---   for_ x $ uncurry f
---   pure x
--- grun _ (FoldQuery a e f i) = do
---   x <- map snd <$> qrun a
---   let x' = foldr f i x
---   pure $ Just (e, x')
--- grun _ (PureQuery a) = pure $ Just (Entity (# 0##, 0## #), a)
--- grun entity (AppQuery f a) = do
---   f <- grun entity f
---   a <- grun entity a
---   case (,) <$> f <*> a of
---     Nothing -> pure Nothing
---     Just ((_, f), (e', a)) -> pure $ Just (e', f a)
--- grun entity (BindQuery f a) = do
---   x <- grun entity f
---   case x of
---     Nothing -> pure Nothing
---     Just (_, x) -> grun entity (a x)
-
--- get :: (MonadSystem w m) => Entity -> Query m out -> m (Maybe out)
--- get e a = fmap snd <$> grun e a
-
--- get_ :: (MonadSystem w m) => Entity -> Query m out -> m ()
--- get_ a b = void $ get a b
-
 qrun :: (MonadSystem w m) => Query m out -> m [(Entity, out)]
 qrun (BuildQuery qd qf Nothing) = do
   world <- unsafeGetWorld
@@ -304,7 +260,6 @@ qrun (AppQuery f a) = do
   pure $ catMaybes $ [tryJoin a f | a <- a, f <- f]
 qrun (BindQuery a f) = do
   x <- qrun a
-  -- concatMap (\(a, b) -> map (a,) b) <$> traverse (\(e, x) -> do (e,) <$> query (f x)) x
   concat
     <$> traverse
       ( \(_, x) -> do

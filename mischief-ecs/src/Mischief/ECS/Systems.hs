@@ -58,20 +58,6 @@ schedule SystemConfig {systems, edges} = do
     id2 <- systemEntity @sc s2
     insert (Rel Before id2) id1
 
-remove :: forall sc a. (Schedule sc, ToSystems a) => a -> System ()
-remove systems = do
-  sch <- scheduleEntity @sc
-
-  let Systems y = collect systems
-  for_ y $ \system -> do
-    s <- Mischief.ECS.Systems.get @sc system
-    removeSystemFromMap (ScheduleId sch) system
-
-    despawn s
-
-    query (mkQuery' E (With (R @Before s)))
-      >>= traverse_ (removeRel @Before s)
-
 order :: forall sc a b. (Schedule sc, ToSystems a, ToSystems b) => (a, b) -> System ()
 order (s1, s2) = do
   let Systems systems1 = collect s1
@@ -98,3 +84,17 @@ unschedule s = do
     s' <- Mischief.ECS.Systems.get @sc s
 
     removeRel @ScheduledIn sch' s'
+
+unschedule' :: forall sc a. (Schedule sc, ToSystems a) => a -> System ()
+unschedule' systems = do
+  sch <- scheduleEntity @sc
+
+  let Systems y = collect systems
+  for_ y $ \system -> do
+    s <- Mischief.ECS.Systems.get @sc system
+    removeSystemFromMap (ScheduleId sch) system
+
+    despawn s
+
+    query (mkQuery' E (With (R @Before s)))
+      >>= traverse_ (removeRel @Before s)

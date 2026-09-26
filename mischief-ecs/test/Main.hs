@@ -1,6 +1,7 @@
 module Main where
 
 import Data.Foldable
+import Data.Kind
 import Mischief.ECS.Prelude
 import Mischief.ECS.Relationships.ChildOf
 import Mischief.ECS.Relationships.Graph qualified as Graph

@@ -106,12 +106,12 @@ library
     Mischief.ECS.Tutorial.Guides.Basics
     Mischief.ECS.Tutorial.Guides.Change
     Mischief.ECS.Tutorial.Guides.Events
-    Mischief.ECS.Tutorial.Guides.ImprovingQueries
+    Mischief.ECS.Tutorial.Guides.MonadicQueries
     Mischief.ECS.Tutorial.Guides.Organizing
     Mischief.ECS.Tutorial.Guides.Parallelism
     Mischief.ECS.Tutorial.Guides.QuasiConversion
     Mischief.ECS.Tutorial.Guides.QueryBasics
-    Mischief.ECS.Tutorial.Guides.QueryTraversals
+    Mischief.ECS.Tutorial.Guides.QueryPiping
     Mischief.ECS.Tutorial.Guides.Scheduling
     Mischief.ECS.Tutorial.Guides.Time
     Mischief.ECS.Tutorial.Introduction.Dungeon

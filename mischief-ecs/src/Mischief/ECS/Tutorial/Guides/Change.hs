@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wno-unused-imports #-}
+
 -- |
 -- Module: Queries Tutorial
 -- Description: How To Mischief.
@@ -11,6 +13,11 @@ module Mischief.ECS.Tutorial.Guides.Change
   ( -- * Learn You an ECS for Great Mischief! - 2.11. Change Detection
     -- $intro
 
-    -- * [Next Chapter: (Doc) App and Plugins]("Mischief.ECS.Tutorial.Documentation.App")
+    -- * [Next Chapter: (Docs) App and Plugins]("Mischief.ECS.Tutorial.Documentation.App")
   )
 where
+
+import Mischief.ECS
+
+-- $intro
+-- TODO

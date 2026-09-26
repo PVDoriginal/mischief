@@ -1,0 +1,244 @@
+{-# OPTIONS_GHC -Wno-unused-imports #-}
+
+-- |
+-- Module: Queries Tutorial
+-- Description: How To Mischief.
+--
+-- [Previous Chapter: Query Piping]("Mischief.ECS.Tutorial.Guides.QueryPiping")
+--
+-- [Next Chapter: Scheduling and Running Systems]("Mischief.ECS.Tutorial.Guides.Scheduling")
+--
+-- [Main Page]("Mischief.ECS")
+module Mischief.ECS.Tutorial.Guides.MonadicQueries
+  ( -- * Learn You an ECS for Great Mischief! - 2.6. Monadic Queries
+    -- $intro
+
+    -- * Binding
+    -- $bind
+
+    -- * Sources
+    -- $source
+
+    -- * Accumulating and Aggregating Queries
+    -- $accumulation
+
+    -- * Grabbing New Components and Resources
+    -- $extend
+
+    -- * Conditionals
+    -- $cond
+
+    -- * [Next Chapter: Scheduling and Running Systems]("Mischief.ECS.Tutorial.Guides.Scheduling")
+  )
+where
+
+import Control.Monad (void)
+import Data.Foldable (for_)
+import Data.Traversable (for)
+import Mischief.ECS
+
+-- $intro
+-- Finally we get to the most powerful and complete ability of Queries: monadic operations!
+
+-- $bind
+-- Monadic queries are usually written by using one of the query runners (@query_@, @query@, @single@), followed by a @do@:
+--
+-- @
+-- 'query_' $ do
+--   playerName <- ['q'|Name / With Player|]
+--   'pure' ()
+-- @
+--
+-- When you bind a value out of a query (the @<-@ above), you are immediately iterating over all elements of a query and applying operations to them.
+-- It is in a way similar to the @List@ monad if you are familiar with it (if you are not, don't worry!).
+--
+-- Essentially, in pseudo-imperative, python-eseque code, the above is equivalent to:
+--
+-- @
+-- for playerName in [q|Name / With Player|]:
+--   pure ()
+-- @
+--
+-- There are many great uses to this, which you'll see  in this chapter.
+-- The most naive one is that it naturally allows you to write sql-like joins:
+--
+-- @
+-- 'query_' $ do
+--   playerName <- ['q'|Name / With Player|]
+--   ['q'|Name / With Enemy|]
+--     & 'qinfo' (\\enemyName -> ['i'|#{playerName}, #{enemyName}|])
+-- @
+--
+-- Which is, in essence:
+--
+-- @
+-- for playerName in [q|Name / With Player|]:
+--   for enemyName in [q|Name / With Enemy|]:
+--     print (playerName + \", \" + enemyName)
+-- @
+
+-- $source
+-- There is one detail about the section above that may not make much sense at first. Essentially, you may be wondering what happens if you do this:
+--
+-- @
+-- 'query_' $ do
+--   Health health <- ['q'|Health / With Player|]
+--   ['q'|Name / With Enemy|]
+--     & 'qinsert' (\_ -> (Health $ health - 1))
+-- @
+--
+-- It does, in fact, insert the player's health (minus 1) to each enemy! But why, and how can we do an insertion on the player?
+--
+-- The answer are Sources. Each time you start a new query (e.g. the @[q|Name / With Enemy|]@ above), you turn your \"attention\" to the
+-- new entiites. The source of the query are the enemies.
+--
+-- You can change the source of a query using @qrefocus@; this code will iterate over all enemies but insert the Health component on the player:
+--
+-- @
+-- 'query_' $ do
+--   (player, Health health) <- ['q'|Entity, Health / With Player|]
+--   ['q'|Name / With Enemy|]
+--     & 'qrefocus' player
+--     & 'qinsert' (\_ -> (Health $ health - 1))
+-- @
+--
+-- Keeping track of sources can be a significant footgun and one of the main disadvantages to writing monadic queries.
+--
+-- One other way to bring the \"attention\" back to the players is by using @qpure@ (or @pure ()@ followed by @qrefocus@):
+--
+-- @
+-- 'query_' $ do
+--   (player, Health health) <- ['q'|Entity, Health / With Player|]
+--   enemyName <- ['q'|Name / With Enemy|]
+--   'qpure' player
+--     & 'qinsert' (\_ -> (Health $ health - 1))
+-- @
+--
+-- @qpure@ essentially creates a one-element query with the current player as the source, you can think of this as:
+--
+-- @
+-- for (player, Health health) in ['q'|Entity, Health / With Player|]:
+--   for enemyName in ['q'|Name / With Enemy|]
+--     for _ in [()]:
+--       insert (Health $ health - 1) player
+-- @
+
+-- $accumulation
+-- To re-use the context from the previous chapter, consider that you have players marked by a @Player@ component, each with
+-- a @Coins Int@ component storing how many coins they have collected. You have coins in the world, marked by @Coin Int@, and want to
+-- iterate over all players, then over all coins, and, if the coin is in range of the player, despawn the entity and add its value to the
+-- total collected by the player.
+--
+-- This \"nested query\" is a problem you may encounter in a lot of places. You've already seen how it's solved imperatively, by actually nesting the queries,
+-- but that solution isn't great. It's highly imperative and mutable, and the indentation gets bad as you need to nest more and more queries.
+--
+-- This is where the monadic part of the queries comes in. The goal is to perform all those operations /inside/ the same query, smartly chaining them using /do/.
+--
+-- As a first step it's often helpful to start with a code like this:
+--
+-- @
+-- 'query_' $ do
+--   (entity, 'From' _ tile, Coins coins) \<- ['q'|Entity, OnTile -\> (Entity), Coins / With Player|]
+--   'pure' ()
+-- @
+--
+-- Just copy the main query that you're iterating over. And /bind/ the data out of it using @<-@.
+-- Wrap it in a @do@ folllwing a @query_@ or @query@.
+--
+-- At this point, you've put your hand on a slice of the data flowing through the query. What you do with this data
+-- dictates what will happen with all data.
+--
+-- Next, try replacing the @pure@ with another query, typically the second query that you're iterating over:
+--
+-- @
+-- 'query_' $ do
+--   (entity, 'From' _ tile, Coins coins) \<- ['q'|Entity, OnTile -\> (Entity), Coins / With Player|]
+--
+--   ['q'|Coin / With OnTile -\> tile|]
+--     & 'qtap' (\\e _ -> 'despawn' e)
+-- @
+--
+-- This is already a valid query. You're iterating over all the coins that are on each player's tile. You've changed the source, or subject,
+-- from being the players to being the coins. But in this case that's not really what you want. You want to somehow collect or aggregate
+-- the coins to use them in the larger query.
+--
+-- Let's try collecting them first:
+--
+-- @
+-- 'query_' $ do
+--   (entity, 'From' _ tile, Coins coins) \<- ['q'|Entity, OnTile -\> (Entity), Coins / With Player|]
+--
+--   collectedCoins <-
+--     ['q'|Coin / With OnTile -\> tile|]
+--       & 'qtap' (\\e _ -> 'despawn' e)
+--       & 'qcollect' entity
+--
+--   pure ()
+-- @
+--
+-- The @qcollect@ function takes an entity, and converts the entire query into just a single element, belonging to that entity.
+-- You may see that @collectedCoins@ has type @[From Coin]@.
+--
+-- Your first instinct here may be to take @collectedCoins@ and start another query instead of the @pure ()@, thinking that you're continuing the original
+-- query. But that's wrong. That would just create another level of nesting.
+-- Instead, what you want is to continue from the @qcollect@. /This/ is the continuation of the original query. With the @qcollect@ we've changed the subject
+-- back to the players. We are looking at the coins from above, as symbolized by the @From Coin@ type.
+--
+-- So this is what you want to be doing instead:
+--
+-- @
+-- 'query_' $ do
+--   (entity, 'From' _ tile, Coins coins) \<- ['q'|Entity, OnTile -\> (Entity), Coins / With Player|]
+--
+--   ['q'|Coin / With OnTile -\> tile|]
+--     & 'qtap' (\\e _ -> 'despawn' e)
+--     & 'qcollect' entity
+--     & 'qinsert' (\\collectedCoins -> Coins $ 'foldr' (\\('From' _ (Coin x)) -> (+ x)) coins collectedCoins)
+-- @
+--
+-- That's it! The coins are now folded and added to the total held by the player.
+--
+-- The only thing to add is that there's actually an alternative to @qcollect@. You can use @qfoldr@ to fold the elements directly:
+--
+-- @
+-- 'query_' $ do
+--   (entity, 'From' _ tile, Coins coins) \<- ['q'|Entity, OnTile -\> (Entity), Coins / With Player|]
+--
+--   ['q'|Coin / With OnTile -\> tile|]
+--     & 'qtap' (\\e _ -> 'despawn' e)
+--     & 'qfoldr' (\\('From' _ (Coin x)) -> (+ x)) coins entity
+--     & 'qinsert' Coins
+-- @
+--
+-- You have successfully turned a collection of nested mutations into one pure computation!
+
+-- $extend
+-- One powerup monadic queries give you is that they let you seamlessly get components and resources.
+--
+-- @
+-- 'query_' $ do
+--   (entity, health) <- ['q'|Entity, Health|]
+--   (names, player) <- 'qget' entity ['qd'|Likes -> (Names), Player|]
+--   someRes <- 'qres' \@SomeRes
+--   'pure' ()
+-- @
+--
+-- @qget@ will grab the respective Query Data from the given entity. Due to the nature of the monad, your query will be nullified
+-- if any of these componetns don't exist. You would be iterating over an empty list!
+--
+-- @qres@ works the same way but grabs a resource.
+
+-- $cond
+-- Monadic Queries make it possible to have conditions and different branches inside a Query!
+--
+-- This is how you can despawn a player if their health is 0, and otherwise decrease their health:
+--
+-- @
+-- 'query_' $ do
+--   (player, Health hp) <- [q|Entity, Health|]
+--
+--   if hp == 0 then do
+--     qpure player & qdespawn
+--   else do
+--     qpure player & qinsert (\_ -> Health $ hp - 1)
+-- @

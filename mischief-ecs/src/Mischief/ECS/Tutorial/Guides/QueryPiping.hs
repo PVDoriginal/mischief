@@ -1,0 +1,205 @@
+{-# OPTIONS_GHC -Wno-unused-imports #-}
+
+-- |
+-- [Previous Chapter: Quasi-Query Conversion]("Mischief.ECS.Tutorial.Guides.QuasiConversion")
+--
+-- [Next Chapter: Monadic Queries]("Mischief.ECS.Tutorial.Guides.MonadicQueries")
+--
+-- [Main Page]("Mischief.ECS")
+module Mischief.ECS.Tutorial.Guides.QueryPiping
+  ( -- * Learn You an ECS for Great Mischief! - 2.5. Query Piping
+    -- $intro
+
+    -- * Map, Filters, and Insertion
+    -- $map
+
+    -- * Extending Queries
+    -- $extend
+
+    -- * Hierarchy Traversal
+    -- $trav
+
+    -- * Impure Piping
+    -- $impure
+
+    -- * Making Your Own Pipes!
+    -- $custom
+
+    -- * [Next Chapter: Query Traversals]("Mischief.ECS.Tutorial.Guides.QueryTraversals")
+  )
+where
+
+import Mischief.ECS
+
+-- $intro
+-- Query piping is the process of chaining multiple query-returning functions together to produce a
+-- computation that can be ran in a system.
+--
+-- All of these functions are technically pure. Only the @query_@, @query@ and @single@ functions are impure. They take a query computation and run it in the World.
+--
+-- A piping functions looks something like:
+--
+-- @
+-- qmap :: (a -> b) -> 'Query' m a -> 'Query' m b
+-- @
+--
+-- And they are idiomatically chained using @&@.
+--
+-- There are many piping functions, all of which you can find in "Mischief.ECS.World.Query.Pipe". This chapter will go over the most important ones.
+
+-- $map
+-- @qmap@ is a function which maps each set of components flowing through the query to something else. For instance, this is
+-- how you get the health of all players, with @1@ added to it:
+--
+-- @
+-- healths \<-
+--   ['q'|Health / With Player|]
+--     & 'qmap' (\\(Health x) -\> Health (x + 1))
+--     & 'query'
+-- @
+--
+-- Note that @qmap@ only changed the local values of the components returned from the query. It does not automatically update their values in the ECS!
+--
+-- In order to insert them, you can use @qinsert@:
+--
+-- @
+-- healths \<-
+--   ['q'|Health / With Player|]
+--     & 'qinsert' (\\(Health x) -\> Health (x + 1))
+--     & 'query'
+-- @
+--
+-- You can also use @query_@ to only perform the insertion and discard the results:
+--
+-- @
+-- ['q'|Health / With Player|]
+--   & 'qinsert' (\\(Health x) -\> Health (x + 1))
+--   & 'query_'
+-- @
+--
+-- @qfilter@ can filter entities. This is how you can update the position of all players that have a velocity higher than 0:
+--
+-- @
+-- ['q'|Position, Velocity / With Player|]
+--   & 'qfilter' (\\(_, Velocity v) -\> v \> 0)
+--   & 'qinsert' (\\(Position p, Velocity v) -\> Position (p + v))
+--   & 'query_'
+-- @
+--
+-- @qcheck@ is a special function which takes an Entity Filter. It lets you easily filter out entities that haven't had a specific component be changed or added:
+--
+-- @
+-- ['q'|Name|]
+--   & 'qcheck' ['qf'|Changed Name, !Added Name|]
+--   & 'qinfo' (\\name -> ['i'|#{name} has changed their name!|])
+--   & 'query_'
+-- @
+--
+-- Note that all filters should be moved to @[q|...|]@ where possible. There they act as Archetype Filters and are much faster.
+--
+-- @qmapMaybe@ is also worth mentioning, as it combines @qmap@ and @qfilter@ and can be very useful.
+
+-- $impure
+-- There are query pipes that accept impure functions. They typically receive both a set of the components in the query, and the Entity associated with
+-- that data, to allow for easier mutation.
+--
+-- @qtap@ simply receives the data and attaches an impure computation:
+--
+-- @
+-- ['q'|Health|]
+--   & 'qtap'
+--     (\\entity (Health h) -\> do
+--       'info' ['i'|#{entity} has #{h} HP!|]
+--       'insert' (Health $ h + 1) entity
+--     )
+--   & 'query_'
+-- @
+--
+-- @qtraverse@ is similar, but also maps the data.
+--
+-- @
+-- ['q'|Health|]
+--   & 'qtraverse'
+--     (\\entity (Health h) -\> do
+--       takeDamage \<- someImpureFunction entity
+--       if takeDamage then (Health $ h - 1) else Health h
+--     )
+--   & 'query_'
+-- @
+--
+-- Some of the pure functions also have impure variants. Such as @qmap@ has @qmapM@ (equivalent to @qtraverse@), and @qfilter@ has @qfilterM@.
+
+-- $extend
+-- Extensions are a particular category of pipes that extend each set of components in the Query.
+--
+-- @qentity@ pairs the components with their source entity:
+--
+-- @
+-- ['q'|Name|]
+--   & 'qentity'
+--   & 'qinfo' (\\(entity, name) -> ['i'|The name of #{entity} is #{name}|])
+--   & 'query_'
+-- @
+--
+-- @qextend@ takes a Query Data and a function to map it into the existing query:
+--
+-- @
+-- ['q'|Name, Player|]
+--   & 'qextend' ['qd'|Health|] (\\(name, player) health -> (name, health))
+--   & 'qinfo' (\\(name, health) -> ['i'|#{name} has #{health}|])
+--   & 'query_'
+-- @
+
+-- $trav
+-- There are two built-in pipes to help you traverse entity hierarchies: @qrelateOne@ and @qrelateMany@.
+--
+-- First, take a moment to familiarize yourself with the functions in @Mischief.ECS.Relationships.Graph@ and
+-- @Mischief.ECS.Relationships.Tree@. They all look either like @Entity -> m (Maybe Entity)@, or like
+-- @Entity -> m [Entity]@ (sometimes depending on the exclusivity of the relationship).
+--
+-- In @Graph@ you have generic graph traversals, going from a node to all nodes that go into it, or to all nodes that
+-- it goes into (@incoming@ and @outgoing@ respectively). In @Tree@, there are functions to traverse a tree-like hierarchy,
+-- such as getting the @root@ of the tree, or getting all the @leaves@ that are connected to the current node. It is your
+-- responsibility to ensure the relationship is a tree! (i.e. has no cycles).
+--
+-- Both traversal pipes take a traversal function, a Query Data, and a function to map the new components into the current one. One such traversal may look like this:
+--
+-- @
+-- ['q'|Name|]
+--   & 'qrelateOne' (Tree.'Mischief.ECS.Relationships.Tree.root' \@Likes) \['qd'|Name|] (,)
+--   & 'qinfo' (\\(a, b) -> ['i'|The root of #{a} is #{b}|])
+--   & 'query_'
+-- @
+--
+-- @qrelateMany@ works the same but expects a @Entity -> m [Entity]@ traversal instead. In both cases, if the traversal results in no elements
+-- (the function returns either Nothing or an empty list), the query will be nulled.
+--
+-- Take note that the components returned from the targets of the traversal will be wrapped in a @From@.
+
+-- $custom
+-- Writing your own pipes is easy!
+--
+-- For instance, let's say you want a function that damages an entity, and returns their new health.
+-- Obviously this is trivial and not worth its own separate function, but try to consider it:
+--
+-- @
+-- qdamage :: 'Int' -> 'Query' 'System' Health -> 'Query' 'System' Health
+-- qdamage dmg x =
+--   x
+--     & 'qmap' (\\(Health x) -\> Health (x - dmg))
+--     & 'qinsert' id
+-- @
+--
+-- Which you can then use like so:
+--
+-- @
+-- healths <-
+--   ['q'|Health / With Player|]
+--     & qdamage 5
+--     & 'query'
+-- @
+--
+-- The names of these should generally start with @q@. And they should
+-- contain as few side-effects as possible. A good rule to follow
+-- is to try to have each pipe apply a single meaningful change to the data,
+-- which is obvious from the name.
