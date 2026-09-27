@@ -4,3 +4,6 @@ Mischief is an ECS Game Engine written in Haskell. It takes great inspiration fr
 provide an unique blend of functional programming and data-driven design. 
 
 Check out the [Learn You an ECS for Great Mischief](https://hackage-content.haskell.org/package/mischief-ecs-0.1.0.0/docs/Mischief-ECS.html) book to learn more! 
+
+# Moved To Codeberg!
+The official Mischief repository has been moved to Codeberg. You may find it [here](https://codeberg.org/PVDoriginal/mischief).
