@@ -201,7 +201,7 @@ instance Plugin KeysPlugin where
     insertRes (def @Keys)
     insertRes (def @HotKeys)
     systems readEvents
-      & schedule First
+      & schedule @First
 
   deps = [dep @SDLPlugin]
 

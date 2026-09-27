@@ -13,7 +13,6 @@ import Foreign.C.ConstPtr
 import Mischief.ECS
 import Mischief.ECS.Events
 import Mischief.ECS.Hooks
-import Mischief.ECS.Observers qualified as Observers
 import Mischief.ECS.Prelude
 import Mischief.ECS.Systems qualified as Systems
 import Mischief.SDL (SDLPlugin (..), SDLWindow (SDLWindow))
@@ -31,7 +30,7 @@ newtype RenderSurface = RenderSurface (Ptr WGPUSurface)
 instance Component RenderSurface where
   onRemove =
     [ hook $ \(HookContext entity) -> do
-        Just (RenderSurface surface) <- get entity [q|RenderSurface|]
+        Just (RenderSurface surface) <- single [q|entity. RenderSurface|]
         liftIO $ wgpuSurfaceRelease surface
     ]
 
@@ -40,7 +39,7 @@ newtype RenderDevice = RenderDevice (Ptr WGPUDevice)
 instance Component RenderDevice where
   onRemove =
     [ hook $ \(HookContext entity) -> do
-        Just (RenderDevice device) <- get entity [q|RenderDevice|]
+        Just (RenderDevice device) <- single [q|entity. RenderDevice|]
         liftIO $ wgpuDeviceRelease device
     ]
 
@@ -49,7 +48,7 @@ newtype RenderAdapter = RenderAdapter (Ptr WGPUAdapter)
 instance Component RenderAdapter where
   onRemove =
     [ hook $ \(HookContext entity) -> do
-        Just (RenderAdapter adapter) <- get entity [q|RenderAdapter|]
+        Just (RenderAdapter adapter) <- single [q|entity. RenderAdapter|]
         liftIO $ wgpuAdapterRelease adapter
     ]
 
@@ -58,14 +57,14 @@ newtype RenderQueue = RenderQueue (Ptr WGPUQueue)
 instance Component RenderQueue where
   onRemove =
     [ hook $ \(HookContext entity) -> do
-        Just (RenderQueue queue) <- get entity [q|RenderQueue|]
+        Just (RenderQueue queue) <- single [q|entity. RenderQueue|]
         liftIO $ wgpuQueueRelease queue
     ]
 
 -- | Creates a WGPU Surface, Adapter, and Device for each new window. Inserts them as components.
 onAddWindow :: OnAdd SDLWindow -> System ()
 onAddWindow (OnAdd entity) = do
-  Just (SDLWindow window, WindowSize w h) <- get entity [q|SDLWindow, WindowSize|]
+  Just (SDLWindow window, WindowSize w h) <- single [q|entity. SDLWindow, WindowSize|]
 
   windowProps <- liftIO $ SDL3.getWindowProperties window
   driver <- liftIO (peekCString . unConstPtr =<< SDL3.getCurrentVideoDriver)

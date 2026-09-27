@@ -69,11 +69,11 @@ instance Plugin SDLPlugin where
     liftIO initSdl
 
     systems handleEvents
-      & schedule First
+      & schedule @First
 
     systems (handleQuit, handleWindowClose)
       & after handleEvents
-      & schedule First
+      & schedule @First
 
 -- addMessage @(SDLMessage SDL3.SDL_DisplayEvent)
 -- addMessage @(SDLMessage SDl3.SDL_WindowEvent)

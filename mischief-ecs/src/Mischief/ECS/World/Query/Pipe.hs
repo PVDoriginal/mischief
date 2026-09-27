@@ -1,11 +1,11 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# OPTIONS_GHC -Wno-partial-fields #-}
-{-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
 module Mischief.ECS.World.Query.Pipe
   ( -- * Impure
     qtraverse,
     qtap,
+    qdo,
 
     -- * Mapping
     qmap,
@@ -77,10 +77,10 @@ import Mischief.ECS.World.Spawn
 "qmap/qmap" forall f g xs. qmap f (qmap g xs) = qmap (f . g) xs
   #-}
 
-qfoldr :: (MonadSystem w m) => (From a -> b -> b) -> b -> Entity -> Query m a -> Query m b
-qfoldr f b e a = FoldQuery a e f b
+qfoldr :: (MonadSystem w m) => (From a -> b -> b) -> b -> Query m a -> Query m b
+qfoldr f b a = FoldQuery a f b
 
-qcollect :: (MonadSystem w m) => Entity -> Query m a -> Query m [From a]
+qcollect :: (MonadSystem w m) => Query m a -> Query m [From a]
 qcollect = qfoldr (:) []
 
 -- | Maps @Query m a@ to @Query m b@. Same as 'fmap'.
@@ -134,6 +134,9 @@ qmapMaybe f x = qmap (fromMaybe undefined) $ qfilter isJust (qmap f x)
 -- @
 qtraverse :: (Entity -> a -> m b) -> Query m a -> Query m b
 qtraverse f x = MapQuery x f
+
+qdo :: (MonadSystem w m) => m a -> Query m a
+qdo s = pure () & qtraverse (\_ _ -> s)
 
 -- | Apply a side effect over a query.
 --
@@ -254,7 +257,7 @@ qextend :: (MonadSystem w m, Queryable qd out) => qd -> (a -> out -> c) -> Query
 qextend qd f a = do
   (e, a) <- qentity a
   qget e qd
-    & qcollect e
+    & qcollect
     & qmap (\case [From _ a'] -> f a a'; _ -> undefined)
 
 -- | Grab a Query Data from an entity resulting from a traversal and map it into the current data wrapped in a @From@:
@@ -285,7 +288,7 @@ qrelateMany f qd f' a = do
       as <-
         qgetAll e (E, qd)
           & qmap (uncurry From)
-          & qcollect ae
+          & qcollect
           & qmap (map (.comp))
       pure $ f' a as
 
@@ -310,8 +313,8 @@ qentity = PairEntityQuery
 
 qjoin :: (MonadSystem w m) => (a -> Query m b) -> (a -> [From b] -> c) -> Query m a -> Query m c
 qjoin f f' a = do
-  (e, a) <- qentity a
-  f a & qcollect e & qfilter (not . null) & qmap (f' a)
+  (_, a) <- qentity a
+  f a & qcollect & qfilter (not . null) & qmap (f' a)
 
 -- | Logs an INFO message.
 qinfo :: (HasCallStack, MonadSystem w m) => (a -> Text) -> Query m a -> Query m a

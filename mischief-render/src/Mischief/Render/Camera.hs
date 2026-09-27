@@ -15,7 +15,6 @@ import Foreign.C.ConstPtr
 import GHC.Generics (Generic)
 import Linear (V3 (V3), V4 (V4), (!*!))
 import Mischief.ECS.Events
-import Mischief.ECS.Observers qualified as Observers
 import Mischief.ECS.Prelude
 import Mischief.ECS.Systems qualified as S
 import Mischief.Math.Transform
@@ -48,7 +47,7 @@ newtype CameraTexture = CameraTexture Texture
 instance Component CameraTexture where
   onRemove =
     [ hook $ \(HookContext entity) -> do
-        Just (CameraTexture (Texture {texture})) <- get entity [q|CameraTexture|]
+        Just (CameraTexture (Texture {texture})) <- single [q|entity. CameraTexture|]
         liftIO $ wgpuTextureRelease texture
     ]
 
@@ -58,10 +57,10 @@ data CameraPlugin
 
 instance Plugin CameraPlugin where
   init = do
-    void $ Observers.spawn onAddCameraOutputTo
+    void $ spawn $ Observer onAddCameraOutputTo
 
     systems updateCameraMatrices
-      & schedule Update
+      & schedule @Update
 
 updateCameraMatrices :: System ()
 updateCameraMatrices = do
@@ -89,7 +88,7 @@ onAddCameraOutputTo (OnAddRel entity target) = updateCameraTexture entity target
 updateCameraTexture :: Entity -> Entity -> System ()
 updateCameraTexture camera window = do
   Just device <- res @RenderDevice
-  window <- get window [q|WindowSize|]
+  window <- single [q|window. WindowSize|]
   case window of
     Nothing -> warn "Camera output window not found."
     Just (WindowSize width height) -> do

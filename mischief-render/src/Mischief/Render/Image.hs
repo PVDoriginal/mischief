@@ -8,7 +8,6 @@ import Foreign.C.ConstPtr
 import Mischief.Assets.Asset
 import Mischief.Assets.Image
 import Mischief.ECS.Observer
-import Mischief.ECS.Observers qualified as Observer
 import Mischief.ECS.Prelude
 import Mischief.ECS.Systems qualified as S
 import Mischief.Render.Core
@@ -28,7 +27,7 @@ data QueueUpload = QueueUpload deriving (Component)
 instance Plugin ImageUploadingPlugin where
   init = do
     systems uploadImages
-      & schedule Update
+      & schedule @Update
     enableImageUploadOnLoad
 
 uploadImages :: System ()

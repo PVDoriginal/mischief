@@ -9,7 +9,6 @@ import Foreign (Storable (peek), free, malloc, nullPtr, with)
 import Foreign.C.ConstPtr (ConstPtr (..))
 import GHC.Generics
 import Mischief.ECS (Before, Schedule, UpdateSchedule (..), scheduleEntity)
-import Mischief.ECS.Observers qualified as Observers
 import Mischief.ECS.Prelude hiding (get, set)
 import Mischief.ECS.Relationships.Order (Before (..))
 import Mischief.ECS.Systems qualified as Systems
@@ -37,11 +36,11 @@ data RenderPlugin = RenderPlugin deriving (Eq)
 
 instance Plugin RenderPlugin where
   init = do
-    first <- scheduleEntity RenderFirst
-    update <- scheduleEntity RenderUpdate
-    last <- scheduleEntity RenderLast
+    first <- scheduleEntity @RenderFirst
+    update <- scheduleEntity @RenderUpdate
+    last <- scheduleEntity @RenderLast
 
-    update' <- scheduleEntity PostUpdate
+    update' <- scheduleEntity @PostUpdate
 
     insert (Rel Before update) first
     insert (Rel Before last) update
@@ -50,10 +49,10 @@ instance Plugin RenderPlugin where
     for_ [first, update, last] $ insert UpdateSchedule
 
     insertRes =<< liftIO (RenderInstance <$> wgpuCreateInstance)
-    void $ Observers.spawn onAddWindow
+    void $ spawn $ Observer onAddWindow
 
     systems renderCameras
-      & schedule RenderLast
+      & schedule @RenderLast
 
   deps = [dep @SDLPlugin, dep @SpritePlugin, dep @CameraPlugin]
 

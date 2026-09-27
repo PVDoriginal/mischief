@@ -122,6 +122,9 @@ import Mischief.ECS
 --     for _ in [()]:
 --       insert (Health $ health - 1) player
 -- @
+--
+-- Note that using just @pure ()@ without refocusing is completely valid. But keep in mind that the source of the computation you're
+-- writing will be the \"null entity\". If you want to perform any sourced operations such as @qinsert@, you'll need to refocus first.
 
 -- $accumulation
 -- To re-use the context from the previous chapter, consider that you have players marked by a @Player@ component, each with
@@ -168,21 +171,36 @@ import Mischief.ECS
 -- 'query_' $ do
 --   (entity, 'From' _ tile, Coins coins) \<- ['q'|Entity, OnTile -\> (Entity), Coins / With Player|]
 --
---   collectedCoins <-
+--   collectedCoins <- 'qcollect' $ do
 --     ['q'|Coin / With OnTile -\> tile|]
 --       & 'qtap' (\\e _ -> 'despawn' e)
---       & 'qcollect' entity
 --
 --   pure ()
 -- @
 --
--- The @qcollect@ function takes an entity, and converts the entire query into just a single element, belonging to that entity.
+-- The @qcollect@ function is, in a way, the opposite of the bind operation. It returns from a loop by aggregating all its results into a list.
 -- You may see that @collectedCoins@ has type @[From Coin]@.
 --
--- Your first instinct here may be to take @collectedCoins@ and start another query instead of the @pure ()@, thinking that you're continuing the original
--- query. But that's wrong. That would just create another level of nesting.
--- Instead, what you want is to continue from the @qcollect@. /This/ is the continuation of the original query. With the @qcollect@ we've changed the subject
--- back to the players. We are looking at the coins from above, as symbolized by the @From Coin@ type.
+-- Now we need to calculate the actual sum of all coins. We can use a fold for that:
+--
+-- @
+-- let totalCoins = 'foldr' (\\('From' _ (Coin x)) -> (+ x)) coins collectedCoins
+-- @
+--
+-- In order to update the Coins component you have a few options.
+--
+-- Firstly, you can use @qpure entity@ (or @pure () & qrefocus entity@) to bring the attention back to the player and run a @qinsert@ on it:
+--
+-- @
+-- 'query_' $ do
+--   (entity, 'From' _ tile, Coins coins) \<- ['q'|Entity, OnTile -\> (Entity), Coins / With Player|]
+--
+--   collectedCoins <- 'qcollect' $ do
+--     ['q'|Coin / With OnTile -\> tile|]
+--       & 'qtap' (\\e _ -> 'despawn' e)
+--
+--   pure ()
+-- @
 --
 -- So this is what you want to be doing instead:
 --
@@ -194,26 +212,30 @@ import Mischief.ECS
 --     & 'qtap' (\\e _ -> 'despawn' e)
 --     & 'qcollect' entity
 --     & 'qinsert' (\\collectedCoins -> Coins $ 'foldr' (\\('From' _ (Coin x)) -> (+ x)) coins collectedCoins)
+--
+--   let totalCoins = 'foldr' (\\('From' _ (Coin x)) -> (+ x)) coins collectedCoins
+--
+--   'qpure' entity
+--     & qinsert (const $ Coins totalCoins)
 -- @
 --
 -- That's it! The coins are now folded and added to the total held by the player.
 --
--- The only thing to add is that there's actually an alternative to @qcollect@. You can use @qfoldr@ to fold the elements directly:
+-- You can also iterate over the \"null entity\" and perform an insertion manually:
 --
 -- @
--- 'query_' $ do
---   (entity, 'From' _ tile, Coins coins) \<- ['q'|Entity, OnTile -\> (Entity), Coins / With Player|]
---
---   ['q'|Coin / With OnTile -\> tile|]
---     & 'qtap' (\\e _ -> 'despawn' e)
---     & 'qfoldr' (\\('From' _ (Coin x)) -> (+ x)) coins entity
---     & 'qinsert' Coins
+-- 'pure' ()
+--   & 'qtap' (\\_ _ -> 'insert' (Coins totalCoins) entity)
 -- @
 --
--- You have successfully turned a collection of nested mutations into one pure computation!
+-- Or you can use @qdo@ which does exactly this!
+--
+-- @
+-- 'qdo' $ 'insert' (Coins totalCoins) entity
+-- @
 
 -- $extend
--- One powerup monadic queries give you is that they let you seamlessly get components and resources.
+-- One powerup monadic queries give you is that they let you seamlessly read components and resources without unwrapping Maybes.
 --
 -- @
 -- 'query_' $ do

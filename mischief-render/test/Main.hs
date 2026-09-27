@@ -64,14 +64,14 @@ data MainPlugin
 instance Plugin MainPlugin where
   init = do
     systems setup
-      & schedule Startup
+      & schedule @Startup
 
     systems moveSprite
-      & schedule Update
+      & schedule @Update
 
     systems animSprite
       & after moveSprite
-      & schedule Update
+      & schedule @Update
 
     insertRes $ AssetSource "../assets/"
 

@@ -16,7 +16,7 @@ import Linear.V4
 import Mischief.Assets (Image (Image))
 import Mischief.ECS.Prelude
 import Mischief.ECS.Systems qualified as Systems
-import Mischief.Math
+import Mischief.Math hiding (qd)
 import Mischief.Math.Transform
 import Mischief.Render.Buffer
 import Mischief.Render.Camera
@@ -25,8 +25,8 @@ import Mischief.Render.Image
 import Mischief.Render.Material
 import Mischief.Render.Shader.Bindings (Bindable (..), Binding, Uniform)
 import Mischief.Render.Shader.Buffers
-import Mischief.Render.Shader.Functions hiding ((&))
-import Mischief.Render.Shader.Functions qualified as F hiding ((&))
+import Mischief.Render.Shader.Functions hiding (length, (&))
+import Mischief.Render.Shader.Functions qualified as F hiding (length, (&))
 import Mischief.Render.Shader.Params
 import Mischief.Render.Shader.Singletons (PrimitiveTypes (TInt), Types (Primitive))
 import Mischief.Render.Shader.State
@@ -51,8 +51,8 @@ data SpritePlugin
 
 instance Plugin SpritePlugin where
   init = do
-    systems renderSprites
-      & schedule RenderUpdate
+    systems renderSprites'
+      & schedule @RenderUpdate
   deps = [dep @ImageUploadingPlugin]
 
 newtype SpriteBuffer = SpriteBuffer (Buffer SpriteData) deriving anyclass (Component)
@@ -69,15 +69,15 @@ renderSprites = do
     sprites <- query [q|Entity, Sprite, Transform, Maybe SpriteSlice, SpriteFlip, Maybe SpriteBuffer|]
     for_ cameras $ \(CameraTexture texture, CameraMatrices buf) -> do
       commands <- for sprites $ \(sprite, Sprite {image}, spriteT, slice', SpriteFlip {x = flipX, y = flipY}, buffer) -> do
-        buffer <- case buffer of
-          Just (SpriteBuffer b) -> pure b
-          Nothing -> do
-            buffer <- createBuffer @SpriteData device
-            insert (SpriteBuffer buffer) sprite
-            pure buffer
-
-        image <- get image [q|ImageTexture, ImageTextureView|]
+        image <- single [q|image. ImageTexture, ImageTextureView|]
         for image $ \(ImageTexture Texture {desc}, ImageTextureView imageView) -> do
+          buffer <- case buffer of
+            Just (SpriteBuffer b) -> pure b
+            Nothing -> do
+              buffer <- createBuffer @SpriteData device
+              insert (SpriteBuffer buffer) sprite
+              pure buffer
+
           let size = case slice' of
                 Just SpriteSlice {size = V2 x y} -> V2 (fromIntegral x) (fromIntegral y)
                 Nothing -> V2 (fromIntegral desc.width) (fromIntegral desc.height)
@@ -102,46 +102,45 @@ renderSprites = do
       render device queue material texture (catMaybes commands)
 
 renderSprites' :: System ()
-renderSprites' =
-  query_ $ do
-    (cam, CameraTexture texture, CameraMatrices matrices, Res device, Res queue) <- [q|E, CameraTexture, CameraMatrices, Res RenderDevice, Res RenderQueue|]
-    [q|Sprite, (Transform, Maybe SpriteSlice, SpriteFlip, Maybe SpriteBuffer)|]
-      & qget (\(Sprite {image}, _) -> Just image) [q|ImageTexture, ImageTextureView|]
-      & qjoin (\(_, b) image -> (image.comp, b))
-      & qtraverse
-        ( \sprite ((ImageTexture Texture {desc}, ImageTextureView imageView), (spriteT, slice', SpriteFlip {x = flipX, y = flipY}, buffer)) -> do
-            buffer <- case buffer of
-              Just (SpriteBuffer b) -> pure b
-              Nothing -> do
-                buffer <- createBuffer @SpriteData device
-                insert (SpriteBuffer buffer) sprite
-                pure buffer
+renderSprites' = query_ qrenderSprites
 
-            let size = case slice' of
-                  Just SpriteSlice {size = V2 x y} -> V2 (fromIntegral x) (fromIntegral y)
-                  Nothing -> V2 (fromIntegral desc.width) (fromIntegral desc.height)
+qrenderSprites :: Query System ()
+qrenderSprites = do
+  (CameraTexture texture, CameraMatrices matrices, Res device, Res queue) <- [q|CameraTexture, CameraMatrices, Res RenderDevice, Res RenderQueue|]
 
-            let slice = case slice' of
-                  Just SpriteSlice {start, size} ->
-                    V4
-                      (fromIntegral start.x / fromIntegral desc.width)
-                      (fromIntegral start.y / fromIntegral desc.height)
-                      (fromIntegral size.x / fromIntegral desc.width)
-                      (fromIntegral size.y / fromIntegral desc.height)
-                  Nothing -> V4 0 0 1 1
+  commands <- qcollect $ do
+    (sprite, Sprite {image}, spriteT, slice', SpriteFlip {x = flipX, y = flipY}, buffer) <- [q|Entity, Sprite, Transform, Maybe SpriteSlice, SpriteFlip, Maybe SpriteBuffer|]
+    (ImageTexture Texture {desc}, ImageTextureView imageView) <- qget image [qd|ImageTexture, ImageTextureView|]
 
-            let calcFlip x = if x then 1 else 0
-            let flip = V2 (calcFlip flipX) (calcFlip flipY)
+    qdo $ do
+      buffer <- case buffer of
+        Just (SpriteBuffer b) -> pure b
+        Nothing -> do
+          buffer <- createBuffer @SpriteData device
+          insert (SpriteBuffer buffer) sprite
+          pure buffer
 
-            uploadBuffer queue buffer (SpriteData {coords = spriteT.translation, size, slice, flip})
-            sampler <- newSampler device
-            pure $ Draw Bindings {matrices = matrices, sprite = buffer, sampler, texture = imageView} 6
-        )
-      & qcollect cam
-      & qtraverse
-        ( \_ commands -> do
-            render device queue Material {vertex, fragment, format = TextureFormat wGPUTextureFormat_RGBA8Unorm} texture commands
-        )
+      let size = case slice' of
+            Just SpriteSlice {size = V2 x y} -> V2 (fromIntegral x) (fromIntegral y)
+            Nothing -> V2 (fromIntegral desc.width) (fromIntegral desc.height)
+
+      let slice = case slice' of
+            Just SpriteSlice {start, size} ->
+              V4
+                (fromIntegral start.x / fromIntegral desc.width)
+                (fromIntegral start.y / fromIntegral desc.height)
+                (fromIntegral size.x / fromIntegral desc.width)
+                (fromIntegral size.y / fromIntegral desc.height)
+            Nothing -> V4 0 0 1 1
+
+      let calcFlip x = if x then 1 else 0
+      let flip = V2 (calcFlip flipX) (calcFlip flipY)
+
+      uploadBuffer queue buffer (SpriteData {coords = spriteT.translation, size, slice, flip})
+      sampler <- newSampler device
+      pure $ Draw Bindings {matrices = matrices, sprite = buffer, sampler, texture = imageView} 6
+
+  qdo $ render device queue Material {vertex, fragment, format = TextureFormat wGPUTextureFormat_RGBA8Unorm} texture (map (.comp) commands)
 
 data VertexOutput f = VertexOutput
   { pos :: BuiltIn f "position" Vec4f,
