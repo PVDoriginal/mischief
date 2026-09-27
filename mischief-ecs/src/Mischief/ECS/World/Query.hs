@@ -198,7 +198,7 @@ data Query m a where
   FilterQuery :: Query m a -> (Entity -> a -> m Bool) -> Query m a
   PairEntityQuery :: Query m a -> Query m (Entity, a)
   DoQuery :: Query m a -> (Entity -> a -> m b) -> Query m a
-  FoldQuery :: Query m a -> (From a -> b -> b) -> b -> Query m b
+  CollectQuery :: Query m a -> Query m [From a]
   PureQuery :: a -> Query m a
   AppQuery :: Query m (a -> b) -> Query m a -> Query m b
   BindQuery :: Query m a -> (a -> Query m b) -> Query m b
@@ -250,9 +250,9 @@ qrun (DoQuery a f) = do
   x <- qrun a
   for_ x (uncurry f)
   pure x
-qrun (FoldQuery a f i) = do
+qrun (CollectQuery a) = do
   a <- map (uncurry From) <$> qrun a
-  pure [(Entity (# 0##, 0## #), foldr f i a)]
+  pure [(Entity (# 0##, 0## #), a)]
 qrun (PureQuery a) = pure [(Entity (# 0##, 0## #), a)]
 qrun (AppQuery f a) = do
   f <- qrun f

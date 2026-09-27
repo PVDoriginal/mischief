@@ -97,9 +97,9 @@ data Bindings f = Bindings
   }
   deriving (Generic, Bindable)
 
-fragment :: Bindings GPU -> VertexOutput GPU -> Shader (Loc 0 Vec4f)
+fragment :: Bindings GPU -> VertexOutput GPU -> Shader Vec4f
 fragment b input = do
-  pure $ Loc $ sample b.tex b.sampler input.uv
+  pure $ sample b.tex b.sampler input.uv
 
 -- fragment b input = pure $ Loc $ vec4 (b.coord.x, b.coord.y, 0, 1)
 

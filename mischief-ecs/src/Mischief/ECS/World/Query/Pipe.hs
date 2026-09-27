@@ -35,16 +35,13 @@ module Mischief.ECS.World.Query.Pipe
     qrelateMany,
     qjoin,
 
-    -- * Folds
-    qfoldr,
-    qcollect,
-
     -- * Monad
     qpure,
     qrefocus,
     qres,
     qget,
     qgetAll,
+    qcollect,
 
     -- * Logging
     qinfo,
@@ -77,11 +74,8 @@ import Mischief.ECS.World.Spawn
 "qmap/qmap" forall f g xs. qmap f (qmap g xs) = qmap (f . g) xs
   #-}
 
-qfoldr :: (MonadSystem w m) => (From a -> b -> b) -> b -> Query m a -> Query m b
-qfoldr f b a = FoldQuery a f b
-
 qcollect :: (MonadSystem w m) => Query m a -> Query m [From a]
-qcollect = qfoldr (:) []
+qcollect = CollectQuery
 
 -- | Maps @Query m a@ to @Query m b@. Same as 'fmap'.
 --

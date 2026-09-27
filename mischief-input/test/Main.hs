@@ -14,18 +14,19 @@ import Prelude hiding (and)
 
 main :: IO ()
 main = do
-  app <- newApp MainPlugin
+  app <- newApp
+  addPlugin @MainPlugin app
   runApp app
 
-data MainPlugin = MainPlugin deriving (Eq)
+data MainPlugin
 
 instance Plugin MainPlugin where
-  init _ = do
-    Systems.add Update test
-  plugins _ = plug InputPlugin
+  init = do
+    schedule @Update $ systems test
+  deps = [dep @InputPlugin]
 
 test :: System ()
 test = do
   Just keys <- res @Keys
-  when (Keys.justPressed Keys.A keys) $ do
+  when (Keys.justPressed keys Keys.A) $ do
     info "AAAA"

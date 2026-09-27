@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE GADTSyntax #-}
 
 module Mischief.Render.Material where
@@ -12,14 +13,16 @@ import Data.Text.Encoding qualified as T
 import Foreign (Ptr, nullPtr, with)
 import Foreign.C.ConstPtr
 import GHC.TypeLits
-import Language.Haskell.TH (Extension (GADTSyntax))
+import Language.Haskell.TH (Extension (AllowAmbiguousTypes, GADTSyntax))
+import Linear (ee)
 import Mischief.ECS.Prelude
 import Mischief.Render.Core
 import Mischief.Render.Core (TextureFormat)
-import Mischief.Render.Shader
+import Mischief.Render.Shader hiding (FragmentOutput)
 import Mischief.Render.Shader.Bindings (Bindable, createBindGroup, createBindLayout)
 import Mischief.Render.Shader.Params
 import Mischief.Render.Shader.State
+import Mischief.Render.Shader.Types
 import Mischief.Render.Texture
 import Mischief.WGPU
 import Mischief.WGPU.Framework (loadShaderFromBytes)
@@ -27,15 +30,26 @@ import Mischief.WGPU.Opaque
 import Mischief.WGPU.Types.Enums
 import Mischief.WGPU.Types.General
 
-data Material bindings vIn vOut fOut where
+data Material bindings vIn vOut where
   Material ::
     { vertex :: bindings GPU -> vIn GPU -> Shader (vOut GPU),
-      fragment :: bindings GPU -> vOut GPU -> Shader (fOut GPU),
+      fragment :: bindings GPU -> vOut GPU -> Shader Vec4f,
       format :: TextureFormat
     } ->
-    Material bindings vIn vOut fOut
+    Material bindings vIn vOut
 
-createPipeline :: forall bindings vIn vOut fOut. (Bindable bindings, ShaderParam vIn, ShaderParam vOut, ShaderParam fOut) => RenderDevice -> Material bindings vIn vOut fOut -> IO Pipeline
+convertFrag :: (bindings GPU -> vOut GPU -> Shader Vec4f) -> bindings GPU -> vOut GPU -> Shader (FragmentOutput GPU)
+convertFrag s b v = do
+  s' <- s b v
+  pure $ FragmentOutput s'
+
+newtype FragmentOutput f = FragmentOutput
+  { fragOut1 :: Location f 0 Vec4f
+  }
+  deriving stock (Generic)
+  deriving anyclass (ShaderParam)
+
+createPipeline :: forall bindings vIn vOut. (Bindable bindings, ShaderParam vIn, ShaderParam vOut) => RenderDevice -> Material bindings vIn vOut -> IO Pipeline
 createPipeline (RenderDevice device) mat = do
   BindLayout bindLayout <- createBindLayout @bindings (RenderDevice device)
 
@@ -45,7 +59,7 @@ createPipeline (RenderDevice device) mat = do
         { nextInChain = nullPtr,
           label = WGPUStringView {_data = ConstPtr nullPtr, length = 0},
           bindGroupLayoutCount = 1,
-          bindGroupLayouts = ConstPtr bindGroupLayout,
+          bindGroupLayouts = ConstPtr {unConstPtr = bindGroupLayout},
           immediateSize = 0
         }
 
@@ -53,7 +67,7 @@ createPipeline (RenderDevice device) mat = do
     wgpuDeviceCreatePipelineLayout device (ConstPtr pipelineLayoutDesc)
 
   vertShader <- loadShaderFromBytes device (T.encodeUtf8 $ genShader @vIn @vOut "vertex" mat.vertex)
-  fragShader <- loadShaderFromBytes device (T.encodeUtf8 $ genShader @vOut @fOut "fragment" mat.fragment)
+  fragShader <- loadShaderFromBytes device (T.encodeUtf8 $ genShader @vOut @FragmentOutput "fragment" (convertFrag mat.fragment))
 
   pipeline <- withWGPUString "main" $ \vertexEntry -> do
     withWGPUString "main" $ \fragmentEntry -> do
@@ -139,7 +153,7 @@ drawCommand device encoder layout (Draw b vert) = do
   wgpuRenderPassEncoderSetBindGroup encoder 0 bindGroup 0 (ConstPtr nullPtr)
   wgpuRenderPassEncoderDraw encoder (fromIntegral vert) 1 0 0
 
-render :: forall bindings vIn vOut fOut. (Bindable bindings, ShaderParam vIn, ShaderParam vOut, ShaderParam fOut) => RenderDevice -> RenderQueue -> Material bindings vIn vOut fOut -> Texture -> [DrawCommand bindings] -> System ()
+render :: forall bindings vIn vOut. (Bindable bindings, ShaderParam vIn, ShaderParam vOut) => RenderDevice -> RenderQueue -> Material bindings vIn vOut -> Texture -> [DrawCommand bindings] -> System ()
 render (RenderDevice device) (RenderQueue queue) material (Texture {texture = output}) commands = liftIO $ do
   bindLayout <- createBindLayout @bindings (RenderDevice device)
 
@@ -182,8 +196,6 @@ render (RenderDevice device) (RenderQueue queue) material (Texture {texture = ou
   when (renderPassEncoder == nullPtr) $ error "Couldn't encode render pass."
 
   wgpuRenderPassEncoderSetPipeline renderPassEncoder pipeline
-  -- wgpuRenderPassEncoderSetBindGroup renderPassEncoder 0 bindGroup 0 (ConstPtr nullPtr)
-  -- wgpuRenderPassEncoderDraw renderPassEncoder (fromIntegral material.draw.vertices) 1 0 0
   for_ commands $ drawCommand (RenderDevice device) renderPassEncoder bindLayout
   wgpuRenderPassEncoderEnd renderPassEncoder
   wgpuRenderPassEncoderRelease renderPassEncoder

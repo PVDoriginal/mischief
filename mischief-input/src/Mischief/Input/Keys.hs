@@ -11,7 +11,7 @@ module Mischief.Input.Keys
     justReleased,
 
     -- * Plugin
-    KeysPlugin (..),
+    KeysPlugin,
 
     -- * Keys
     -- $keys
@@ -124,7 +124,6 @@ where
 
 import Control.Monad
 import Control.Monad.IO.Class
-import Data.Default (Default (def))
 import Data.Foldable (for_)
 import Data.IORef
 import Data.Map (Map)
@@ -133,8 +132,7 @@ import Foreign (toBool)
 import GHC.Generics
 import Mischief.ECS
 import Mischief.ECS.Messages qualified as Messages
-import Mischief.ECS.Systems qualified as Systems
-import Mischief.SDL (SDLMessage (..), SDLPlugin (..))
+import Mischief.SDL (SDLMessage (..), SDLPlugin)
 import SDL3.Sys qualified as SDL3
 
 -- | A resource that contains data on keyboard input.
@@ -147,25 +145,25 @@ data Keys = Keys
 newtype HotKeys = HotKeys [((SDL3.SDL_Scancode, SDL3.SDL_Keycode), KeyState)] deriving (Generic, Default, Component)
 
 -- | Check if a key is currently pressed.
-pressed :: SDL3.SDL_Scancode -> Keys -> Bool
-pressed scancode keys = case Map.lookup scancode keys.physical of
+pressed :: Keys -> SDL3.SDL_Scancode -> Bool
+pressed keys scancode = case Map.lookup scancode keys.physical of
   Just Pressed -> True
   Just JustPressed -> True
   _ -> False
 
 -- | Check if a key is currently not pressed.
-released :: SDL3.SDL_Scancode -> Keys -> Bool
+released :: Keys -> SDL3.SDL_Scancode -> Bool
 released a b = not $ pressed a b
 
 -- | Check if a key has been pressed this frame.
-justPressed :: SDL3.SDL_Scancode -> Keys -> Bool
-justPressed scancode keys = case Map.lookup scancode keys.physical of
+justPressed :: Keys -> SDL3.SDL_Scancode -> Bool
+justPressed keys scancode = case Map.lookup scancode keys.physical of
   Just JustPressed -> True
   _ -> False
 
 -- | Check if a key has been released this frame.
-justReleased :: SDL3.SDL_Scancode -> Keys -> Bool
-justReleased scancode keys = case Map.lookup scancode keys.physical of
+justReleased :: Keys -> SDL3.SDL_Scancode -> Bool
+justReleased keys scancode = case Map.lookup scancode keys.physical of
   Just JustReleased -> True
   _ -> False
 
@@ -194,7 +192,7 @@ data KeyState = Pressed | JustPressed | Released | JustReleased
   deriving (Show, Eq)
 
 -- | Plugin which keeps track of key inputs and updates the 'Keys' resource.
-data KeysPlugin = KeysPlugin deriving (Eq)
+data KeysPlugin
 
 instance Plugin KeysPlugin where
   init = do

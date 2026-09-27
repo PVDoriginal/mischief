@@ -51,58 +51,14 @@ data SpritePlugin
 
 instance Plugin SpritePlugin where
   init = do
-    systems renderSprites'
+    systems renderSprites
       & schedule @RenderUpdate
   deps = [dep @ImageUploadingPlugin]
 
 newtype SpriteBuffer = SpriteBuffer (Buffer SpriteData) deriving anyclass (Component)
 
 renderSprites :: System ()
-renderSprites = do
-  adapter <- res @RenderAdapter
-  device <- res @RenderDevice
-  queue <- res @RenderQueue
-  let resources = (,,) <$> adapter <*> device <*> queue
-
-  for_ resources $ \(_, device, queue) -> do
-    cameras <- query [q|CameraTexture, CameraMatrices|]
-    sprites <- query [q|Entity, Sprite, Transform, Maybe SpriteSlice, SpriteFlip, Maybe SpriteBuffer|]
-    for_ cameras $ \(CameraTexture texture, CameraMatrices buf) -> do
-      commands <- for sprites $ \(sprite, Sprite {image}, spriteT, slice', SpriteFlip {x = flipX, y = flipY}, buffer) -> do
-        image <- single [q|image. ImageTexture, ImageTextureView|]
-        for image $ \(ImageTexture Texture {desc}, ImageTextureView imageView) -> do
-          buffer <- case buffer of
-            Just (SpriteBuffer b) -> pure b
-            Nothing -> do
-              buffer <- createBuffer @SpriteData device
-              insert (SpriteBuffer buffer) sprite
-              pure buffer
-
-          let size = case slice' of
-                Just SpriteSlice {size = V2 x y} -> V2 (fromIntegral x) (fromIntegral y)
-                Nothing -> V2 (fromIntegral desc.width) (fromIntegral desc.height)
-
-          let slice = case slice' of
-                Just SpriteSlice {start, size} ->
-                  V4
-                    (fromIntegral start.x / fromIntegral desc.width)
-                    (fromIntegral start.y / fromIntegral desc.height)
-                    (fromIntegral size.x / fromIntegral desc.width)
-                    (fromIntegral size.y / fromIntegral desc.height)
-                Nothing -> V4 0 0 1 1
-
-          let calcFlip x = if x then 1 else 0
-          let flip = V2 (calcFlip flipX) (calcFlip flipY)
-
-          uploadBuffer queue buffer (SpriteData {coords = spriteT.translation, size, slice, flip})
-          sampler <- newSampler device
-          pure $ Draw Bindings {matrices = buf, sprite = buffer, sampler, texture = imageView} 6
-
-      let material = Material {vertex, fragment, format = TextureFormat wGPUTextureFormat_RGBA8Unorm}
-      render device queue material texture (catMaybes commands)
-
-renderSprites' :: System ()
-renderSprites' = query_ qrenderSprites
+renderSprites = query_ qrenderSprites
 
 qrenderSprites :: Query System ()
 qrenderSprites = do
@@ -154,8 +110,7 @@ data Bindings f = Bindings
     texture :: Binding f 2 Texture,
     sampler :: Binding f 3 Sampler
   }
-  deriving stock (Generic)
-  deriving anyclass (Bindable)
+  deriving (Generic, Bindable)
 
 data SpriteData f = SpriteData
   { coords :: Field f Vec3f,
@@ -181,11 +136,11 @@ vertex b (BIn index) = do
         uv = uvs `at` index
       }
 
-fragment :: Bindings GPU -> VertexOutput GPU -> Shader (Loc 0 Vec4f)
+fragment :: Bindings GPU -> VertexOutput GPU -> Shader Vec4f
 fragment b VertexOutput {uv} = do
   color <- sampleSprite b uv
   -- color <- outline b color uv Outline {color = vec4 (1, 0, 0, 1), thickness = 0.03}
-  pure $ Loc color
+  pure color
 
 data Outline = Outline {color :: Vec4f, thickness :: F32}
 

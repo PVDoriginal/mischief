@@ -1,57 +1,25 @@
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-import Codec.Picture qualified as P
-import Codec.Picture.Extra (scaleBilinear)
-import Control.Concurrent
-import Control.Monad (forever, unless, void, when)
+import Control.Monad (void, when)
 import Control.Monad.IO.Class
-import Data.ByteString qualified as BS
-import Data.Data (Proxy (..))
 import Data.Default
 import Data.Foldable
 import Data.IORef
-import Data.Vector qualified as V
-import Data.Vector.Storable qualified as VS
-import Data.Word
-import Foreign (Bits ((.|.)), Ptr, Storable (alignment, peek, poke, sizeOf), alloca, allocaBytes, castPtr, free, malloc, mallocBytes, nullPtr, with)
-import Foreign.C
-import Foreign.C.ConstPtr
-import GHC.Generics
 import Mischief.Assets (AssetSource (..), Image (..), load)
 import Mischief.ECS
-import Mischief.ECS.Prelude
-import Mischief.ECS.Systems qualified as S
 import Mischief.ECS.Time qualified as Time
-import Mischief.ECS.Timer (Timer)
 import Mischief.ECS.Timer qualified as Timer
-import Mischief.Input (InputPlugin (InputPlugin))
+import Mischief.Input (InputPlugin)
 import Mischief.Input.Keys (Keys)
 import Mischief.Input.Keys qualified as Keys
 import Mischief.Math
 import Mischief.Math.Transform (Transform (..))
 import Mischief.Math.Transform qualified as Transform
 import Mischief.Render.Camera
-import Mischief.Render.Core
-import Mischief.Render.Image (QueueUpload (QueueUpload))
 import Mischief.Render.Plugin
-import Mischief.Render.Shader.Buffers
-import Mischief.Render.Shader.Types hiding (Vec2)
 import Mischief.Render.Sprite
-import Mischief.Render.Texture
 import Mischief.SDL.Window
-import Mischief.WGPU
-import Mischief.WGPU.Callbacks
-import Mischief.WGPU.Framework
-import Mischief.WGPU.Opaque
-import Mischief.WGPU.Types.Enums
-import Mischief.WGPU.Types.General
-import SDL3.Sys (getWindowSize)
-import SDL3.Sys qualified as SDL3
-import SDL3.Sys.Bindgen.Video.FunPtr (sDL_GetWindowSize)
-import System.Environment (setEnv)
-import System.Exit (exitSuccess)
-import System.IO (hFlush, stdout)
 
 main :: IO ()
 main = do
@@ -102,16 +70,16 @@ moveSprite = do
 
     dir <- liftIO $ newIORef (V2 0 0)
 
-    when (Keys.pressed Keys.A keys) $ do
+    when (Keys.pressed keys Keys.A) $ do
       liftIO $ modifyIORef' dir (+ V2 (-1) 0)
 
-    when (Keys.pressed Keys.D keys) $ do
+    when (Keys.pressed keys Keys.D) $ do
       liftIO $ modifyIORef' dir (+ V2 1 0)
 
-    when (Keys.pressed Keys.S keys) $ do
+    when (Keys.pressed keys Keys.S) $ do
       liftIO $ modifyIORef' dir (+ V2 0 (-1))
 
-    when (Keys.pressed Keys.W keys) $ do
+    when (Keys.pressed keys Keys.W) $ do
       liftIO $ modifyIORef' dir (+ V2 0 1)
 
     dir <- liftIO $ (^* (delta * speed)) . normalize <$> readIORef dir
