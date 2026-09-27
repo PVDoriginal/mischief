@@ -69,7 +69,7 @@ module Mischief.ECS.Tutorial.Introduction.Dungeon
     -- * Next Steps
     -- $next
 
-    -- * [Next Chapter: Common Patterns]("Mischief.ECS.Tutorial.Patterns")
+    -- * [Next Chapter: Organizing your Project]("Mischief.ECS.Tutorial.Guides.Organizing")
   )
 where
 

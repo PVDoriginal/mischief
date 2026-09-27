@@ -210,7 +210,6 @@ import Mischief.ECS.World.Utils
 --
 --     * 3.1 [App and Plugins]("Mischief.ECS.Tutorial.Documentation.App")
 --     * 3.2 [Components]("Mischief.ECS.Tutorial.Documentation.Components")
---     * 3.3 [Relationships]("Mischief.ECS.Tutorial.Documentation.Relationships")
---     * 3.4 [Queries]("Mischief.ECS.Tutorial.Documentation.Queries")
---     * 3.5 [Systems]("Mischief.ECS.Tutorial.Documentation.Systems")
---     * 3.6 [Events and Messages]("Mischief.ECS.Tutorial.Documentation.Events")
+--     * 3.3 [Queries]("Mischief.ECS.Tutorial.Documentation.Queries")
+--     * 3.4 [Systems]("Mischief.ECS.Tutorial.Documentation.Systems")
+--     * 3.5 [Events and Messages]("Mischief.ECS.Tutorial.Documentation.Events")

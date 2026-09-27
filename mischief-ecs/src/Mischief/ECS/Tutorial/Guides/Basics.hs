@@ -25,6 +25,12 @@ module Mischief.ECS.Tutorial.Guides.Basics
     -- * Metadata
     -- $metadata
 
+    -- * Resources
+    -- $resources
+
+    -- * From
+    -- $from
+
     -- * Registering Components
     -- $reg
 
@@ -132,6 +138,112 @@ import Mischief.ECS
 --
 -- When inserting @Player@ on an entity, @Health 100@ will be immediately inserted as well, as long as the @Health@ component
 -- wasn't already inserted.
+
+-- $resources
+-- @Resources@ are singleton components that can be easily accessed and modified from any system.
+--
+-- Any component can be used as a resource.
+--
+-- @
+-- data MyRes = MyRes 'Int' deriving ('Component')
+-- @
+--
+-- You can insert a resource into the World using @insertRes@.
+--
+-- @
+-- 'insertRes' $ MyRes 5
+-- @
+--
+-- And you can query for the value of a resource using @res@:
+--
+-- @
+-- 'Just' myRes <- 'res' \@MyRes
+-- @
+--
+-- Resources are implemented by inserting a component's value on its own meta entity. Which means:
+--
+-- @
+-- 'res' \@MyRes
+-- @
+--
+-- Is equivalent to:
+--
+-- @
+-- m <- 'meta' \@MyRes
+-- 'single' $ [q|m. MyRes|]
+-- @
+--
+-- Besides using @insertRes@, resources can be inserted as part of a bundle through the @Res@ type.
+--
+-- The following will spawn an entity, insert a @Name@ on it, and additionally insert a resource into the world.
+--
+-- @
+-- a <- 'spawn' ()
+-- 'insert' (Name "A", 'Res' $ SomeRes 5) a
+-- @
+--
+-- It's equivalent to:
+--
+-- @
+-- a <- 'spawn' ()
+-- 'insert' (Name \"A\") a
+-- 'insertRes' (SomeRes 5)
+-- @
+--
+-- @Res@ can also be used in queries to grab a resource:
+--
+-- @
+-- 'mkQuery' ('C' \@Name, 'Res' \@SomeRes)
+-- @
+--
+-- Or
+--
+-- @
+-- ['q'|Name, Res SomeRes|]
+-- @
+--
+-- This will query the name of all entities, and attach @Res SomeRes@ to all of them.
+
+-- $from
+-- From is a special type in Mischief:
+--
+-- @
+-- data From c = From {entity :: 'Entity', comp :: c}
+-- @
+--
+-- It symbolizes the idea of a foreign component. A component belonging to an external entity that we store alongside it.
+--
+-- From can be inserted in any bundle, inserting the component @c@ on the entity stored /inside/ it. For instance, the following code
+-- will insert the name \"B2\" on @b@ and the name \"A2\" on @a@:
+--
+-- @
+-- a \<- 'spawn' (Name \"A\")
+-- b \<- 'spawn' (Name \"B\")
+--
+-- 'insert' (Name \"B2\", 'From' a (Name \"A2\")) b
+-- @
+--
+-- Equivalent to:
+--
+-- @
+-- a \<- 'spawn' (Name \"A\")
+-- b \<- 'spawn' (Name \"B\")
+--
+-- 'insert' (Name \"B2\") b
+-- 'insert' (Name \"A2\") a
+-- @
+--
+-- From is generally returned from traversal queries such as:
+--
+-- @
+-- x \<- 'query' ['q'|Name, ChildOf -\> (Name)|]
+-- @
+--
+-- @
+-- x :: [Name, From Name]
+-- @
+--
+-- Where @Name@ will be the name of each entity and @From Name@ will be the name of their parent.
 
 -- $metadata
 -- Each component has a corresponding entity in the World.

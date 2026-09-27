@@ -235,10 +235,10 @@ import Mischief.ECS
 --
 -- @
 -- 'query_' $ do
---   (player, Health hp) <- [q|Entity, Health|]
+--   (player, Health hp) <- ['q'|Entity, Health|]
 --
 --   if hp == 0 then do
---     qpure player & qdespawn
+--     'qpure' player & 'qdespawn'
 --   else do
---     qpure player & qinsert (\_ -> Health $ hp - 1)
+--     'qpure' player & 'qinsert' (\\_ -> Health $ hp - 1)
 -- @

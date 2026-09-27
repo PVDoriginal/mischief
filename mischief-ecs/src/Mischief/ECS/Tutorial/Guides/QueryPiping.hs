@@ -25,7 +25,7 @@ module Mischief.ECS.Tutorial.Guides.QueryPiping
     -- * Making Your Own Pipes!
     -- $custom
 
-    -- * [Next Chapter: Query Traversals]("Mischief.ECS.Tutorial.Guides.QueryTraversals")
+    -- * [Next Chapter: Monadic Queries]("Mischief.ECS.Tutorial.Guides.MonadicQueries")
   )
 where
 

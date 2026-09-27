@@ -7,8 +7,7 @@
 --
 -- [Main Page]("Mischief.ECS")
 module Mischief.ECS.Tutorial.Documentation.App
-  ( -- * Learn You an ECS for Great Mischief! - 3.1. (Doc) App and Plugins
-    -- $intro
+  ( -- * Learn You an ECS for Great Mischief! - 3.1. (Docs) App and Plugins
 
     -- * The App
     -- $app
@@ -22,10 +21,6 @@ where
 
 import Control.Monad.Reader
 import Mischief.ECS
-
--- $intro
--- The @'App'@ is a thin wrapper around the @'World'@ that works as an interface for plugging in
--- various behavior and features in modular fashion, via @Plugins@.
 
 -- $app
 -- Functions for creating and interacting with the App:
@@ -66,4 +61,7 @@ import Mischief.ECS
 --   deps = ['dep' \@PlayerPlugin, 'dep' \@EnemyPlugin]
 -- @
 --
--- @init@ is a system ran after all the dependencies' (@deps@) inits have been ran.
+-- @dep@ turns any Plugin into a dependency.
+--
+-- When a plugin is added via @addPlugin@, it will add and run the inits of all its dependenices, if they weren't already added, and
+-- then run its own init.

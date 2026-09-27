@@ -101,7 +101,6 @@ library
     Mischief.ECS.Tutorial.Documentation.Components
     Mischief.ECS.Tutorial.Documentation.Events
     Mischief.ECS.Tutorial.Documentation.Queries
-    Mischief.ECS.Tutorial.Documentation.Relationships
     Mischief.ECS.Tutorial.Documentation.Systems
     Mischief.ECS.Tutorial.Guides.Basics
     Mischief.ECS.Tutorial.Guides.Change
